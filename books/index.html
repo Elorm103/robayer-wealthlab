@@ -1,0 +1,285 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+
+  <title>Financial eBooks for Ghana | Robayer WealthLab</title>
+  <meta name="description" content="Practical eBooks on saving, investing, and building wealth in Ghana — starting with Starting to Invest with GH₵100. Honest guidance, no hype, from GH₵39.">
+  <link rel="canonical" href="https://robayerwealthlab.com/books/">
+
+  <meta property="og:type" content="website">
+  <meta property="og:title" content="Financial eBooks for Ghana | Robayer WealthLab">
+  <meta property="og:description" content="Practical eBooks on saving, investing, and building wealth in Ghana — starting with Starting to Invest with GH₵100. Honest guidance, no hype, from GH₵39.">
+  <meta property="og:url" content="https://robayerwealthlab.com/books/">
+  <meta property="og:image" content="https://robayerwealthlab.com/assets/images/og-default.jpg">
+  <meta property="og:site_name" content="Robayer WealthLab">
+
+  <meta name="twitter:card" content="summary_large_image">
+  <meta name="twitter:title" content="Financial eBooks for Ghana | Robayer WealthLab">
+  <meta name="twitter:description" content="Practical eBooks on saving, investing, and building wealth in Ghana — honest guidance, no hype, from GH₵39.">
+
+  <link rel="icon" type="image/svg+xml" href="/assets/icons/favicon.svg">
+  <link rel="icon" type="image/png" sizes="32x32" href="/assets/icons/favicon-32.png">
+  <link rel="apple-touch-icon" href="/assets/icons/apple-touch-icon.png">
+
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Fraunces:ital,wght@0,500;0,600;1,500&family=Space+Grotesk:wght@500&family=Work+Sans:wght@400;500&family=IBM+Plex+Mono:wght@400;500&display=swap" rel="stylesheet">
+
+  <link rel="stylesheet" href="/css/tokens.css">
+  <link rel="stylesheet" href="/css/base.css">
+  <link rel="stylesheet" href="/css/layout.css">
+  <link rel="stylesheet" href="/css/components.css">
+  <link rel="stylesheet" href="/css/utilities.css">
+
+  <script type="application/ld+json">
+  {
+    "@context": "https://schema.org",
+    "@type": "Organization",
+    "name": "Robayer WealthLab",
+    "url": "https://robayerwealthlab.com",
+    "logo": "https://robayerwealthlab.com/assets/images/logo/logo.svg",
+    "description": "Financial education for ordinary Ghanaians — practical, honest guidance on saving, investing, and building wealth.",
+    "founder": {
+      "@type": "Person",
+      "name": "Robert Loh Kobla"
+    }
+  }
+  </script>
+
+  <script type="application/ld+json">
+  {
+    "@context": "https://schema.org",
+    "@type": "FAQPage",
+    "mainEntity": [
+      {
+        "@type": "Question",
+        "name": "How do I get a guide?",
+        "acceptedAnswer": {
+          "@type": "Answer",
+          "text": "Tap \"Get the guide\" on any book, complete the simple checkout, and you'll get digital access right away — no shipping, no waiting."
+        }
+      },
+      {
+        "@type": "Question",
+        "name": "How much do the guides cost?",
+        "acceptedAnswer": {
+          "@type": "Answer",
+          "text": "Most guides are GH₵39. A number of free templates, calculators, and articles are also available on the Resources page."
+        }
+      },
+      {
+        "@type": "Question",
+        "name": "Is this financial advice?",
+        "acceptedAnswer": {
+          "@type": "Answer",
+          "text": "No. Robayer WealthLab provides financial education, not licensed financial advice — always do your own research before making investment decisions."
+        }
+      },
+      {
+        "@type": "Question",
+        "name": "Can I read guides on my phone?",
+        "acceptedAnswer": {
+          "@type": "Answer",
+          "text": "Yes. Every guide is designed to be read comfortably on mobile, since that's how most readers use the site."
+        }
+      },
+      {
+        "@type": "Question",
+        "name": "When will new guides be added?",
+        "acceptedAnswer": {
+          "@type": "Answer",
+          "text": "Regularly. Subscribe to the newsletter below to be the first to know when a new one is ready."
+        }
+      }
+    ]
+  }
+  </script>
+</head>
+<body>
+  <a href="#main-content" class="skip-link">Skip to main content</a>
+
+  <div data-include="/partials/header.html"></div>
+
+  <main id="main-content">
+
+    <!-- ============================================================
+         HERO
+         ============================================================ -->
+    <section class="hero bg-paper">
+      <div class="container hero__content">
+        <span class="eyebrow hero__eyebrow">Books</span>
+        <h1 class="hero__title">Guides for wherever you're starting</h1>
+        <p class="hero__subtitle">Practical, honest eBooks on saving, investing, and building wealth — start with the one that matches where you are.</p>
+        <div class="hero__actions">
+          <a href="#book-grid" class="btn btn--primary">Browse guides</a>
+          <a href="/newsletter/" class="btn btn--secondary">Get notified about new guides</a>
+        </div>
+      </div>
+    </section>
+
+    <!-- ============================================================
+         FEATURED EBOOK
+         Reuses the .feature-banner component (introduced Sprint 1.5).
+         ============================================================ -->
+    <section class="section bg-charcoal" aria-labelledby="featured-book-heading">
+      <div class="container feature-banner">
+        <div class="book-card__cover book-card__cover--compact" aria-hidden="true"></div>
+        <div>
+          <span class="eyebrow feature-banner__eyebrow">Featured eBook</span>
+          <h2 id="featured-book-heading" class="mt-2 mb-2 feature-banner__title">Starting to Invest with GH₵100</h2>
+          <p class="mb-4 feature-banner__copy">A practical first guide to treasury bills, mobile money savings, and the Ghana Stock Exchange.</p>
+          <a href="/books/starting-to-invest-with-gh100/" class="btn btn--accent">Get the guide — GH₵39</a>
+        </div>
+      </div>
+    </section>
+
+    <!-- ============================================================
+         BOOK GRID + CATEGORY FILTERS
+         Grid uses the shared .grid--3 system (3 → 2 → 1) so it scales
+         to any number of future books with no layout changes.
+         ============================================================ -->
+    <section class="section" id="book-grid" aria-labelledby="all-books-heading">
+      <div class="container">
+        <span class="eyebrow">The library</span>
+        <h2 id="all-books-heading" class="mt-2 mb-4">All guides</h2>
+
+        <div class="cluster gap-3 mb-5">
+          <span id="filter-label" class="text-secondary text-small">Filter by topic:</span>
+          <div class="filter-bar" role="group" aria-labelledby="filter-label" data-book-filters>
+            <button type="button" class="filter-pill" data-filter="all" aria-pressed="true">All</button>
+            <button type="button" class="filter-pill" data-filter="saving" aria-pressed="false">Saving</button>
+            <button type="button" class="filter-pill" data-filter="investing" aria-pressed="false">Investing</button>
+            <button type="button" class="filter-pill" data-filter="entrepreneurship" aria-pressed="false">Entrepreneurship</button>
+          </div>
+        </div>
+
+        <p class="alert alert--info hidden" data-filter-empty aria-live="polite">No guides in this category yet — <a href="/newsletter/">subscribe</a> to hear when one arrives.</p>
+
+        <div class="grid grid--3" data-book-grid>
+          <div class="book-card book-card--featured" data-category="investing">
+            <div class="book-card__cover"></div>
+            <p class="book-card__title">Starting to Invest with GH₵100</p>
+            <p class="book-card__price">GH₵39</p>
+            <p class="book-card__description">A practical first guide to treasury bills, mobile money savings, and the Ghana Stock Exchange.</p>
+            <a href="/books/starting-to-invest-with-gh100/" class="btn btn--primary">Get the guide</a>
+          </div>
+          <div class="book-card" data-category="saving">
+            <div class="book-card__cover book-card__cover--green"></div>
+            <p class="book-card__title">The MoMo Savings Playbook</p>
+            <p class="book-card__price">GH₵39</p>
+            <p class="book-card__description">Turn mobile money into a real savings habit.</p>
+            <a href="/books/momo-savings-playbook/" class="btn btn--secondary">Get the guide</a>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- ============================================================
+         COMING SOON
+         Reuses .content-column, .badge, .btn — no new components.
+         ============================================================ -->
+    <section class="section bg-paper" aria-labelledby="coming-soon-heading">
+      <div class="container">
+        <div class="content-column text-center">
+          <span class="eyebrow text-center">More on the way</span>
+          <h2 id="coming-soon-heading" class="mt-2 mb-3">New guides are in the works</h2>
+          <p class="mb-4 text-secondary">We're building out the library one honest guide at a time. Here's what's brewing next:</p>
+          <div class="cluster cluster--center gap-2 mb-5">
+            <span class="badge badge--info">Entrepreneurship</span>
+            <span class="badge badge--info">Retirement basics</span>
+          </div>
+          <a href="/newsletter/" class="btn btn--secondary">Get notified about new guides</a>
+        </div>
+      </div>
+    </section>
+
+    <!-- ============================================================
+         FAQ
+         Native <details>/<summary> accordion — accessible with no JS.
+         ============================================================ -->
+    <section class="section" aria-labelledby="faq-heading">
+      <div class="container content-column">
+        <span class="eyebrow text-center">Questions</span>
+        <h2 id="faq-heading" class="mt-2 mb-5 text-center">Frequently asked questions</h2>
+
+        <div class="faq">
+          <details class="faq__item">
+            <summary class="faq__question">
+              How do I get a guide?
+              <span class="faq__icon" aria-hidden="true"></span>
+            </summary>
+            <p class="faq__answer">Tap "Get the guide" on any book, complete the simple checkout, and you'll get digital access right away — no shipping, no waiting.</p>
+          </details>
+          <details class="faq__item">
+            <summary class="faq__question">
+              How much do the guides cost?
+              <span class="faq__icon" aria-hidden="true"></span>
+            </summary>
+            <p class="faq__answer">Most guides are GH₵39. A number of free templates, calculators, and articles are also available on the Resources page.</p>
+          </details>
+          <details class="faq__item">
+            <summary class="faq__question">
+              Is this financial advice?
+              <span class="faq__icon" aria-hidden="true"></span>
+            </summary>
+            <p class="faq__answer">No. Robayer WealthLab provides financial education, not licensed financial advice — always do your own research before making investment decisions.</p>
+          </details>
+          <details class="faq__item">
+            <summary class="faq__question">
+              Can I read guides on my phone?
+              <span class="faq__icon" aria-hidden="true"></span>
+            </summary>
+            <p class="faq__answer">Yes. Every guide is designed to be read comfortably on mobile, since that's how most readers use the site.</p>
+          </details>
+          <details class="faq__item">
+            <summary class="faq__question">
+              When will new guides be added?
+              <span class="faq__icon" aria-hidden="true"></span>
+            </summary>
+            <p class="faq__answer">Regularly. Subscribe to the newsletter below to be the first to know when a new one is ready.</p>
+          </details>
+        </div>
+      </div>
+    </section>
+
+    <!-- ============================================================
+         NEWSLETTER SIGNUP
+         Reuses .newsletter-band exactly as on Home.
+         ============================================================ -->
+    <section class="section section--tight">
+      <div class="container">
+        <div class="newsletter-band">
+          <div>
+            <h2 class="mb-2">Get one better money tip</h2>
+            <p>Weekly, free, no spam. Unsubscribe any time.</p>
+          </div>
+
+          <form class="cluster gap-2" data-newsletter-form novalidate aria-label="Newsletter signup">
+            <label for="newsletter-email" class="sr-only">Email address</label>
+            <input
+              type="email"
+              id="newsletter-email"
+              class="field__input newsletter-band__input"
+              placeholder="name@example.com"
+              required
+            >
+            <button type="submit" class="btn btn--accent">Subscribe</button>
+            <span class="field__error" hidden>Enter a valid email to subscribe.</span>
+          </form>
+        </div>
+      </div>
+    </section>
+
+  </main>
+
+  <div data-include="/partials/footer.html"></div>
+
+  <script src="/js/includes.js"></script>
+  <script src="/js/components/nav.js"></script>
+  <script src="/js/components/newsletter-form.js"></script>
+  <script src="/js/components/book-filters.js"></script>
+  <script src="/js/main.js"></script>
+</body>
+</html>

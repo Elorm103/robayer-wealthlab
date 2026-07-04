@@ -806,3 +806,107 @@ a.resource-card {
   color: var(--color-light-sand);
   max-width: 420px;
 }
+
+/* ============================================================
+   FILTER BAR (category pills — Books page now, reusable for any
+   future page that needs client-side category filtering, e.g. Blog)
+   ============================================================ */
+.filter-bar {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-2);
+}
+
+.filter-pill {
+  display: inline-flex;
+  align-items: center;
+  min-height: 44px;
+  padding: var(--space-2) var(--space-4);
+  border-radius: 999px;
+  border: 1px solid var(--color-border-strong);
+  background-color: var(--color-surface);
+  color: var(--color-text-primary);
+  font-family: var(--font-heading);
+  font-weight: var(--weight-medium);
+  font-size: var(--text-small);
+  transition: background-color var(--duration-base) var(--ease-standard),
+              color var(--duration-base) var(--ease-standard),
+              border-color var(--duration-base) var(--ease-standard);
+}
+
+.filter-pill:hover {
+  border-color: var(--color-accent);
+  color: var(--color-accent);
+}
+
+.filter-pill[aria-pressed="true"] {
+  background-color: var(--color-accent);
+  border-color: var(--color-accent);
+  color: var(--color-white);
+}
+
+/* ============================================================
+   FAQ (accordion via native <details>/<summary> — keyboard operable
+   and exposes expanded state to assistive tech with no ARIA needed)
+   ============================================================ */
+.faq__item {
+  border-bottom: 0.5px solid var(--color-border);
+}
+
+.faq__item:first-child {
+  border-top: 0.5px solid var(--color-border);
+}
+
+.faq__question {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-3);
+  min-height: 44px;
+  padding-block: var(--space-4);
+  font-family: var(--font-heading);
+  font-weight: var(--weight-medium);
+  font-size: var(--text-body);
+  color: var(--color-text-heading);
+  cursor: pointer;
+  list-style: none;
+}
+
+.faq__question::-webkit-details-marker {
+  display: none;
+}
+
+.faq__icon {
+  position: relative;
+  flex-shrink: 0;
+  width: 20px;
+  height: 20px;
+}
+
+.faq__icon::before,
+.faq__icon::after {
+  content: "";
+  position: absolute;
+  top: 9px;
+  left: 2px;
+  width: 16px;
+  height: 2px;
+  border-radius: 1px;
+  background-color: var(--color-accent);
+}
+
+.faq__icon::after {
+  transform: rotate(90deg);
+  transition: opacity var(--duration-base) var(--ease-standard);
+}
+
+.faq__item[open] .faq__icon::after {
+  opacity: 0;
+}
+
+.faq__answer {
+  max-width: 65ch;
+  padding-bottom: var(--space-4);
+  color: var(--color-text-secondary);
+  font-size: var(--text-small);
+}

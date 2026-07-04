@@ -6,6 +6,84 @@ grouped by development phase/sprint instead of version number.
 
 ## [Unreleased]
 
+### Sprint 2 — Books page — 2026-07-04
+
+First real content page beyond Home: `books/index.html`, serving the
+clean URL `/books/`. Built entirely from the existing architecture —
+no new page-level styles, all markup composed from tokens/base/layout/
+components/utilities in the established load order.
+
+**Added**
+- `books/index.html` — Hero, featured-eBook spotlight, filterable book
+  grid, "Coming soon" teaser, FAQ, newsletter CTA, shared footer.
+- `js/components/book-filters.js` — category-pill filtering for the
+  book grid, self-initializing on `DOMContentLoaded` like the other
+  page-level component scripts. Reads `[data-category]` off whatever
+  book-cards exist in the grid, so adding the 3rd, 10th, or 50th book
+  needs no changes to this file.
+- `css/components.css`: `.filter-bar` / `.filter-pill` (category
+  filter pills, reusable for Blog/Resources later) and `.faq`/
+  `.faq__item`/`.faq__question`/`.faq__icon`/`.faq__answer` (accordion
+  built on native `<details>/<summary>` — keyboard-operable and
+  exposes expanded state to assistive tech with no ARIA needed).
+- `FAQPage` JSON-LD added alongside the existing Organization schema,
+  per the README's Phase 1 SEO requirement to add per-page Article/FAQ
+  structured data as content pages are built.
+- `<lastmod>2026-07-04</lastmod>` added to the `/books/` entry in
+  `sitemap.xml` now that the page is real.
+
+**Reused, not duplicated**
+- `.hero` / `.hero__content` (Home's centered hero pattern)
+- `.feature-banner` (built in Sprint 1.5 for exactly this) for the
+  featured-eBook spotlight
+- `.book-card` / `.book-card--featured` / `.book-card__cover--green`
+  for the grid — same two books already established in
+  `components.html`'s style-guide demo (Starting to Invest with
+  GH₵100; The MoMo Savings Playbook)
+- `.grid.grid--3`, `.content-column`, `.badge`, `.btn`, `.eyebrow`,
+  `.newsletter-band` (+ `newsletter-form.js`) — no new one-off markup
+  patterns introduced for any of these
+
+**Accessibility**
+- Filter pills are real `<button>`s in a `role="group"` labelled by a
+  visible "Filter by topic:" text (not just an `aria-label`), each
+  toggling `aria-pressed`; keyboard- and screen-reader-operable with
+  no custom ARIA widget code.
+- The empty-filter-result message uses `aria-live="polite"` so screen
+  reader users hear it when a category has no guides yet.
+- FAQ accordion uses native `<details>/<summary>` rather than a custom
+  JS disclosure, so expand/collapse, keyboard operation, and state
+  exposure are all handled by the browser.
+- Verified 44px-minimum touch targets on filter pills and FAQ summaries,
+  visible focus states via the existing global `:focus-visible` rule,
+  and correct heading hierarchy (single H1 in the hero, H2 per section).
+
+**Fixed a bug before it shipped**
+- The filter/empty-state show-hide logic deliberately toggles the
+  `.hidden` utility class rather than the native `hidden` attribute.
+  `.book-card` and `.alert` both set `display` in `components.css`,
+  which — same as the pre-existing `.field__error` bug flagged in
+  Sprint 1.5 — would silently override a bare `[hidden]` attribute.
+  Toggling `.hidden` instead works correctly because `utilities.css`
+  loads after `components.css`, so it wins the cascade tie. Verified
+  interactively (see verification notes below).
+
+**Verified**
+- Local static-server pass across desktop, tablet (768px), and mobile
+  (375px): hero, featured banner, grid (3→2→1 collapse), filter pills,
+  FAQ accordion, newsletter band, and footer all render correctly with
+  no layout breakage.
+- Filter interaction tested directly: clicking "Saving"/"Investing"/
+  "Entrepreneurship" correctly shows/hides the matching book-cards,
+  toggles `aria-pressed`, and the "no guides in this category yet"
+  message appears only when a category is genuinely empty
+  (Entrepreneurship, today).
+- No console errors, no failed network requests (all script/asset
+  references resolve, including the placeholder assets added in
+  Sprint 1.5).
+- Confirmed the Home and footer/nav links to `/books/` — previously
+  dead links, flagged in the original project audit — now resolve.
+
 ### Sprint 1.5 — Technical cleanup — 2026-07-04
 
 Housekeeping pass ahead of Sprint 2 (Books page). No design or
