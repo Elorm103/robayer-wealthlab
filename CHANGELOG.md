@@ -6,6 +6,54 @@ grouped by development phase/sprint instead of version number.
 
 ## [Unreleased]
 
+### Sprint 10.6 — Launch Readiness Fixes — 2026-07-04
+
+Three targeted fixes from the Sprint 10.5 Production Readiness Audit,
+no new pages, no visual regressions.
+
+**Fixed**
+- The newsletter form's validation-error message was visible on every
+  page by default, before any interaction — confirmed via computed
+  style during the Sprint 10.5 audit (`hidden` attribute present,
+  computed `display: flex`, genuinely visible to the user). Root
+  cause: `.field__error { display: flex; }` in `components.css` always
+  wins over the native `[hidden]` behavior, since author-stylesheet
+  rules beat the UA stylesheet regardless of specificity. Added
+  `.field__error[hidden] { display: none; }`, which has higher
+  specificity than the base rule and correctly restores the intended
+  hidden-until-invalid behavior. `newsletter-form.js` already toggled
+  the `hidden` property correctly on every page — only the missing CSS
+  override was ever the problem, so no JS changes were needed.
+  Confirmed `components.html`'s intentional error-state demo (which
+  has no `hidden` attribute at all) is unaffected and still displays
+  as designed.
+- `partials/footer.html`'s Community link read "Community (coming
+  soon)" since Phase 5.1, unchanged through Sprint 9 shipping it as a
+  real page. Now reads "Community" — fixed once, in the shared
+  partial, so it's corrected on all 10 pages simultaneously.
+- `README.md`'s sprint table, last updated in Sprint 6.5, now includes
+  Sprints 7–10.6, the folder structure diagram includes `about/`,
+  `contact/`, `community/`, and `newsletter/`, and the "Open items" /
+  "What comes next" sections reflect what the Sprint 10.5 audit
+  actually found still missing (three Legal pages, remaining Blog
+  articles, the second Book) rather than the now-resolved "About/
+  Contact/Community/Newsletter not built yet" framing.
+
+**Verified**
+- Computed-style check confirms the error message is hidden
+  (`display: none`) by default on Home, Books, and Newsletter; an
+  actual invalid submission (`not-an-email`) correctly reveals it with
+  the existing error-state border/focus styling; a subsequent valid
+  submission correctly replaces the form with the confirmation
+  message, exactly as before.
+- Footer "Community" text confirmed corrected on Home, Books, and
+  About via direct DOM inspection (proving the partial-based fix
+  propagated, not just the one file edited).
+- Mobile (375px) spot-check on About confirms no layout regression in
+  either the newsletter band or the footer.
+- Zero console errors, zero failed network requests, zero inline
+  styles, CSS brace-balanced.
+
 ### Sprint 10 — Newsletter Page — 2026-07-04
 
 `newsletter/index.html`, serving `/newsletter/` — the single

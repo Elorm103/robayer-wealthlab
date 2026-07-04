@@ -18,11 +18,18 @@ Phase 5.1, and real pages have been built sprint by sprint since:
 | 5 | Blog listing page (`/blog/`) with search + category filtering |
 | 6 | Blog Article template (`/blog/what-are-treasury-bills-in-ghana/`) |
 | 6.5 | Architecture refinement — accessibility, JS consolidation, documentation, design-token cleanup |
+| 7 | About page (`/about/`) |
+| 8 | Contact page (`/contact/`) |
+| 9 | Community page (`/community/`) |
+| 10 | Newsletter page (`/newsletter/`) |
+| 10.5 | Production Readiness Audit (read-only — no code changes) |
+| 10.6 | Launch readiness fixes — newsletter form validation-error bug, stale footer label, this table |
 
-Still to come: About, Newsletter, Contact, Community, and the three
-Legal pages are referenced throughout the site (nav, footer, sitemap)
-but not yet built — this is expected at this stage, not a bug.
-`CHANGELOG.md` has the full detail behind every sprint above.
+Still to come: the three Legal pages (Privacy Policy, Terms of Use,
+Disclaimer), the remaining Blog articles, and the second Book are
+referenced throughout the site (nav, footer, sitemap) but not yet
+built — this is expected at this stage, not a bug. `CHANGELOG.md` has
+the full detail behind every sprint above.
 
 ## Folder structure
 
@@ -61,6 +68,14 @@ robayer-wealthlab/
 │   └── what-are-treasury-bills-in-ghana/       Blog Article page (canonical template for future articles)
 ├── resources/
 │   └── index.html         Resources page
+├── about/
+│   └── index.html         About page
+├── contact/
+│   └── index.html         Contact page
+├── community/
+│   └── index.html         Community page
+├── newsletter/
+│   └── index.html         Newsletter page
 ├── components.html         Living style guide — every reusable component, shown in every state
 ├── robots.txt
 ├── sitemap.xml
@@ -162,15 +177,23 @@ Then visit `http://localhost:8000/` to see the Home page, or
       loading from Google Fonts, per the performance requirements in
       the Phase 1 PRD
 - [ ] Consider extracting the newsletter-band block (identical across
-      every page) into a partial once the remaining pages are built and
-      it's clear the duplication still matters at that scale
+      all 10 pages as of Sprint 10 — flagged again in the Sprint 10.5
+      audit) into a partial once the remaining pages are built and it's
+      clear the duplication still matters at that scale
+- [ ] Consider a consistent page-level JSON-LD type across About/Books/
+      Resources/Blog index (Community, Newsletter, and Contact each
+      have one; these four currently only have Organization + FAQPage)
+      — flagged in the Sprint 10.5 audit, not yet actioned
 
 ## What comes next
 
-Sprint 7 onward continues building the remaining content and utility
-pages (About, Newsletter, Contact, Community, Legal, additional Books/
-Blog entries) using this foundation exactly as-is — no new global
-styles or components should be introduced ad hoc at the page level; if
-a page needs something the design system doesn't yet provide, that's a
-signal to extend `components.css` (and update `components.html`), not
-to write a one-off style.
+The three Legal pages, the remaining Blog articles, and the second
+Book are the main content still missing (see the Sprint 10.5 audit in
+`CHANGELOG.md` for the full launch-readiness picture — pages already
+linked sitewide that don't exist yet are the main gap, not the
+architecture). Building any of them continues to use this foundation
+exactly as-is — no new global styles or components should be
+introduced ad hoc at the page level; if a page needs something the
+design system doesn't yet provide, that's a signal to extend
+`components.css` (and update `components.html`), not to write a
+one-off style.

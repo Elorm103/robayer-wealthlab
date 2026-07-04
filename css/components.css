@@ -392,6 +392,14 @@
   color: var(--color-error);
 }
 
+/* The [hidden] attribute alone loses to the display:flex rule above
+   (author stylesheet always beats the UA stylesheet, regardless of
+   specificity) — this override is what actually keeps the message
+   hidden until newsletter-form.js clears the hidden attribute. */
+.field__error[hidden] {
+  display: none;
+}
+
 .field__hint {
   font-size: 0.75rem;
   color: var(--color-text-secondary);
