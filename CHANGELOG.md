@@ -6,6 +6,129 @@ grouped by development phase/sprint instead of version number.
 
 ## [Unreleased]
 
+### Sprint 6.5 — Architecture Refinement — 2026-07-04
+
+A pure technical-improvement sprint following Architecture Review 2 —
+no new pages or user-facing features. Every item below was scoped,
+prioritized, and approved in the review before work began.
+
+**Priority 1 — Accessibility (critical)**
+- Fixed the `--color-text-secondary` WCAG AA contrast failure
+  identified in the review (computed ~2.76:1 on Warm Paper, ~2.98:1 on
+  white — both well under the 4.5:1 requirement for normal text).
+  Added a new `--color-slate` token (`#6B675E`) and repointed
+  `--color-text-secondary` to it — now ~5.2:1 on Warm Paper and ~5.6:1
+  on white, comfortably passing AA on both. `--color-stone-grey`
+  itself is unchanged (still used for `--color-border-strong` and the
+  disabled-button background, both non-text uses with no contrast
+  requirement to fix), so no border or disabled-state appearance
+  changed — only text got darker.
+- Found and fixed one place this token change wouldn't have reached
+  on its own: `.blog-card__meta` (article date + reading time)
+  referenced `--color-stone-grey` directly instead of through
+  `--color-text-secondary`. Repointed it, since it's unambiguously
+  secondary body text. Checked every other usage of both tokens across
+  `components.css` and confirmed no other text-color usage was missed.
+- Deliberately left `dev-showcase.css`'s `.showcase-label` (a
+  `components.html`-only caption label) on `--color-stone-grey` —
+  it's dev tooling, not real body text on a real page, so it's out of
+  the stated scope ("all normal body text").
+
+**Priority 2**
+- Consolidated `buy-button.js` into `placeholder-action.js` and
+  deleted the former, closing the duplication flagged (and left
+  unresolved) in both the Sprint 4 and Sprint 5 CHANGELOGs. The Book
+  Detail buy button now uses `data-placeholder-action` with an
+  explicit `data-message` reproducing the original wording exactly
+  ("Checkout is launching soon — subscribe to know the moment it
+  opens.") — verified byte-for-byte after the swap, not just visually.
+- Rewrote `README.md` to describe the project's actual current state:
+  a sprint-by-sprint table (5.1 through 6.5), the real folder structure
+  (`books/`, `blog/`, `resources/`, all `js/components/` files), what's
+  still unbuilt (About/Newsletter/Contact/Community/Legal), and an
+  accurate open-items list (production domain confirmed; placeholder
+  favicons already in place; final art and font self-hosting still
+  open). Removed every "Phase 5.2 onward" reference — that framing was
+  frozen at Phase 5.1 and hadn't been touched since, despite 6 shipped
+  sprints since then.
+- Brought `components.html` — the project's living style guide — back
+  in sync. It hadn't been updated since Phase 1 and was missing every
+  component introduced from Sprint 1.5 through Sprint 6. Added 8 new
+  numbered sections (20–27): Feature Banner, Pull Quote, Filter Bar,
+  Table of Contents, Check Items, Breadcrumbs, Article Body & Layout,
+  and Reading Progress Bar — plus the new color tokens (Slate, the four
+  semantic tints, the two hover-darken shades) added to the Color
+  Palette section, and a new Z-index Scale table appended to the
+  Spacing section.
+
+**Priority 3**
+- Moved the last 8 hardcoded hex values out of `components.css` and
+  `dev-showcase.css` into new `tokens.css` custom properties:
+  `--color-growth-green-dark` / `--color-sika-gold-dark` (button hover
+  states) and `--color-success-tint` / `--color-warning-tint` /
+  `--color-error-tint` / `--color-info-tint` (badge/alert backgrounds).
+  `grep` confirms zero hardcoded hex values remain outside
+  `tokens.css`.
+- Added a semantic z-index scale to `tokens.css` — `--z-sticky` (100),
+  `--z-overlay` (200), `--z-skip-link` (1000) — and wired the three
+  existing raw z-index values (`.site-header`, `.reading-progress`,
+  `.skip-link`) to them. Values are unchanged, so layering behavior is
+  identical; only future additions now have a scale to fit into
+  instead of picking another ad hoc number.
+- Added the missing `favicon-32.png` `<link>` to `index.html` (Home
+  was the one page, dating to Phase 5.1, that never had it).
+- Set `font-weight: var(--weight-medium)` explicitly on `.pull-quote`
+  and `.testimonial__quote` (the latter wasn't named in the sprint
+  brief but has the identical issue) — Fraunces only loads one italic
+  weight (500), and both components were rendering italic text at an
+  inherited weight the font set doesn't actually include.
+
+**Explicitly not done**
+- The newsletter-band partial extraction was intentionally deferred,
+  per instruction — the block is still duplicated verbatim across all
+  6 pages. Revisit once the remaining pages are built, if the
+  duplication still looks worth solving at that point.
+
+**Verified — full regression pass, not just the changed areas**
+- Contrast fix confirmed via computed style (`rgb(107, 103, 94)` =
+  `#6B675E`) on Home, and visually on every other page's card
+  descriptions, testimonial context, blog-card meta, and FAQ answers.
+- `buy-button.js` → `placeholder-action.js` swap confirmed via the
+  exact rendered message text on Book Detail, plus a network-tab check
+  that the deleted file produces no 404 anywhere.
+- Books' category filter and Resources' combined category+search
+  filter re-tested and still correct after the token/CSS changes (they
+  don't touch color, but this was a full regression pass, not a
+  targeted one).
+- Blog Article's reading-progress bar and TOC active-highlighting
+  re-verified at three distinct scroll positions (0%, ~45%, ~94%) with
+  the correct section active at each — this actually caught a
+  methodology bug in my own testing (see note below), not a site bug.
+- z-index values confirmed identical before/after tokenization via
+  computed style (100/200/1000).
+- `components.html`'s 8 new sections and updated color palette
+  rendered and visually checked one by one; confirmed the two new
+  demo-only classes needed for the Reading Progress Bar section
+  (`.showcase-progress-track`/`.showcase-progress-demo`, added to
+  `dev-showcase.css`) since the real `.reading-progress` component is
+  `position: fixed` and can't be shown in-flow.
+- Mobile (375px) spot-check on Blog Article (the most structurally
+  complex page) — layout intact, contrast fix legible, no regressions.
+- Zero console errors, zero failed network requests, zero inline
+  styles anywhere in production pages; `components.html`'s inline-style
+  count is 26, all pre-existing or newly-documented exceptions (unique
+  per-swatch/per-bar values), consistent with the rule established in
+  Sprint 1.5.
+
+**Testing note:** while re-verifying the reading-progress bar, I hit
+inconsistent readings that turned out to be caused by my own test
+methodology, not the site: `html { scroll-behavior: smooth }` (global,
+from `base.css`) makes `window.scrollTo()` animate asynchronously, so
+checking computed styles synchronously right after a scroll call read
+a stale, mid-animation position. Switching to
+`window.scrollTo({top, behavior: 'instant'})` in verification fixed it
+immediately and confirmed the underlying feature was never broken.
+
 ### Sprint 6 — Blog Article Template — 2026-07-04
 
 `blog/what-are-treasury-bills-in-ghana/index.html` — the first real

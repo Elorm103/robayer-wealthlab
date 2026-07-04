@@ -1,69 +1,110 @@
 # Robayer WealthLab — Website
 
-Phase 5.1 — Foundation. This is the scalable base every future page is
-built from. It contains no page content yet (Home, Books, Blog, etc.
-come in later Phase 5 sub-phases) — only the architecture, design
-tokens, global components, navigation, and accessibility/SEO groundwork
-that every page will share.
+Financial education for ordinary Ghanaians, built as a static site: no
+frameworks, no build step, per the approved Phase 1 technical stack.
+Deploys directly to GitHub Pages.
 
-Built with semantic HTML5, modern CSS (custom properties, `clamp()`,
-CSS Grid/Flexbox), and vanilla JavaScript only — no frameworks, no
-build step, per the approved Phase 1 technical stack. Deploys directly
-to GitHub Pages.
+**Current status:** Phase 5 is underway. The foundation (design tokens,
+global components, navigation, accessibility/SEO groundwork) shipped in
+Phase 5.1, and real pages have been built sprint by sprint since:
+
+| Sprint | Delivered |
+|---|---|
+| 5.1 | Foundation — tokens, base/layout/components/utilities CSS, header/footer partials, master page template, Home page, dev-only component showcase |
+| 1.5 | Cleanup pass — git init, placeholder production assets, inline-style removal, breadcrumbs documented |
+| 2 | Books listing page (`/books/`) |
+| 3 | Book Detail page (`/books/starting-to-invest-with-gh100/`) |
+| 4 | Resources page (`/resources/`) with search + category filtering |
+| 5 | Blog listing page (`/blog/`) with search + category filtering |
+| 6 | Blog Article template (`/blog/what-are-treasury-bills-in-ghana/`) |
+| 6.5 | Architecture refinement — accessibility, JS consolidation, documentation, design-token cleanup |
+
+Still to come: About, Newsletter, Contact, Community, and the three
+Legal pages are referenced throughout the site (nav, footer, sitemap)
+but not yet built — this is expected at this stage, not a bug.
+`CHANGELOG.md` has the full detail behind every sprint above.
 
 ## Folder structure
 
 ```
 robayer-wealthlab/
 ├── css/
-│   ├── tokens.css        Design tokens — colors, type, spacing, radius, shadow, motion
+│   ├── tokens.css        Design tokens — colors, type, spacing, radius, shadow, motion, z-index
 │   ├── base.css           Reset + element defaults + accessibility foundation
 │   ├── layout.css         Container, grid system, section rhythm
-│   ├── components.css     Header, nav, footer, buttons, cards, forms, testimonials
-│   └── utilities.css      Small single-purpose helper classes
+│   ├── components.css     Every reusable component (see components.html for the full catalog)
+│   ├── utilities.css      Small single-purpose helper classes
+│   └── dev-showcase.css   Dev-only styling for components.html — never linked from a real page
 ├── js/
 │   ├── includes.js        Loads header/footer partials into every page
 │   ├── main.js             Site-wide behavior (footer year, etc.)
 │   └── components/
-│       └── nav.js         Mobile menu toggle, active-link detection
+│       ├── nav.js                  Mobile menu toggle, active-link detection
+│       ├── newsletter-form.js      Client-side validation + confirmation for the newsletter form
+│       ├── content-filters.js      Generic category-pill + search filtering for any card grid
+│       ├── placeholder-action.js   Honest "not connected yet" feedback for buttons with no backend
+│       └── article-reading.js      Reading-progress bar + table-of-contents active-section highlighting
 ├── partials/
 │   ├── header.html         Shared site header + navigation
 │   └── footer.html         Shared site footer
 ├── templates/
 │   └── page-template.html Master template every real page is built from
 ├── assets/
-│   ├── images/logo/        Final logo artwork goes here (see its README)
-│   ├── icons/               Favicon files go here (see its README)
+│   ├── images/logo/        Logo artwork (currently a coded placeholder — see its README)
+│   ├── icons/               Favicons (currently coded placeholders — see its README)
 │   └── fonts/                Reserved for future self-hosted fonts (see its README)
+├── books/
+│   ├── index.html                        Books listing page
+│   └── starting-to-invest-with-gh100/    Book Detail page
+├── blog/
+│   ├── index.html                              Blog listing page
+│   └── what-are-treasury-bills-in-ghana/       Blog Article page (canonical template for future articles)
+├── resources/
+│   └── index.html         Resources page
+├── components.html         Living style guide — every reusable component, shown in every state
 ├── robots.txt
 ├── sitemap.xml
+├── CHANGELOG.md            Full sprint-by-sprint history
 └── README.md               You are here
 ```
 
 ## How the pieces fit together
 
 1. **`tokens.css` is the single source of truth.** Every color, font,
-   spacing, radius, shadow, and motion value used anywhere on the site
-   is a CSS custom property defined once here, taken directly from the
+   spacing, radius, shadow, motion, and z-index value used anywhere on
+   the site is a CSS custom property defined once here, taken from the
    approved Phase 2 Brand Identity System. No other file should contain
-   a hardcoded hex value, pixel spacing number, or font name.
+   a hardcoded hex value, pixel spacing number, font name, or raw
+   z-index — if you need a new one, add the token here first.
 2. **`base.css`, `layout.css`, `components.css`, `utilities.css`** build
    on top of tokens.css in that order — each file assumes the ones
-   before it are already loaded. `templates/page-template.html` links
-   them in the correct order.
-3. **`partials/header.html` and `partials/footer.html`** are the actual
+   before it are already loaded. Every real page links them in that
+   same order.
+3. **`components.html` is the living style guide.** It shows every
+   reusable component defined in `components.css` in its default,
+   hover, focus, and disabled states. If a page needs something that
+   isn't shown there, extend the design system and add it to the guide
+   — don't write a one-off style on a page. Keep this file in sync
+   whenever a new component is added (Sprint 6.5 caught it drifting out
+   of date and brought it current — don't let that happen again).
+4. **`partials/header.html` and `partials/footer.html`** are the actual
    markup for the site header and footer, written once. `js/includes.js`
    fetches and injects them into any page that has a
    `<div data-include="/partials/header.html"></div>` (or footer
-   equivalent). This means every future page automatically stays in
-   sync with navigation and footer changes — update the partial once,
-   every page picks it up.
-4. **`templates/page-template.html`** is the starting point for every
-   real page built in later Phase 5 sub-phases. It already has the SEO
-   meta tag placeholders, Open Graph tags, structured data, font
-   loading, stylesheet links, the skip link, and the header/footer
-   include divs wired up. Building a new page means copying this file
-   and filling in `<main id="main-content">`.
+   equivalent), so every page stays in sync automatically.
+5. **`templates/page-template.html`** is the starting point for every
+   new page. It has the SEO meta tag placeholders, Open Graph tags,
+   Organization structured data, font loading, stylesheet links, the
+   skip link, and the header/footer include divs already wired up.
+   Building a new page means copying this file, filling in
+   `<main id="main-content">`, and adding page-specific structured data
+   (Article/FAQPage/BreadcrumbList/Book, as appropriate — see the Blog
+   Article page for the fullest example).
+6. **`js/components/content-filters.js` and `placeholder-action.js`
+   are generic, not page-specific.** Any future page that needs
+   category/search filtering over a card grid, or an honest
+   "not built yet" click response, should opt in via the documented
+   data attributes rather than writing a new script.
 
 ## Running locally
 
@@ -75,10 +116,10 @@ project root, run any simple static server, for example:
 python3 -m http.server 8000
 ```
 
-Then visit `http://localhost:8000/templates/page-template.html` to see
-the header, footer, and navigation render.
+Then visit `http://localhost:8000/` to see the Home page, or
+`http://localhost:8000/components.html` for the full style guide.
 
-## Accessibility foundation already in place
+## Accessibility
 
 - Skip-to-content link, first focusable element on every page
 - Semantic landmarks (`<header>`, `<nav>`, `<main>`, `<footer>`)
@@ -88,38 +129,48 @@ the header, footer, and navigation render.
 - 44×44px minimum touch target on all buttons and form fields
 - Mobile menu: proper `aria-expanded`, `aria-controls`, closes on
   Escape and outside click, moves focus into the menu on open
+- Category filter pills use `role="group"` with a visible label and
+  `aria-pressed`; empty-filter-result messages use `aria-live="polite"`
+- `--color-text-secondary` was audited and corrected in Sprint 6.5 to
+  meet WCAG AA contrast (≥4.5:1) against both its Warm Paper and white
+  card backgrounds — verify any new secondary-text color choice the
+  same way before adding one
 
-## SEO foundation already in place
+## SEO
 
-- `robots.txt` and `sitemap.xml` at the project root (update
-  `robayerwealthlab.com` in both once the final domain is confirmed —
-  see the open question below)
+- `robots.txt` and `sitemap.xml` at the project root, kept in sync with
+  every real page as it ships, including `<lastmod>` dates
 - Meta title/description, canonical URL, Open Graph, and Twitter Card
-  placeholders in `page-template.html` for every future page to fill in
-- Site-wide Organization structured data (JSON-LD) already included;
-  add per-page Article/FAQ structured data on content pages as they're
-  built, per the Phase 1 PRD SEO requirements
-- Clean, human-readable URL structure per the approved Phase 3
-  Information Architecture
+  tags on every page
+- Site-wide Organization JSON-LD on every page; `FAQPage` JSON-LD on
+  every page with an FAQ section; `BreadcrumbList` and `Book`/`Article`
+  JSON-LD on detail pages, matching their visible breadcrumb/content
+  exactly
+- `og:type` is `article` (with `article:published_time` /
+  `article:modified_time` / `article:author` / `article:section`) on
+  Blog Article pages specifically, `website` everywhere else
+- Clean, human-readable URL structure (`/section/slug/`) throughout
 
-## Before Phase 5.2 (first real pages)
+## Open items
 
-- [ ] Replace the coded Sika step-mark SVG in `partials/header.html`
-      with final production logo artwork once available
-      (`assets/images/logo/`)
-- [ ] Add real favicon files (`assets/icons/`)
-- [ ] Confirm the production domain and update `robots.txt`,
-      `sitemap.xml`, and the canonical/Open Graph URLs in
-      `page-template.html` accordingly
+- [ ] Replace the coded Sika step-mark SVG and favicon files with
+      final production artwork once available (`assets/images/logo/`,
+      `assets/icons/`) — currently honest, documented placeholders
+- [x] Confirm the production domain — `robayerwealthlab.com`, used
+      consistently since Phase 5.1
 - [ ] Decide whether to self-host fonts (`assets/fonts/`) instead of
       loading from Google Fonts, per the performance requirements in
       the Phase 1 PRD
+- [ ] Consider extracting the newsletter-band block (identical across
+      every page) into a partial once the remaining pages are built and
+      it's clear the duplication still matters at that scale
 
 ## What comes next
 
-Phase 5.2 onward builds individual pages (Home first) using this
-foundation exactly as specified in the approved Phase 3 wireframes and
-Phase 4 high-fidelity design specification — no new global styles or
-components should be introduced ad hoc at the page level; if a page
-needs something the foundation doesn't yet provide, that's a signal to
-extend `components.css`, not to write a one-off style.
+Sprint 7 onward continues building the remaining content and utility
+pages (About, Newsletter, Contact, Community, Legal, additional Books/
+Blog entries) using this foundation exactly as-is — no new global
+styles or components should be introduced ad hoc at the page level; if
+a page needs something the design system doesn't yet provide, that's a
+signal to extend `components.css` (and update `components.html`), not
+to write a one-off style.

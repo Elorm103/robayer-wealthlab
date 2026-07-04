@@ -86,9 +86,9 @@
    components.css so a state can be shown at rest, without requiring
    the reader to actually hover or tab to it. */
 
-.state-hover.btn--primary { background-color: #1a4f43; }
+.state-hover.btn--primary { background-color: var(--color-growth-green-dark); }
 .state-hover.btn--secondary { background-color: var(--color-ink-navy); color: var(--color-white); }
-.state-hover.btn--accent { background-color: #bf8f14; }
+.state-hover.btn--accent { background-color: var(--color-sika-gold-dark); }
 .state-hover.card,
 .state-hover.book-card,
 .state-hover.resource-card { box-shadow: var(--shadow-2); }
@@ -143,3 +143,16 @@
   not a repeated pattern a class could capture without becoming a
   one-class-per-value anti-pattern.
 */
+
+/* Static stand-in for .reading-progress (section 27) — the real
+   component is position:fixed and can't be shown in-flow, so this is a
+   fixed illustrative width, not a dynamic value like the bar above. */
+.showcase-progress-track {
+  background-color: var(--color-light-sand);
+}
+
+.showcase-progress-demo {
+  height: 3px;
+  width: 40%;
+  background-color: var(--color-accent);
+}

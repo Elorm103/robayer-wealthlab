@@ -130,7 +130,7 @@ p {
   position: absolute;
   top: -100px;
   left: var(--space-3);
-  z-index: 1000;
+  z-index: var(--z-skip-link);
   padding: var(--space-2) var(--space-4);
   background: var(--color-ink-navy);
   color: var(--color-white);

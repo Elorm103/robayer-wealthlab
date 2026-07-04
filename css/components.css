@@ -51,7 +51,7 @@
 }
 
 .btn--primary:hover {
-  background-color: #1a4f43; /* growth green, ~8% darker */
+  background-color: var(--color-growth-green-dark);
   text-decoration: none;
 }
 
@@ -73,7 +73,7 @@
 }
 
 .btn--accent:hover {
-  background-color: #bf8f14; /* sika gold, ~8% darker */
+  background-color: var(--color-sika-gold-dark);
   text-decoration: none;
 }
 
@@ -95,7 +95,7 @@
 .site-header {
   position: sticky;
   top: 0;
-  z-index: 100;
+  z-index: var(--z-sticky);
   background-color: var(--color-bg);
   border-bottom: 0.5px solid var(--color-border);
 }
@@ -278,6 +278,7 @@
 .testimonial__quote {
   font-family: var(--font-display);
   font-style: italic;
+  font-weight: var(--weight-medium); /* matches the only italic weight actually loaded (Fraunces 500 italic) */
   font-size: var(--text-body-lg);
   color: var(--color-ink-navy);
   margin-bottom: var(--space-3);
@@ -329,6 +330,7 @@
 .pull-quote {
   font-family: var(--font-display);
   font-style: italic;
+  font-weight: var(--weight-medium); /* matches the only italic weight actually loaded (Fraunces 500 italic) */
   font-size: var(--text-body-lg);
   color: var(--color-text-heading);
   max-width: 480px;
@@ -408,10 +410,10 @@
   font-weight: var(--weight-medium);
 }
 
-.badge--success { background-color: #e4f3ed; color: var(--color-success); }
-.badge--warning { background-color: #fbf1e0; color: var(--color-warning); }
-.badge--error   { background-color: #f9e6e3; color: var(--color-error); }
-.badge--info    { background-color: #e6eef7; color: var(--color-info); }
+.badge--success { background-color: var(--color-success-tint); color: var(--color-success); }
+.badge--warning { background-color: var(--color-warning-tint); color: var(--color-warning); }
+.badge--error   { background-color: var(--color-error-tint);   color: var(--color-error); }
+.badge--info    { background-color: var(--color-info-tint);    color: var(--color-info); }
 
 .alert {
   display: flex;
@@ -422,10 +424,10 @@
   font-size: var(--text-small);
 }
 
-.alert--success { border-color: var(--color-success); background-color: #e4f3ed; }
-.alert--warning { border-color: var(--color-warning); background-color: #fbf1e0; }
-.alert--error   { border-color: var(--color-error);   background-color: #f9e6e3; }
-.alert--info    { border-color: var(--color-info);    background-color: #e6eef7; }
+.alert--success { border-color: var(--color-success); background-color: var(--color-success-tint); }
+.alert--warning { border-color: var(--color-warning); background-color: var(--color-warning-tint); }
+.alert--error   { border-color: var(--color-error);   background-color: var(--color-error-tint); }
+.alert--info    { border-color: var(--color-info);    background-color: var(--color-info-tint); }
 
 /* ============================================================
    SITE FOOTER
@@ -662,7 +664,7 @@
 .blog-card__meta {
   font-family: var(--font-heading);
   font-size: 0.75rem;
-  color: var(--color-stone-grey);
+  color: var(--color-text-secondary);
 }
 
 /* ============================================================
@@ -1036,5 +1038,5 @@ a.resource-card {
   height: 3px;
   width: calc(var(--reading-progress, 0) * 1%);
   background-color: var(--color-accent);
-  z-index: 200;
+  z-index: var(--z-overlay);
 }

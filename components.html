@@ -51,7 +51,8 @@
         <div class="showcase-row">
           <div class="showcase-item"><div class="showcase-swatch" style="background:var(--color-warm-paper)"></div><span class="showcase-label">Warm paper</span><span class="showcase-code">#FAF6EF</span></div>
           <div class="showcase-item"><div class="showcase-swatch" style="background:var(--color-light-sand)"></div><span class="showcase-label">Light sand</span><span class="showcase-code">#E8E4DC</span></div>
-          <div class="showcase-item"><div class="showcase-swatch" style="background:var(--color-stone-grey)"></div><span class="showcase-label">Stone grey</span><span class="showcase-code">#9B958A</span></div>
+          <div class="showcase-item"><div class="showcase-swatch" style="background:var(--color-stone-grey)"></div><span class="showcase-label">Stone grey (borders only — fails AA for text)</span><span class="showcase-code">#9B958A</span></div>
+          <div class="showcase-item"><div class="showcase-swatch" style="background:var(--color-slate)"></div><span class="showcase-label">Slate — secondary text</span><span class="showcase-code">#6B675E</span></div>
           <div class="showcase-item"><div class="showcase-swatch" style="background:var(--color-charcoal-ink)"></div><span class="showcase-label">Charcoal ink</span><span class="showcase-code">#22252B</span></div>
         </div>
         <div class="showcase-row">
@@ -59,6 +60,16 @@
           <div class="showcase-item"><div class="showcase-swatch" style="background:var(--color-warning)"></div><span class="showcase-label">Warning</span><span class="showcase-code">#E8A33D</span></div>
           <div class="showcase-item"><div class="showcase-swatch" style="background:var(--color-error)"></div><span class="showcase-label">Error</span><span class="showcase-code">#C4392B</span></div>
           <div class="showcase-item"><div class="showcase-swatch" style="background:var(--color-info)"></div><span class="showcase-label">Info</span><span class="showcase-code">#3B6EA5</span></div>
+        </div>
+        <div class="showcase-row">
+          <div class="showcase-item"><div class="showcase-swatch" style="background:var(--color-success-tint)"></div><span class="showcase-label">Success tint</span><span class="showcase-code">#E4F3ED</span></div>
+          <div class="showcase-item"><div class="showcase-swatch" style="background:var(--color-warning-tint)"></div><span class="showcase-label">Warning tint</span><span class="showcase-code">#FBF1E0</span></div>
+          <div class="showcase-item"><div class="showcase-swatch" style="background:var(--color-error-tint)"></div><span class="showcase-label">Error tint</span><span class="showcase-code">#F9E6E3</span></div>
+          <div class="showcase-item"><div class="showcase-swatch" style="background:var(--color-info-tint)"></div><span class="showcase-label">Info tint</span><span class="showcase-code">#E6EEF7</span></div>
+        </div>
+        <div class="showcase-row">
+          <div class="showcase-item"><div class="showcase-swatch" style="background:var(--color-growth-green-dark)"></div><span class="showcase-label">Growth green — hover</span><span class="showcase-code">#1A4F43</span></div>
+          <div class="showcase-item"><div class="showcase-swatch" style="background:var(--color-sika-gold-dark)"></div><span class="showcase-label">Sika gold — hover</span><span class="showcase-code">#BF8F14</span></div>
         </div>
       </div>
     </section>
@@ -382,11 +393,23 @@
           <div class="cluster gap-3"><span class="showcase-code showcase-code--label">48px</span><div class="showcase-spacing-bar" style="width:var(--space-6)"></div></div>
           <div class="cluster gap-3"><span class="showcase-code showcase-code--label">64px</span><div class="showcase-spacing-bar" style="width:var(--space-7)"></div></div>
         </div>
+
+        <span class="showcase-label showcase-label--block mb-2 mt-4">Z-index scale — by layer/purpose, not by component</span>
+        <table class="table">
+          <thead>
+            <tr><th>Token</th><th class="numeric">Value</th><th>Used by</th></tr>
+          </thead>
+          <tbody>
+            <tr><td class="numeric">--z-sticky</td><td class="numeric">100</td><td>Sticky site header, sticky sidebars (article TOC)</td></tr>
+            <tr><td class="numeric">--z-overlay</td><td class="numeric">200</td><td>Fixed overlays above sticky content (reading progress bar)</td></tr>
+            <tr><td class="numeric">--z-skip-link</td><td class="numeric">1000</td><td>Accessibility skip-link — always topmost</td></tr>
+          </tbody>
+        </table>
       </div>
     </section>
 
     <!-- ============================================================ RESPONSIVE GRID ============================================================ -->
-    <section class="showcase-section showcase-section--last">
+    <section class="showcase-section">
       <div class="container">
         <h2 class="showcase-section__title">19. Responsive grid</h2>
         <p class="showcase-section__desc">Real <code>.grid--3</code> / <code>.grid--4</code> classes — resize the browser window to see 3→2→1 and 4→2→1 collapse live, exactly as it will behave on real pages.</p>
@@ -394,6 +417,117 @@
         <div class="grid grid--3 showcase-grid-demo mb-5"><div>1</div><div>2</div><div>3</div></div>
         <span class="showcase-label showcase-label--block mb-2">.grid--4 (4 → 2 → 1)</span>
         <div class="grid grid--4 showcase-grid-demo"><div>1</div><div>2</div><div>3</div><div>4</div></div>
+      </div>
+    </section>
+
+    <!-- ============================================================ FEATURE BANNER ============================================================ -->
+    <section class="showcase-section">
+      <div class="container">
+        <h2 class="showcase-section__title">20. Feature banner</h2>
+        <p class="showcase-section__desc">Dark single-item spotlight — Home/Books featured eBook, Blog featured article, Resources featured free resource. The <code>__eyebrow</code>/<code>__title</code>/<code>__copy</code> color classes are also reused standalone (without the flex wrapper) when there's no natural "cover" image, as on the Resources page.</p>
+      </div>
+      <div class="section bg-charcoal">
+        <div class="container feature-banner">
+          <div class="book-card__cover book-card__cover--compact" aria-hidden="true"></div>
+          <div>
+            <span class="eyebrow feature-banner__eyebrow">Featured eBook</span>
+            <h3 class="mt-2 mb-2 feature-banner__title">Starting to Invest with GH₵100</h3>
+            <p class="mb-4 feature-banner__copy">A practical first guide to treasury bills, mobile money savings, and the Ghana Stock Exchange.</p>
+            <a href="#" class="btn btn--accent">Get the guide — GH₵39</a>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- ============================================================ PULL QUOTE ============================================================ -->
+    <section class="showcase-section">
+      <div class="container">
+        <h2 class="showcase-section__title">21. Pull quote</h2>
+        <p class="showcase-section__desc">Centered standalone quote — Home trust section, and inside long-form article bodies (see Blog Article). <code>font-weight: 500</code> matches the only italic weight actually loaded (Fraunces 500 italic).</p>
+        <blockquote class="pull-quote">"Wherever you're starting from, we'll meet you there."</blockquote>
+      </div>
+    </section>
+
+    <!-- ============================================================ FILTER BAR ============================================================ -->
+    <section class="showcase-section">
+      <div class="container">
+        <h2 class="showcase-section__title">22. Filter bar</h2>
+        <p class="showcase-section__desc">Category pills driving <code>js/components/content-filters.js</code> — Books, Resources, Blog. Real <code>&lt;button&gt;</code>s in a <code>role="group"</code>, each toggling <code>aria-pressed</code>.</p>
+        <div class="filter-bar">
+          <button type="button" class="filter-pill" aria-pressed="true">All</button>
+          <button type="button" class="filter-pill" aria-pressed="false">Saving</button>
+          <button type="button" class="filter-pill" aria-pressed="false">Investing</button>
+          <button type="button" class="filter-pill" aria-pressed="false">Budgeting</button>
+        </div>
+      </div>
+    </section>
+
+    <!-- ============================================================ TABLE OF CONTENTS ============================================================ -->
+    <section class="showcase-section">
+      <div class="container content-column">
+        <h2 class="showcase-section__title">23. Table of contents</h2>
+        <p class="showcase-section__desc">Numbered list — static (Book Detail's chapter list) or, with real anchor links, a ranked "popular" list (Resources, Blog) or in-page navigation with JS-driven active-section highlighting (Blog Article's sticky sidebar, via <code>js/components/article-reading.js</code>).</p>
+        <ol class="toc">
+          <li class="toc__item"><span class="toc__number numeric">01</span><span class="toc__title"><a href="#">What is a treasury bill?</a></span></li>
+          <li class="toc__item"><span class="toc__number numeric">02</span><span class="toc__title"><a href="#" aria-current="location">How they work in Ghana</a></span></li>
+          <li class="toc__item"><span class="toc__number numeric">03</span><span class="toc__title"><a href="#">Tenors and rates</a></span></li>
+        </ol>
+      </div>
+    </section>
+
+    <!-- ============================================================ CHECK ITEMS ============================================================ -->
+    <section class="showcase-section">
+      <div class="container">
+        <h2 class="showcase-section__title">24. Check items</h2>
+        <p class="showcase-section__desc">Icon + wrapping text rows — "What you'll learn" / "Who this is for" checklists, Key Takeaways boxes. Not <code>.cluster</code>: its <code>flex-wrap</code> would move wrapped text to a new line under the icon instead of beside a fixed icon.</p>
+        <ul class="stack gap-3">
+          <li class="check-item">
+            <svg class="icon check-item__icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M5 12l4 4 10-10"/></svg>
+            <span class="check-item__text">A treasury bill is a short-term loan to the Government of Ghana, bought at a discount and repaid at face value.</span>
+          </li>
+          <li class="check-item">
+            <svg class="icon check-item__icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M6 6l12 12M18 6L6 18"/></svg>
+            <span class="check-item__text text-secondary">You're looking for get-rich-quick tactics or guaranteed returns.</span>
+          </li>
+        </ul>
+      </div>
+    </section>
+
+    <!-- ============================================================ BREADCRUMBS ============================================================ -->
+    <section class="showcase-section">
+      <div class="container">
+        <h2 class="showcase-section__title">25. Breadcrumbs</h2>
+        <p class="showcase-section__desc">Detail-page wayfinding (Book Detail, Blog Article) — not used on top-level nav pages (Home, Books, Blog, Resources). Paired with <code>BreadcrumbList</code> JSON-LD matching exactly.</p>
+        <nav class="breadcrumbs" aria-label="Breadcrumb">
+          <a href="/">Home</a><span class="breadcrumbs__separator" aria-hidden="true">/</span><a href="/blog/">Blog</a><span class="breadcrumbs__separator" aria-hidden="true">/</span><span aria-current="page">What Are Treasury Bills in Ghana?</span>
+        </nav>
+      </div>
+    </section>
+
+    <!-- ============================================================ ARTICLE BODY & LAYOUT ============================================================ -->
+    <section class="showcase-section">
+      <div class="container">
+        <h2 class="showcase-section__title">26. Article body &amp; layout</h2>
+        <p class="showcase-section__desc"><code>.article-layout</code> is a 260px sidebar + content grid, sticky sidebar at ≥1200px only (single column below that) — see Blog Article at desktop width for the live sticky behavior. <code>.article-body</code> restores real <code>disc</code>/<code>decimal</code> list markers and prose spacing for long-form content, scoped so it doesn't touch the site-wide <code>list-style: none</code> reset every other list correctly relies on.</p>
+        <div class="article-body">
+          <h3>A heading inside article-body</h3>
+          <p>Paragraphs get real vertical rhythm automatically — no <code>mb-*</code> utility classes needed inside hand-written prose.</p>
+          <ul>
+            <li>List items get real bullets back...</li>
+            <li>...scoped only to <code>.article-body</code>, not the whole site.</li>
+          </ul>
+        </div>
+      </div>
+    </section>
+
+    <!-- ============================================================ READING PROGRESS BAR ============================================================ -->
+    <section class="showcase-section showcase-section--last">
+      <div class="container">
+        <h2 class="showcase-section__title">27. Reading progress bar</h2>
+        <p class="showcase-section__desc">Fixed 3px bar tied to scroll position via <code>js/components/article-reading.js</code>, which sets a <code>--reading-progress</code> custom property rather than an inline <code>style</code> attribute. The real component is <code>position: fixed</code> (so it can't be shown in-flow here) — this is a static, in-flow stand-in fixed at 40% for reference; on a real article it tracks live scroll position.</p>
+        <div class="showcase-progress-track">
+          <div class="showcase-progress-demo"></div>
+        </div>
       </div>
     </section>
 

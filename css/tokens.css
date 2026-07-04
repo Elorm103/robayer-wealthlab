@@ -25,6 +25,7 @@
   --color-warm-paper:   #FAF6EF;
   --color-light-sand:   #E8E4DC;
   --color-stone-grey:   #9B958A;
+  --color-slate:        #6B675E; /* darker sibling of stone-grey — WCAG AA text contrast (~5.2:1 on warm-paper, ~5.6:1 on white), stone-grey itself only reaches ~2.8:1/3.0:1 so it stays border/decoration-only */
   --color-charcoal-ink: #22252B;
   --color-white:        #FFFFFF;
 
@@ -34,6 +35,16 @@
   --color-error:   #C4392B;
   --color-info:    #3B6EA5;
 
+  /* ---------- Color: Semantic tints (badge/alert backgrounds) ---------- */
+  --color-success-tint: #E4F3ED;
+  --color-warning-tint: #FBF1E0;
+  --color-error-tint:   #F9E6E3;
+  --color-info-tint:    #E6EEF7;
+
+  /* ---------- Color: Hover states ---------- */
+  --color-growth-green-dark: #1A4F43; /* growth green, ~8% darker */
+  --color-sika-gold-dark:    #BF8F14; /* sika gold, ~8% darker */
+
   /* ---------- Color: Role mapping (use these in components, not raw colors) ---------- */
   --color-bg:              var(--color-warm-paper);
   --color-bg-alt:          var(--color-light-sand);
@@ -41,7 +52,7 @@
   --color-surface:         var(--color-white);
   --color-text-primary:    var(--color-charcoal-ink);
   --color-text-heading:    var(--color-ink-navy);
-  --color-text-secondary:  var(--color-stone-grey);
+  --color-text-secondary:  var(--color-slate);
   --color-text-on-dark:    var(--color-white);
   --color-text-on-accent:  #4A3607; /* dark gold-brown, passes contrast on Sika Gold */
   --color-border:          var(--color-light-sand);
@@ -111,4 +122,9 @@
   --container-max: 1200px;
   --container-pad: var(--space-4); /* 24px, overridden down to space-3 on mobile in layout.css */
   --header-height: 88px;
+
+  /* ---------- Z-index scale (by layer/purpose, not by component) ---------- */
+  --z-sticky:    100;  /* sticky site header, sticky sidebars (e.g. article TOC) */
+  --z-overlay:   200;  /* fixed overlays above sticky content — reading progress bar, future toasts */
+  --z-skip-link: 1000; /* accessibility skip-link — must sit above everything, always */
 }
