@@ -6,6 +6,107 @@ grouped by development phase/sprint instead of version number.
 
 ## [Unreleased]
 
+### Sprint 6 — Blog Article Template — 2026-07-04
+
+`blog/what-are-treasury-bills-in-ghana/index.html` — the first real
+article, and the canonical template every future article will be
+built from. Four small, genuinely reusable additions to the design
+system; everything else composes existing components in new ways.
+
+**Added**
+- `blog/what-are-treasury-bills-in-ghana/index.html` — breadcrumbs,
+  hero (category, title, subtitle, author byline with publish/update
+  dates and reading time), a sticky-on-desktop table of contents, a
+  fully-written article body (pull quote, two info/warning callouts, a
+  comparison table, numbered and bulleted lists, a "Key takeaways"
+  box), FAQ, related articles, newsletter CTA, disclaimer, and the
+  shared footer.
+- `js/components/article-reading.js` — one scroll listener driving two
+  related affordances: a fixed reading-progress bar and active-section
+  highlighting in the table of contents. Both are optional per-page
+  (each checks its own markup exists before doing anything), so a
+  future short article can skip either without touching this file.
+- Four new CSS additions in `css/components.css`, each checked against
+  the existing system first and each reusable by every future article:
+  - `.article-layout` / `.article-layout__sidebar` — a sticky
+    sidebar-TOC + content grid (260px + 1fr, ≥1200px only; single
+    column below that). Nothing existing provided an asymmetric
+    2-column layout — `.grid--2` is equal-width, `.hero--split` isn't
+    sticky and isn't meant for this.
+  - `.article-body` — restores real `disc`/`decimal` list markers and
+    heading/paragraph vertical rhythm for long-form prose, scoped so
+    it doesn't touch the site-wide `list-style: none` reset that every
+    other (non-prose) list on the site correctly relies on.
+  - `.toc__title a[aria-current="location"]` — active-link styling for
+    the table of contents, set by `article-reading.js`.
+  - `.reading-progress` — the fixed progress bar. Its width is driven
+    by a `--reading-progress` custom property set from JS, not an
+    inline `style` attribute, keeping the "zero inline styles" rule
+    intact even for a continuously-variable runtime value.
+- `Article`, `BreadcrumbList`, and `FAQPage` JSON-LD, plus `og:type:
+  article` with `article:published_time` / `article:modified_time` /
+  `article:author` / `article:section` — the first page on the site to
+  use Open Graph's article type, appropriately, since it's the first
+  page that actually is one.
+- Two new sitemap entries with `<lastmod>` dates: `/blog/` (today) and
+  `/blog/what-are-treasury-bills-in-ghana/` (2026-07-01, the article's
+  own stated update date, not the sprint's build date).
+
+**Reused, not duplicated**
+- `.breadcrumbs` (Sprint 3) for wayfinding.
+- `.testimonial__attribution` / `__avatar` / `__name` / `__context`
+  reused standalone (no `.testimonial` card wrapper) for the author
+  byline — same "reuse the color/layout classes outside their original
+  component" pattern as `.feature-banner__*` in Sprints 4–5.
+- `.pull-quote` (Sprint 1.5) for the mid-article pull quote — first
+  use inside actual long-form body copy rather than a marketing
+  section.
+- `.alert--info` / `.alert--warning` (Phase 1) reused as in-article
+  information and caution callout boxes — no new "callout" component
+  needed, the existing alert styling already fit.
+- `.table` (Phase 1, only ever shown in the `components.html` style
+  guide) gets its first real use, for the tenor/rate comparison.
+- `.card` + `.check-item` (Sprint 3) combined for the "Key takeaways"
+  box — zero new CSS for a component that looks purpose-built.
+- `.toc` (Sprint 3) used for real in-page navigation this time (with
+  working anchor links and JS-driven active state), its fourth
+  distinct context after book chapters, popular resources, and popular
+  articles/beginner's path.
+- `.faq`, `.blog-card` (Related Articles), `.newsletter-band` — no new
+  one-off page styles anywhere.
+
+**Honesty in financial content**
+- The tenor/rate comparison table is explicitly labeled "Illustrative
+  rate" with a callout immediately below stating the numbers are for
+  teaching the tenor/rate relationship only, not a current-rate claim,
+  and pointing readers to confirm real rates with their bank or the
+  Bank of Ghana — consistent with the brand's established "no hype,
+  ever" principle rather than presenting invented figures as fact.
+
+**Verified**
+- Reading-progress bar and TOC active-highlighting both checked via
+  direct property/attribute inspection at multiple scroll positions
+  (not just visually) — confirmed correct percentage and correct
+  active link at each position tested.
+- Sticky sidebar confirmed via computed style (`position: sticky`,
+  correct `top` offset) at desktop width (1280px); single-column
+  stacking confirmed at tablet (768px) and mobile (375px), with the
+  comparison table and callouts remaining fully readable at 375px.
+- FAQ accordion, TOC anchor navigation, and the Related Articles /
+  breadcrumb links all confirmed working.
+- Caught and fixed a local-verification-only issue: the ad-hoc static
+  server used for manual testing didn't resolve directory-style URLs
+  (e.g. `/blog/…/`) the way GitHub Pages does in production, which
+  initially made a same-site link check look inconclusive. Patched the
+  throwaway dev server (not part of the project) to resolve
+  `index.html` for any directory, then re-verified every cross-page
+  link (Home → Books → Book Detail → Blog → Article → back via
+  breadcrumb) resolves correctly.
+- Heading hierarchy (single H1, one H2 per section/subsection, no
+  skipped levels) confirmed via a full heading dump.
+- Zero console errors, zero failed network requests, zero inline
+  styles.
+
 ### Sprint 5 — Blog Index — 2026-07-04
 
 `blog/index.html`, serving `/blog/` — the destination the "Blog" nav

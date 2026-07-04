@@ -964,3 +964,77 @@ a.resource-card {
 .check-item__text {
   flex: 1;
 }
+
+/* ============================================================
+   ARTICLE LAYOUT (sticky TOC sidebar + content — Blog Article
+   template, reusable for every future article)
+   ============================================================ */
+.article-layout {
+  display: grid;
+  gap: var(--space-6);
+}
+
+@media (min-width: 1200px) {
+  .article-layout {
+    grid-template-columns: 260px 1fr;
+    align-items: start;
+  }
+
+  .article-layout__sidebar {
+    position: sticky;
+    top: calc(var(--header-height) + var(--space-4));
+  }
+}
+
+/* ============================================================
+   ARTICLE BODY (long-form content typography — headings, lists,
+   and paragraph rhythm for prose, scoped so it doesn't affect the
+   list-style reset everywhere else on the site)
+   ============================================================ */
+.article-body {
+  max-width: 680px;
+}
+
+.article-body > * + * {
+  margin-top: var(--space-4);
+}
+
+.article-body h2,
+.article-body h3 {
+  margin-top: var(--space-6);
+}
+
+.article-body ul,
+.article-body ol {
+  padding-left: 1.25em;
+}
+
+.article-body ul { list-style: disc; }
+.article-body ol { list-style: decimal; }
+
+.article-body li + li {
+  margin-top: var(--space-2);
+}
+
+/* Active section link, set by js/components/article-reading.js */
+.toc__title a[aria-current="location"] {
+  color: var(--color-accent);
+  font-weight: var(--weight-medium);
+}
+
+/* ============================================================
+   READING PROGRESS BAR (Blog Article template)
+   Width is driven by js/components/article-reading.js via the
+   --reading-progress custom property, not an inline style, since
+   it's a continuously-variable runtime value rather than a design
+   decision.
+   ============================================================ */
+.reading-progress {
+  position: fixed;
+  top: 0;
+  left: 0;
+  height: 3px;
+  width: calc(var(--reading-progress, 0) * 1%);
+  background-color: var(--color-accent);
+  z-index: 200;
+}
