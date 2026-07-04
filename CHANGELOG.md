@@ -6,6 +6,85 @@ grouped by development phase/sprint instead of version number.
 
 ## [Unreleased]
 
+### Sprint 3 — Book Detail page — 2026-07-04
+
+First detail page: `books/starting-to-invest-with-gh100/index.html`,
+serving `/books/starting-to-invest-with-gh100/` — the destination the
+"Get the guide" links on Home and the Books page have pointed to since
+Sprint 2. Built as a focused sales/trust page for the one published
+book, from existing components wherever one already fit.
+
+**Added**
+- `books/starting-to-invest-with-gh100/index.html` — breadcrumb, hero
+  (cover/title/subtitle/price/buy button), What You'll Learn, Table of
+  Contents, Who This Book Is For, About the Author, an inline
+  testimonial, FAQ, Related Books, a financial-education disclaimer,
+  newsletter CTA, and the shared footer.
+- `js/components/buy-button.js` — the buy button is a temporary
+  placeholder (no SkillsPad checkout integration yet). Clicking it
+  doesn't behave like a dead link: it reveals an honest "Checkout is
+  launching soon — subscribe to know the moment it opens" note next to
+  the button, same progressive-enhancement pattern as
+  `newsletter-form.js`.
+- `css/components.css`: `.toc`/`.toc__item`/`.toc__number`/
+  `.toc__title` (chapter list, reusable for any future book) and
+  `.check-item`/`.check-item__icon`/`.check-item__text` (icon + body
+  copy list rows that need to wrap correctly — see the fix below).
+- `Book` (with a nested `Offer`, price GH₵39/GHS, `InStock`),
+  `BreadcrumbList`, and `FAQPage` JSON-LD, alongside the existing
+  Organization schema — matches the visible breadcrumb and FAQ content
+  exactly, per Google's structured-data guidance.
+- `/books/starting-to-invest-with-gh100/` added to `sitemap.xml`.
+
+**Reused, not duplicated**
+- `.breadcrumbs` — the component Sprint 1.5 documented as "reserved for
+  the detail pages that need it" now has its first real use.
+- `.hero--split` (previously only demoed in `components.html`) for the
+  cover/title/subtitle/price/CTA hero — no new hero variant needed.
+- `.book-card__cover`, `.book-card__cover--green`, `.grid--3` for
+  Related Books — the exact same pattern as the Books page grid.
+- `.testimonial--inline` — used exactly where its own code comment
+  says it's meant to go ("used on Book Detail immediately before a
+  CTA"), reusing Ama's existing treasury-bills testimonial rather than
+  writing a new one, since it's a direct topical match for this book.
+- `.faq` (Sprint 2), `.content-column`, `.alert--warning` (disclaimer),
+  `.newsletter-band`, the About-teaser `grid--2` + `.aspect-4-5`
+  pattern for the author bio — no new one-off page styles anywhere on
+  the page.
+
+**Caught and fixed a bug before it shipped**
+- The icon + text checklist rows (What You'll Learn, Who This Book Is
+  For) initially reused `.cluster`, which sets `flex-wrap: wrap` — on
+  narrow viewports this moved the whole text item to a new flex line
+  below the icon instead of letting the text wrap next to a
+  fixed-position icon. Caught during the mobile visual-verification
+  pass. Fixed by adding the `.check-item` component instead of patching
+  `.cluster` (which is used too widely elsewhere to safely change its
+  behavior).
+
+**Accessibility**
+- Breadcrumb is a `<nav aria-label="Breadcrumb">` with the current page
+  marked via a plain `aria-current="page"` span, separators hidden from
+  assistive tech.
+- Single H1 (book title) in the hero; every subsequent section has
+  exactly one H2, matching the rest of the site's heading discipline.
+- "Who This Book Is For" pairs check/x icons with `aria-hidden="true"`
+  and relies on the visible text for meaning, not color/icon shape
+  alone.
+- Buy button placeholder note uses `role="status"` so screen reader
+  users hear it appear without needing to find it manually.
+
+**Verified**
+- Local static-server pass at mobile (375px), tablet (768px), and true
+  desktop (1280px, wide enough to exercise `.hero--split`'s side-by-side
+  layout for the first time with real content — previously only ever
+  seen in the `components.html` demo).
+- Clicked the buy button (placeholder note appears correctly) and every
+  FAQ item (native accordion opens/closes, icon flips from + to −).
+- No console errors, no failed network requests.
+- Confirmed the two "Get the guide" links pointing here (Home's
+  featured banner, the Books page grid) now resolve.
+
 ### Sprint 2 — Books page — 2026-07-04
 
 First real content page beyond Home: `books/index.html`, serving the

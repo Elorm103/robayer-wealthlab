@@ -910,3 +910,51 @@ a.resource-card {
   color: var(--color-text-secondary);
   font-size: var(--text-small);
 }
+
+/* ============================================================
+   TABLE OF CONTENTS (Book Detail chapter list — reusable for any
+   future book that needs one)
+   ============================================================ */
+.toc {
+  border-top: 0.5px solid var(--color-border);
+}
+
+.toc__item {
+  display: flex;
+  align-items: baseline;
+  gap: var(--space-3);
+  padding-block: var(--space-3);
+  border-bottom: 0.5px solid var(--color-border);
+}
+
+.toc__number {
+  flex-shrink: 0;
+  width: 2ch;
+  color: var(--color-accent);
+}
+
+.toc__title {
+  color: var(--color-text-primary);
+}
+
+/* ============================================================
+   CHECK ITEM (icon + wrapping text — Book Detail "What you'll
+   learn" / "Who this is for" checklists; reusable for future books)
+   .cluster isn't right here since its flex-wrap moves whole items
+   to a new line instead of letting the text itself wrap next to a
+   fixed icon.
+   ============================================================ */
+.check-item {
+  display: flex;
+  align-items: flex-start;
+  gap: var(--space-3);
+}
+
+.check-item__icon {
+  flex-shrink: 0;
+  margin-top: 2px;
+}
+
+.check-item__text {
+  flex: 1;
+}
