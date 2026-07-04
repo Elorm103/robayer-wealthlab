@@ -52,3 +52,7 @@
 .text-lg      { font-size: 1.25rem; }
 
 .aspect-4-5 { aspect-ratio: 4 / 5; }
+
+.flex-1 { flex: 1; }
+
+.mx-auto { margin-inline: auto; }

@@ -704,6 +704,12 @@ a.resource-card {
   color: var(--color-text-heading);
 }
 
+/* Not-yet-available resources (Resources page "coming soon" cards) */
+.resource-card--upcoming {
+  border-style: dashed;
+  opacity: 0.7;
+}
+
 /* ============================================================
    TABLE
    ============================================================ */

@@ -6,6 +6,117 @@ grouped by development phase/sprint instead of version number.
 
 ## [Unreleased]
 
+### Sprint 4 — Resources page — 2026-07-04
+
+`resources/index.html`, serving `/resources/` — the destination the
+resource-card links on Home have pointed to since Phase 5.1. Built as
+a filterable/searchable free-resource library, reusing the design
+system throughout; only two genuinely new, generic pieces were added.
+
+**Added**
+- `resources/index.html` — hero (with a "Browse resources" anchor
+  action), a Featured Free Resource spotlight, a searchable/filterable
+  "Templates & checklists" grid (5 resources), a "Financial
+  calculators" coming-soon section (3 resources), a "Popular
+  resources" ranked list, FAQ, newsletter CTA, and the shared footer.
+- `js/components/resource-filters.js` — combines category-pill
+  filtering with live text search over the same grid in one module
+  (deliberately not two separate scripts — see "engineering decision"
+  below).
+- `js/components/placeholder-action.js` — a **generalized** version of
+  Sprint 3's `buy-button.js` pattern: any element with
+  `[data-placeholder-action]` gets an honest "not connected yet" note
+  on click instead of behaving like a dead link, with the message
+  configurable via `[data-message]`. Used here for the resource
+  download buttons, since no real files exist yet. `buy-button.js`
+  itself was left untouched (still working, still in use on the Book
+  Detail page) — consolidating the two is a reasonable follow-up but
+  wasn't done here to avoid touching already-shipped Sprint 3 code
+  without being asked.
+- Two new, genuinely reusable additions to the design system (checked
+  the existing system first; everything else on this page reuses
+  Sprints 1–3 components as-is):
+  - `css/utilities.css`: `.flex-1` (lets a flex child, like the search
+    input, fill its row) and `.mx-auto` (centers a max-width block —
+    needed once I'd reused `.feature-banner__copy` outside its
+    original flex layout; see bug note below).
+  - `css/components.css`: `.resource-card--upcoming` (dashed border,
+    reduced opacity) for the three "coming soon" calculator cards —
+    reusable for any future "not built yet" card, on any page.
+- `FAQPage` JSON-LD, matching the visible FAQ content, alongside the
+  existing Organization schema. No `ItemList`/`Product` schema added,
+  consistent with the Books listing page's precedent of reserving that
+  for actual product/detail pages, not listing pages.
+- `<lastmod>2026-07-04</lastmod>` added to the existing `/resources/`
+  sitemap entry now that the page is real.
+
+**Reused, not duplicated**
+- `.filter-bar` / `.filter-pill` (Sprint 2) for the category pills —
+  taxonomy here is Budgeting/Saving/Debt/Investing, distinct from
+  Books' own categories, same component.
+- `.feature-banner__eyebrow` / `__title` / `__copy` (Sprint 1.5/2) for
+  the Featured Free Resource's color treatment — reused standalone
+  without the `.feature-banner` flex wrapper, since a resource has no
+  natural "cover" image the way a book does.
+- `.toc` / `.toc__item` (Sprint 3, originally built for a book's table
+  of contents) repurposed as the Popular Resources ranked list —
+  proof the component is genuinely generic, not book-specific. Its
+  entries are real anchor links to the cards above, not a second copy
+  of them.
+- `.resource-card`, `.badge`, `.grid--3`, `.alert--info` (empty state),
+  `.faq`, `.newsletter-band`, `.content-column` — no new one-off page
+  styles.
+- Nav `aria-current="page"` on the Resources link required **no code
+  change** — `nav.js`'s pathname-matching logic (Phase 5.1) already
+  handles any page generically. Verified rather than reimplemented.
+
+**Engineering decision: one filter module, not two**
+- Initially considered a separate search script alongside category
+  filtering (mirroring `book-filters.js` exactly), but category and
+  search both need to narrow the *same* grid at the *same* time — two
+  independent scripts toggling the same `.hidden` class would fight
+  each other (e.g. typing a search term could undo the active
+  category). `resource-filters.js` keeps one `activeCategory` state
+  and a single `applyFilters()` that checks both conditions together.
+
+**Caught and fixed two bugs before shipping**
+- Wrote `style="margin-inline:auto"` inline while reusing
+  `.feature-banner__copy` outside its flex context, then caught it
+  immediately in the zero-inline-styles check — replaced with the new
+  `.mx-auto` utility instead of leaving the inline style in.
+- No repeat of Sprint 2/3's `hidden`-attribute-vs-`display` cascade bug:
+  `resource-filters.js` toggles the `.hidden` utility class from the
+  start, not the native attribute.
+
+**Accessibility**
+- Search input has a visible placeholder plus an associated `.sr-only`
+  `<label>` (accessible name independent of placeholder text).
+- Filter pills remain a `role="group"` labelled by visible text, each
+  toggling `aria-pressed`, exactly as established in Sprint 2.
+- Empty-state result message uses `aria-live="polite"`.
+- Placeholder-action notes use `role="status"`.
+- Single H1, one H2 per section, verified via a heading-tag dump
+  during testing (see below) — no skipped levels.
+
+**Verified**
+- Local static-server pass at mobile (375px), tablet (768px), and true
+  desktop (1280px).
+- Search alone, category filter alone, and both **combined**
+  (Budgeting + "tracker" correctly narrows to just Monthly Expense
+  Tracker) — confirmed via direct DOM inspection, not just visually.
+- Empty-state message appears only when a combination truly matches
+  nothing, and its subscribe link works.
+- Every "Popular resources" link jumps to the correct card via its
+  anchor id.
+- Placeholder-action download note appears correctly and only once
+  per click (no duplicate notes on repeated clicks).
+- FAQ accordion opens/closes correctly.
+- Confirmed `aria-current="page"` is set on the Resources nav link on
+  both desktop and the mobile menu.
+- Confirmed heading hierarchy (H1 then one H2 per section) via a
+  console dump of all headings.
+- No console errors, no failed network requests.
+
 ### Sprint 3 — Book Detail page — 2026-07-04
 
 First detail page: `books/starting-to-invest-with-gh100/index.html`,
