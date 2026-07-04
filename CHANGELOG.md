@@ -6,6 +6,83 @@ grouped by development phase/sprint instead of version number.
 
 ## [Unreleased]
 
+### Sprint 7 — About Page — 2026-07-04
+
+`about/index.html`, serving `/about/` — built entirely from the
+existing design system. **Zero new CSS was needed for this page**;
+`css/` is byte-for-byte unchanged from Sprint 6.5.
+
+**Added**
+- `about/index.html` — hero, Why Robayer WealthLab Exists, Founder
+  story, Mission & Vision, Core values, Brand manifesto highlights, Our
+  promises to readers, Why trust Robayer WealthLab (testimonials),
+  Timeline & roadmap, FAQ, newsletter CTA, and the shared footer.
+- `<lastmod>2026-07-04</lastmod>` added to the existing `/about/`
+  sitemap entry.
+
+**Reused, not duplicated**
+- `.hero--split` — demoed in `components.html` since Phase 1 with this
+  exact "About Robayer / Someone slightly ahead on the journey" copy,
+  and never actually used on a real page until now.
+- `.feature-banner__eyebrow` / `__title` / `__copy` reused standalone
+  (no image side) for "Why Robayer WealthLab Exists" — same pattern as
+  Resources' featured-resource section.
+- `.article-body` (Sprint 6) for the founder story's multi-paragraph
+  prose — first use of it for narrative biography rather than an
+  instructional article.
+- `.card` in a `.grid--2` for Mission & Vision — two cards, no new
+  variant needed.
+- The exact icon+heading+description pattern from Home's trust section
+  (Sprint 1) for Core Values — same structure, different (and
+  deliberately non-duplicate) content: Home covers founder-led/no-hype/
+  Ghana-first/free-to-start; About goes deeper into honesty, meeting
+  readers where they are, plain language, and Ghana-first specifically
+  in the guides.
+- `.pull-quote` + `.check-item` for the manifesto section, and
+  `.check-item` again (in a `.grid--2`) for the promises section — same
+  component, two different tones (belief statements vs. concrete
+  commitments).
+- The same three established testimonials (Ama, Kwame, Efua) for "Why
+  trust Robayer WealthLab" rather than inventing new ones — reused
+  exactly as they appear on Home and Book Detail.
+- `.toc` (Sprint 3) reused for a **fifth** distinct purpose: a
+  sequential company timeline, after book chapters, popular resources,
+  popular articles/beginner's path, and in-page article navigation —
+  further confirmation the component is genuinely generic.
+- `.faq`, `.newsletter-band`, partials/footer.html — no new one-off
+  page styles anywhere.
+
+**Content note**
+- The founder biography expands the facts already established
+  elsewhere on the site (founder-led, simplifies financial education
+  for ordinary Ghanaians, honest guidance one step at a time) into a
+  fuller narrative, without introducing new unverifiable biographical
+  claims (no invented employer history, credentials, or dates) —
+  consistent with the brand's "no hype, ever" principle.
+
+**Caught and fixed one inline style before it shipped**
+- Copied an old pattern (`style="display:block"` on an eyebrow span)
+  out of habit while drafting the "Why trust us" section — caught
+  immediately in the zero-inline-styles check. `.eyebrow` has been
+  `display: block` by default since Phase 1, so the span was removed
+  entirely rather than fixed, same resolution as the identical issue
+  found and fixed on Home back in Sprint 1.5.
+
+**Verified**
+- Full regression-style pass: mobile (375px), tablet (768px), and
+  desktop (1280px) — hero--split side-by-side layout, Mission/Vision
+  and Core Values grid collapse (2→1 and 4→2→1), testimonials grid,
+  and the founder-story prose measure all confirmed correct at each
+  width.
+- FAQ accordion, the hero's `#founder-story` anchor link, and nav
+  `aria-current="page"` on the About link all confirmed working.
+- Heading hierarchy confirmed via a full heading dump: single H1, one
+  H2 per section, correctly nested H3s under Mission/Vision and Core
+  Values, and a `sr-only` H2 giving the combined Mission/Vision section
+  a proper accessible name without a redundant visible heading.
+- Zero console errors, zero failed network requests, zero duplicate
+  IDs, zero inline styles, zero new/changed CSS.
+
 ### Sprint 6.5 — Architecture Refinement — 2026-07-04
 
 A pure technical-improvement sprint following Architecture Review 2 —
