@@ -145,12 +145,12 @@
         <div class="stack gap-4 mb-5">
           <div class="cluster gap-2">
             <label for="resource-search" class="sr-only">Search resources</label>
-            <input type="search" id="resource-search" class="field__input flex-1" placeholder="Search resources…" data-resource-search>
+            <input type="search" id="resource-search" class="field__input flex-1" placeholder="Search resources…" data-filter-search>
           </div>
 
           <div class="cluster gap-3">
             <span id="filter-label" class="text-secondary text-small">Filter by topic:</span>
-            <div class="filter-bar" role="group" aria-labelledby="filter-label" data-resource-filters>
+            <div class="filter-bar" role="group" aria-labelledby="filter-label" data-filter-controls>
               <button type="button" class="filter-pill" data-filter="all" aria-pressed="true">All</button>
               <button type="button" class="filter-pill" data-filter="budgeting" aria-pressed="false">Budgeting</button>
               <button type="button" class="filter-pill" data-filter="saving" aria-pressed="false">Saving</button>
@@ -162,7 +162,7 @@
 
         <p class="alert alert--info hidden" data-filter-empty aria-live="polite">No resources match — try a different term, or <a href="/newsletter/">subscribe</a> to request one.</p>
 
-        <div class="grid grid--3" data-resource-grid>
+        <div class="grid grid--3" data-filter-grid>
           <div class="resource-card" id="budget-planner" data-category="budgeting" data-title="Budget Planner">
             <svg class="resource-card__icon icon" viewBox="0 0 24 24" aria-hidden="true"><rect x="3" y="4" width="18" height="16" rx="2"/><path d="M3 9h18"/></svg>
             <span class="badge badge--info resource-card__format">Template</span>
@@ -337,7 +337,7 @@
   <script src="/js/includes.js"></script>
   <script src="/js/components/nav.js"></script>
   <script src="/js/components/newsletter-form.js"></script>
-  <script src="/js/components/resource-filters.js"></script>
+  <script src="/js/components/content-filters.js"></script>
   <script src="/js/components/placeholder-action.js"></script>
   <script src="/js/main.js"></script>
 </body>

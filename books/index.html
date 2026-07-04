@@ -147,7 +147,7 @@
 
         <div class="cluster gap-3 mb-5">
           <span id="filter-label" class="text-secondary text-small">Filter by topic:</span>
-          <div class="filter-bar" role="group" aria-labelledby="filter-label" data-book-filters>
+          <div class="filter-bar" role="group" aria-labelledby="filter-label" data-filter-controls>
             <button type="button" class="filter-pill" data-filter="all" aria-pressed="true">All</button>
             <button type="button" class="filter-pill" data-filter="saving" aria-pressed="false">Saving</button>
             <button type="button" class="filter-pill" data-filter="investing" aria-pressed="false">Investing</button>
@@ -157,7 +157,7 @@
 
         <p class="alert alert--info hidden" data-filter-empty aria-live="polite">No guides in this category yet — <a href="/newsletter/">subscribe</a> to hear when one arrives.</p>
 
-        <div class="grid grid--3" data-book-grid>
+        <div class="grid grid--3" data-filter-grid>
           <div class="book-card book-card--featured" data-category="investing">
             <div class="book-card__cover"></div>
             <p class="book-card__title">Starting to Invest with GH₵100</p>
@@ -279,7 +279,7 @@
   <script src="/js/includes.js"></script>
   <script src="/js/components/nav.js"></script>
   <script src="/js/components/newsletter-form.js"></script>
-  <script src="/js/components/book-filters.js"></script>
+  <script src="/js/components/content-filters.js"></script>
   <script src="/js/main.js"></script>
 </body>
 </html>

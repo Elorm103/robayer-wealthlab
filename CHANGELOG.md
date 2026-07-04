@@ -6,6 +6,98 @@ grouped by development phase/sprint instead of version number.
 
 ## [Unreleased]
 
+### Sprint 5 — Blog Index — 2026-07-04
+
+`blog/index.html`, serving `/blog/` — the destination the "Blog" nav
+link and footer link have pointed to since Phase 5.1. Built entirely
+from the existing design system: **no new CSS was added this
+sprint** — the only structural change is a JavaScript consolidation
+that removes duplication instead of adding to it.
+
+**Added**
+- `blog/index.html` — hero, Featured Article spotlight, a
+  search+category-filterable "Latest articles" grid (8 articles),
+  Popular Articles, a Beginner's Path reading order, newsletter CTA,
+  FAQ, and the shared footer (per the section order requested for this
+  sprint, Newsletter comes before FAQ here, unlike Sprints 2–4).
+- `js/components/content-filters.js` — see "engineering decision"
+  below.
+- `FAQPage` JSON-LD, alongside the existing Organization schema.
+  Individual `BlogPosting` schema is deferred to Sprint 6's article
+  pages, where it belongs, not the index.
+- `<lastmod>2026-07-04</lastmod>` added to the existing `/blog/`
+  sitemap entry.
+
+**Engineering decision: generalized the filter script instead of
+writing a third copy**
+- By this sprint there would have been three near-identical filter
+  scripts: `book-filters.js` (Sprint 2, category-only),
+  `resource-filters.js` (Sprint 4, category + search), and a
+  hypothetical `blog-filters.js`. Per this sprint's explicit
+  instruction not to duplicate JavaScript that can be generalized,
+  replaced both existing scripts with one `content-filters.js`,
+  driven by generic data attributes (`[data-filter-grid]`,
+  `[data-filter-controls]`, `[data-filter-search]`,
+  `[data-filter-empty]`) instead of page-specific ones. `book-filters.js`
+  and `resource-filters.js` are deleted; `books/index.html` and
+  `resources/index.html` were updated to the generic attribute names
+  and now include `content-filters.js` — a pure rename with no
+  behavior change, re-verified below. (This is a deliberate exception
+  to the general rule of not touching already-shipped sprints without
+  being asked — justified here because the instruction for this
+  sprint explicitly called for it, and the change is mechanical and
+  low-risk.)
+
+**Reused, not duplicated**
+- `.blog-card` (defined since Phase 1, only ever shown in the
+  `components.html` style guide until now) gets its first full real
+  use — category via `.eyebrow`, reading time + publication date via
+  `.blog-card__meta` (with a semantic `<time datetime>` element), and
+  a "Read article" link using the existing arrow icon, alongside the
+  already-linked title. No new fields needed new CSS.
+- `.feature-banner__eyebrow` / `__title` / `__copy` for the Featured
+  Article, this time with the full flex `.feature-banner` layout
+  (image + text side by side) since `.blog-card__image` (16:9) works
+  as a "cover" the way it didn't for Sprint 4's resources.
+- `.filter-bar` / `.filter-pill` (Sprint 2) for the Saving / Investing
+  / Budgeting category pills.
+- `.toc` (Sprint 3) reused for a **third** distinct purpose: a
+  ranked "Popular articles" list and a sequential "Beginner's path"
+  reading order — different content, same component, on the same
+  page, which is the clearest evidence yet that the component is
+  genuinely generic rather than book-specific.
+- `.alert--info` (empty state), `.faq`, `.newsletter-band` — no new
+  one-off page styles anywhere.
+
+**Prepared for Sprint 6**
+- All eight articles use the `/blog/<slug>/` URL convention (matching
+  Books' `/books/<slug>/` pattern from Sprint 3) in the title link,
+  the "Read article" link, and the Featured Article CTA — Sprint 6 can
+  build each detail page at its already-referenced address with no
+  link changes needed here.
+- Category taxonomy (Saving/Investing/Budgeting) is consistent with
+  Resources' taxonomy so a future cross-page "related content" feature
+  wouldn't need a mapping layer.
+
+**Verified**
+- Confirmed **zero new CSS was needed** — checked the existing system
+  first, per this sprint's explicit instruction, before writing any
+  markup.
+- Regression-tested Books and Resources after the `content-filters.js`
+  migration: Books' category filter and Resources' combined
+  category+search filter both still work correctly, confirmed via
+  direct DOM inspection, not just visually.
+- Blog's own search, category filter, and combined use tested the same
+  way; empty-state message and its subscribe link confirmed.
+- Every Popular Articles / Beginner's Path anchor link jumps to the
+  correct card.
+- FAQ accordion, nav `aria-current="page"` on the Blog link, and
+  heading hierarchy (single H1, one H2 per section) all verified.
+- Local static-server pass at mobile (375px), tablet (768px), and
+  desktop (1280px).
+- Zero console errors, zero failed network requests, zero inline
+  styles.
+
 ### Sprint 4 — Resources page — 2026-07-04
 
 `resources/index.html`, serving `/resources/` — the destination the

@@ -1,19 +1,26 @@
 /**
- * Robayer WealthLab — Resource Filters Component
+ * Robayer WealthLab — Content Filters Component
  *
- * Combines category-pill filtering (same pattern as book-filters.js)
- * with client-side text search over the resources grid, since both
- * act on the same set of cards and must not fight each other. Cards
- * carry [data-category]/[data-title], so adding more resources later
- * needs no changes here.
+ * Generic category-pill + live-search filtering for a grid of cards.
+ * Introduced in Sprint 5 (Blog) to replace the page-specific
+ * book-filters.js (Sprint 2) and resource-filters.js (Sprint 4) — same
+ * underlying logic, generalized behind data attributes so any future
+ * page opts in with markup only, no new JS.
+ *
+ * Markup contract (all optional except the grid):
+ *   [data-filter-grid]     the card container — each direct child is one card
+ *   [data-filter-controls] wraps .filter-pill buttons (aria-pressed, data-filter)
+ *   [data-filter-search]   a text/search <input>
+ *   [data-filter-empty]    toggled via .hidden when nothing matches
+ * Cards read [data-category] (for pills) and [data-title] (for search).
  */
 
-function initResourceFilters() {
-  const grid = document.querySelector('[data-resource-grid]');
+function initContentFilters() {
+  const grid = document.querySelector('[data-filter-grid]');
   if (!grid) return;
 
-  const bar = document.querySelector('[data-resource-filters]');
-  const searchInput = document.querySelector('[data-resource-search]');
+  const bar = document.querySelector('[data-filter-controls]');
+  const searchInput = document.querySelector('[data-filter-search]');
   const emptyState = document.querySelector('[data-filter-empty]');
   const cards = Array.from(grid.children);
 
@@ -51,4 +58,4 @@ function initResourceFilters() {
   }
 }
 
-document.addEventListener('DOMContentLoaded', initResourceFilters);
+document.addEventListener('DOMContentLoaded', initContentFilters);
