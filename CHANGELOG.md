@@ -6,6 +6,73 @@ grouped by development phase/sprint instead of version number.
 
 ## [Unreleased]
 
+### Sprint 10 — Newsletter Page — 2026-07-04
+
+`newsletter/index.html`, serving `/newsletter/` — the single
+most-referenced forward link on the entire site (every page's header
+CTA, and dozens of in-page links since Phase 5.1, have pointed here).
+Built entirely from the existing design system. **Zero new CSS was
+needed**; `css/` is byte-for-byte unchanged from Sprint 9.
+
+**Added**
+- `newsletter/index.html` — hero, Why Subscribe, What You'll Receive,
+  Newsletter Archive Preview, Subscriber Journey, FAQ, a final CTA,
+  the newsletter signup itself, and the shared footer.
+- `WebPage` JSON-LD (no dedicated "Newsletter" type exists in
+  schema.org's vocabulary, so `WebPage` — the same choice made for
+  Community — is the appropriate fit here too), alongside the
+  established Organization and FAQPage schema.
+- `<lastmod>2026-07-04</lastmod>` added to the existing `/newsletter/`
+  sitemap entry.
+
+**Reused, not duplicated**
+- `.hero` (centered, matching Books/Resources/Blog's content-hub
+  pattern rather than About/Contact/Community's `.hero--split`, since
+  there's no founder/company-photo concept here).
+- `.card` in a `.grid--4` for Why Subscribe.
+- `.check-item` in a `.grid--2` for What You'll Receive.
+- `.blog-card` reused for the Newsletter Archive Preview (`.grid--3`,
+  three sample issues) — deliberately **without** the "Read article"
+  link every other use of this component has had, since there's no
+  real archive page yet to send readers to; adding one would have been
+  a dead link. Designed so real issues can drop in as plain
+  `.blog-card` entries later with no structural changes.
+- `.toc` reused a **seventh** distinct way — a linear subscriber
+  journey (Subscribe → Confirmation → Weekly lessons → Resources →
+  Community → Courses) — after book chapters, popular resources,
+  popular articles/beginner's path, in-page article navigation,
+  About's company timeline, and Community's rollout roadmap.
+- `.faq`, `.feature-banner__eyebrow`/`__title`/`__copy` reused
+  standalone (fifth use, after Resources/About/Contact/Community) for
+  the final CTA, `.newsletter-band`, shared footer.
+
+**Verified**
+- Full pass at mobile (375px), tablet (768px), and desktop (1280px):
+  hero, the Why-Subscribe `.grid--4` and What-You'll-Receive `.grid--2`
+  collapses, and the three-card `.grid--3` archive preview all
+  confirmed correct.
+- FAQ accordion verified via direct DOM inspection
+  (`hasAttribute('open')`) on a specific item, confirming exactly one
+  opens per click.
+- Both `#newsletter-signup` anchor links (hero and final CTA) and the
+  newsletter form (fill → submit → confirmation message) tested
+  end-to-end.
+- Confirmed, for the first time, that the header's "Get one better
+  money tip" `.nav__cta` button correctly receives
+  `aria-current="page"` when its own `/newsletter/` link matches the
+  current page — and confirmed via computed style that this causes no
+  unwanted visual change, since the `.nav__list a[aria-current="page"]`
+  CSS rule is scoped to list links and doesn't match `.nav__cta`
+  (a sibling element, not a list item).
+- Heading hierarchy confirmed via a full heading dump: single H1, one
+  H2 per section, H3s correctly nested under the four Why-Subscribe
+  cards.
+- Zero console errors, zero failed network requests, zero duplicate
+  IDs, zero inline styles, zero new/changed CSS. One transient
+  screenshot-tool timeout during testing resolved on retry with no
+  underlying page issue (page `readyState` was already `"complete"`
+  and all network requests had returned 200 before the retry).
+
 ### Sprint 9 — Community Page — 2026-07-04
 
 `community/index.html`, serving `/community/` — built entirely from
