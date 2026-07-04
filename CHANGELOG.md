@@ -6,6 +6,71 @@ grouped by development phase/sprint instead of version number.
 
 ## [Unreleased]
 
+### Sprint 13 — Disclaimer — 2026-07-04
+
+`legal/disclaimer/index.html`, serving `/legal/disclaimer/` — the
+third and final Legal page. With this sprint, **every URL currently
+listed in `sitemap.xml` now resolves to a real page** (all 13 entries
+have a `<lastmod>`, confirmed via `grep`). Built by directly mirroring
+Privacy Policy and Terms of Use, as instructed. **Zero new CSS was
+needed**; `css/` is byte-for-byte unchanged from Sprint 12.
+
+**Added**
+- `legal/disclaimer/index.html` — breadcrumb, hero (with effective/
+  last-updated dates), sticky-on-desktop TOC + disclaimer body
+  (Educational Purpose, No Financial Advice, Investment Risk,
+  Accuracy of Information, External Links, Affiliate & Commercial
+  Relationships, Limitation of Responsibility, Contact), Related
+  Documents, newsletter CTA, shared footer.
+- `Organization`, `WebPage`, and `BreadcrumbList` JSON-LD — same
+  pattern as the other two Legal pages, no `FAQPage`.
+- `<lastmod>2026-07-04</lastmod>` added to the existing
+  `/legal/disclaimer/` sitemap entry — the last sitemap entry that
+  didn't have one.
+
+**Reused, not duplicated**
+- The entire Privacy Policy / Terms of Use shell — `.article-layout` +
+  `.article-body` + `.toc` (sticky sidebar, reading progress via
+  `js/components/article-reading.js`, zero code changes),
+  breadcrumbs, Related Documents' arrow-icon link pattern, newsletter
+  band, and footer.
+- `.alert--info` for two callouts (Accuracy of Information's "verify
+  independently," Affiliate & Commercial Relationships' "we'll always
+  disclose it") — same component, same honest-disclosure pattern as
+  the other two Legal pages.
+- Plain `<ul>` inside `.article-body` for Investment Risk's three
+  points, matching Privacy Policy's approach for informational (not
+  compare/contrast) enumerations — `.check-item`'s check/x split was
+  intentionally *not* reused here, since this section has no "allowed
+  vs. not allowed" structure the way Terms of Use's Permitted Use did.
+
+**Content approach**
+- States plainly that Robayer WealthLab is not a licensed financial
+  advisory service, that investing involves risk, and that past
+  performance doesn't guarantee future performance — directly
+  addressing this sprint's instructions.
+- Affiliate & Commercial Relationships is honest about the current
+  state (no affiliate deals exist today) while committing to disclose
+  any that start, consistent with how the other two Legal pages
+  handle not-yet-active things.
+
+**Verified**
+- Reading-progress bar and TOC active-highlighting confirmed via
+  computed style at a specific scroll position (43% progress, "No
+  financial advice" correctly active).
+- Sticky sidebar confirmed via computed style (`position: sticky`,
+  `top: 112px`) at desktop width (1280px); single-column stacking
+  confirmed at tablet (768px) and mobile (375px), with both
+  `alert--info` callouts remaining fully readable at 375px.
+- **All three Legal pages now cross-link correctly in every
+  direction** — confirmed by clicking Disclaimer → Privacy Policy →
+  Terms of Use → (implicitly) back — the first time this trio's
+  Related Documents links have been fully non-broken.
+- Heading hierarchy confirmed via a full heading dump: single H1, one
+  H2 per section, no skipped levels.
+- Zero console errors, zero failed network requests, zero duplicate
+  IDs, zero inline styles, zero new/changed CSS.
+
 ### Sprint 12 — Terms of Use — 2026-07-04
 
 `legal/terms-of-use/index.html`, serving `/legal/terms-of-use/` — the
