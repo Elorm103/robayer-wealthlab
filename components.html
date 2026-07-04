@@ -1,0 +1,408 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Component Showcase — Robayer WealthLab (Dev Only)</title>
+  <meta name="robots" content="noindex, nofollow">
+
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Fraunces:ital,wght@0,500;0,600;1,500&family=Space+Grotesk:wght@500&family=Work+Sans:wght@400;500&family=IBM+Plex+Mono:wght@400;500&display=swap" rel="stylesheet">
+
+  <link rel="stylesheet" href="/css/tokens.css">
+  <link rel="stylesheet" href="/css/base.css">
+  <link rel="stylesheet" href="/css/layout.css">
+  <link rel="stylesheet" href="/css/components.css">
+  <link rel="stylesheet" href="/css/utilities.css">
+  <!-- Dev-only: never link this file from a real page -->
+  <link rel="stylesheet" href="/css/dev-showcase.css">
+</head>
+<body>
+  <a href="#main-content" class="skip-link">Skip to main content</a>
+
+  <div class="showcase-banner">
+    Internal development reference — not part of the public website. Not linked from navigation. <code>noindex</code>.
+  </div>
+
+  <div data-include="/partials/header.html"></div>
+
+  <main id="main-content">
+
+    <div class="container">
+      <div class="section--tight">
+        <h1>Component showcase</h1>
+        <p class="text-secondary mt-2">Every reusable component defined in <code>css/components.css</code>, shown in its default, hover, focus, and disabled states where applicable. This page is the permanent reference for all future page development — if a component you need isn't shown here, extend the design system first rather than writing a one-off style on a page.</p>
+      </div>
+    </div>
+
+    <!-- ============================================================ COLOR PALETTE ============================================================ -->
+    <section class="showcase-section">
+      <div class="container">
+        <h2 class="showcase-section__title">1. Color palette</h2>
+        <p class="showcase-section__desc">Source of truth: <code>css/tokens.css</code>. Never hardcode a hex value on a page — reference the token.</p>
+
+        <div class="showcase-row">
+          <div class="showcase-item"><div class="showcase-swatch" style="background:var(--color-growth-green)"></div><span class="showcase-label">Growth green</span><span class="showcase-code">#1F5C4E</span></div>
+          <div class="showcase-item"><div class="showcase-swatch" style="background:var(--color-ink-navy)"></div><span class="showcase-label">Ink navy</span><span class="showcase-code">#16233D</span></div>
+          <div class="showcase-item"><div class="showcase-swatch" style="background:var(--color-sika-gold)"></div><span class="showcase-label">Sika gold</span><span class="showcase-code">#D4A017</span></div>
+          <div class="showcase-item"><div class="showcase-swatch" style="background:var(--color-kente-red)"></div><span class="showcase-label">Kente red</span><span class="showcase-code">#B33A3A</span></div>
+        </div>
+        <div class="showcase-row">
+          <div class="showcase-item"><div class="showcase-swatch" style="background:var(--color-warm-paper)"></div><span class="showcase-label">Warm paper</span><span class="showcase-code">#FAF6EF</span></div>
+          <div class="showcase-item"><div class="showcase-swatch" style="background:var(--color-light-sand)"></div><span class="showcase-label">Light sand</span><span class="showcase-code">#E8E4DC</span></div>
+          <div class="showcase-item"><div class="showcase-swatch" style="background:var(--color-stone-grey)"></div><span class="showcase-label">Stone grey</span><span class="showcase-code">#9B958A</span></div>
+          <div class="showcase-item"><div class="showcase-swatch" style="background:var(--color-charcoal-ink)"></div><span class="showcase-label">Charcoal ink</span><span class="showcase-code">#22252B</span></div>
+        </div>
+        <div class="showcase-row">
+          <div class="showcase-item"><div class="showcase-swatch" style="background:var(--color-success)"></div><span class="showcase-label">Success</span><span class="showcase-code">#2F8F6E</span></div>
+          <div class="showcase-item"><div class="showcase-swatch" style="background:var(--color-warning)"></div><span class="showcase-label">Warning</span><span class="showcase-code">#E8A33D</span></div>
+          <div class="showcase-item"><div class="showcase-swatch" style="background:var(--color-error)"></div><span class="showcase-label">Error</span><span class="showcase-code">#C4392B</span></div>
+          <div class="showcase-item"><div class="showcase-swatch" style="background:var(--color-info)"></div><span class="showcase-label">Info</span><span class="showcase-code">#3B6EA5</span></div>
+        </div>
+      </div>
+    </section>
+
+    <!-- ============================================================ TYPOGRAPHY ============================================================ -->
+    <section class="showcase-section">
+      <div class="container">
+        <h2 class="showcase-section__title">2. Typography hierarchy</h2>
+        <p class="showcase-section__desc">Fraunces (display/headings) · Space Grotesk (eyebrows/UI labels) · Work Sans (body) · IBM Plex Mono (numeric data). All sizes are fluid — resize the window to see the clamp() scaling.</p>
+        <span class="eyebrow mb-2">Eyebrow / label — Space Grotesk 13px uppercase</span>
+        <h1 class="mb-2">H1 display headline</h1>
+        <h2 class="mb-2">H2 section heading</h2>
+        <h3 class="mb-2">H3 sub-section heading</h3>
+        <h4 class="mb-2">H4 card / minor heading</h4>
+        <p class="mb-2 text-body-lg">Body large — intro paragraphs and lead text sit here, eighteen to sixteen pixels.</p>
+        <p class="mb-2">Body — standard paragraph text at fifteen to sixteen pixels, 1.6 line height for easy reading.</p>
+        <p class="text-secondary mb-2 text-small">Small / caption text — thirteen to fourteen pixels, used for metadata and captions.</p>
+        <p class="numeric text-lg">GH₵ 1,240.00 — numeric data in IBM Plex Mono</p>
+      </div>
+    </section>
+
+    <!-- ============================================================ BUTTONS ============================================================ -->
+    <section class="showcase-section">
+      <div class="container">
+        <h2 class="showcase-section__title">3. Buttons</h2>
+        <p class="showcase-section__desc">Primary, secondary, and accent — each shown default, hover (forced), focus (forced), and disabled.</p>
+
+        <div class="showcase-row">
+          <div class="showcase-item"><span class="showcase-label">Default</span><button class="btn btn--primary">Get the guide</button></div>
+          <div class="showcase-item"><span class="showcase-label">Hover</span><button class="btn btn--primary state-hover">Get the guide</button></div>
+          <div class="showcase-item"><span class="showcase-label">Focus</span><button class="btn btn--primary state-focus">Get the guide</button></div>
+          <div class="showcase-item"><span class="showcase-label">Disabled</span><button class="btn btn--primary" disabled>Get the guide</button></div>
+        </div>
+        <div class="showcase-row">
+          <div class="showcase-item"><span class="showcase-label">Default</span><button class="btn btn--secondary">Browse resources</button></div>
+          <div class="showcase-item"><span class="showcase-label">Hover</span><button class="btn btn--secondary state-hover">Browse resources</button></div>
+          <div class="showcase-item"><span class="showcase-label">Focus</span><button class="btn btn--secondary state-focus">Browse resources</button></div>
+          <div class="showcase-item"><span class="showcase-label">Disabled</span><button class="btn btn--secondary" disabled>Browse resources</button></div>
+        </div>
+        <div class="showcase-row">
+          <div class="showcase-item"><span class="showcase-label">Default</span><button class="btn btn--accent">Get the guide — GH₵39</button></div>
+          <div class="showcase-item"><span class="showcase-label">Hover</span><button class="btn btn--accent state-hover">Get the guide — GH₵39</button></div>
+          <div class="showcase-item"><span class="showcase-label">Focus</span><button class="btn btn--accent state-focus">Get the guide — GH₵39</button></div>
+        </div>
+      </div>
+    </section>
+
+    <!-- ============================================================ CARDS ============================================================ -->
+    <section class="showcase-section">
+      <div class="container">
+        <h2 class="showcase-section__title">4. Cards</h2>
+        <p class="showcase-section__desc">Base card component, default and featured (Sika Gold border) variants.</p>
+        <div class="grid grid--3">
+          <div class="card">
+            <span class="eyebrow card__eyebrow">Template</span>
+            <h4 class="card__title">Budget tracker</h4>
+            <p class="card__body">A simple monthly tracker built for irregular income.</p>
+          </div>
+          <div class="card state-hover">
+            <span class="showcase-label showcase-label--block mb-2">Hover (forced)</span>
+            <span class="eyebrow card__eyebrow">Calculator</span>
+            <h4 class="card__title">Savings goal</h4>
+            <p class="card__body">See how long it takes to reach a savings target.</p>
+          </div>
+          <div class="card card--featured">
+            <span class="showcase-label showcase-label--block mb-2">Featured variant</span>
+            <span class="eyebrow card__eyebrow">Guide</span>
+            <h4 class="card__title">Treasury bills 101</h4>
+            <p class="card__body">Everything you need for your first T-bill purchase.</p>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- ============================================================ FORMS & INPUTS ============================================================ -->
+    <section class="showcase-section">
+      <div class="container">
+        <h2 class="showcase-section__title">5. Forms &amp; inputs</h2>
+        <p class="showcase-section__desc">Text input shown in default, focus, error, and disabled states. Same pattern applies to textarea and select.</p>
+        <div class="showcase-row">
+          <div class="showcase-item">
+            <span class="showcase-label">Default</span>
+            <div class="field mb-0"><label class="field__label" for="demo-1">Email</label><input class="field__input" id="demo-1" type="email" placeholder="name@example.com"></div>
+          </div>
+          <div class="showcase-item">
+            <span class="showcase-label">Focus</span>
+            <div class="field mb-0"><label class="field__label" for="demo-2">Email</label><input class="field__input state-focus" id="demo-2" type="email" placeholder="name@example.com"></div>
+          </div>
+          <div class="showcase-item">
+            <span class="showcase-label">Error</span>
+            <div class="field field--error mb-0"><label class="field__label" for="demo-3">Email</label><input class="field__input" id="demo-3" type="email" value="not-an-email"><span class="field__error">That email doesn't look quite right.</span></div>
+          </div>
+          <div class="showcase-item">
+            <span class="showcase-label">Disabled</span>
+            <div class="field mb-0"><label class="field__label" for="demo-4">Email</label><input class="field__input" id="demo-4" type="email" value="locked@example.com" disabled></div>
+          </div>
+        </div>
+        <div class="showcase-row">
+          <div class="showcase-item showcase-item--wide">
+            <span class="showcase-label">Textarea</span>
+            <textarea class="field__textarea" placeholder="Tell us what happened..."></textarea>
+          </div>
+          <div class="showcase-item showcase-item--narrow">
+            <span class="showcase-label">Select</span>
+            <select class="field__select">
+              <option>Saving</option>
+              <option>Investing</option>
+              <option>Entrepreneurship</option>
+            </select>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- ============================================================ NAVIGATION (live component) ============================================================ -->
+    <section class="showcase-section">
+      <div class="container">
+        <h2 class="showcase-section__title">6. Navigation</h2>
+        <p class="showcase-section__desc">The live header partial renders at the top of this very page — resize below 768px to see the mobile menu, or use the forced-open example below.</p>
+        <span class="showcase-label showcase-label--block mb-2">Mobile menu — open state (forced, for reference below 768px)</span>
+        <div class="showcase-frame">
+          <div class="nav__menu is-open showcase-nav-preview">
+            <ul class="nav__list">
+              <li><a href="/books/">Books</a></li>
+              <li><a href="/blog/" aria-current="page">Blog</a></li>
+              <li><a href="/resources/">Resources</a></li>
+              <li><a href="/about/">About</a></li>
+            </ul>
+            <a href="/newsletter/" class="btn btn--primary nav__cta">Get one better money tip</a>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- ============================================================ FOOTER (live component preview) ============================================================ -->
+    <section class="showcase-section">
+      <div class="container">
+        <h2 class="showcase-section__title">7. Footer</h2>
+        <p class="showcase-section__desc">The live footer partial renders at the bottom of this page — scroll down to see it in context.</p>
+      </div>
+    </section>
+
+    <!-- ============================================================ HERO VARIATIONS ============================================================ -->
+    <section class="showcase-section">
+      <div class="container">
+        <h2 class="showcase-section__title">8. Hero variations</h2>
+        <p class="showcase-section__desc">Centered (default — Home, Newsletter) and split (About, feature pages).</p>
+      </div>
+      <div class="hero bg-paper">
+        <div class="container hero__content">
+          <span class="eyebrow hero__eyebrow">Financial education for Ghana</span>
+          <h1 class="hero__title">Where small money builds big futures</h1>
+          <p class="hero__subtitle">Start with what you have. One better financial decision at a time.</p>
+          <div class="hero__actions">
+            <a href="#" class="btn btn--primary">Get one better money tip</a>
+            <a href="#" class="btn btn--secondary">Browse resources</a>
+          </div>
+        </div>
+      </div>
+      <div class="hero hero--split bg-paper">
+        <div class="container">
+          <div class="hero__content">
+            <div>
+              <span class="eyebrow hero__eyebrow">About Robayer</span>
+              <h2 class="hero__title">Someone slightly ahead on the journey</h2>
+              <p class="hero__subtitle">Founded by Robert Loh Kobla to simplify financial education for ordinary Ghanaians.</p>
+              <div class="hero__actions"><a href="#" class="btn btn--primary">Read the story</a></div>
+            </div>
+            <div class="rounded-lg bg-sand aspect-4-5"></div>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- ============================================================ BOOK / BLOG / RESOURCE CARDS ============================================================ -->
+    <section class="showcase-section">
+      <div class="container">
+        <h2 class="showcase-section__title">9–11. Book, blog &amp; resource cards</h2>
+        <div class="grid grid--3 mb-5">
+          <div class="book-card book-card--featured">
+            <div class="book-card__cover"></div>
+            <p class="book-card__title">Starting to invest with GH₵100</p>
+            <p class="book-card__price">GH₵39</p>
+            <p class="book-card__description">Treasury bills, MoMo savings, and the GSE — your first move.</p>
+            <a href="#" class="btn btn--primary">Get the guide</a>
+          </div>
+          <div class="book-card">
+            <div class="book-card__cover book-card__cover--green"></div>
+            <p class="book-card__title">The MoMo savings playbook</p>
+            <p class="book-card__price">GH₵39</p>
+            <p class="book-card__description">Turn mobile money into a real savings habit.</p>
+            <a href="#" class="btn btn--secondary">Get the guide</a>
+          </div>
+          <div class="blog-card">
+            <div class="blog-card__image"></div>
+            <span class="eyebrow">Saving</span>
+            <p class="blog-card__title"><a href="#">How MoMo savings compound over a year</a></p>
+            <p class="blog-card__excerpt">A simple breakdown of what happens when you save the same amount every week.</p>
+            <span class="blog-card__meta">6 min read</span>
+          </div>
+        </div>
+        <div class="grid grid--3">
+          <div class="resource-card">
+            <svg class="resource-card__icon icon" viewBox="0 0 24 24"><rect x="3" y="4" width="18" height="16" rx="2"/><path d="M3 9h18"/></svg>
+            <span class="badge badge--info resource-card__format">Template</span>
+            <p class="resource-card__title">Budget tracker</p>
+          </div>
+          <div class="resource-card">
+            <svg class="resource-card__icon icon" viewBox="0 0 24 24"><rect x="4" y="3" width="16" height="18" rx="2"/><path d="M8 8h8M8 12h8M8 16h4"/></svg>
+            <span class="badge badge--success resource-card__format">Calculator</span>
+            <p class="resource-card__title">Savings goal</p>
+          </div>
+          <div class="resource-card">
+            <svg class="resource-card__icon icon" viewBox="0 0 24 24"><path d="M6 3h9l5 5v13a1 1 0 0 1-1 1H6a1 1 0 0 1-1-1V4a1 1 0 0 1 1-1z"/><path d="M14 3v5h5"/></svg>
+            <span class="badge badge--warning resource-card__format">Guide</span>
+            <p class="resource-card__title">Treasury bills 101</p>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- ============================================================ TESTIMONIALS ============================================================ -->
+    <section class="showcase-section">
+      <div class="container">
+        <h2 class="showcase-section__title">12. Testimonial cards</h2>
+        <p class="showcase-section__desc">Grid variant (Home, About) and inline variant (Book Detail, positioned before a CTA).</p>
+        <div class="grid grid--3 mb-5">
+          <div class="testimonial">
+            <p class="testimonial__quote">"I finally understood treasury bills after years of being too embarrassed to ask."</p>
+            <div class="testimonial__attribution"><div class="testimonial__avatar">A</div><div><p class="testimonial__name">Ama</p><p class="testimonial__context">eBook reader, Accra</p></div></div>
+          </div>
+          <div class="testimonial">
+            <p class="testimonial__quote">"The budget tracker is the first one I've actually kept using."</p>
+            <div class="testimonial__attribution"><div class="testimonial__avatar">K</div><div><p class="testimonial__name">Kwame</p><p class="testimonial__context">Newsletter subscriber</p></div></div>
+          </div>
+        </div>
+        <div class="testimonial testimonial--inline">
+          <p class="testimonial__quote">"Wherever you're starting from, they actually meet you there."</p>
+          <div class="testimonial__attribution"><div class="testimonial__avatar">E</div><div><p class="testimonial__name">Efua</p><p class="testimonial__context">Course waitlist</p></div></div>
+        </div>
+      </div>
+    </section>
+
+    <!-- ============================================================ NEWSLETTER COMPONENT ============================================================ -->
+    <section class="showcase-section">
+      <div class="container">
+        <h2 class="showcase-section__title">13. Newsletter component</h2>
+        <div class="newsletter-band">
+          <div><h3 class="mb-2">Get one better money tip</h3><p>Weekly, free, no spam.</p></div>
+          <a href="#" class="btn btn--accent">Subscribe</a>
+        </div>
+      </div>
+    </section>
+
+    <!-- ============================================================ ALERTS & BADGES ============================================================ -->
+    <section class="showcase-section">
+      <div class="container">
+        <h2 class="showcase-section__title">14–15. Alerts &amp; badges</h2>
+        <div class="stack gap-3 mb-5">
+          <div class="alert alert--success">Your download is ready.</div>
+          <div class="alert alert--warning">That figure looks unusually high — double check it.</div>
+          <div class="alert alert--error">That email doesn't look quite right. Try another.</div>
+          <div class="alert alert--info">This calculator assumes monthly compounding.</div>
+        </div>
+        <div class="cluster gap-2">
+          <span class="badge badge--success">Success</span>
+          <span class="badge badge--warning">Warning</span>
+          <span class="badge badge--error">Error</span>
+          <span class="badge badge--info">Info</span>
+        </div>
+      </div>
+    </section>
+
+    <!-- ============================================================ ICONS ============================================================ -->
+    <section class="showcase-section">
+      <div class="container">
+        <h2 class="showcase-section__title">16. Icons</h2>
+        <p class="showcase-section__desc">Simple rounded-stroke line icons, 2px stroke, per Brand Identity System Section 5.10. Hand-drawn SVG — no external icon font dependency.</p>
+        <div class="showcase-row">
+          <div class="showcase-item"><svg class="icon icon--lg" viewBox="0 0 24 24"><path d="M5 12l4 4 10-10"/></svg><span class="showcase-label">Check</span></div>
+          <div class="showcase-item"><svg class="icon icon--lg" viewBox="0 0 24 24"><rect x="5" y="11" width="14" height="9" rx="2"/><path d="M8 11V8a4 4 0 0 1 8 0v3"/></svg><span class="showcase-label">Lock</span></div>
+          <div class="showcase-item"><svg class="icon icon--lg" viewBox="0 0 24 24"><path d="M12 20s-7-4.4-9.5-8.5C.8 8 2.5 4.5 6 4.5c2 0 3.3 1.1 4 2.2.7-1.1 2-2.2 4-2.2 3.5 0 5.2 3.5 3.5 7C19 15.6 12 20 12 20z"/></svg><span class="showcase-label">Heart</span></div>
+          <div class="showcase-item"><svg class="icon icon--lg" viewBox="0 0 24 24"><circle cx="12" cy="8" r="3.5"/><path d="M5 20c0-4 3-6 7-6s7 2 7 6"/></svg><span class="showcase-label">User</span></div>
+          <div class="showcase-item"><svg class="icon icon--lg" viewBox="0 0 24 24"><path d="M12 3l2.6 5.6 6.1.6-4.6 4.1 1.3 6-5.4-3.2-5.4 3.2 1.3-6-4.6-4.1 6.1-.6z"/></svg><span class="showcase-label">Star</span></div>
+          <div class="showcase-item"><svg class="icon icon--lg" viewBox="0 0 24 24"><rect x="3" y="5" width="18" height="14" rx="2"/><path d="M3 6l9 7 9-7"/></svg><span class="showcase-label">Mail</span></div>
+          <div class="showcase-item"><svg class="icon icon--lg" viewBox="0 0 24 24"><path d="M12 4v11m0 0l-4-4m4 4l4-4"/><path d="M4 18v1a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-1"/></svg><span class="showcase-label">Download</span></div>
+          <div class="showcase-item"><svg class="icon icon--lg" viewBox="0 0 24 24"><path d="M4 12h15m0 0l-5-5m5 5l-5 5"/></svg><span class="showcase-label">Arrow right</span></div>
+        </div>
+      </div>
+    </section>
+
+    <!-- ============================================================ TABLES ============================================================ -->
+    <section class="showcase-section">
+      <div class="container">
+        <h2 class="showcase-section__title">17. Tables</h2>
+        <p class="showcase-section__desc">Ink Navy header, alternating rows, numeric columns right-aligned in IBM Plex Mono.</p>
+        <table class="table">
+          <thead>
+            <tr><th>Month</th><th class="numeric">Deposit</th><th class="numeric">Balance</th></tr>
+          </thead>
+          <tbody>
+            <tr><td>January</td><td class="numeric">GH₵100.00</td><td class="numeric">GH₵100.00</td></tr>
+            <tr><td>February</td><td class="numeric">GH₵100.00</td><td class="numeric">GH₵202.50</td></tr>
+            <tr><td>March</td><td class="numeric">GH₵100.00</td><td class="numeric">GH₵306.31</td></tr>
+          </tbody>
+        </table>
+      </div>
+    </section>
+
+    <!-- ============================================================ SPACING ============================================================ -->
+    <section class="showcase-section">
+      <div class="container">
+        <h2 class="showcase-section__title">18. Spacing examples</h2>
+        <p class="showcase-section__desc">The 8px-based spacing scale. Never use a value outside this list.</p>
+        <div class="stack gap-2">
+          <div class="cluster gap-3"><span class="showcase-code showcase-code--label">4px</span><div class="showcase-spacing-bar" style="width:var(--space-1)"></div></div>
+          <div class="cluster gap-3"><span class="showcase-code showcase-code--label">8px</span><div class="showcase-spacing-bar" style="width:var(--space-2)"></div></div>
+          <div class="cluster gap-3"><span class="showcase-code showcase-code--label">16px</span><div class="showcase-spacing-bar" style="width:var(--space-3)"></div></div>
+          <div class="cluster gap-3"><span class="showcase-code showcase-code--label">24px</span><div class="showcase-spacing-bar" style="width:var(--space-4)"></div></div>
+          <div class="cluster gap-3"><span class="showcase-code showcase-code--label">32px</span><div class="showcase-spacing-bar" style="width:var(--space-5)"></div></div>
+          <div class="cluster gap-3"><span class="showcase-code showcase-code--label">48px</span><div class="showcase-spacing-bar" style="width:var(--space-6)"></div></div>
+          <div class="cluster gap-3"><span class="showcase-code showcase-code--label">64px</span><div class="showcase-spacing-bar" style="width:var(--space-7)"></div></div>
+        </div>
+      </div>
+    </section>
+
+    <!-- ============================================================ RESPONSIVE GRID ============================================================ -->
+    <section class="showcase-section showcase-section--last">
+      <div class="container">
+        <h2 class="showcase-section__title">19. Responsive grid</h2>
+        <p class="showcase-section__desc">Real <code>.grid--3</code> / <code>.grid--4</code> classes — resize the browser window to see 3→2→1 and 4→2→1 collapse live, exactly as it will behave on real pages.</p>
+        <span class="showcase-label showcase-label--block mb-2">.grid--3 (3 → 2 → 1)</span>
+        <div class="grid grid--3 showcase-grid-demo mb-5"><div>1</div><div>2</div><div>3</div></div>
+        <span class="showcase-label showcase-label--block mb-2">.grid--4 (4 → 2 → 1)</span>
+        <div class="grid grid--4 showcase-grid-demo"><div>1</div><div>2</div><div>3</div><div>4</div></div>
+      </div>
+    </section>
+
+  </main>
+
+  <div data-include="/partials/footer.html"></div>
+
+  <script src="/js/includes.js"></script>
+  <script src="/js/components/nav.js"></script>
+  <script src="/js/main.js"></script>
+</body>
+</html>

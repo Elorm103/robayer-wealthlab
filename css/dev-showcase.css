@@ -1,0 +1,145 @@
+/*
+  Robayer WealthLab — Component Showcase (DEV ONLY)
+  Styles used only by components.html to lay out the style guide and to
+  force-display hover/focus states that normally only appear on real
+  interaction. None of this file is used by real site pages — it is not
+  linked from page-template.html and must never be added to it.
+*/
+
+.showcase-banner {
+  background-color: var(--color-charcoal-ink);
+  color: var(--color-white);
+  text-align: center;
+  padding: var(--space-2) var(--space-3);
+  font-family: var(--font-heading);
+  font-size: var(--text-small);
+}
+
+.showcase-section {
+  padding-block: var(--space-6);
+  border-bottom: 0.5px solid var(--color-border);
+}
+
+.showcase-section__title {
+  margin-bottom: var(--space-2);
+}
+
+.showcase-section__desc {
+  color: var(--color-text-secondary);
+  margin-bottom: var(--space-5);
+  max-width: 640px;
+}
+
+.showcase-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-4);
+  align-items: flex-start;
+  margin-bottom: var(--space-4);
+}
+
+.showcase-item {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+}
+
+.showcase-label {
+  font-family: var(--font-heading);
+  font-size: 0.75rem;
+  color: var(--color-stone-grey);
+  text-transform: uppercase;
+  letter-spacing: var(--tracking-eyebrow);
+}
+
+.showcase-swatch {
+  width: 96px;
+  height: 96px;
+  border-radius: var(--radius-md);
+  border: 0.5px solid var(--color-border);
+}
+
+.showcase-code {
+  font-family: var(--font-mono);
+  font-size: 0.75rem;
+  color: var(--color-text-secondary);
+}
+
+.showcase-grid-demo > div {
+  background-color: var(--color-light-sand);
+  border: 0.5px dashed var(--color-stone-grey);
+  border-radius: var(--radius-sm);
+  padding: var(--space-3);
+  text-align: center;
+  font-size: var(--text-small);
+  color: var(--color-text-secondary);
+}
+
+.showcase-spacing-bar {
+  background-color: var(--color-growth-green);
+  height: 16px;
+  border-radius: 2px;
+}
+
+/* ---------- Forced pseudo-state helpers ----------
+   These mirror the real :hover / :focus-visible rules from
+   components.css so a state can be shown at rest, without requiring
+   the reader to actually hover or tab to it. */
+
+.state-hover.btn--primary { background-color: #1a4f43; }
+.state-hover.btn--secondary { background-color: var(--color-ink-navy); color: var(--color-white); }
+.state-hover.btn--accent { background-color: #bf8f14; }
+.state-hover.card,
+.state-hover.book-card,
+.state-hover.resource-card { box-shadow: var(--shadow-2); }
+
+.state-focus {
+  outline: 2px solid var(--color-accent);
+  outline-offset: 2px;
+}
+
+.state-focus.field__input,
+.state-focus.field__textarea {
+  outline: 2px solid var(--color-accent);
+  outline-offset: 1px;
+  border-color: var(--color-accent);
+}
+
+/* ---------- Layout helpers for showcase-only demo blocks ----------
+   These size fixed-width demo items (textarea/select samples) and frame
+   the forced-open mobile nav preview. Not part of the real design
+   system — scoped to this dev-only page only. */
+
+.showcase-item--wide   { width: 280px; }
+.showcase-item--narrow { width: 220px; }
+
+.showcase-frame {
+  max-width: 320px;
+  border: 0.5px solid var(--color-border);
+  border-radius: var(--radius-md);
+  overflow: hidden;
+}
+
+.showcase-nav-preview {
+  position: static;
+  transform: none;
+  opacity: 1;
+  visibility: visible;
+  padding: var(--space-3);
+}
+
+.showcase-label--block { display: block; }
+
+/* Fixed-width row label so the spacing-scale bars below line up */
+.showcase-code--label { width: 80px; }
+
+/* Last showcase section on the page needs no trailing divider */
+.showcase-section--last { border-bottom: none; }
+
+/*
+  NOTE: the color-swatch backgrounds (section 1) and the spacing-bar
+  widths (section 18) are intentionally left as inline styles — each one
+  IS the unique value being documented (a distinct token per swatch/bar),
+  not a repeated pattern a class could capture without becoming a
+  one-class-per-value anti-pattern.
+*/

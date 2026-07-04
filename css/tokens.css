@@ -1,0 +1,114 @@
+/*
+  Robayer WealthLab — Design Tokens
+  Source of truth: Phase 2 Brand Identity System (approved)
+  Every color, type, spacing, radius, shadow and motion value used anywhere
+  on the site must reference a token from this file. No hardcoded values
+  in component or page CSS.
+
+  Breakpoints (referenced in comments throughout the codebase, since raw
+  CSS custom properties cannot be used inside @media feature queries):
+    mobile:  0–767px
+    tablet:  768–1199px
+    desktop: 1200px+
+*/
+
+:root {
+  /* ---------- Color: Primary ---------- */
+  --color-growth-green: #1F5C4E;
+  --color-ink-navy:      #16233D;
+
+  /* ---------- Color: Accent ---------- */
+  --color-sika-gold:  #D4A017;
+  --color-kente-red:  #B33A3A;
+
+  /* ---------- Color: Neutral ---------- */
+  --color-warm-paper:   #FAF6EF;
+  --color-light-sand:   #E8E4DC;
+  --color-stone-grey:   #9B958A;
+  --color-charcoal-ink: #22252B;
+  --color-white:        #FFFFFF;
+
+  /* ---------- Color: Semantic ---------- */
+  --color-success: #2F8F6E;
+  --color-warning: #E8A33D;
+  --color-error:   #C4392B;
+  --color-info:    #3B6EA5;
+
+  /* ---------- Color: Role mapping (use these in components, not raw colors) ---------- */
+  --color-bg:              var(--color-warm-paper);
+  --color-bg-alt:          var(--color-light-sand);
+  --color-bg-inverse:      var(--color-ink-navy);
+  --color-surface:         var(--color-white);
+  --color-text-primary:    var(--color-charcoal-ink);
+  --color-text-heading:    var(--color-ink-navy);
+  --color-text-secondary:  var(--color-stone-grey);
+  --color-text-on-dark:    var(--color-white);
+  --color-text-on-accent:  #4A3607; /* dark gold-brown, passes contrast on Sika Gold */
+  --color-border:          var(--color-light-sand);
+  --color-border-strong:   var(--color-stone-grey);
+  --color-accent:          var(--color-growth-green);
+  --color-highlight:       var(--color-sika-gold);
+
+  /* ---------- Typography: Font families ---------- */
+  --font-display: 'Fraunces', Georgia, serif;
+  --font-heading: 'Space Grotesk', 'Helvetica Neue', Arial, sans-serif;
+  --font-body:    'Work Sans', 'Helvetica Neue', Arial, sans-serif;
+  --font-mono:    'IBM Plex Mono', 'Courier New', monospace;
+
+  /* ---------- Typography: Fluid scale (mobile -> desktop) ---------- */
+  --text-display: clamp(2rem, 1.55rem + 2vw, 3rem);       /* H1: 32px -> 48px */
+  --text-h2:      clamp(1.75rem, 1.45rem + 1.4vw, 2.25rem); /* 28px -> 36px */
+  --text-h3:      clamp(1.375rem, 1.2rem + 0.8vw, 1.75rem); /* 22px -> 28px */
+  --text-h4:      clamp(1.125rem, 1.02rem + 0.4vw, 1.25rem);/* 18px -> 20px */
+  --text-body-lg: clamp(1rem, 0.95rem + 0.2vw, 1.125rem);   /* 16px -> 18px */
+  --text-body:    clamp(0.9375rem, 0.9rem + 0.15vw, 1rem);  /* 15px -> 16px */
+  --text-small:   clamp(0.8125rem, 0.8rem + 0.1vw, 0.875rem);/* 13px -> 14px */
+  --text-eyebrow: 0.8125rem; /* 13px, fixed — used uppercase + tracked */
+
+  /* ---------- Typography: Weights ---------- */
+  --weight-regular:  400;
+  --weight-medium:   500;
+  --weight-semibold: 600;
+
+  /* ---------- Typography: Line heights ---------- */
+  --leading-heading: 1.2;
+  --leading-body:    1.6;
+  --leading-mono:    1.4;
+
+  /* ---------- Typography: Letter spacing ---------- */
+  --tracking-tight:   -0.01em;
+  --tracking-normal:  0;
+  --tracking-eyebrow: 0.06em;
+
+  /* ---------- Spacing scale (8px base unit) ---------- */
+  --space-1: 0.25rem; /* 4px  */
+  --space-2: 0.5rem;  /* 8px  */
+  --space-3: 1rem;    /* 16px */
+  --space-4: 1.5rem;  /* 24px */
+  --space-5: 2rem;    /* 32px */
+  --space-6: 3rem;    /* 48px */
+  --space-7: 4rem;    /* 64px */
+  --space-8: 6rem;    /* 96px */
+  --space-9: 8rem;    /* 128px */
+
+  /* ---------- Radius ---------- */
+  --radius-sm: 8px;
+  --radius-md: 12px;
+  --radius-lg: 20px;
+
+  /* ---------- Shadow (warm-toned, never pure black) ---------- */
+  --shadow-1: 0px 2px 4px rgba(22, 35, 61, 0.06);
+  --shadow-2: 0px 4px 12px rgba(22, 35, 61, 0.10);
+  --shadow-3: 0px 8px 24px rgba(22, 35, 61, 0.16);
+
+  /* ---------- Motion ---------- */
+  --duration-fast: 150ms;
+  --duration-base: 200ms;
+  --duration-slow: 300ms;
+  --ease-standard: ease-in-out;
+
+  /* ---------- Layout ---------- */
+  --container-max: 1200px;
+  --container-pad: var(--space-4); /* 24px, overridden down to space-3 on mobile in layout.css */
+  --header-height: 88px;
+}

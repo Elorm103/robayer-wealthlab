@@ -1,0 +1,87 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+
+  <!-- ============================================================
+       SEO — replace every {{PLACEHOLDER}} below for each real page.
+       Title: 50–60 characters. Description: 150–160 characters.
+       ============================================================ -->
+  <title>{{PAGE_TITLE}} | Robayer WealthLab</title>
+  <meta name="description" content="{{PAGE_DESCRIPTION}}">
+  <link rel="canonical" href="https://robayerwealthlab.com{{PAGE_PATH}}">
+
+  <!-- Open Graph -->
+  <meta property="og:type" content="website">
+  <meta property="og:title" content="{{PAGE_TITLE}} | Robayer WealthLab">
+  <meta property="og:description" content="{{PAGE_DESCRIPTION}}">
+  <meta property="og:url" content="https://robayerwealthlab.com{{PAGE_PATH}}">
+  <meta property="og:image" content="https://robayerwealthlab.com/assets/images/og-default.jpg">
+  <meta property="og:site_name" content="Robayer WealthLab">
+
+  <!-- Twitter Card -->
+  <meta name="twitter:card" content="summary_large_image">
+  <meta name="twitter:title" content="{{PAGE_TITLE}} | Robayer WealthLab">
+  <meta name="twitter:description" content="{{PAGE_DESCRIPTION}}">
+
+  <!-- Favicon (final artwork to be produced from the approved Sika monogram) -->
+  <link rel="icon" type="image/svg+xml" href="/assets/icons/favicon.svg">
+  <link rel="icon" type="image/png" sizes="32x32" href="/assets/icons/favicon-32.png">
+  <link rel="apple-touch-icon" href="/assets/icons/apple-touch-icon.png">
+
+  <!-- Fonts — per Phase 2 Brand Identity System Section 4 -->
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Fraunces:ital,wght@0,500;0,600;1,500&family=Space+Grotesk:wght@500&family=Work+Sans:wght@400;500&family=IBM+Plex+Mono:wght@400;500&display=swap" rel="stylesheet">
+
+  <!-- Styles — load order matters: tokens before everything else -->
+  <link rel="stylesheet" href="/css/tokens.css">
+  <link rel="stylesheet" href="/css/base.css">
+  <link rel="stylesheet" href="/css/layout.css">
+  <link rel="stylesheet" href="/css/components.css">
+  <link rel="stylesheet" href="/css/utilities.css">
+
+  <!-- Structured data — Organization (site-wide; add page-specific
+       Article/FAQ schema per Phase 1 SEO requirements on content pages) -->
+  <script type="application/ld+json">
+  {
+    "@context": "https://schema.org",
+    "@type": "Organization",
+    "name": "Robayer WealthLab",
+    "url": "https://robayerwealthlab.com",
+    "logo": "https://robayerwealthlab.com/assets/images/logo/logo.svg",
+    "description": "Financial education for ordinary Ghanaians — practical, honest guidance on saving, investing, and building wealth.",
+    "founder": {
+      "@type": "Person",
+      "name": "Robert Loh Kobla"
+    }
+  }
+  </script>
+</head>
+<body>
+  <!-- Accessibility: first focusable element on every page -->
+  <a href="#main-content" class="skip-link">Skip to main content</a>
+
+  <!-- Header partial: injected by js/includes.js -->
+  <div data-include="/partials/header.html"></div>
+
+  <main id="main-content">
+    <!--
+      Page-specific content goes here.
+      Build this section from the approved Phase 3 wireframe and Phase 4
+      visual spec for this page. Use only the components defined in
+      css/components.css — do not introduce one-off styles here.
+    -->
+  </main>
+
+  <!-- Footer partial: injected by js/includes.js -->
+  <div data-include="/partials/footer.html"></div>
+
+  <!-- Scripts: includes.js must load before any component script that
+       depends on injected header/footer markup (e.g. nav.js) -->
+  <script src="/js/includes.js"></script>
+  <script src="/js/components/nav.js"></script>
+  <script src="/js/main.js"></script>
+</body>
+</html>

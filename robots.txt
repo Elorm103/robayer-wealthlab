@@ -1,0 +1,4 @@
+User-agent: *
+Allow: /
+
+Sitemap: https://robayerwealthlab.com/sitemap.xml

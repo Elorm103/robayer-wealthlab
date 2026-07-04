@@ -1,0 +1,137 @@
+/*
+  Robayer WealthLab — Layout
+  Container, grid system, section rhythm.
+  Breakpoints: mobile 0–767px · tablet 768–1199px · desktop 1200px+
+  Depends on: tokens.css
+*/
+
+/* ---------- Container ---------- */
+.container {
+  width: 100%;
+  max-width: var(--container-max);
+  margin-inline: auto;
+  padding-inline: var(--container-pad);
+}
+
+@media (max-width: 767px) {
+  .container {
+    padding-inline: var(--space-3); /* 16px on mobile */
+  }
+}
+
+/* ---------- Section rhythm ---------- */
+.section {
+  padding-block: var(--space-7); /* 64px desktop */
+}
+
+@media (max-width: 1199px) {
+  .section {
+    padding-block: var(--space-6); /* 48px tablet */
+  }
+}
+
+@media (max-width: 767px) {
+  .section {
+    padding-block: var(--space-5); /* 32px mobile */
+  }
+}
+
+.section--tight {
+  padding-block: var(--space-5);
+}
+
+@media (max-width: 767px) {
+  .section--tight {
+    padding-block: var(--space-4);
+  }
+}
+
+/* ---------- Grid system ---------- */
+.grid {
+  display: grid;
+  gap: var(--space-4);
+}
+
+/* Generic responsive auto-fit grid — use when card count may vary */
+.grid--auto {
+  grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
+}
+
+/* Fixed 3-column grid (resource cards, blog cards, book cards)
+   3 desktop -> 2 tablet -> 1 mobile, per approved Phase 4 spec */
+.grid--3 {
+  grid-template-columns: repeat(3, 1fr);
+}
+
+@media (max-width: 1199px) {
+  .grid--3 {
+    grid-template-columns: repeat(2, 1fr);
+  }
+}
+
+@media (max-width: 767px) {
+  .grid--3 {
+    grid-template-columns: 1fr;
+  }
+}
+
+/* Fixed 2-column grid (About founder story, hero + supporting image) */
+.grid--2 {
+  grid-template-columns: repeat(2, 1fr);
+  align-items: center;
+}
+
+@media (max-width: 1199px) {
+  .grid--2 {
+    grid-template-columns: 1fr;
+  }
+}
+
+/* 4-column grid (Trust Section, footer columns) */
+.grid--4 {
+  grid-template-columns: repeat(4, 1fr);
+}
+
+@media (max-width: 1199px) {
+  .grid--4 {
+    grid-template-columns: repeat(2, 1fr);
+  }
+}
+
+@media (max-width: 767px) {
+  .grid--4 {
+    grid-template-columns: 1fr;
+  }
+}
+
+/* ---------- Flex utilities ---------- */
+.stack {
+  display: flex;
+  flex-direction: column;
+}
+
+.cluster {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+}
+
+.cluster--between {
+  justify-content: space-between;
+}
+
+.cluster--center {
+  justify-content: center;
+}
+
+/* Gap utilities, mapped to the spacing scale only */
+.gap-2 { gap: var(--space-2); }
+.gap-3 { gap: var(--space-3); }
+.gap-4 { gap: var(--space-4); }
+.gap-5 { gap: var(--space-5); }
+
+/* ---------- Content column (article body measure) ---------- */
+.content-column {
+  max-width: 680px;
+  margin-inline: auto;
+}

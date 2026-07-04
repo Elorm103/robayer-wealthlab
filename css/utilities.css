@@ -1,0 +1,54 @@
+/*
+  Robayer WealthLab — Utilities
+  Small, single-purpose helper classes. These exist to avoid one-off inline
+  styles creeping into pages — if you need a new utility, add it here,
+  don't hardcode a value in a page.
+  Depends on: tokens.css
+*/
+
+.text-center   { text-align: center; }
+.text-left     { text-align: left; }
+.text-right    { text-align: right; }
+
+.text-secondary { color: var(--color-text-secondary); }
+.text-on-dark   { color: var(--color-text-on-dark); }
+
+.bg-paper   { background-color: var(--color-warm-paper); }
+.bg-sand    { background-color: var(--color-light-sand); }
+.bg-navy    { background-color: var(--color-ink-navy); }
+.bg-charcoal{ background-color: var(--color-charcoal-ink); }
+
+.mt-0 { margin-top: 0; }
+.mt-2 { margin-top: var(--space-2); }
+.mt-3 { margin-top: var(--space-3); }
+.mt-4 { margin-top: var(--space-4); }
+.mt-5 { margin-top: var(--space-5); }
+
+.mb-0 { margin-bottom: 0; }
+.mb-2 { margin-bottom: var(--space-2); }
+.mb-3 { margin-bottom: var(--space-3); }
+.mb-4 { margin-bottom: var(--space-4); }
+.mb-5 { margin-bottom: var(--space-5); }
+
+.hidden { display: none; }
+
+@media (max-width: 767px) {
+  .hide-mobile { display: none; }
+}
+
+@media (min-width: 768px) {
+  .hide-desktop { display: none; }
+}
+
+.rounded-sm { border-radius: var(--radius-sm); }
+.rounded-md { border-radius: var(--radius-md); }
+.rounded-lg { border-radius: var(--radius-lg); }
+
+.font-body   { font-family: var(--font-body); }
+.font-medium { font-weight: var(--weight-medium); }
+
+.text-body-lg { font-size: var(--text-body-lg); }
+.text-small   { font-size: var(--text-small); }
+.text-lg      { font-size: 1.25rem; }
+
+.aspect-4-5 { aspect-ratio: 4 / 5; }
