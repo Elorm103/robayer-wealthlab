@@ -6,6 +6,74 @@ grouped by development phase/sprint instead of version number.
 
 ## [Unreleased]
 
+### Sprint 12 — Terms of Use — 2026-07-04
+
+`legal/terms-of-use/index.html`, serving `/legal/terms-of-use/` — the
+second Legal page. Built by directly mirroring the Privacy Policy's
+structure, as instructed. **Zero new CSS was needed**; `css/` is
+byte-for-byte unchanged from Sprint 11.
+
+**Added**
+- `legal/terms-of-use/index.html` — breadcrumb, hero (with effective/
+  last-updated dates), sticky-on-desktop TOC + terms body (Acceptance
+  of Terms, Educational Purpose, Intellectual Property, Permitted Use,
+  Purchases, External Links, Limitation of Liability, Changes to These
+  Terms, Contact), Related Documents, newsletter CTA, shared footer.
+- `Organization`, `WebPage`, and `BreadcrumbList` JSON-LD — same
+  pattern as Privacy Policy, no `FAQPage` since this page has no FAQ
+  section either.
+- `<lastmod>2026-07-04</lastmod>` added to the existing
+  `/legal/terms-of-use/` sitemap entry.
+
+**Reused, not duplicated**
+- The entire Privacy Policy shell — `.article-layout` + `.article-body`
+  + `.toc` (sticky sidebar, reading progress via
+  `js/components/article-reading.js` with zero code changes),
+  breadcrumbs, Related Documents' arrow-icon link pattern, newsletter
+  band, and footer — copied structurally, not just conceptually.
+- `.check-item` (check icon + x icon, two-column `.grid--2`) for
+  Permitted Use's "You may" / "You may not" split — the exact same
+  pattern as Book Detail's "Who This Book Is For," applied to
+  copyright/redistribution rules instead of reader fit.
+- `.alert--info` for two callouts (Purchases' "not live yet," 
+  Limitation of Liability's "as is" disclaimer) — consistent with how
+  Privacy Policy and Book Detail both used the same component for
+  in-body callouts.
+
+**Content approach**
+- States plainly that Robayer WealthLab is not a licensed financial
+  advisor and that content here is educational only, per instruction.
+- Purchases section is explicit that checkout isn't live yet and that
+  full terms will be added once SkillsPad (or an equivalent) is
+  actually wired up — consistent with how Privacy Policy handles
+  not-yet-active third-party services, and with `placeholder-action.js`'s
+  honest-not-a-dead-link pattern used elsewhere on the site.
+
+**Verified**
+- Reading-progress bar and TOC active-highlighting confirmed via
+  computed style at a specific scroll position (44% progress,
+  "Intellectual property" correctly active).
+- Sticky sidebar confirmed via computed style (`position: sticky`,
+  `top: 112px`) at desktop width (1280px); single-column stacking
+  confirmed at tablet (768px); the "You may" / "You may not" two-column
+  checklist confirmed collapsing to one column and remaining fully
+  readable at mobile (375px).
+- Cross-link between the two Legal pages confirmed working **both
+  ways** — Terms of Use → Privacy Policy → Terms of Use — now that
+  both exist; previously this was a one-sided forward-reference.
+- Heading hierarchy confirmed via a full heading dump: single H1, one
+  H2 per section, H3s correctly nested under "Permitted use."
+- Zero console errors, zero failed network requests, zero duplicate
+  IDs, zero inline styles, zero new/changed CSS.
+
+**Testing note:** a keyboard-focus check in this session reported
+`:focus-visible` as false on a simple `.focus()` call, even
+immediately after a fresh page reload — traced to the automated
+browser's keyboard/mouse modality tracking in this particular preview
+session, not a regression: `base.css`'s focus rules are byte-identical
+to the version already verified working in Sprint 11 (confirmed via
+`git diff`/`grep`, zero CSS changes this sprint).
+
 ### Sprint 11 — Privacy Policy — 2026-07-04
 
 `legal/privacy-policy/index.html`, serving `/legal/privacy-policy/` —
