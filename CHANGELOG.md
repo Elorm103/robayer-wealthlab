@@ -6,6 +6,79 @@ grouped by development phase/sprint instead of version number.
 
 ## [Unreleased]
 
+### Sprint 9 — Community Page — 2026-07-04
+
+`community/index.html`, serving `/community/` — built entirely from
+the existing design system. **Zero new CSS was needed**; `css/` is
+byte-for-byte unchanged from Sprint 8.
+
+**Added**
+- `community/index.html` — hero, Why Community Matters, What You'll
+  Receive, Community Roadmap, Community Principles, Success Stories,
+  FAQ, Community Invitation, newsletter CTA, and the shared footer.
+- `WebPage` and `BreadcrumbList` JSON-LD, per this sprint's explicit
+  request, alongside the established Organization and FAQPage schema.
+  Added a visible "Home / Community" `.breadcrumbs` trail to match the
+  `BreadcrumbList` data exactly — Community isn't a detail/sub-page
+  like Book Detail or Blog Article (the only two prior pages with
+  breadcrumbs), but since structured data must match visible content,
+  a page that declares `BreadcrumbList` needs a visible breadcrumb to
+  back it up.
+- `<lastmod>2026-07-04</lastmod>` added to the existing `/community/`
+  sitemap entry.
+
+**Reused, not duplicated**
+- `.hero--split` for the hero — third real use (after About, Contact).
+- `.card` + `.check-item` combined for Why Community Matters (a
+  `.grid--4` of cards, each containing a single check-item row instead
+  of a separate title+body) — a new composition of two existing
+  components, not a new component.
+- `.card` + `.badge` for What You'll Receive (`.grid--3`, six cards) —
+  `badge--success "Ongoing"` for the four available items and
+  `badge--warning "Coming soon"` for the two not yet built, which
+  cross-references the roadmap section directly below.
+- `.toc` (Sprint 3) reused a **sixth** distinct way — a staged rollout
+  timeline (Today → Soon → Later → Future → Long-term) — after book
+  chapters, popular resources, popular articles/beginner's path,
+  in-page article navigation, and About's company timeline. No new
+  timeline component was needed, as instructed.
+- `.check-item` again (single-column `.stack`, not a grid — five items
+  don't split evenly into two columns) for Community Principles.
+- The same three established testimonials (Ama, Kwame, Efua) for
+  Success Stories — no new people invented, per this sprint's explicit
+  instruction.
+- `.faq`, `.feature-banner__eyebrow`/`__title`/`__copy` reused
+  standalone (fourth use, after Resources/About/Contact) for the
+  Community Invitation, `.newsletter-band`, shared footer.
+
+**Caught and fixed one inline style before it shipped**
+- Repeated the exact same mistake from Sprint 7: copied
+  `style="display:block"` onto an eyebrow span out of old habit while
+  drafting Success Stories. Caught immediately in the zero-inline-
+  styles check and removed — `.eyebrow` has been `display: block` by
+  default since Phase 1.
+
+**Verified**
+- Full pass at mobile (375px), tablet (768px), and desktop (1280px):
+  hero--split, the Why-Community-Matters `.grid--4` (4→2→1) and
+  What-You'll-Receive `.grid--3` (3→2→1) collapses all confirmed
+  correct.
+- FAQ accordion verified via direct DOM inspection
+  (`hasAttribute('open')`) on a specific item (not just the first),
+  confirming exactly one item opens per click; the FAQ answer's
+  `/contact/` link confirmed present.
+- Both anchor links (`#newsletter-signup` from the Community
+  Invitation CTA) and the newsletter form (fill → submit → confirmation
+  message) tested end-to-end.
+- Confirmed Community intentionally has no header-nav `aria-current`
+  target, consistent with Contact (both are footer-only links; Books/
+  Blog/Resources/About are the four header-nav items).
+- Heading hierarchy confirmed via a full heading dump: single H1, one
+  H2 per section, H3s correctly nested under the six What-You'll-
+  Receive cards.
+- Zero console errors, zero failed network requests, zero duplicate
+  IDs, zero inline styles, zero new/changed CSS.
+
 ### Sprint 8 — Contact Page — 2026-07-04
 
 `contact/index.html`, serving `/contact/` — built entirely from the
