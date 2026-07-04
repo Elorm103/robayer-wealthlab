@@ -6,6 +6,83 @@ grouped by development phase/sprint instead of version number.
 
 ## [Unreleased]
 
+### Sprint 11 — Privacy Policy — 2026-07-04
+
+`legal/privacy-policy/index.html`, serving `/legal/privacy-policy/` —
+the first Legal page, and the first of the three "still missing" pages
+flagged by the Sprint 10.5 audit to actually ship. Built entirely from
+the existing design system. **Zero new CSS was needed**; `css/` is
+byte-for-byte unchanged from Sprint 10.6. No architecture changed, so
+`README.md` was left untouched per this sprint's own instruction.
+
+**Added**
+- `legal/privacy-policy/index.html` — breadcrumb, hero (with effective/
+  last-updated dates), a sticky-on-desktop table of contents alongside
+  the policy body (Information We Collect, How We Use Information,
+  Cookies, Third-Party Services, Data Security, Your Rights, Contact),
+  Related Documents, newsletter CTA, and the shared footer.
+- `Organization`, `WebPage`, and `BreadcrumbList` JSON-LD. No
+  `FAQPage` this time — this page genuinely has no FAQ section, unlike
+  every other page that's carried one so far.
+- `<lastmod>2026-07-04</lastmod>` added to the existing
+  `/legal/privacy-policy/` sitemap entry.
+
+**Reused, not duplicated**
+- `.article-layout` + `.article-body` + `.toc` (Sprint 3/6) for the
+  sticky-sidebar-TOC-plus-content shell — the exact same pattern built
+  for the Blog Article template turns out to fit a legal document just
+  as well, since both are "long content with named sections." This is
+  the `.toc` component's **eighth** distinct reuse context.
+- `js/components/article-reading.js` reused as-is for the reading-
+  progress bar and TOC active-section highlighting — both verified
+  working here with zero code changes, since the module was already
+  written generically against `[data-article-body]`/`[data-toc]`
+  rather than anything Blog-specific.
+- `.table` for the cookie-type breakdown (Essential/Analytics/
+  Marketing) — the same component used for Book Detail's tenor/rate
+  comparison, applied to genuinely different content.
+- `.alert--info` reused twice as in-policy callouts (Third-Party
+  Services' "nothing is active yet," Data Security's "no guarantee of
+  absolute security") — consistent with how Book Detail used the same
+  component for its own callouts.
+- The arrow-icon "link row" pattern from `blog-card`'s "Read article"
+  links, reused for Related Documents — three simple links, not a
+  second copy of any card component.
+- `.newsletter-band`, shared footer, breadcrumbs (matching Book
+  Detail/Blog Article/Community's precedent for one-level-deep pages).
+
+**Content approach**
+- Written to honestly reflect the site's actual current state rather
+  than describing infrastructure that doesn't exist yet: cookies,
+  analytics, and third-party services (SkillsPad, an email platform,
+  Google Analytics) are explicitly described as not yet active, with a
+  commitment to update the policy when any of them turn on — directly
+  addressing this sprint's instruction to explain that users will be
+  notified. Data Security avoids overstating guarantees, per
+  instruction, stating plainly that no online storage/transmission is
+  completely secure.
+- Effective date and Last updated both use today's date (July 4,
+  2026) rather than literal placeholder text, consistent with how
+  every other dated page on the site presents real dates.
+
+**Verified**
+- Reading-progress bar and TOC active-highlighting confirmed via
+  computed style at a specific scroll position (57% progress, "Cookies"
+  correctly active).
+- Sticky sidebar confirmed via computed style (`position: sticky`,
+  correct `top` offset) at desktop width (1280px); single-column
+  stacking confirmed at tablet (768px) and mobile (375px), with the
+  cookies table remaining fully readable and non-overflowing at 375px.
+- Breadcrumb, all Related Documents links (including the two that
+  correctly 404 — Terms of Use and Disclaimer aren't built yet — and
+  the two that resolve — Contact and the `mailto:` link) confirmed.
+- Keyboard focus confirmed on a TOC link via computed style (2px
+  Growth Green outline, matching the site-wide standard).
+- Heading hierarchy confirmed via a full heading dump: single H1, one
+  H2 per section, no skipped levels.
+- Zero console errors, zero unexpected failed network requests, zero
+  duplicate IDs, zero inline styles, zero new/changed CSS.
+
 ### Sprint 10.6 — Launch Readiness Fixes — 2026-07-04
 
 Three targeted fixes from the Sprint 10.5 Production Readiness Audit,
