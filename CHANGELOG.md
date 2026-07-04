@@ -6,6 +6,71 @@ grouped by development phase/sprint instead of version number.
 
 ## [Unreleased]
 
+### Sprint 8 — Contact Page — 2026-07-04
+
+`contact/index.html`, serving `/contact/` — built entirely from the
+existing design system. **Zero new CSS was needed**; `css/` is
+byte-for-byte unchanged from Sprint 7.
+
+**Added**
+- `contact/index.html` — hero, Contact Methods (three cards), Before
+  You Email Us checklist, FAQ, Community Invitation, newsletter CTA,
+  and the shared footer.
+- `ContactPage` JSON-LD (`mainEntity` → Organization with the General
+  enquiries email), alongside the existing Organization and FAQPage
+  schema.
+- `<lastmod>2026-07-04</lastmod>` added to the existing `/contact/`
+  sitemap entry.
+
+**Reused, not duplicated**
+- `.hero--split` for the hero — its second real use (after About),
+  now with a "Browse our guides" / "Join the newsletter" action pair
+  instead of a single CTA.
+- `.card` in a `.grid--3`, `.badge` (info/success/warning, one per
+  card), and `.check-item` for each Contact Method — the mail icon +
+  email pattern reuses the same icon already shown in `components.html`
+  and used on About's Core Values, this time as a real `mailto:` link
+  rather than decoration.
+- `.check-item` again (in a `.grid--2`, matching About's Promises
+  layout) for Before You Email Us, with three of its four items linking
+  to `/resources/`, `#faq` (this page), and `#newsletter-signup` (this
+  page) — genuinely actionable, not just decorative bullets.
+- `.faq` for the FAQ section.
+- `.feature-banner__eyebrow` / `__title` / `__copy` reused standalone
+  for the Community Invitation — third use of this pattern after
+  Resources and About, following the same "no natural cover image"
+  reasoning.
+- `.newsletter-band`, partials/footer.html — no new one-off styles.
+
+**Verified**
+- Full pass at mobile (375px), tablet (768px), and desktop (1280px):
+  hero--split layout, the `.grid--3` card grid's 3→2→1 collapse, and
+  the Before-You-Email-Us checklist's 2→1 collapse all confirmed
+  correct.
+- FAQ accordion confirmed via direct DOM inspection (`hasAttribute
+  ('open')`), not just visually — one screenshot during testing showed
+  what looked like two items open at once, traced to a rendering/
+  timing artifact in the screenshot capture tool itself, not a real
+  state bug (`.faq` is native `<details>` with zero custom JS, so
+  there's no code path for spurious multi-open behavior; direct DOM
+  inspection confirmed only the single clicked item was actually open).
+- All contact page links verified individually: three `mailto:` links,
+  `/resources/`, `#faq`, `#newsletter-signup`, `/books/`, `/newsletter/`.
+- Newsletter form tested end-to-end (valid email → confirmation
+  message swap).
+- Confirmed Contact intentionally has no header-nav `aria-current`
+  target — it's a footer-only link (Books/Blog/Resources/About are the
+  four header-nav items), consistent with the existing site structure,
+  not a gap introduced here.
+- Heading hierarchy confirmed via a full heading dump: single H1, one
+  H2 per section, H3s correctly nested under the three Contact Method
+  cards.
+- Zero console errors, zero duplicate IDs, zero inline styles, zero
+  new/changed CSS. The only failed network requests seen during
+  testing were pre-existing, expected 404s for `/legal/terms-of-use/`
+  and `/legal/disclaimer/` (unbuilt in every prior sprint, listed as
+  such in `sitemap.xml`) — unrelated to anything added this sprint.
+
 ### Sprint 7 — About Page — 2026-07-04
 
 `about/index.html`, serving `/about/` — built entirely from the
