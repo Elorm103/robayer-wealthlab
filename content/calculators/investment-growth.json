@@ -1,0 +1,28 @@
+{
+  "slug": "investment-growth",
+  "title": "Investment Growth Calculator",
+  "summary": "Project how an investment could grow over time, with the option to see its value adjusted for inflation.",
+  "category": "growth",
+  "educationalExplanation": "This calculator projects how an initial investment plus regular contributions could grow at an assumed rate of return. It also lets you compare the nominal (face-value) result against the real (inflation-adjusted) result — the number that actually reflects future purchasing power.",
+  "formulaExplanation": "The nominal projection uses the same growth math as the other calculators here — a starting amount plus contributions, growing at your chosen rate. If you turn on inflation adjustment, that nominal result is then reduced by your assumed inflation rate to show its equivalent value in today's purchasing power.",
+  "interpretationNotes": "The gap between the nominal and real figures is often larger than people expect over long timeframes — that gap is exactly what inflation quietly costs you. Neither figure is a guarantee: this is a projection based on the return you assumed, not a promise of what any real investment will do.",
+  "commonMistakes": [
+    "Assuming a past average return (from the GSE or a fund, for example) will definitely repeat in the future.",
+    "Ignoring inflation entirely and only looking at the nominal figure.",
+    "Withdrawing or restarting an investment frequently, which disrupts compounding.",
+    "Using an overly optimistic return assumption instead of a conservative one."
+  ],
+  "faq": [
+    { "question": "Does this recommend specific investments?", "answer": "No — it's a projection tool based on assumptions you enter, not a recommendation for any specific investment." },
+    { "question": "What return rate should I use?", "answer": "That's your assumption to make — this site doesn't supply or endorse a specific expected return. Consider using a conservative estimate." },
+    { "question": "What is the inflation adjustment actually doing?", "answer": "It reduces the nominal projected value by your assumed inflation rate, so you can see what that future amount would be worth in today's purchasing power." },
+    { "question": "Is this the same as the Compound Interest calculator?", "answer": "They share the same underlying growth math, but this one is framed around investment return assumptions and includes the inflation comparison." },
+    { "question": "Can I model a specific investment vehicle like treasury bills?", "answer": "Not vehicle-specific — for that level of detail, see Investment Education." }
+  ],
+  "relatedResources": ["/resources/#investment-readiness-checklist"],
+  "relatedServices": ["investment-education", "retirement-planning-guidance"],
+  "relatedArticles": ["/blog/what-are-treasury-bills-in-ghana/", "/blog/#beginners-guide-to-the-ghana-stock-exchange"],
+  "complianceNote": "This calculator is educational — results are projections, not guarantees or investment advice.",
+  "ctaLabel": "Request a Consultation",
+  "ctaHref": "/consultation/"
+}

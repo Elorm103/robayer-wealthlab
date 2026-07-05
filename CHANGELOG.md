@@ -9,6 +9,833 @@ marking the site as production-ready.
 
 Nothing yet — the next phase starts here.
 
+## [v1.1 Sprint 6] — 2026-07-05 — Ghana Investment Centre
+
+The sixth production feature of Version 1.1, built on the frozen
+architecture — no folders renamed, no components replaced, no design
+tokens changed, no framework introduced, no CMS. A pure educational
+knowledge hub: 10 real, complete Ghana-focused investment topic pages
+plus 3 curated learning paths, organizing existing platform content
+rather than duplicating it. Not a news site, not financial advice, no
+calculators/booking/authentication added.
+
+**Added — pages**
+- `/investment-centre/` — hero, disclaimer, a 10-topic grid with
+  difficulty badges, 3 Learning Paths (Beginner Investor, Growing
+  Investor, Long-Term Wealth Builder — each recommending topics,
+  calculators, services, and goals in a suggested order), FAQ (6
+  Q&As), "Keep exploring," newsletter CTA.
+- `/investment-centre/{slug}/` &times; 10 — Treasury Bills, Government
+  Bonds, Money Market Funds, Mutual Funds, Ghana Stock Exchange (GSE),
+  Fixed Deposits, SSNIT & Pension Basics, Real Estate Investing, Gold
+  Investing, Emergency Funds. Each: Hero (with a Beginner/Intermediate/
+  Advanced difficulty badge), Overview, Why It Matters, Benefits,
+  Risks, Who It Suits, FAQ (6 Q&As), Related Calculators/Services/
+  Goals/Resources, Consultation CTA, Newsletter CTA. Every topic is
+  genuinely complete, honest educational copy — no placeholders, no
+  fabricated statistics or rates, no specific product/stock
+  recommendations.
+
+**Added — content**
+- `content/investment-centre/{slug}.json` &times; 10 — the same "real
+  content, no consumer yet" arrangement as `content/services/` and
+  `content/calculators/`. Introduces `category`, `difficulty`, and a
+  nested `seo` object as new schema fields, and `relatedGoals` as the
+  first cross-reference to point *into* the Goal Planner from a
+  reading-content page (`/goal-planner/?goal={slug}`, reusing Sprint
+  5's query-param pattern).
+- `content/investment-centre/README.md`, `content/SCHEMA.md`
+  (`Investment Centre Topic` entry), `content/README.md` — documented.
+
+**Changed — cross-links**
+- `partials/header.html` — added "Investment Centre" to primary nav
+  (9 items; verified no overflow at the existing 1199px breakpoint —
+  measured margin was sufficient, no CSS change needed this time).
+- `index.html` — the "Investment Insights" card (copy: "treasury
+  bills, the GSE, and where money actually grows") retargeted from the
+  generic `/blog/` hub (which only has one, unrelated article) to
+  `/investment-centre/`, which now genuinely covers both subjects.
+- `learn/index.html` — added the Investment Centre to the "Investing"
+  topic grid and the "Browse everything" list.
+- `services/investment-education/index.html`,
+  `services/retirement-planning-guidance/index.html` — added an
+  "Investment Centre" entry to each page's "Keep exploring" section,
+  linking to the most directly relevant topic guides.
+- `sitemap.xml` — 11 new `<url>` entries, `lastmod` 2026-07-05.
+
+**SEO**
+- Unique title/meta description/canonical/OG/Twitter tags on all 11
+  pages.
+- `Organization`, `BreadcrumbList`, `WebPage`, and `FAQPage` JSON-LD on
+  every page, matching each page's visible FAQ accordion exactly.
+
+**Accessibility**
+- Zero elements with a positive `tabindex`; all interactive elements
+  are native `<a>`/`<button>` — no custom widgets, no keyboard traps.
+- Heading hierarchy verified on every page: H1 → H2 sections → H3
+  "Related" sub-headings, no skipped levels.
+- Difficulty badges reuse the existing `.badge` component's semantic
+  color variants (success/info/warning), not color alone, to convey
+  Beginner/Intermediate/Advanced.
+
+**Verified**
+- Zero console errors, zero duplicate IDs, zero missing `alt`
+  attributes, zero horizontal overflow (320–1440px, all 38 pages
+  including the 11 new ones and the 1199/1200px nav breakpoint
+  boundary).
+- All 37 unique internal link targets across the 11 new pages resolve
+  (200, not 404), including the `/resources/#anchor` fragments
+  (confirmed target IDs exist) and the `?goal=`/`?category=`
+  deep-links into the Goal Planner and Consultation.
+- No external libraries, no backend, no calculators, no booking, no
+  authentication — 100% static, GitHub Pages compatible.
+
+**Future search strategy**
+- Following the same pattern as `js/components/content-filters.js`,
+  a future search/filter pass over the 10 topics would only need
+  `data-category`/`data-title` attributes added to the topic grid's
+  existing `.resource-card` markup — no restructuring.
+
+## [v1.1 Platform Audit] — 2026-07-05 — Integration Audit (pre-Sprint 6)
+
+A comprehensive, read-first platform-wide audit across navigation,
+cross-linking, CTA wording, content integrity, JSON architecture,
+component reuse, accessibility, SEO, performance, and documentation —
+not a feature sprint. Full findings, rationale, and things deliberately
+left unchanged are in the audit report delivered alongside this entry.
+
+**Fixed**
+- `partials/footer.html` — the "Learn" column linked Blog/Books/Resources
+  but never `/learn/` itself; the "Services" column pointed to
+  `/resources/`, `/blog/`, `/books/`, and `/contact/` under service-like
+  labels instead of any real `/services/{slug}/` page (predates Sprint 1
+  ever shipping real service pages). Corrected both columns to real,
+  accurately-labeled destinations, and added `/consultation/` to the
+  Company column — previously reachable only via inline CTAs, with zero
+  presence in primary nav or footer.
+- `index.html` — two homepage cards pointed away from what their own
+  copy promised: "Financial Tools" ("Calculators and eBooks…") linked
+  only to `/books/`, now `/calculators/`; "Treasury bills 101" linked to
+  the generic `/resources/` hub when the real, matching article
+  (`/blog/what-are-treasury-bills-in-ghana/`) already exists.
+- 18× "Book a Consultation" CTA → "Request a Consultation" (6 service
+  pages ×2, services hub ×2, 3 calculator pages ×1, calculators hub ×1)
+  plus the matching `ctaLabel` field in 9 JSON files and `SCHEMA.md`.
+  The Consultation page itself has always deliberately avoided
+  "booking" language (Sprint 3: "not an automatic booking system"); the
+  18 upstream CTAs pointing to it were repointed in Sprint 3 but never
+  reworded, leaving a direct contradiction of that page's own stated
+  policy.
+- `content/services/retirement-planning-guidance.json` — `relatedResources`
+  pointed to `/resources/#calculators-heading`, a section anchor,
+  inconsistent with every sibling file's item-level anchors; changed to
+  the generic `/resources/` (no specific real, live retirement resource
+  exists yet).
+- Documentation staleness: `content/README.md`, `content/services/README.md`,
+  and `content/calculators/README.md` each still anticipated the Goal
+  Planner (Sprint 4) or Learning Hub (Sprint 5) as a *future* consumer
+  of `content/services/`/`content/calculators/` JSON. Both shipped since
+  and made the opposite architectural choice (small hardcoded lookup
+  tables, matching the Consultation Module's own precedent) — corrected
+  to state this plainly, mirroring the self-correction already present
+  for the Consultation Module in the same files.
+- `content/SCHEMA.md` — the `Service` schema example still showed
+  `"relatedCalculators": []` with a note that "no calculator exists on
+  the site yet," stale since Sprint 2. Updated to a real example
+  matching the live `financial-education.json` data.
+
+**Verified, left unchanged (with reasoning)**
+- Sitemap, robots.txt, all 27 canonical URLs, all 27 page titles/meta
+  descriptions (unique, no duplicates), breadcrumb trail accuracy, hub
+  page detail-page linking, JSON schema field-set consistency across
+  all 18 content files, all `questionId`/slug cross-references in
+  Goal Planner JSON, script-tag loadout per page, `dev-showcase.css`/
+  `components.html` isolation, image alt text, heading hierarchy.
+- Three anchors that looked fabricated at first glance
+  (`/blog/#budgeting-for-your-first-salary`, `#how-to-build-an-emergency-fund`,
+  `#beginners-guide-to-the-ghana-stock-exchange`) were confirmed to
+  resolve to real, honest "Coming soon" blog-card placeholders already
+  on `/blog/index.html` — not broken links, left as-is.
+- A JSON-LD `logo` field format difference between the sitewide
+  `Organization` block (plain URL string) and the Blog Article's
+  `Article.publisher.logo` (an `ImageObject`) is not a bug — Google's
+  Article structured-data guidelines require the `ImageObject` form
+  specifically for `publisher.logo`.
+- `.service-card` vs `.resource-card` — already-documented, intentional
+  distinction (explicit CTA button vs. whole-card link), not accidental
+  duplication.
+
+**Technical debt identified, not fixed this sprint**
+- An identical `validateField()` DOM-validation helper (~8 lines) is
+  duplicated across 5 form-handling scripts (`contact-form.js`,
+  `consultation-form.js`, and all 3 `calculator-*.js` files). This now
+  meets the same "genuine, current, multi-consumer duplication"
+  threshold that justified extracting `calculator-utils.js` in Sprint
+  2 — but consolidating it means touching 5+ JS files and their
+  `<script>` tags across 9+ pages for a pure-hygiene change with no
+  user-facing benefit, which this audit-only sprint's "do not rewrite
+  components" scope excludes. Recommended as a small, dedicated,
+  low-risk extraction in a future sprint.
+- Hub-level pages (`/books/`, `/blog/`, `/calculators/`, `/services/`,
+  `/resources/`, `/about/`) have no breadcrumb, while other top-level
+  nav destinations added since Sprint 3 (`/consultation/`,
+  `/goal-planner/`, `/learn/`) do. Not fixed — low UX value for
+  restating "Home → X" on a primary nav destination, and retrofitting
+  6 pages with a new UI element reads as feature work, not a fix.
+
+## [v1.1 Sprint 5] — 2026-07-05 — Learning Hub
+
+The fifth production feature of Version 1.1, built on the frozen
+architecture — no folders renamed, no components replaced, no design
+tokens changed, no framework introduced. A pure discovery/directory
+page: it organizes every book, article, calculator, resource, service,
+Goal Planner goal, and consultation link already on the site by topic
+and by learning path — it adds zero new educational content of its
+own.
+
+**Added — page**
+- `/learn/` — hero, an intro line stating the page organizes rather
+  than duplicates content, "Featured Learning Paths" (5 paths — Start
+  Investing, Build an Emergency Fund, Become Debt Free, Plan for
+  Retirement, Build Business Capital — each recommending only the
+  categories with a genuine match; "Become Debt Free" has no article
+  or calculator today, so those categories are simply omitted rather
+  than forced), 6 topic sections (Financial Basics, Investing,
+  Business Finance, Retirement, Emergency Funds, Goal Planning), a
+  "Browse everything" list guaranteeing all 7 required content
+  categories are reachable regardless of path/topic coverage, FAQ (6
+  Q&As), newsletter CTA.
+- Reuses `.resource-card` (topic-section cards, exactly as built for
+  `/calculators/`, `/consultation/`'s categories, and the Goal
+  Planner's goal grid), `.toc` (path recommendation lists, exactly as
+  built for every page's "Keep exploring" section), and `.badge`
+  (content-type labels, exactly as built for `/resources/`). **Zero new
+  CSS, zero new JavaScript** — the page is fully static HTML.
+
+**Added — reusable enhancement**
+- `js/components/goal-planner.js` — now reads `?goal=<slug>` from the
+  URL and jumps straight to that goal's questions on load, mirroring
+  `consultation-form.js`'s existing `?category=` support. This is what
+  makes the Learning Hub's Goal Planner recommendations land on the
+  right goal instead of the generic selection screen.
+
+**Changed — cross-links**
+- `partials/header.html` — added "Learn" to primary nav (8 items).
+- `sitemap.xml` — 1 new `<url>` entry, `lastmod` 2026-07-05.
+
+**Fixed — nav breakpoint**
+- `css/components.css` / `js/components/nav.js` — the mobile-nav
+  breakpoint widened from 999px to 1199px (both files, kept in sync as
+  established in Sprint 2). With 8 nav items the desktop bar's measured
+  natural width is ~1099px, no longer fitting the 1000–1199px range;
+  1199px reuses the breakpoint value already defined for
+  `.grid--2`/`.grid--3` rather than introducing a new one. Verified: no
+  overflow and correct hamburger/desktop-nav switch at 1000, 1199,
+  1200, 1280, 1366px.
+
+**SEO**
+- Unique title/meta description/canonical/OG/Twitter tags.
+- `Organization`, `BreadcrumbList` (Home → Learning Hub), `WebPage`,
+  and `FAQPage` (6 Q&As matching the visible accordion exactly)
+  JSON-LD.
+
+**Future search strategy**
+- Every topic-section `.resource-card` already carries `data-category`
+  and `data-title` — the exact attribute contract
+  `js/components/content-filters.js` (built in Sprint 5 of the
+  original site, reused unmodified across Books/Blog/Resources) reads.
+  Adding search/filtering later means adding the filter-pill toolbar
+  and a `[data-filter-search]` input to the markup, wrapping the
+  existing cards in a `[data-filter-grid]` container, and including
+  the already-existing script — no restructuring, no new JS logic.
+
+**Verified**
+- Zero console errors, zero duplicate IDs, zero horizontal overflow
+  (320–1440px, all 27 pages including this one and the new 1199/1200px
+  breakpoint boundary).
+- All 23 unique internal link targets on the page resolve (200, not
+  404), including the 5 `/resources/#anchor` fragments (confirmed the
+  target IDs exist).
+- `?goal=` deep-linking from a Learning Path recommendation verified
+  live (lands directly on the correct goal's questions).
+- No external libraries, no backend, no new JavaScript beyond the
+  2-line `?goal=` addition — 100% static, GitHub Pages compatible.
+
+## [v1.1 Sprint 4] — 2026-07-05 — Financial Goal Planner
+
+The fourth production feature of Version 1.1, built on the frozen
+architecture — no folders renamed, no components replaced, no design
+tokens changed, no framework introduced. An educational recommendation
+engine, not artificial intelligence and not financial advice: a
+visitor picks one of 8 goals, answers 3–5 structured questions, and
+gets a suggested monthly savings figure plus the calculator(s),
+service(s), article, and resources relevant to that goal.
+
+**Added — page**
+- `/goal-planner/` — a single page with 3 progressive steps (goal
+  selection, structured questions, recommendation), all client-side —
+  only `[data-step]` visibility changes, no page navigation, matching
+  the site's existing routing. Supports Emergency Fund, Buy a Car, Buy
+  Land, Build a House, Children's Education, Retirement, First
+  Investment, and Business Capital.
+
+**Added — content**
+- `content/goal-planner/{slug}.json` × 8 — one config file per goal:
+  its question set, how to derive a target amount and timeframe from
+  the answers (`"direct"` or a small closed set of `"computed"`
+  operations — `multiply` for Emergency Fund, `subtract` for
+  Retirement — never a formula string or `eval()`), and which
+  calculator(s)/service(s)/article to recommend. This is the site's
+  **second genuine live `fetch()` consumer** after
+  `content/founder/bio.json` — every other content type either has no
+  consumer yet (`content/services/`, `content/calculators/`) or writes
+  its real content directly in HTML. See `content/goal-planner/README.md`
+  for why this one is different.
+- `content/goal-planner/README.md`, `content/SCHEMA.md` (`Goal Planner
+  Config` entry), `content/README.md` — documented.
+
+**Added — script**
+- `js/components/goal-planner.js` — a single, generic, data-driven
+  engine: renders each goal's question form from its JSON, resolves
+  `targetAmount`/`years` via the structured-operation rules above, then
+  calls `window.RobayerCalc.requiredContribution()` — the exact
+  function `js/components/calculator-savings-goal.js` already uses —
+  for the suggested monthly figure. **No formula is duplicated.**
+  Handles the "already on track" case (reusing the same honest-message
+  pattern as the Savings Goal calculator) and a cross-field validation
+  error (e.g. Retirement's target age must exceed current age),
+  focusing the error for screen readers. Relevant calculator/service
+  titles and hrefs are resolved via a small hardcoded lookup table
+  (mirroring `consultation-form.js`'s category `<select>`), not a
+  second fetch of `content/services/`/`content/calculators/`.
+- `js/components/consultation-form.js` — now reads `?category=` from
+  the URL and pre-selects the matching category option if present, so
+  a Goal Planner recommendation's consultation link arrives with the
+  right category already chosen.
+
+**Added — CSS**
+- `css/components.css` — `button.resource-card` (native button-chrome
+  reset so the 8 goal-selection cards can reuse `.resource-card`'s
+  exact box styling as an in-page action, not navigation),
+  `.resource-card[aria-pressed="true"]` (selected-goal indicator),
+  `.goal-planner__questions` (2-column question grid on wider
+  screens).
+
+**Changed — cross-links**
+- `partials/header.html` — added "Goal Planner" to primary nav
+  (7 items; re-verified no overflow at the existing 999px breakpoint).
+- `resources/index.html` — one sentence pointing readers unsure which
+  calculator fits toward the Goal Planner.
+- `sitemap.xml` — 1 new `<url>` entry, `lastmod` 2026-07-05.
+
+**SEO**
+- Unique title/meta description/canonical/OG/Twitter tags.
+- `Organization`, `BreadcrumbList` (Home → Goal Planner), `WebPage`,
+  and `FAQPage` (8 Q&As matching the visible accordion exactly)
+  JSON-LD.
+
+**Accessibility**
+- All 8 goal cards are native `<button>` elements (keyboard-operable
+  by default, `aria-pressed` reflects selection).
+- All question fields use the existing `.field`/`.field__error`
+  pattern; invalid submit moves focus to the first invalid field.
+- Step transitions move focus to the new step's heading (or the first
+  goal button when returning to selection) so screen reader users
+  aren't left on a stale, hidden element.
+- Heading hierarchy verified: H1 → H2 "Plan your goal" → H3 per step,
+  no skipped levels.
+
+**Verified**
+- All 8 goal paths tested: 3 walked end-to-end through the full UI
+  (Emergency Fund's `multiply` computation, Retirement's `subtract`
+  computation plus its invalid-age edge case, Buy a Car's "already on
+  track" case), the remaining 5 verified via their fetched JSON
+  matching the same, already-proven `"direct"` code path.
+- Formula reuse confirmed: every goal's suggested monthly figure calls
+  `RobayerCalc.requiredContribution()`, never a reimplementation.
+- Fetch-failure fallback shows an honest error, not fake data.
+- Zero console errors, zero horizontal overflow (320–1440px, all 26
+  pages including this one), zero duplicate IDs, zero missing `alt`
+  attributes, dark mode checked visually.
+- No external libraries, no backend, no AI, no APIs — 100%
+  client-side, GitHub Pages compatible.
+
+## [v1.1 Sprint 3] — 2026-07-05 — Consultation Platform
+
+The third production feature of Version 1.1, built on the frozen
+architecture — no folders renamed, no components replaced, no design
+tokens changed. This sprint deliberately does not implement the
+Financial Goal Planner, booking/scheduling, or authentication — see
+"Recommendations for Sprint 4" in this sprint's delivery notes.
+
+**Added — page**
+- `/consultation/` — a single consolidated page (not a hub + detail
+  pattern, since there's one request workflow, not multiple sub-pages):
+  hero, "What happens during a consultation" (reuses `.toc`), "Who
+  should book," "Available consultation categories" (the same 6
+  services, same icons/titles — not a second, drifting copy of them),
+  "Expected preparation," FAQ, a professional disclaimer, the
+  consultation request form, and the standard "Keep exploring" +
+  newsletter-CTA closing pattern every other page uses.
+
+**Added — form**
+- `js/components/consultation-form.js` — client-side validation for
+  Name, Email, Country, Category, Description, Preferred Contact
+  Method, and Consent (Phone is optional, matching the existing
+  `contact-form.js` convention). On valid submit, swaps the form for an
+  honest confirmation — explicitly **not** a booking confirmation:
+  states plainly that requests are reviewed manually, there is no live
+  calendar, and a response should be expected within 2–3 business days.
+  Reuses the exact `[data-content-href="contact.emails.general.href"]`
+  fallback-email pattern already established by `contact-form.js`,
+  rather than a second hardcoded email address.
+- A new `.field--checkbox` variant (added in Sprint 2 for the
+  Investment Growth calculator's inflation toggle) is reused here for
+  the required consent checkbox — no new CSS needed.
+
+**Changed — repointed CTAs**
+- Every existing "Book a Consultation" button — 2 each on the 6
+  service detail pages and the Services hub, 1 each on the 3 calculator
+  pages and the Calculators hub (18 links total) — now points to
+  `/consultation/` instead of `/contact/`. These were always meant to
+  land here eventually; Sprint 1's own CHANGELOG entry said so
+  explicitly ("the CTA links to the existing contact page" as a
+  temporary measure "for now").
+- `content/services/*.json` and `content/calculators/*.json` —
+  `ctaHref` updated from `/contact/` to `/consultation/` in all 9
+  files, keeping the structured record accurate. `content/SCHEMA.md`'s
+  two documentation examples updated to match.
+- `content/services/README.md` and `content/README.md` — corrected: an
+  earlier note speculated the Consultation Module would fetch
+  `content/services/*.json` for its category dropdown. In practice the
+  dropdown is hardcoded directly in the consultation page's HTML,
+  consistent with how every other page on this site works, so that
+  speculative fetch never happened — the docs now say so plainly
+  rather than leaving a stale prediction in place.
+- `contact/index.html` — added a one-line cross-link near the top
+  pointing consultation-seekers to `/consultation/`, so the general
+  contact form and the dedicated consultation request form aren't
+  confused with each other.
+- `sitemap.xml` — 1 new `<url>` entry, `lastmod` 2026-07-05.
+
+**SEO**
+- `Organization`, `BreadcrumbList` (Home → Consultation), `WebPage`,
+  `Service` (`serviceType: "Financial Consultation"`), and `FAQPage`
+  JSON-LD, matching the visible page content exactly.
+
+**Accessibility**
+- All fields use the existing `.field`/`.field__error` pattern; an
+  invalid submit moves focus to the first invalid field, including the
+  consent checkbox.
+- The consent checkbox uses `.field--checkbox` (native
+  `<input type="checkbox">`, already keyboard-operable and covered by
+  the global `:focus-visible` rule).
+- Heading hierarchy verified: single H1 → H2 sections, no skipped
+  levels.
+
+**Fixed**
+- `css/components.css` — `.field` (the grid item wrapping each form
+  control) now has `min-width: 0`. Without it, a sitewide overflow
+  sweep found the consultation form's "Preferred consultation category"
+  `<select>` (long option text like "Financial Literacy Workshops")
+  forced its parent grid track to 276px on a 320px viewport — a
+  five-pixel horizontal overflow. A `<select>`'s native minimum-width
+  is driven by its longest option text and isn't reduced by
+  text-wrapping CSS the way plain text is; the real fix is on the grid
+  item itself (`.field`), not the `<select>` (`.field__select`), since
+  a CSS Grid item's automatic minimum size is based on its own
+  min-content unless overridden. This benefits every current and
+  future 2-column form field, not just this one select.
+
+**Verified**
+- Zero console errors, zero broken links, zero duplicate IDs, zero
+  missing `alt` attributes, zero horizontal overflow at
+  320/375/768/1024/1280/1440px across all 25 pages (re-swept after the
+  `.field` fix above to confirm no regression elsewhere).
+- Consent checkbox validation and the manual-review confirmation
+  message verified live in-browser (invalid submit → focus moves to
+  first invalid field; valid submit → form replaced with the honest,
+  non-booking confirmation).
+- All 5 JSON-LD blocks (`Organization`, `BreadcrumbList`, `WebPage`,
+  `Service`, `FAQPage`) re-validated as parseable JSON after the
+  consent-field HTML restructure.
+- No external libraries, no backend, no booking system, no calendar
+  integration, no authentication — the confirmation state is 100%
+  client-side, matching `contact-form.js`'s and `newsletter-form.js`'s
+  existing honesty-first pattern exactly.
+
+## [v1.1 Sprint 2] — 2026-07-05 — Financial Calculators Platform
+
+The second production feature of Version 1.1, built on the frozen
+architecture — no folders renamed, no components replaced, no design
+tokens changed. Sprint 3 will cover the Financial Goal Planner;
+consultation booking and authentication remain explicitly out of scope
+(see the Version 1.1 PRD).
+
+**Added — pages**
+- `/calculators/` — new landing page listing all three calculators.
+- `/calculators/compound-interest/`, `/calculators/savings-goal/`,
+  `/calculators/investment-growth/` — three new calculator pages,
+  each with: interactive calculator, educational explanation, formula
+  explanation, interpretation of results, common mistakes, FAQ,
+  related resources/services/articles, consultation CTA, newsletter
+  CTA. Deliberately **not** placed under `/resources/` — a dedicated
+  top-level section per this sprint's explicit requirement.
+
+**Added — shared math (no formula duplication)**
+- `js/components/calculator-utils.js` — pure functions
+  (`futureValueWithContributions`, `requiredContribution`,
+  `realValue`, `yearlyBreakdown`, `formatCurrency`,
+  `parseNumberInput`), exposed as `window.RobayerCalc`. Extracted
+  because Compound Interest, Savings Goal, and Investment Growth all
+  genuinely share the same future-value-of-a-lump-sum-plus-annuity
+  formula (Savings Goal solves it for the contribution instead of the
+  future value) — a real, present duplication risk across 3
+  simultaneous consumers, not a speculative one. Every formula was
+  numerically verified against independent reference values before
+  any calculator was built (see "Formula validation" in this sprint's
+  delivery notes).
+- `js/components/calculator-compound-interest.js`,
+  `calculator-savings-goal.js`, `calculator-investment-growth.js` —
+  one script per calculator, each independently reusable (none
+  references another calculator's script), each depending only on the
+  shared `calculator-utils.js`. Explicit "Calculate" submit rather than
+  live-as-you-type, so the `aria-live` result region announces once
+  per deliberate calculation instead of on every keystroke.
+
+**Added — content architecture**
+- `content/calculators/README.md` + one `{slug}.json` per calculator —
+  metadata and educational copy only (title, summary, explanations,
+  common mistakes, FAQ, cross-links). **No formula or calculation
+  logic lives in these files** — see the README for why (formulas are
+  executable logic, not content; putting them in JSON would either
+  duplicate them or require `eval()`-ing a string, neither of which
+  this project has reason to do).
+- `content/SCHEMA.md` — new `Calculator` entry.
+
+**Added — CSS**
+- `.calculator-panel`, `.calculator-result` (+ `__label`, `__figure`,
+  `__row`), `.calculator-table`, and a `.field--checkbox` variant (for
+  the Investment Growth inflation toggle) in `css/components.css` —
+  all built from existing tokens, no new colors/radii/shadows.
+
+**Changed**
+- `partials/header.html` — added a "Calculators" link to the primary
+  nav (Books, Blog, Resources, **Calculators**, Services, About).
+- `css/components.css` / `js/components/nav.js` — the mobile-nav
+  breakpoint widened from `max-width: 767px` to `999px` (both the CSS
+  media query and the matching JS resize-listener constant). With 6
+  nav items plus the theme toggle and CTA button, the horizontal nav
+  measured ~940–990px at its natural width and genuinely no longer fit
+  in the 768–999px tablet range — verified by measuring, not guessing.
+  Desktop nav still shows correctly at 1000px+; hamburger now covers
+  0–999px instead of 0–767px.
+- `resources/index.html` — the "Financial calculators" section's intro
+  copy updated to honestly reflect that Compound Interest, Savings
+  Goal, and Investment Growth are now live at `/calculators/`, while
+  its own 3 distinct "coming soon" cards (Treasury Bills, Net Worth,
+  Retirement Planning Guide — none of which duplicate the 3 built this
+  sprint) remain honestly upcoming.
+- `index.html` — the homepage's "Savings goal" resource card (already
+  labeled with a "Calculator" badge) now links to
+  `/calculators/savings-goal/` instead of the generic `/resources/`.
+- All 6 `/services/{slug}/` pages and their `content/services/*.json`
+  — the "Related > Calculators" subsection, previously an honest
+  "in development" placeholder (Sprint 1), now links to whichever of
+  the 3 real calculators is topically relevant; `relatedCalculators`
+  arrays updated from `[]` to real slugs — exactly the update Sprint
+  1's CHANGELOG entry already flagged as due once calculators shipped.
+- `sitemap.xml` — 4 new `<url>` entries, `lastmod` 2026-07-05.
+
+**SEO**
+- Every calculator page: unique title/description/canonical/OG/
+  Twitter, `Organization` JSON-LD, `BreadcrumbList` JSON-LD,
+  `SoftwareApplication` JSON-LD (`applicationCategory: FinanceApplication`,
+  `offers.price: "0"` — schema.org has no literal "Calculator" type),
+  and a matching `FAQPage` JSON-LD block.
+
+**Accessibility**
+- Results render in a `role="status" aria-live="polite"` region,
+  updated only on explicit form submit (not on every keystroke) to
+  avoid announcement spam.
+- All form controls are native `<input>`/`<select>`/`<button>`/
+  `<input type="checkbox">` — no custom widgets, so keyboard operation
+  and focus states are correct by construction.
+- Client-side validation reuses the existing `.field`/`.field__error`
+  pattern; an invalid submit moves focus to the first invalid field.
+
+**Verified**
+- Every formula numerically checked against independent reference
+  values, including a well-known textbook figure ($100/month, 30
+  years, 7% → $121,997) and hand-computed edge cases (zero rate, zero
+  years, an "already on track" negative-contribution case).
+- Zero console errors, zero broken links, zero duplicate IDs, zero
+  missing `alt` attributes, across all 24 real pages.
+- Zero horizontal overflow at 320/375/768/1000/1024/1366/1440/1920px
+  across all 24 pages (the nav breakpoint fix above was required to
+  achieve this at 768–999px).
+- No external libraries, no backend, no API calls — every calculation
+  runs entirely client-side.
+
+## [v1.1 Sprint 1] — 2026-07-05 — Services Platform
+
+The first production feature of Version 1.1 (see the Version 1.1 PRD
+and its 1.1.1 addendum), built entirely on the frozen v1.0.1
+architecture — no folders renamed, no components replaced, no design
+tokens changed, no framework introduced. Sprint 2 will cover Financial
+Calculators; this sprint does not touch calculators, consultations
+booking, or pricing.
+
+**Added — pages**
+- `/services/` — new landing page listing all six services as
+  `.service-card` entries (icon, title, summary, audience, "Learn
+  More"), reusing the existing `.resource-card`-style shadow/radius
+  language via a new sibling component.
+- `/services/{slug}/` — six new detail pages (Financial Education,
+  Investment Education, Personal Financial Coaching, Business
+  Financial Advisory, Retirement Planning Guidance, Financial Literacy
+  Workshops), each following the exact section pattern already
+  established by `books/starting-to-invest-with-gh100/index.html`:
+  breadcrumb, hero, overview, who-it's-for, what-you'll-learn,
+  how-it-works (reusing `.toc`, already documented as reusable for any
+  staged sequence), FAQ, related content, consultation CTA, newsletter
+  CTA.
+- Every service page includes a compliance-note `alert` stating
+  Robayer WealthLab provides financial education/coaching, not
+  licensed investment, tax, legal, or accounting advice — worded per
+  service, matching the disclaimer language already used on Book
+  Detail and the Disclaimer page rather than inventing new legal text.
+
+**Added — content architecture**
+- `content/services/README.md` + one `{slug}.json` per service (6
+  files) — the structured record of each service's overview, audience,
+  process, FAQ, and cross-links. Not fetched by any page this sprint
+  (the six pages render their real content directly in HTML, matching
+  every other real page on the site); exists now because the future
+  Consultation Module's service-select dropdown needs exactly this
+  data, per the Version 1.1 PRD's Data Architecture section.
+- `content/SCHEMA.md` — new `Service` entry documenting the schema.
+- Every service's `pricing` field is `{ "display": "Contact for
+  pricing", "amount": null }` — no price is stated or implied anywhere
+  in this sprint, on any page or JSON-LD block.
+- `relatedCalculators` is an empty array in every service record — no
+  calculator exists yet (Sprint 2). Pages link honestly to the
+  Resources page's existing "Coming soon" calculators section instead
+  of a fabricated or dead link.
+
+**Added — CSS**
+- `.service-card` (+ `__icon`, `__title`, `__summary`, `__audience`,
+  `__audience-label`, `__cta`) in `css/components.css` — same
+  `shadow-1` → `shadow-2` rest/hover pattern as `.card`/`.testimonial`/
+  `.book-card`/`.resource-card`, same tokens, no new colors or radii.
+
+**Changed**
+- `partials/header.html` — added a "Services" link to the primary nav
+  (Books, Blog, Resources, **Services**, About), the same list-item
+  markup as every existing link. Verified no overflow at 768/1366/
+  1440px.
+- `index.html` — the homepage's existing "Financial Education" and
+  "Business Advisory" teaser cards (Sprint 14) now link to
+  `/services/financial-education/` and
+  `/services/business-financial-advisory/` respectively, instead of
+  the generic `/resources/` and `/contact/` they pointed at before a
+  real destination existed. The other four teaser cards are unchanged
+  — their topics don't map 1:1 onto a new service page, and pointing
+  them at one would misrepresent what the card is about.
+- `sitemap.xml` — 7 new `<url>` entries (`/services/` + six detail
+  pages), `lastmod` 2026-07-05.
+
+**SEO**
+- Every page: unique `<title>`/meta description/canonical/Open Graph/
+  Twitter Card, `Organization` JSON-LD (site-wide standard),
+  `BreadcrumbList` JSON-LD (first real, visible breadcrumb usage on
+  the site beyond Book Detail), a `Service` JSON-LD block per detail
+  page, and a matching `FAQPage` JSON-LD block per page's visible FAQ
+  accordion.
+
+**Accessibility**
+- Breadcrumb nav uses the existing `.breadcrumbs` component and
+  `aria-label="Breadcrumb"` pattern already defined in `components.css`.
+- FAQ accordions reuse the native `<details>`/`<summary>` `.faq__item`
+  pattern (keyboard-operable, no ARIA required).
+- Heading hierarchy on every new page: single H1 → H2 sections → H3
+  subsections (Overview/Who it's for/etc., and the "Keep exploring"
+  sub-blocks) — verified with no skipped levels.
+
+**Verified**
+- Zero console errors, zero broken internal links, zero duplicate IDs,
+  zero missing `alt` attributes, across all 7 new pages plus the two
+  homepage cards changed.
+- Responsive at 320/375/768/1024/1366/1440/1920px — no overflow.
+- No new libraries, no new render-blocking assets — same font/script
+  payload as v1.0.1.
+
+## [v1.0.1] — 2026-07-05 — Launch Polish Release
+
+A UI/UX refinement pass on top of the frozen `v1.0.0-production-baseline`
+architecture — no new pages, no restructuring, no new frameworks, no
+routing/navigation changes. Every change below is copy or CSS on top of
+existing markup and existing design tokens.
+
+**Hero copy (`index.html`)**
+- Headline changed from the generic "Build Wealth With Confidence" to
+  "Practical Financial Education. Real Wealth, Honestly Built." — names
+  financial education and wealth-building explicitly, and signals trust
+  through "honestly" rather than an unverifiable claim, consistent with
+  the site's existing "no hype" positioning (Trust section, founder bio).
+- Subtitle rewritten to "Clear, honest guidance on saving, investing,
+  and growing money — no hype, no jargon, just practical steps for
+  wherever you're starting from," echoing language already established
+  in the Trust section ("No hype, ever") and the site-wide pull-quote
+  ("wherever you're starting from, we'll meet you there") rather than
+  inventing new brand language.
+- CTA labels changed from generic "Get Started"/"Contact Us" to
+  "Explore Free Resources"/"Get in Touch" — same `href`s
+  (`/resources/`, `/contact/`), wording only. "Explore Free Resources"
+  states the actual destination and leads with "Free," a true,
+  concrete conversion lever already accurate today.
+- This is page copy only, not wired to `assets/config/site.json` (the
+  hero subtitle never was) — no config/data-content architecture
+  touched.
+
+**Portrait presentation (`css/components.css`, `index.html`)**
+- New `.portrait-frame` class (additive — layered on the existing
+  `rounded-lg`/`aspect-4-5`/`img-cover` utility classes, nothing
+  removed) adds a thin Sika Gold hairline plus `--shadow-3` to both the
+  hero portrait and the "Meet the Founder" portrait, giving the real
+  founder photo (unchanged, not replaced) a more deliberate, premium
+  frame instead of sitting flush against the page background.
+
+**Buttons (`css/components.css`)**
+- `.btn:hover` now lifts 1px with a `--shadow-2` elevation, in addition
+  to the existing background-color change — a subtle, motion-respecting
+  micro-interaction (still subject to the site's global
+  `prefers-reduced-motion` rule in `base.css`).
+- `.btn:focus-visible` gets a soft color-matched glow (`.btn--accent`
+  gets its own gold-tinted version) layered on top of — not replacing —
+  the existing global `:focus-visible` outline from `base.css`, so
+  keyboard focus stays at least as visible as before.
+- `.btn:disabled`/`.btn--disabled` explicitly reset `transform`/
+  `box-shadow` so the new hover/active motion never applies to a
+  disabled button.
+
+**Cards and testimonials (`css/components.css`)**
+- `.resource-card` (already an `<a>` link) keeps and is joined by a new
+  `.resource-card__icon` hover scale (1.08×) — reinforces that these
+  cards are clickable.
+- Considered adding the same hover "lift" to `.card` and `.testimonial`,
+  but both are used site-wide as static, non-interactive containers
+  (contact-method cards, community values, testimonial quotes — none
+  wrapped in `<a>`). A lift affordance on a non-clickable element is a
+  known UX anti-pattern (implies interactivity that isn't there), so
+  only a shadow-depth change was added to `.testimonial` (matching
+  `.card`'s pre-existing shadow-only hover) — no transform on either.
+
+**Trust section** — reviewed against the brief's suggested card set
+("Practical Financial Education," "Ghana-Focused Insights," etc.), but
+the existing Trust section (Founder-led / No hype, ever / Ghana-first /
+Free to start) already covers the same credibility ground in the site's
+own established voice, immediately above a Services section with
+near-identical grid styling. Adding a third, near-duplicate card grid
+between them would add clutter rather than calm, so the existing
+section was left structurally as-is.
+
+**Verified after the above changes**
+- Zero console errors, zero failed network requests, zero duplicate
+  IDs, zero missing `alt` attributes, zero horizontal overflow at
+  320/375/768/1024/1440/1920px on the homepage.
+- Heading hierarchy unchanged and valid (single H1 → H2 sections → H3
+  Trust-card headings).
+- No new fonts, scripts, or libraries added — same font/script payload
+  as the baseline.
+
+### UI Polish Pass (closes out v1.0.1) — 2026-07-05
+
+A sitewide visual-consistency audit on top of the changes above — no new
+sections, no layout changes, no routing changes. Read every real page's
+CSS/HTML looking specifically for shadow/radius/spacing/icon
+inconsistencies; changed only the handful that were genuinely
+inconsistent, left everything else untouched (most of the existing
+design system was already consistent — see "audited, no change needed"
+below).
+
+**Navigation (`css/components.css`)**
+- `.nav__list a[aria-current="page"]` previously signaled the active
+  page with color alone (green text + green underline) — a WCAG 1.4.1
+  ("use of color") gap, since two dark, similarly-saturated colors
+  (ink navy vs. growth green) are hard to tell apart for some users.
+  Added `font-weight: var(--weight-semibold)`, so the active link is
+  now distinguishable by weight and underline, not color alone.
+- `.nav__list a` padding-bottom increased from 2px to `var(--space-2)`
+  (8px) so the active-page underline sits with proper breathing room
+  below the text instead of crowding it. Verified this doesn't change
+  `.site-header`'s fixed 88px height (nav content is flex-centered
+  within it) and doesn't affect the separate mobile-menu override,
+  which already sets its own padding.
+
+**Card shadow consistency (`css/components.css`)**
+- `.resource-card` (used for the Home Services/Free-Resources sections
+  and the Resources page) had no `box-shadow` at rest — every sibling
+  card component (`.card`, `.testimonial`, `.book-card`) already used
+  a `--shadow-1` (rest) → `--shadow-2` (hover) pattern. Added
+  `box-shadow: var(--shadow-1)` to `.resource-card` so all card-like
+  components now share one consistent shadow language; its extra hover
+  lift/icon-scale stays, since unlike `.card`/`.testimonial` it's
+  always an `<a>` link.
+
+**Heading spacing (`index.html`)**
+- The Home Trust section's `<h2 id="trust-heading">` was missing the
+  `mt-2` top margin that every other section heading on the site uses
+  after its eyebrow label (confirmed by checking all ~25 section
+  headings across every page — this was the one outlier). Added
+  `mt-2` to match.
+
+**Audited, no change needed** (confirmed rather than assumed):
+- Section vertical rhythm — every Home section already uses the same
+  64px top/bottom padding via `.section`, with only the hero (96px,
+  intentionally larger) and the newsletter band (`.section--tight`,
+  32px, intentionally smaller) differing — both deliberate, not
+  oversights.
+- Hover-transition timing — already `--duration-base` (200ms)
+  everywhere across buttons, cards, nav, filter pills, footer icons;
+  `--duration-fast` (150ms) is reserved for the button press-down
+  scale and `--duration-slow` (300ms) for scroll-reveal — a considered
+  system, not an inconsistency.
+- `scroll-behavior: smooth` (already in `base.css`, already correctly
+  disabled under `prefers-reduced-motion`) — the "smooth scroll" ask
+  was already implemented; confirmed rather than re-added.
+- Icon sizing — `.icon`/`.icon--lg` (20px/24px) used consistently for
+  every card/list icon sitewide, including the newer resource-card
+  icons; `.check-item__icon` alignment already has a deliberate 2px
+  top-nudge to match text baselines.
+- Focus treatment — the global `:focus-visible` outline in `base.css`
+  already applies uniformly to every interactive element (nav, forms,
+  buttons, filter pills, footer/social links); no element was found
+  bypassing it.
+- Considered a JS-driven image fade-in-on-load ("image loading
+  transitions"). Every real `<img>` already has explicit `width`/
+  `height` (no layout shift) and appropriate `loading="eager"`/`"lazy"`
+  plus `decoding="async"`. Adding a fade requires new JS (a load-event
+  listener), which is more than a CSS/copy polish pass should introduce
+  for a cosmetic-only gain — left out, noted here rather than silently
+  skipped.
+- Dark mode — spot-checked the nav and card changes above under
+  `[data-theme="dark"]`; both degrade correctly (the active-nav-link
+  font-weight signal still works even where a pre-existing, unrelated
+  cascade rule already overrides active-link color to white in dark
+  mode — a pre-existing quirk, not something this pass introduced or
+  worsened).
+
+**Verified after this pass**
+- Zero console errors, zero failed network requests, zero duplicate
+  IDs, zero missing `alt`/broken images, zero horizontal overflow —
+  across all 13 real pages at 1366px and 1440px (the two most common
+  laptop widths) in addition to the mobile/tablet/desktop/ultrawide
+  breakpoints already checked for v1.0.1 above.
+- No new HTTP requests, fonts, scripts, or libraries — this pass only
+  edited existing `css/components.css` rules and one `index.html`
+  class attribute, so Lighthouse Performance exposure is unchanged.
+
 ## [v1.0.0-production-baseline] — 2026-07-05
 
 Closes out Phases 1–18. Everything below this heading (Sprint 1 through

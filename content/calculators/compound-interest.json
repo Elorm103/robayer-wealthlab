@@ -1,0 +1,29 @@
+{
+  "slug": "compound-interest",
+  "title": "Compound Interest Calculator",
+  "summary": "See how a lump sum plus regular contributions grows over time, thanks to compounding.",
+  "category": "growth",
+  "educationalExplanation": "Compound interest is what happens when the interest your money earns starts earning its own interest. The earlier you start and the longer you leave money invested, the more that compounding effect does the work for you — often more than how much you contribute each month.",
+  "formulaExplanation": "This calculator combines two things: how your starting amount grows on its own, and how your regular contributions add up and grow too. Each period, interest is calculated on the full balance — including interest already earned — which is what makes growth accelerate over time rather than stay flat.",
+  "interpretationNotes": "The \"total interest earned\" figure is the part compounding actually added — money you didn't contribute yourself. Compare it to your total contributions to see how much of your future balance came from growth versus your own saving.",
+  "commonMistakes": [
+    "Assuming a fixed interest rate will hold exactly for the whole period — real rates vary year to year.",
+    "Underestimating how much starting a few years earlier matters, compared to contributing more later.",
+    "Forgetting that fees, taxes, or early withdrawals reduce the real return below what a calculator shows.",
+    "Comparing a monthly-compounding rate directly to an annually-compounding rate without adjusting for the difference."
+  ],
+  "faq": [
+    { "question": "Is this calculator giving me investment advice?", "answer": "No — it's an educational projection tool based on the numbers you enter, not a recommendation to invest in anything specific." },
+    { "question": "What does \"compounding frequency\" mean?", "answer": "How often interest is calculated and added to your balance. Monthly compounding grows slightly faster than annual compounding at the same stated rate, because interest starts earning its own interest sooner." },
+    { "question": "Does this account for taxes or fees?", "answer": "No — it's a simplified projection. Real returns are usually lower once fees and any applicable taxes are factored in." },
+    { "question": "What if my interest rate changes over time?", "answer": "This calculator assumes one fixed rate for the whole period. If your real rate changes, re-run the numbers with the new rate to see the updated projection." },
+    { "question": "Is GH₵ the only currency this works for?", "answer": "The math works the same regardless of currency — the calculator is simply labeled in GH₵ since that's this site's focus." },
+    { "question": "Can I use this for a loan instead of savings?", "answer": "No — this models growth of savings or investments, not loan repayment, which works differently." }
+  ],
+  "relatedResources": ["/resources/#investment-readiness-checklist", "/resources/#budget-planner"],
+  "relatedServices": ["financial-education", "investment-education"],
+  "relatedArticles": ["/blog/what-are-treasury-bills-in-ghana/"],
+  "complianceNote": "This calculator is educational — results are projections, not guarantees or investment advice.",
+  "ctaLabel": "Request a Consultation",
+  "ctaHref": "/consultation/"
+}

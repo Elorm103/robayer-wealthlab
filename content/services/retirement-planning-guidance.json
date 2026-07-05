@@ -1,0 +1,42 @@
+{
+  "slug": "retirement-planning-guidance",
+  "title": "Retirement Planning Guidance",
+  "summary": "Understand retirement planning in the Ghanaian context — SSNIT, pensions, and personal savings — so you can plan realistically, whatever stage you're at.",
+  "audience": "Working professionals mid-career, people approaching retirement, and anyone wanting to understand SSNIT and pensions.",
+  "overview": "Retirement Planning Guidance helps you understand what retirement realistically looks like in the Ghanaian context — how SSNIT and pension contributions work, where a typical pension income falls short of typical living costs, and how personal savings and investing can help close that gap. Whether retirement is decades away or close, the goal is a realistic, honest picture rather than guesswork.",
+  "whoItsFor": [
+    "You're mid-career and haven't thought seriously about retirement yet",
+    "You're approaching retirement and want a realistic picture of your income",
+    "You don't fully understand how your SSNIT or pension contributions work",
+    "You want to know how personal savings fit alongside a pension"
+  ],
+  "whatYoullLearn": [
+    "How SSNIT and pension contributions actually work",
+    "How to think honestly about the gap between pension income and real living costs",
+    "How personal savings and investing can help close that gap",
+    "How to think about timeline and risk as retirement gets closer"
+  ],
+  "process": [
+    { "step": 1, "title": "Understand your current situation", "description": "Your age, contributions to date, and any personal savings already in place." },
+    { "step": 2, "title": "A realistic retirement picture", "description": "What your current trajectory actually adds up to." },
+    { "step": 3, "title": "Discuss ways to close any gap", "description": "Practical, honest options — not guarantees." },
+    { "step": 4, "title": "Leave with a clear plan", "description": "Specific next steps you can act on." }
+  ],
+  "faq": [
+    { "question": "Is this connected to SSNIT directly?", "answer": "No — this is independent, educational guidance about how SSNIT and pensions generally work, not a SSNIT service or affiliated program." },
+    { "question": "Will you manage my pension for me?", "answer": "No — this service is educational guidance, not pension management or licensed investment advice." },
+    { "question": "What if retirement is still far away for me?", "answer": "It's still valuable — starting earlier generally makes the eventual plan easier, not harder." },
+    { "question": "Can retirees or people near retirement use this too?", "answer": "Yes — the guidance adjusts to whatever stage you're actually at." },
+    { "question": "Does this replace professional pension or legal advice?", "answer": "No — for formal pension administration or legal matters, we'd point you toward the appropriate licensed professional or SSNIT directly." },
+    { "question": "How is this different from Investment Education?", "answer": "This service is framed specifically around retirement timeline and income planning; Investment Education covers investment options more broadly." },
+    { "question": "Do you guarantee a specific retirement outcome?", "answer": "No — this service provides education and realistic planning guidance, not guarantees about future income or returns." }
+  ],
+  "relatedServices": ["investment-education", "personal-financial-coaching"],
+  "relatedCalculators": ["investment-growth"],
+  "relatedArticles": ["/blog/"],
+  "relatedResources": ["/resources/"],
+  "pricing": { "display": "Contact for pricing", "amount": null, "currency": "GHS" },
+  "complianceNote": "Robayer WealthLab provides financial education, not licensed pension, investment, or legal advice.",
+  "ctaLabel": "Request a Consultation",
+  "ctaHref": "/consultation/"
+}

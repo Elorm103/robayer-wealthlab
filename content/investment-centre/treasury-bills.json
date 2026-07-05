@@ -1,0 +1,48 @@
+{
+  "slug": "treasury-bills",
+  "title": "Treasury Bills",
+  "summary": "Short-term government debt instruments, widely used as a first, low-risk introduction to investing in Ghana.",
+  "category": "fixed-income",
+  "difficulty": "beginner",
+  "overview": "A Treasury Bill (T-bill) is a short-term loan you make to the Government of Ghana, typically for 91, 182, or 364 days. You buy the bill at a discount and receive its full face value when it matures — the difference is your return. T-bills are issued regularly and are widely accessible through banks, brokers, and mobile platforms.",
+  "whyItMatters": "T-bills are often the first investment many Ghanaians make beyond a savings account, because they're short-term, widely available, and backed by the government. Understanding how they work is a practical foundation before exploring longer-term or higher-risk options.",
+  "benefits": [
+    "Backed by the Government of Ghana, making default risk very low",
+    "Short terms (91–364 days) mean your money isn't locked away for long",
+    "Low minimum investment amounts make them accessible to first-time investors",
+    "Simple to understand — no market analysis or company research required"
+  ],
+  "risks": [
+    "Returns are modest compared to higher-risk investments like equities",
+    "Inflation can erode the real value of returns over time",
+    "Selling before maturity on the secondary market may mean a less favorable price",
+    "Rates change between auctions, so a new bill may earn more or less than your last one"
+  ],
+  "whoItSuits": [
+    "First-time investors who want a low-risk starting point",
+    "Anyone building or holding an emergency fund who wants a modest return on cash",
+    "Savers with a short time horizon (a few months to a year)",
+    "Investors who want a predictable, government-backed option alongside riskier holdings"
+  ],
+  "faq": [
+    { "question": "Is my money guaranteed with a Treasury Bill?", "answer": "T-bills are backed by the Government of Ghana, which makes them one of the lowest-risk investments available domestically — but no investment carries a zero-risk guarantee." },
+    { "question": "How much do I need to start?", "answer": "Minimum amounts are set by the issuing institution and are generally low compared to other investments — check directly with a bank, broker, or the relevant platform for the current minimum." },
+    { "question": "Can I get my money out before it matures?", "answer": "T-bills can sometimes be sold on the secondary market before maturity, but the price you get may be less favorable than holding to maturity." },
+    { "question": "How is a Treasury Bill different from a Government Bond?", "answer": "T-bills are short-term (up to a year); bonds are longer-term instruments with different structures. See the Government Bonds topic for a fuller comparison." },
+    { "question": "Do I pay tax on Treasury Bill returns?", "answer": "Tax treatment depends on current tax rules — this page doesn't cover tax advice; a licensed tax professional can confirm your specific situation." },
+    { "question": "Is this financial advice?", "answer": "No. This page is educational only. For guidance on whether Treasury Bills fit your situation, consider a consultation." }
+  ],
+  "relatedCalculators": ["savings-goal"],
+  "relatedGoals": ["emergency-fund", "first-investment"],
+  "relatedServices": ["investment-education"],
+  "relatedResources": ["/resources/#investment-readiness-checklist"],
+  "relatedArticles": ["/blog/what-are-treasury-bills-in-ghana/"],
+  "seo": {
+    "title": "Treasury Bills in Ghana: An Educational Guide | Robayer WealthLab",
+    "metaDescription": "Understand how Treasury Bills work in Ghana — what they are, the benefits and risks, and who they typically suit. Educational guidance, not financial advice.",
+    "canonical": "https://robayerwealthlab.com/investment-centre/treasury-bills/"
+  },
+  "complianceNote": "This page is educational. It does not constitute financial, investment, legal, or tax advice, and Treasury Bill rates and terms change over time — confirm current details with a licensed institution before investing.",
+  "ctaLabel": "Request a Consultation",
+  "ctaHref": "/consultation/"
+}

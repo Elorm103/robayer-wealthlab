@@ -1,0 +1,28 @@
+{
+  "slug": "savings-goal",
+  "title": "Savings Goal Calculator",
+  "summary": "Find out how much you need to save each month to reach a specific goal by a specific time.",
+  "category": "planning",
+  "educationalExplanation": "Most savings goals stall not because they were unrealistic, but because nobody worked out the actual monthly number needed to reach them. This calculator turns a goal amount and a timeframe into one concrete figure: how much to set aside each month.",
+  "formulaExplanation": "This calculator works backward from your target amount — using the same growth math as the Compound Interest calculator — to solve for the one unknown: the monthly contribution. It accounts for any savings you already have and lets that grow too, then works out what the remaining gap requires each month.",
+  "interpretationNotes": "If the calculator shows you're already on track without any further contributions, that means your current savings, growing at the rate you entered, will already reach your goal by your target date. Treat the monthly figure as a planning number, not a guarantee — revisit it if your rate, timeline, or goal amount changes.",
+  "commonMistakes": [
+    "Setting a goal amount without adjusting for inflation over a long timeframe.",
+    "Assuming a savings account interest rate that's unrealistically high for a low-risk account.",
+    "Treating the monthly number as fixed forever instead of revisiting it as income changes.",
+    "Forgetting to include savings already set aside toward the goal."
+  ],
+  "faq": [
+    { "question": "What if I can't afford the monthly amount this calculator suggests?", "answer": "Try extending the timeframe, or start with what you can manage. Personal Financial Coaching can also help build a realistic plan around your actual income." },
+    { "question": "Does this include interest from a real bank account?", "answer": "It uses whatever interest rate you enter — it doesn't look up a live bank rate for you." },
+    { "question": "What if I already have some savings toward this goal?", "answer": "Enter it as your current savings — the calculator factors in its growth before working out the remaining gap." },
+    { "question": "Can I use this for retirement planning?", "answer": "It's better suited to shorter- and medium-term goals. For retirement specifically, see Retirement Planning Guidance." },
+    { "question": "What does it mean if the calculator says I'm already on track?", "answer": "It means your current savings, growing at your entered rate, are projected to reach your goal without any further monthly contribution." }
+  ],
+  "relatedResources": ["/resources/#budget-planner", "/resources/#monthly-expense-tracker"],
+  "relatedServices": ["personal-financial-coaching", "financial-education"],
+  "relatedArticles": ["/blog/#how-to-build-an-emergency-fund"],
+  "complianceNote": "This calculator is educational — results are projections, not guarantees or investment advice.",
+  "ctaLabel": "Request a Consultation",
+  "ctaHref": "/consultation/"
+}

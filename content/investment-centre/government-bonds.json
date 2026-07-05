@@ -1,0 +1,48 @@
+{
+  "slug": "government-bonds",
+  "title": "Government Bonds",
+  "summary": "Longer-term government debt instruments that pay regular interest, suited to medium- and long-term goals.",
+  "category": "fixed-income",
+  "difficulty": "intermediate",
+  "overview": "A government bond is a longer-term loan to the Government of Ghana — typically 2 years or more — that pays interest (a coupon) at set intervals until it matures, when you receive your principal back. Bonds are issued at auctions and can also be bought and sold on the secondary market through licensed dealers.",
+  "whyItMatters": "Bonds fill the gap between short-term T-bills and higher-risk investments like equities. They let you lock in a return over a longer period, which suits goals further out — a child's education, a home, or retirement — without taking on stock-market-level risk.",
+  "benefits": [
+    "Backed by the Government of Ghana, similar risk profile to T-bills",
+    "Regular coupon payments provide predictable income over the bond's life",
+    "Longer terms can suit medium- to long-term financial goals",
+    "Tradeable on the secondary market, offering some flexibility before maturity"
+  ],
+  "risks": [
+    "Your money is committed for a longer period than a T-bill",
+    "Bond prices on the secondary market can rise or fall before maturity",
+    "Inflation over a longer holding period can meaningfully reduce real returns",
+    "Selling early isn't guaranteed to happen at a favorable price"
+  ],
+  "whoItSuits": [
+    "Investors with a medium- to long-term goal (2+ years away)",
+    "Those who want predictable interest income over time",
+    "Investors looking to diversify beyond short-term instruments",
+    "Anyone comfortable committing funds for longer in exchange for potentially better terms than a T-bill"
+  ],
+  "faq": [
+    { "question": "How is a bond different from a Treasury Bill?", "answer": "T-bills are short-term (up to a year) and sold at a discount; bonds run longer and typically pay periodic interest (coupons) until maturity." },
+    { "question": "Can I sell a bond before it matures?", "answer": "Yes, on the secondary market through a licensed dealer — but the price depends on market conditions at the time, not a fixed guarantee." },
+    { "question": "Are government bonds risk-free?", "answer": "They carry very low default risk since they're government-backed, but they aren't risk-free — market price changes and inflation still affect real returns." },
+    { "question": "What's a coupon?", "answer": "The coupon is the periodic interest payment a bond pays you, usually expressed as a rate on the bond's face value." },
+    { "question": "How do I buy a government bond in Ghana?", "answer": "Through licensed banks, broker-dealers, or at scheduled auctions — a licensed institution can walk you through the current process." },
+    { "question": "Is this financial advice?", "answer": "No. This page is educational only. A consultation can help you think through whether bonds fit your specific goals." }
+  ],
+  "relatedCalculators": ["compound-interest", "investment-growth"],
+  "relatedGoals": ["first-investment", "retirement", "childrens-education"],
+  "relatedServices": ["investment-education"],
+  "relatedResources": ["/resources/#investment-readiness-checklist"],
+  "relatedArticles": [],
+  "seo": {
+    "title": "Government Bonds in Ghana: An Educational Guide | Robayer WealthLab",
+    "metaDescription": "Learn how government bonds work in Ghana, their benefits and risks, and who they typically suit for medium- and long-term goals. Educational only.",
+    "canonical": "https://robayerwealthlab.com/investment-centre/government-bonds/"
+  },
+  "complianceNote": "This page is educational. It does not constitute financial, investment, legal, or tax advice, and bond rates and terms change over time — confirm current details with a licensed institution before investing.",
+  "ctaLabel": "Request a Consultation",
+  "ctaHref": "/consultation/"
+}

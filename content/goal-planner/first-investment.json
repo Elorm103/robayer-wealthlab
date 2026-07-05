@@ -1,0 +1,20 @@
+{
+  "slug": "first-investment",
+  "title": "First Investment",
+  "goalDescription": "Building up an initial amount before making your first investment, so you start from a position of readiness rather than urgency.",
+  "resultIntro": "Here's a starting point for building your first investment amount, based on what you entered.",
+  "questions": [
+    { "id": "targetAmount", "label": "Amount you'd like to start investing with", "type": "number", "unit": "GH₵", "min": 1, "step": 1, "default": 5000 },
+    { "id": "currentSavings", "label": "Amount already set aside for this", "type": "number", "unit": "GH₵", "min": 0, "step": 1, "default": 0 },
+    { "id": "timeframeYears", "label": "Timeframe to reach this amount (years)", "type": "number", "min": 0.5, "max": 20, "step": 0.5, "default": 1 },
+    { "id": "expectedRate", "label": "Expected annual return while you build this up (%)", "type": "number", "min": 0, "max": 30, "step": 0.1, "default": 2, "help": "This is the return on your savings while you build toward your starting amount — not the return on the investment itself." }
+  ],
+  "targetAmount": { "source": "direct", "questionId": "targetAmount" },
+  "years": { "source": "direct", "questionId": "timeframeYears" },
+  "currentSavingsQuestionId": "currentSavings",
+  "rateQuestionId": "expectedRate",
+  "relatedCalculators": ["compound-interest", "investment-growth"],
+  "relatedServices": ["investment-education", "financial-education"],
+  "includeTreasuryBillArticle": true,
+  "consultationCategory": "investment-education"
+}

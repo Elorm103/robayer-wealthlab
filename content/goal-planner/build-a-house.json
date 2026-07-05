@@ -1,0 +1,20 @@
+{
+  "slug": "build-a-house",
+  "title": "Build a House",
+  "goalDescription": "Saving toward construction costs for a house, whether starting from a bare plot or building in phases.",
+  "resultIntro": "Here's a starting point for saving toward your build, based on what you entered.",
+  "questions": [
+    { "id": "targetAmount", "label": "Estimated total build cost", "type": "number", "unit": "GH₵", "min": 1, "step": 1, "default": 150000, "help": "A rough estimate is fine — you can always come back and adjust it." },
+    { "id": "currentSavings", "label": "Amount already saved toward this goal", "type": "number", "unit": "GH₵", "min": 0, "step": 1, "default": 0 },
+    { "id": "timeframeYears", "label": "Timeframe to reach this goal (years)", "type": "number", "min": 0.5, "max": 30, "step": 0.5, "default": 5 },
+    { "id": "expectedRate", "label": "Expected annual return on savings (%)", "type": "number", "min": 0, "max": 30, "step": 0.1, "default": 5, "help": "Leave at 0% if this will sit in a regular savings account rather than an interest-bearing one." }
+  ],
+  "targetAmount": { "source": "direct", "questionId": "targetAmount" },
+  "years": { "source": "direct", "questionId": "timeframeYears" },
+  "currentSavingsQuestionId": "currentSavings",
+  "rateQuestionId": "expectedRate",
+  "relatedCalculators": ["savings-goal", "investment-growth"],
+  "relatedServices": ["personal-financial-coaching", "financial-education"],
+  "includeTreasuryBillArticle": true,
+  "consultationCategory": "personal-financial-coaching"
+}

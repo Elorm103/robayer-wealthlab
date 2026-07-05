@@ -1,0 +1,48 @@
+{
+  "slug": "money-market-funds",
+  "title": "Money Market Funds",
+  "summary": "Professionally managed funds pooling investor money into short-term, low-risk instruments — a diversified alternative to buying T-bills directly.",
+  "category": "funds",
+  "difficulty": "beginner",
+  "overview": "A money market fund pools money from many investors and invests it in a mix of short-term, low-risk instruments — such as Treasury Bills, fixed deposits, and commercial paper. A licensed fund manager handles the day-to-day decisions, and you own units in the fund rather than the underlying instruments directly.",
+  "whyItMatters": "For someone who wants T-bill-like safety and liquidity without tracking auction dates or comparing rates themselves, a money market fund offers a managed, diversified alternative. It's a common next step for people who've outgrown a plain savings account.",
+  "benefits": [
+    "Diversification across multiple short-term instruments, not just one T-bill",
+    "Professionally managed by a licensed fund manager",
+    "Generally high liquidity — many funds allow withdrawals within a few business days",
+    "Lower minimum investment than buying multiple instruments individually would require"
+  ],
+  "risks": [
+    "Returns are not guaranteed and can vary with market conditions",
+    "Fund management fees reduce your net return",
+    "Still exposed to the same broad risks as the underlying instruments (rate changes, inflation)",
+    "Fund performance and reputation vary — not all fund managers perform identically"
+  ],
+  "whoItSuits": [
+    "Beginners who want a managed, diversified alternative to picking individual T-bills",
+    "Savers who value liquidity and want access to funds within days, not months",
+    "Anyone parking an emergency fund or short-term savings goal",
+    "Investors who prefer not to actively manage individual short-term instruments themselves"
+  ],
+  "faq": [
+    { "question": "Is a money market fund the same as a savings account?", "answer": "No — a savings account is a bank deposit; a money market fund is an investment product that pools money into short-term instruments, regulated separately and with returns that aren't fixed by a bank." },
+    { "question": "How quickly can I withdraw my money?", "answer": "This varies by fund manager — many offer withdrawals within a few business days, but always confirm the specific fund's terms before investing." },
+    { "question": "Are money market funds regulated in Ghana?", "answer": "Yes — licensed fund managers operate under Securities and Exchange Commission (SEC) Ghana regulation. Confirm any fund manager's license before investing." },
+    { "question": "What fees should I expect?", "answer": "Fund managers typically charge a management fee, disclosed in the fund's documentation — compare this across funds before choosing one." },
+    { "question": "Can I lose money in a money market fund?", "answer": "These funds are low-risk but not risk-free — returns can fluctuate, and, while uncommon, losses are not impossible." },
+    { "question": "Is this financial advice?", "answer": "No. This page is educational only. A consultation can help you compare options for your specific situation." }
+  ],
+  "relatedCalculators": ["savings-goal"],
+  "relatedGoals": ["emergency-fund", "first-investment"],
+  "relatedServices": ["investment-education"],
+  "relatedResources": ["/resources/#investment-readiness-checklist"],
+  "relatedArticles": [],
+  "seo": {
+    "title": "Money Market Funds in Ghana: An Educational Guide | Robayer WealthLab",
+    "metaDescription": "Learn how money market funds work in Ghana, their benefits and risks, and who they typically suit as a low-risk, managed investment option. Educational only.",
+    "canonical": "https://robayerwealthlab.com/investment-centre/money-market-funds/"
+  },
+  "complianceNote": "This page is educational. It does not constitute financial, investment, legal, or tax advice, and fund performance and fees vary — review a fund's official documentation and confirm current details with a licensed fund manager before investing.",
+  "ctaLabel": "Request a Consultation",
+  "ctaHref": "/consultation/"
+}

@@ -1,0 +1,22 @@
+{
+  "slug": "retirement",
+  "title": "Retirement",
+  "goalDescription": "Building personal savings alongside SSNIT or pension contributions, for the retirement you actually want.",
+  "resultIntro": "Here's a starting point for your personal retirement savings, based on what you entered.",
+  "questions": [
+    { "id": "currentAge", "label": "Current age", "type": "number", "unit": "years", "min": 16, "max": 80, "step": 1, "default": 30 },
+    { "id": "targetRetirementAge", "label": "Target retirement age", "type": "number", "unit": "years", "min": 17, "max": 90, "step": 1, "default": 60 },
+    { "id": "targetAmount", "label": "Desired personal retirement fund", "type": "number", "unit": "GH₵", "min": 1, "step": 1, "default": 500000, "help": "This is on top of SSNIT or any workplace pension — a rough figure is fine." },
+    { "id": "currentSavings", "label": "Amount already saved toward retirement", "type": "number", "unit": "GH₵", "min": 0, "step": 1, "default": 0 },
+    { "id": "expectedRate", "label": "Expected annual return on savings (%)", "type": "number", "min": 0, "max": 30, "step": 0.1, "default": 8, "help": "A long time horizon can typically absorb more growth-oriented assumptions than a short-term goal, but this is still just a planning assumption." }
+  ],
+  "targetAmount": { "source": "direct", "questionId": "targetAmount" },
+  "years": { "source": "computed", "operation": "subtract", "questionIds": ["targetRetirementAge", "currentAge"] },
+  "yearsErrorMessage": "Target retirement age must be greater than your current age.",
+  "currentSavingsQuestionId": "currentSavings",
+  "rateQuestionId": "expectedRate",
+  "relatedCalculators": ["compound-interest", "investment-growth"],
+  "relatedServices": ["retirement-planning-guidance", "personal-financial-coaching"],
+  "includeTreasuryBillArticle": true,
+  "consultationCategory": "retirement-planning-guidance"
+}

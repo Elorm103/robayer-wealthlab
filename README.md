@@ -4,8 +4,18 @@ Financial education for ordinary Ghanaians, built as a static site: no
 frameworks, no build step, per the approved Phase 1 technical stack.
 Deploys directly to GitHub Pages.
 
-**Current status:** `v1.0.0-production-baseline` — Phases 1–18 complete.
-The site is production-ready and deployed to GitHub Pages behind the
+**Current status:** `v1.0.1-launch-polish` shipped, and Version 1.1
+("Financial Education Platform") is underway — Sprint 1 (Services
+Platform), Sprint 2 (Financial Calculators Platform), Sprint 3
+(Consultation Platform), Sprint 4 (Financial Goal Planner), and
+Sprint 5 (Learning Hub) are complete, followed by a platform-wide
+integration audit (footer navigation, CTA wording, and documentation
+staleness fixes — see the `v1.1 Platform Audit` CHANGELOG entry) and
+Sprint 6 (Ghana Investment Centre); Sprint 7 is next. See
+`CHANGELOG.md`'s `v1.1 Sprint 1`/`2`/`3`/`4`/`5`/`6` entries, and the
+Version 1.1 PRD / 1.1.1 addendum on file, for the full roadmap. The
+site remains
+production-ready and deployed to GitHub Pages behind the
 `robayerwealthlab.com` custom domain. The foundation (design tokens,
 global components, navigation, accessibility/SEO groundwork) shipped in
 Phase 5.1, and every real page plus the centralized configuration,
@@ -36,6 +46,14 @@ since:
 | 16 | Brand asset & content architecture foundation (`assets/branding/`, `content/` scaffolding) |
 | 17 | Real branding integration — real logo and founder portrait replace coded placeholders |
 | 18 | Production Readiness Audit — sitewide fixes (see `CHANGELOG.md`), then finalized as the `v1.0.0-production-baseline` tag |
+| Launch Polish | Hero copy, portrait framing, button/card micro-interactions, nav active-state a11y fix, `.resource-card` shadow consistency — finalized as the `v1.0.1-launch-polish` tag |
+| v1.1 Sprint 1 | Services Platform — `/services/` landing page + six service detail pages, `content/services/` JSON, `.service-card` component (see `CHANGELOG.md` for the full breakdown) |
+| v1.1 Sprint 2 | Financial Calculators Platform — `/calculators/` landing page + Compound Interest/Savings Goal/Investment Growth calculators, shared `calculator-utils.js` math, `content/calculators/` JSON (see `CHANGELOG.md` for the full breakdown) |
+| v1.1 Sprint 3 | Consultation Platform — `/consultation/` request form (manual review, no booking system), 18 existing "Book a Consultation" CTAs repointed from `/contact/` (see `CHANGELOG.md` for the full breakdown) |
+| v1.1 Sprint 4 | Financial Goal Planner — `/goal-planner/`, 8 goals, `content/goal-planner/` JSON (site's 2nd live `fetch()` consumer after founder bio), reuses `RobayerCalc.requiredContribution()` — no duplicated formula (see `CHANGELOG.md` for the full breakdown) |
+| v1.1 Sprint 5 | Learning Hub — `/learn/`, 5 learning paths + 6 topic sections organizing existing content (zero new CSS/JS), nav breakpoint widened to 1199px for 8 items (see `CHANGELOG.md` for the full breakdown) |
+| v1.1 Platform Audit | Integration audit — fixed stale footer nav, 18 inconsistent CTA labels, 2 mismatched homepage links, 3 stale doc sections; no features added (see `CHANGELOG.md` for the full breakdown) |
+| v1.1 Sprint 6 | Ghana Investment Centre — `/investment-centre/`, 10 topic pages + 3 learning paths, `content/investment-centre/` JSON (`relatedGoals` — first cross-link into the Goal Planner from reading content), nav holds at 1199px for 9 items (see `CHANGELOG.md` for the full breakdown) |
 
 The three Legal pages, the remaining Blog articles, and the second Book
 that were "still to come" in earlier sprints are now resolved: Legal
@@ -66,9 +84,15 @@ robayer-wealthlab/
 │       ├── founder-bio.js          Fetches content/founder/bio.json into [data-founder-bio] elements
 │       ├── newsletter-form.js      Client-side validation + confirmation for the newsletter form
 │       ├── contact-form.js         Client-side validation + confirmation for the contact form
+│       ├── consultation-form.js    Client-side validation + honest "reviewed manually" confirmation for the consultation request form
 │       ├── content-filters.js      Generic category-pill + search filtering for any card grid
 │       ├── placeholder-action.js   Honest "not connected yet" feedback for buttons with no backend
-│       └── article-reading.js      Reading-progress bar + table-of-contents active-section highlighting
+│       ├── article-reading.js      Reading-progress bar + table-of-contents active-section highlighting
+│       ├── calculator-utils.js               Shared pure-math (window.RobayerCalc) — no formula duplication across calculators
+│       ├── calculator-compound-interest.js   Compound Interest calculator
+│       ├── calculator-savings-goal.js        Savings Goal calculator
+│       ├── calculator-investment-growth.js   Investment Growth calculator
+│       └── goal-planner.js                   Fetches content/goal-planner/{slug}.json, renders questions, reuses RobayerCalc.requiredContribution()
 ├── partials/
 │   ├── header.html         Shared site header + navigation
 │   └── footer.html         Shared site footer
@@ -88,10 +112,41 @@ robayer-wealthlab/
 │   └── what-are-treasury-bills-in-ghana/       Blog Article page (canonical template for future articles)
 ├── resources/
 │   └── index.html         Resources page
+├── calculators/
+│   ├── index.html                 Calculators landing page (3 calculator cards)
+│   ├── compound-interest/         Compound Interest calculator page
+│   ├── savings-goal/              Savings Goal calculator page
+│   └── investment-growth/         Investment Growth calculator page
+├── goal-planner/
+│   └── index.html         Financial Goal Planner — 8 goals, 3-step progressive flow, all client-side
+├── learn/
+│   └── index.html         Learning Hub — organizes existing content by topic + learning path (no new content)
+├── investment-centre/
+│   ├── index.html                          Investment Centre hub — 10-topic grid + 3 learning paths
+│   ├── treasury-bills/                     Topic page
+│   ├── government-bonds/                   Topic page
+│   ├── money-market-funds/                 Topic page
+│   ├── mutual-funds/                       Topic page
+│   ├── ghana-stock-exchange/                Topic page
+│   ├── fixed-deposits/                     Topic page
+│   ├── ssnit-and-pension-basics/            Topic page
+│   ├── real-estate-investing/               Topic page
+│   ├── gold-investing/                     Topic page
+│   └── emergency-funds/                    Topic page
+├── services/
+│   ├── index.html                            Services landing page (6 service cards)
+│   ├── financial-education/                  Service detail page
+│   ├── investment-education/                 Service detail page
+│   ├── personal-financial-coaching/          Service detail page
+│   ├── business-financial-advisory/          Service detail page
+│   ├── retirement-planning-guidance/         Service detail page
+│   └── financial-literacy-workshops/         Service detail page
 ├── about/
 │   └── index.html         About page
+├── consultation/
+│   └── index.html         Consultation request page (manual review — no booking system)
 ├── contact/
-│   └── index.html         Contact page
+│   └── index.html         Contact page — general enquiries, media, partnerships (see /consultation/ for consultation requests)
 ├── community/
 │   └── index.html         Community page
 ├── newsletter/
@@ -125,11 +180,14 @@ The site is built in four layers, from most to least "finished":
    portrait (real assets, integrated in Sprint 17); favicons remain
    coded placeholders pending a future phase. See "Brand asset
    architecture" below.
-4. **Content** (`content/`) — mostly scaffolding, one exception: the
-   founder bio (`content/founder/bio.json`) is real and consumed by
-   `index.html`/`about/index.html`. Every other content type is
-   documentation only — no page reads from it yet. See "Content
-   architecture" below.
+4. **Content** (`content/`) — mostly scaffolding, with a few
+   exceptions: the founder bio (`content/founder/bio.json`) is real and
+   consumed by `index.html`/`about/index.html`, and
+   `content/goal-planner/{slug}.json` is real and consumed by
+   `/goal-planner/` (Sprint 4). `content/services/` and
+   `content/calculators/` are real, complete content with no consumer
+   yet. Every other content type remains documentation only. See
+   "Content architecture" below.
 
 Layers 2–4 were added specifically so a future local editor or
 Git-backed CMS (see "Future roadmap") has clear, documented places to
@@ -237,12 +295,18 @@ future consumer should follow (a small self-contained `fetch()` with
 the page's existing hand-written HTML as the fallback), rather than a
 shared loader module (an earlier attempt at one, `js/content-loader.js`,
 had zero consumers and was removed in the Sprint 18 audit).
+`content/goal-planner/{slug}.json` (Version 1.1 Sprint 4) follows the
+same pattern as the second live consumer: `js/components/goal-planner.js`
+fetches a goal's config on demand — only when a visitor picks that
+goal, not all 8 upfront — and renders its question set and
+recommendation entirely from that data. `content/services/` and
+`content/calculators/` remain real, complete content with no consumer
+yet (see their own READMEs for why).
 
-No other page has been migrated to read from `content/` — every other
-page's real content still lives directly in its own HTML, unchanged by
-any of this. This groundwork exists so that migrating a given page
-later is a rendering change, not a from-scratch content architecture
-decision made under time pressure later.
+Every other page's real content still lives directly in its own HTML,
+unchanged by any of this. This groundwork exists so that migrating a
+given page later is a rendering change, not a from-scratch content
+architecture decision made under time pressure later.
 
 ## Accessibility
 

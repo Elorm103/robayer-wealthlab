@@ -1,0 +1,48 @@
+{
+  "slug": "gold-investing",
+  "title": "Gold Investing",
+  "summary": "Gold as a store of value and inflation hedge — through physical gold or gold-backed financial instruments.",
+  "category": "commodities",
+  "difficulty": "intermediate",
+  "overview": "Gold investing means holding gold — either physically, as jewellery or bullion, or through financial instruments such as gold-backed funds — as a store of value. Ghana has a significant gold mining industry, and gold has long been used globally as a hedge against inflation and currency depreciation, though it doesn't generate income the way a bond or rental property can.",
+  "whyItMatters": "In a country where currency depreciation is a real, recurring concern for savers, gold is often considered as a way to preserve value over time. Understanding how it actually behaves — and its limits — helps separate that reputation from a realistic investment plan.",
+  "benefits": [
+    "Historically used as a hedge against inflation and currency depreciation",
+    "A tangible, globally recognized store of value",
+    "Can add diversification to a portfolio otherwise concentrated in cash-based instruments",
+    "Physical gold can be bought in relatively small quantities to start"
+  ],
+  "risks": [
+    "Gold generates no income (no interest, dividends, or rent) — returns depend entirely on price appreciation",
+    "Physical gold requires secure storage and carries theft or loss risk",
+    "Gold prices can be volatile in the short term, despite its long-term reputation for stability",
+    "Buying and selling physical gold may involve premiums or spreads that reduce net returns"
+  ],
+  "whoItSuits": [
+    "Investors looking to diversify away from purely cash- or currency-based holdings",
+    "Those specifically concerned about long-term currency depreciation",
+    "People comfortable holding an asset that doesn't generate regular income",
+    "Investors who've already covered foundational needs like an emergency fund"
+  ],
+  "faq": [
+    { "question": "Is gold a good investment for beginners?", "answer": "Gold can play a role in a diversified plan, but because it generates no income and requires secure storage or a trusted provider, many beginners start with simpler instruments like Treasury Bills first." },
+    { "question": "Physical gold or a gold-backed fund — which is better?", "answer": "Physical gold requires storage and security arrangements; a gold-backed fund avoids that but comes with its own provider and fee considerations. Each has different trade-offs, not a single right answer." },
+    { "question": "Does gold always go up in value?", "answer": "No — gold prices fluctuate and can fall as well as rise over any given period, despite its long-term reputation as a store of value." },
+    { "question": "How do I verify gold is genuine before buying?", "answer": "Buying from reputable, licensed dealers and requesting proper documentation and certification is essential — this page doesn't cover authentication in detail." },
+    { "question": "Can gold replace an emergency fund?", "answer": "Generally not recommended — gold isn't as immediately liquid or price-stable as cash or a Treasury Bill, which are better suited to emergency funds." },
+    { "question": "Is this financial advice?", "answer": "No. This page is educational only. A consultation can help you think through whether and how gold might fit your broader plan." }
+  ],
+  "relatedCalculators": ["investment-growth"],
+  "relatedGoals": ["first-investment"],
+  "relatedServices": ["investment-education"],
+  "relatedResources": ["/resources/"],
+  "relatedArticles": [],
+  "seo": {
+    "title": "Gold Investing in Ghana: An Educational Guide | Robayer WealthLab",
+    "metaDescription": "Learn how gold investing works, its benefits and risks as an inflation hedge, and who it typically suits. Educational guidance, not investment advice.",
+    "canonical": "https://robayerwealthlab.com/investment-centre/gold-investing/"
+  },
+  "complianceNote": "This page is educational. It does not constitute financial, investment, legal, or tax advice, and gold prices fluctuate constantly — confirm current pricing and verify authenticity with a licensed, reputable dealer before purchasing.",
+  "ctaLabel": "Request a Consultation",
+  "ctaHref": "/consultation/"
+}

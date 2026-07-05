@@ -37,12 +37,23 @@
   font-size: var(--text-small);
   border: 1px solid transparent;
   transition: background-color var(--duration-base) var(--ease-standard),
+              box-shadow var(--duration-base) var(--ease-standard),
               transform var(--duration-fast) var(--ease-standard);
   white-space: nowrap;
 }
 
+.btn:hover {
+  transform: translateY(-1px);
+  box-shadow: var(--shadow-2);
+}
+
 .btn:active {
   transform: scale(0.98);
+  box-shadow: none;
+}
+
+.btn:focus-visible {
+  box-shadow: 0 0 0 4px rgba(31, 92, 78, 0.15);
 }
 
 .btn--primary {
@@ -77,12 +88,18 @@
   text-decoration: none;
 }
 
+.btn--accent:focus-visible {
+  box-shadow: 0 0 0 4px rgba(212, 160, 23, 0.25);
+}
+
 .btn--disabled,
 .btn:disabled {
   background-color: var(--color-stone-grey);
   color: var(--color-white);
   cursor: not-allowed;
   pointer-events: none;
+  transform: none;
+  box-shadow: none;
 }
 
 .btn--block {
@@ -149,7 +166,7 @@
 
 .nav__list a {
   color: var(--color-ink-navy);
-  padding-bottom: 2px;
+  padding-bottom: var(--space-2);
   border-bottom: 2px solid transparent;
   transition: color var(--duration-base) var(--ease-standard),
               border-color var(--duration-base) var(--ease-standard);
@@ -163,6 +180,7 @@
 .nav__list a[aria-current="page"] {
   color: var(--color-accent);
   border-bottom-color: var(--color-accent);
+  font-weight: var(--weight-semibold);
 }
 
 .nav__toggle {
@@ -211,8 +229,18 @@
   display: block;
 }
 
-/* Mobile navigation */
-@media (max-width: 767px) {
+/* Mobile navigation
+   Breakpoint widened from 767px to 999px in Version 1.1 Sprint 2: with
+   6 nav items (Books/Blog/Resources/Calculators/Services/About) plus
+   the theme toggle and CTA button, the horizontal nav no longer fits
+   in the 768–999px range — verified by measuring its natural width
+   (~940–990px) against the available space at those viewports.
+   Widened again from 999px to 1199px in Version 1.1 Sprint 5: adding
+   Goal Planner (Sprint 4) and Learn (Sprint 5) brought the nav to 8
+   items, with a measured natural width of ~1099px — reusing the
+   existing 1199px breakpoint already defined for .grid--2/.grid--3
+   rather than introducing a new arbitrary value. */
+@media (max-width: 1199px) {
   .nav__toggle {
     display: flex;
   }
@@ -343,6 +371,12 @@
   border: 0.5px solid var(--color-border);
   border-radius: var(--radius-md);
   padding: var(--space-4);
+  box-shadow: var(--shadow-1);
+  transition: box-shadow var(--duration-base) var(--ease-standard);
+}
+
+.testimonial:hover {
+  box-shadow: var(--shadow-2);
 }
 
 .testimonial__quote {
@@ -415,6 +449,11 @@
   flex-direction: column;
   gap: var(--space-2);
   margin-bottom: var(--space-4);
+  min-width: 0; /* grid items default to an automatic minimum size based on
+                   their content's min-content width; a <select> child with
+                   long option text otherwise forces its grid track wider
+                   than the viewport (see the Consultation form's category
+                   dropdown at 320px, Version 1.1 Sprint 3) */
 }
 
 .field__label {
@@ -428,6 +467,10 @@
 .field__textarea,
 .field__select {
   min-height: 44px;
+  min-width: 0; /* a <select>'s longest option text otherwise forces a
+                   native minimum width that resists shrinking in a
+                   narrow flex/grid container (see the Consultation
+                   form's category dropdown, Version 1.1 Sprint 3) */
   padding: var(--space-2) var(--space-3);
   background-color: var(--color-light-sand);
   border: 1px solid var(--color-stone-grey);
@@ -629,6 +672,26 @@
   opacity: 0.7;
 }
 
+/* Checkbox variant — native <input type="checkbox"> is already
+   keyboard-operable and covered by the global :focus-visible rule in
+   base.css, so this only handles label/checkbox alignment. */
+.field--checkbox {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+}
+
+.field--checkbox .field__input {
+  width: 20px;
+  height: 20px;
+  min-height: 0;
+  flex-shrink: 0;
+}
+
+.field--checkbox .field__label {
+  font-weight: var(--weight-regular);
+}
+
 /* ============================================================
    HERO
    ============================================================ */
@@ -765,6 +828,13 @@
   50% { transform: translateY(-16px) translateX(8px); }
 }
 
+/* Premium portrait treatment — Home hero + Meet the Founder photos.
+   Layered on top of the existing rounded-lg/aspect-4-5/img-cover
+   utility classes, not a replacement for them. */
+.portrait-frame {
+  box-shadow: 0 0 0 1px rgba(212, 160, 23, 0.25), var(--shadow-3);
+}
+
 /* ============================================================
    BOOK CARD
    ============================================================ */
@@ -883,6 +953,7 @@
   border: 0.5px solid var(--color-border);
   border-radius: var(--radius-md);
   padding: var(--space-4);
+  box-shadow: var(--shadow-1);
   transition: box-shadow var(--duration-base) var(--ease-standard),
               transform var(--duration-base) var(--ease-standard);
 }
@@ -903,6 +974,11 @@ a.resource-card {
   height: 24px;
   color: var(--color-accent);
   margin-bottom: var(--space-2);
+  transition: transform var(--duration-base) var(--ease-standard);
+}
+
+.resource-card:hover .resource-card__icon {
+  transform: scale(1.08);
 }
 
 .resource-card__format {
@@ -920,6 +996,64 @@ a.resource-card {
 .resource-card--upcoming {
   border-style: dashed;
   opacity: 0.7;
+}
+
+/* ============================================================
+   SERVICE CARD (Services landing page — /services/)
+   Same shadow/radius/border language as .resource-card, but always a
+   container with its own explicit CTA button (title/summary/audience
+   text of varying length doesn't suit a whole-card link), matching the
+   .book-card convention instead.
+   ============================================================ */
+.service-card {
+  display: flex;
+  flex-direction: column;
+  background-color: var(--color-surface);
+  border: 0.5px solid var(--color-border);
+  border-radius: var(--radius-md);
+  padding: var(--space-4);
+  box-shadow: var(--shadow-1);
+  transition: box-shadow var(--duration-base) var(--ease-standard);
+}
+
+.service-card:hover {
+  box-shadow: var(--shadow-2);
+}
+
+.service-card__icon {
+  width: 24px;
+  height: 24px;
+  color: var(--color-accent);
+  margin-bottom: var(--space-2);
+}
+
+.service-card__title {
+  font-size: var(--text-h4);
+  margin-bottom: var(--space-2);
+}
+
+.service-card__summary {
+  font-size: var(--text-small);
+  color: var(--color-text-secondary);
+  margin-bottom: var(--space-3);
+}
+
+.service-card__audience {
+  font-size: var(--text-small);
+  color: var(--color-text-secondary);
+  margin-bottom: var(--space-4);
+}
+
+.service-card__audience-label {
+  font-weight: var(--weight-medium);
+  color: var(--color-text-heading);
+}
+
+/* Pushes the CTA to the bottom so cards of uneven text length still
+   align their buttons across a row */
+.service-card__cta {
+  margin-top: auto;
+  align-self: flex-start;
 }
 
 /* ============================================================
@@ -1251,6 +1385,118 @@ a.resource-card {
   width: calc(var(--reading-progress, 0) * 1%);
   background-color: var(--color-accent);
   z-index: var(--z-overlay);
+}
+
+/* ============================================================
+   CALCULATOR (Financial Calculators — /calculators/{slug}/)
+   Two-column input/result layout on desktop, stacked on mobile —
+   reuses .grid--2's existing breakpoint rather than a new one.
+   ============================================================ */
+.calculator-panel {
+  background-color: var(--color-surface);
+  border: 0.5px solid var(--color-border);
+  border-radius: var(--radius-md);
+  padding: var(--space-5);
+  box-shadow: var(--shadow-1);
+}
+
+.calculator-result {
+  background-color: var(--color-bg-alt);
+  border-radius: var(--radius-md);
+  padding: var(--space-4);
+  margin-top: var(--space-4);
+}
+
+.calculator-result__label {
+  font-family: var(--font-heading);
+  font-size: var(--text-small);
+  color: var(--color-text-secondary);
+  margin-bottom: var(--space-1);
+}
+
+.calculator-result__figure {
+  font-family: var(--font-mono);
+  font-variant-numeric: tabular-nums;
+  font-size: var(--text-h3);
+  font-weight: var(--weight-semibold);
+  color: var(--color-accent);
+}
+
+.calculator-result__row {
+  display: flex;
+  justify-content: space-between;
+  gap: var(--space-3);
+  padding-block: var(--space-2);
+  border-top: 0.5px solid var(--color-border);
+}
+
+.calculator-result__row:first-child {
+  border-top: none;
+}
+
+/* Year-by-year breakdown — plain <table>, no chart/library */
+.calculator-table {
+  font-size: var(--text-small);
+}
+
+.calculator-table th,
+.calculator-table td {
+  padding: var(--space-2) var(--space-3);
+  text-align: right;
+  border-bottom: 0.5px solid var(--color-border);
+}
+
+.calculator-table th:first-child,
+.calculator-table td:first-child {
+  text-align: left;
+}
+
+.calculator-table th {
+  font-family: var(--font-heading);
+  font-weight: var(--weight-medium);
+  color: var(--color-text-secondary);
+}
+
+.calculator-table td {
+  font-family: var(--font-mono);
+  font-variant-numeric: tabular-nums;
+}
+
+/* ============================================================
+   GOAL PLANNER (Financial Goal Planner — /goal-planner/)
+   The 8 goal-selection cards reuse .resource-card's exact box styling
+   but are <button> elements (an in-page action, not navigation), so
+   this only resets native button chrome — no new visual language.
+   ============================================================ */
+button.resource-card {
+  display: block;
+  width: 100%;
+  text-align: left;
+  font: inherit;
+  color: inherit;
+  cursor: pointer;
+  appearance: none;
+}
+
+.resource-card[aria-pressed="true"] {
+  border-color: var(--color-accent);
+  box-shadow: 0 0 0 1px var(--color-accent);
+}
+
+/* Question/result steps show/hide via the native `hidden` attribute,
+   matching every other progressive-disclosure pattern on this site —
+   no new state-management CSS needed. This just gives the dynamically
+   inserted question fields the same rhythm as the calculators' static
+   ones. */
+.goal-planner__questions {
+  display: grid;
+  gap: var(--space-4);
+}
+
+@media (min-width: 640px) {
+  .goal-planner__questions {
+    grid-template-columns: repeat(2, 1fr);
+  }
 }
 
 /* ============================================================

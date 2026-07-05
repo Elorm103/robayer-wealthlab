@@ -1,0 +1,375 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+
+  <title>Compound Interest Calculator | Robayer WealthLab</title>
+  <meta name="description" content="See how a lump sum plus monthly contributions grows over time with compounding — a free, educational calculator built for Ghanaian savers.">
+  <link rel="canonical" href="https://robayerwealthlab.com/calculators/compound-interest/">
+
+  <meta property="og:type" content="website">
+  <meta property="og:title" content="Compound Interest Calculator | Robayer WealthLab">
+  <meta property="og:description" content="See how a lump sum plus monthly contributions grows over time with compounding — a free, educational calculator built for Ghanaian savers.">
+  <meta property="og:url" content="https://robayerwealthlab.com/calculators/compound-interest/">
+  <meta property="og:image" content="https://robayerwealthlab.com/assets/branding/social/og-image.jpg">
+  <meta property="og:site_name" content="Robayer WealthLab">
+
+  <meta name="twitter:card" content="summary_large_image">
+  <meta name="twitter:title" content="Compound Interest Calculator | Robayer WealthLab">
+  <meta name="twitter:description" content="See how a lump sum plus monthly contributions grows over time with compounding.">
+
+  <link rel="icon" type="image/svg+xml" href="/assets/icons/favicon.svg">
+  <link rel="icon" type="image/png" sizes="32x32" href="/assets/icons/favicon-32.png">
+  <link rel="apple-touch-icon" href="/assets/icons/apple-touch-icon.png">
+
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Fraunces:ital,wght@0,500;0,600;1,500&family=Space+Grotesk:wght@500&family=Work+Sans:wght@400;500&family=IBM+Plex+Mono:wght@400;500&display=swap" rel="stylesheet">
+
+  <link rel="stylesheet" href="/css/tokens.css">
+  <link rel="stylesheet" href="/css/base.css">
+  <link rel="stylesheet" href="/css/layout.css">
+  <link rel="stylesheet" href="/css/components.css">
+  <link rel="stylesheet" href="/css/utilities.css">
+
+  <script type="application/ld+json">
+  {
+    "@context": "https://schema.org",
+    "@type": "Organization",
+    "name": "Robayer WealthLab",
+    "url": "https://robayerwealthlab.com",
+    "logo": "https://robayerwealthlab.com/assets/branding/logo/logo.png",
+    "description": "Financial education for ordinary Ghanaians — practical, honest guidance on saving, investing, and building wealth.",
+    "telephone": "+233 53 780 6352",
+    "address": {
+      "@type": "PostalAddress",
+      "addressLocality": "Accra",
+      "addressCountry": "GH"
+    },
+    "founder": {
+      "@type": "Person",
+      "name": "Robert Loh Kobla"
+    }
+  }
+  </script>
+
+  <script type="application/ld+json">
+  {
+    "@context": "https://schema.org",
+    "@type": "BreadcrumbList",
+    "itemListElement": [
+      { "@type": "ListItem", "position": 1, "name": "Home", "item": "https://robayerwealthlab.com/" },
+      { "@type": "ListItem", "position": 2, "name": "Calculators", "item": "https://robayerwealthlab.com/calculators/" },
+      { "@type": "ListItem", "position": 3, "name": "Compound Interest Calculator", "item": "https://robayerwealthlab.com/calculators/compound-interest/" }
+    ]
+  }
+  </script>
+
+  <script type="application/ld+json">
+  {
+    "@context": "https://schema.org",
+    "@type": "SoftwareApplication",
+    "name": "Compound Interest Calculator",
+    "applicationCategory": "FinanceApplication",
+    "operatingSystem": "Any (web browser)",
+    "description": "See how a lump sum plus monthly contributions grows over time, thanks to compounding.",
+    "offers": {
+      "@type": "Offer",
+      "price": "0",
+      "priceCurrency": "GHS"
+    },
+    "provider": {
+      "@type": "Organization",
+      "name": "Robayer WealthLab",
+      "url": "https://robayerwealthlab.com"
+    }
+  }
+  </script>
+
+  <script type="application/ld+json">
+  {
+    "@context": "https://schema.org",
+    "@type": "FAQPage",
+    "mainEntity": [
+      {
+        "@type": "Question",
+        "name": "Is this calculator giving me investment advice?",
+        "acceptedAnswer": { "@type": "Answer", "text": "No — it's an educational projection tool based on the numbers you enter, not a recommendation to invest in anything specific." }
+      },
+      {
+        "@type": "Question",
+        "name": "What does \"compounding frequency\" mean?",
+        "acceptedAnswer": { "@type": "Answer", "text": "How often interest is calculated and added to your balance. Monthly compounding grows slightly faster than annual compounding at the same stated rate, because interest starts earning its own interest sooner." }
+      },
+      {
+        "@type": "Question",
+        "name": "Does this account for taxes or fees?",
+        "acceptedAnswer": { "@type": "Answer", "text": "No — it's a simplified projection. Real returns are usually lower once fees and any applicable taxes are factored in." }
+      },
+      {
+        "@type": "Question",
+        "name": "What if my interest rate changes over time?",
+        "acceptedAnswer": { "@type": "Answer", "text": "This calculator assumes one fixed rate for the whole period. If your real rate changes, re-run the numbers with the new rate to see the updated projection." }
+      },
+      {
+        "@type": "Question",
+        "name": "Is GH₵ the only currency this works for?",
+        "acceptedAnswer": { "@type": "Answer", "text": "The math works the same regardless of currency — the calculator is simply labeled in GH₵ since that's this site's focus." }
+      },
+      {
+        "@type": "Question",
+        "name": "Can I use this for a loan instead of savings?",
+        "acceptedAnswer": { "@type": "Answer", "text": "No — this models growth of savings or investments, not loan repayment, which works differently." }
+      }
+    ]
+  }
+  </script>
+</head>
+<body>
+  <a href="#main-content" class="skip-link">Skip to main content</a>
+
+  <div data-include="/partials/header.html"></div>
+
+  <nav class="breadcrumbs container" aria-label="Breadcrumb">
+    <a href="/">Home</a><span class="breadcrumbs__separator" aria-hidden="true">/</span><a href="/calculators/">Calculators</a><span class="breadcrumbs__separator" aria-hidden="true">/</span><span aria-current="page">Compound Interest Calculator</span>
+  </nav>
+
+  <main id="main-content">
+
+    <!-- ============================================================
+         HERO
+         ============================================================ -->
+    <section class="hero bg-paper">
+      <div class="container hero__content">
+        <span class="eyebrow hero__eyebrow">Calculators</span>
+        <h1 class="hero__title">Compound Interest Calculator</h1>
+        <p class="hero__subtitle">See how a lump sum plus regular contributions grows over time, thanks to compounding.</p>
+        <div class="hero__actions">
+          <a href="#calculator" class="btn btn--primary">Try the calculator</a>
+          <a href="/calculators/" class="btn btn--secondary">See all calculators</a>
+        </div>
+      </div>
+    </section>
+
+    <section class="section--tight">
+      <div class="container content-column">
+        <p class="alert alert--info">This calculator is educational — results are projections based on the numbers you enter, not guarantees or investment advice.</p>
+      </div>
+    </section>
+
+    <!-- ============================================================
+         INTERACTIVE CALCULATOR
+         Client-side only — no backend, no external libraries. Explicit
+         "Calculate" submit (not live-as-you-type) so the aria-live
+         result region announces once per deliberate calculation.
+         ============================================================ -->
+    <section class="section" id="calculator" aria-labelledby="calculator-heading">
+      <div class="container content-column">
+        <span class="eyebrow text-center">Try it</span>
+        <h2 id="calculator-heading" class="mt-2 mb-5 text-center">Calculate your compound growth</h2>
+
+        <div class="calculator-panel">
+          <form data-calculator="compound-interest" novalidate aria-label="Compound interest calculator">
+            <div class="grid grid--2 gap-4">
+              <div class="field">
+                <label for="ci-principal" class="field__label">Starting amount (GH₵)</label>
+                <input type="number" id="ci-principal" name="principal" class="field__input" min="0" step="1" value="1000" inputmode="decimal">
+                <span class="field__error" hidden>Enter a starting amount of 0 or more.</span>
+              </div>
+              <div class="field">
+                <label for="ci-contribution" class="field__label">Monthly contribution (GH₵)</label>
+                <input type="number" id="ci-contribution" name="contribution" class="field__input" min="0" step="1" value="100" inputmode="decimal">
+                <span class="field__error" hidden>Enter a contribution of 0 or more.</span>
+              </div>
+              <div class="field">
+                <label for="ci-rate" class="field__label">Annual interest rate (%)</label>
+                <input type="number" id="ci-rate" name="rate" class="field__input" min="0" step="0.1" value="10" inputmode="decimal">
+                <span class="field__error" hidden>Enter a rate of 0 or more.</span>
+              </div>
+              <div class="field">
+                <label for="ci-frequency" class="field__label">Compounding frequency</label>
+                <select id="ci-frequency" name="frequency" class="field__select">
+                  <option value="monthly" selected>Monthly</option>
+                  <option value="annually">Annually</option>
+                </select>
+              </div>
+              <div class="field">
+                <label for="ci-years" class="field__label">Number of years</label>
+                <input type="number" id="ci-years" name="years" class="field__input" min="1" max="100" step="1" value="10" inputmode="numeric">
+                <span class="field__error" hidden>Enter a number of years between 1 and 100.</span>
+              </div>
+            </div>
+
+            <button type="submit" class="btn btn--primary btn--block mt-4">Calculate</button>
+
+            <div class="calculator-result" data-calculator-result hidden>
+              <div role="status" aria-live="polite">
+                <div class="calculator-result__label">Projected future value</div>
+                <div class="calculator-result__figure" data-result="future-value">GH₵0.00</div>
+              </div>
+              <div class="calculator-result__row"><span>Total contributed</span><span data-result="total-contributed" class="numeric">GH₵0.00</span></div>
+              <div class="calculator-result__row"><span>Total interest earned</span><span data-result="total-interest" class="numeric">GH₵0.00</span></div>
+
+              <p class="text-secondary text-small mt-4 mb-2">Year-by-year breakdown</p>
+              <div style="overflow-x: auto;">
+                <table class="calculator-table">
+                  <thead>
+                    <tr><th>Year</th><th>Contributed</th><th>Interest</th><th>Balance</th></tr>
+                  </thead>
+                  <tbody data-calculator-table-body></tbody>
+                </table>
+              </div>
+            </div>
+          </form>
+        </div>
+      </div>
+    </section>
+
+    <!-- ============================================================
+         EDUCATIONAL EXPLANATION
+         ============================================================ -->
+    <section class="section bg-sand" aria-labelledby="explanation-heading">
+      <div class="container content-column">
+        <span class="eyebrow">Understanding it</span>
+        <h2 id="explanation-heading" class="mt-2 mb-4">What compound interest actually is</h2>
+        <p>Compound interest is what happens when the interest your money earns starts earning its own interest. The earlier you start and the longer you leave money invested, the more that compounding effect does the work for you — often more than how much you contribute each month.</p>
+      </div>
+    </section>
+
+    <!-- ============================================================
+         FORMULA EXPLANATION
+         ============================================================ -->
+    <section class="section" aria-labelledby="formula-heading">
+      <div class="container content-column">
+        <span class="eyebrow">How it's calculated</span>
+        <h2 id="formula-heading" class="mt-2 mb-4">The formula behind this calculator</h2>
+        <p>This calculator combines two things: how your starting amount grows on its own, and how your regular contributions add up and grow too. Each period, interest is calculated on the full balance — including interest already earned — which is what makes growth accelerate over time rather than stay flat.</p>
+      </div>
+    </section>
+
+    <!-- ============================================================
+         INTERPRETATION OF RESULTS
+         ============================================================ -->
+    <section class="section bg-sand" aria-labelledby="interpretation-heading">
+      <div class="container content-column">
+        <span class="eyebrow">Reading your results</span>
+        <h2 id="interpretation-heading" class="mt-2 mb-4">What the numbers mean</h2>
+        <p>The "total interest earned" figure is the part compounding actually added — money you didn't contribute yourself. Compare it to your total contributions to see how much of your future balance came from growth versus your own saving.</p>
+      </div>
+    </section>
+
+    <!-- ============================================================
+         COMMON MISTAKES
+         ============================================================ -->
+    <section class="section" aria-labelledby="mistakes-heading">
+      <div class="container">
+        <span class="eyebrow">Watch out for</span>
+        <h2 id="mistakes-heading" class="mt-2 mb-4">Common mistakes</h2>
+        <ul class="grid grid--2 gap-4">
+          <li class="check-item"><svg class="icon check-item__icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M6 6l12 12M18 6L6 18"/></svg><span class="check-item__text">Assuming a fixed interest rate will hold exactly for the whole period — real rates vary year to year.</span></li>
+          <li class="check-item"><svg class="icon check-item__icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M6 6l12 12M18 6L6 18"/></svg><span class="check-item__text">Underestimating how much starting a few years earlier matters, compared to contributing more later.</span></li>
+          <li class="check-item"><svg class="icon check-item__icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M6 6l12 12M18 6L6 18"/></svg><span class="check-item__text">Forgetting that fees, taxes, or early withdrawals reduce the real return below what a calculator shows.</span></li>
+          <li class="check-item"><svg class="icon check-item__icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M6 6l12 12M18 6L6 18"/></svg><span class="check-item__text">Comparing a monthly-compounding rate directly to an annually-compounding rate without adjusting for the difference.</span></li>
+        </ul>
+      </div>
+    </section>
+
+    <!-- ============================================================
+         FAQ
+         ============================================================ -->
+    <section class="section bg-sand" aria-labelledby="faq-heading">
+      <div class="container content-column">
+        <span class="eyebrow text-center">Questions</span>
+        <h2 id="faq-heading" class="mt-2 mb-5 text-center">Frequently asked questions</h2>
+        <div class="faq">
+          <details class="faq__item"><summary class="faq__question">Is this calculator giving me investment advice?<span class="faq__icon" aria-hidden="true"></span></summary><p class="faq__answer">No — it's an educational projection tool based on the numbers you enter, not a recommendation to invest in anything specific.</p></details>
+          <details class="faq__item"><summary class="faq__question">What does "compounding frequency" mean?<span class="faq__icon" aria-hidden="true"></span></summary><p class="faq__answer">How often interest is calculated and added to your balance. Monthly compounding grows slightly faster than annual compounding at the same stated rate, because interest starts earning its own interest sooner.</p></details>
+          <details class="faq__item"><summary class="faq__question">Does this account for taxes or fees?<span class="faq__icon" aria-hidden="true"></span></summary><p class="faq__answer">No — it's a simplified projection. Real returns are usually lower once fees and any applicable taxes are factored in.</p></details>
+          <details class="faq__item"><summary class="faq__question">What if my interest rate changes over time?<span class="faq__icon" aria-hidden="true"></span></summary><p class="faq__answer">This calculator assumes one fixed rate for the whole period. If your real rate changes, re-run the numbers with the new rate to see the updated projection.</p></details>
+          <details class="faq__item"><summary class="faq__question">Is GH₵ the only currency this works for?<span class="faq__icon" aria-hidden="true"></span></summary><p class="faq__answer">The math works the same regardless of currency — the calculator is simply labeled in GH₵ since that's this site's focus.</p></details>
+          <details class="faq__item"><summary class="faq__question">Can I use this for a loan instead of savings?<span class="faq__icon" aria-hidden="true"></span></summary><p class="faq__answer">No — this models growth of savings or investments, not loan repayment, which works differently.</p></details>
+        </div>
+      </div>
+    </section>
+
+    <!-- ============================================================
+         KEEP EXPLORING
+         ============================================================ -->
+    <section class="section" aria-labelledby="related-heading">
+      <div class="container">
+        <span class="eyebrow">Related</span>
+        <h2 id="related-heading" class="mt-2 mb-5">Keep exploring</h2>
+        <div class="grid grid--2 gap-5">
+          <div>
+            <h3 class="mb-2">Resources</h3>
+            <p class="text-secondary text-small">Check the <a href="/resources/#investment-readiness-checklist">Investment Readiness Checklist</a> and <a href="/resources/#budget-planner">Budget Planner</a>.</p>
+          </div>
+          <div>
+            <h3 class="mb-2">Articles</h3>
+            <p class="text-secondary text-small">Read <a href="/blog/what-are-treasury-bills-in-ghana/">What Are Treasury Bills in Ghana?</a> for a real Ghanaian example of compounding at work.</p>
+          </div>
+          <div>
+            <h3 class="mb-2">Related services</h3>
+            <ol class="toc">
+              <li class="toc__item"><span class="toc__number numeric">01</span><span class="toc__title"><a href="/services/financial-education/">Financial Education</a></span></li>
+              <li class="toc__item"><span class="toc__number numeric">02</span><span class="toc__title"><a href="/services/investment-education/">Investment Education</a></span></li>
+            </ol>
+          </div>
+          <div>
+            <h3 class="mb-2">Other calculators</h3>
+            <ol class="toc">
+              <li class="toc__item"><span class="toc__number numeric">01</span><span class="toc__title"><a href="/calculators/savings-goal/">Savings Goal Calculator</a></span></li>
+              <li class="toc__item"><span class="toc__number numeric">02</span><span class="toc__title"><a href="/calculators/investment-growth/">Investment Growth Calculator</a></span></li>
+            </ol>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- ============================================================
+         CONSULTATION CTA
+         ============================================================ -->
+    <section class="section bg-charcoal" aria-labelledby="consultation-heading">
+      <div class="container content-column text-center">
+        <span class="eyebrow feature-banner__eyebrow">Next step</span>
+        <h2 id="consultation-heading" class="mt-2 mb-3 feature-banner__title">Want to talk through your numbers?</h2>
+        <p class="mb-4 feature-banner__copy mx-auto">Book a consultation and we'll work through your situation together.</p>
+        <a href="/consultation/" class="btn btn--accent">Request a Consultation</a>
+      </div>
+    </section>
+
+    <!-- ============================================================
+         NEWSLETTER SIGNUP
+         ============================================================ -->
+    <section class="section section--tight">
+      <div class="container">
+        <div class="newsletter-band">
+          <div>
+            <h2 class="mb-2">Get one better money tip</h2>
+            <p>Weekly, free, no spam. Unsubscribe any time.</p>
+          </div>
+          <form class="cluster gap-2" data-newsletter-form novalidate aria-label="Newsletter signup">
+            <label for="newsletter-email" class="sr-only">Email address</label>
+            <input type="email" id="newsletter-email" class="field__input newsletter-band__input" placeholder="name@example.com" required>
+            <button type="submit" class="btn btn--accent">Subscribe</button>
+            <span class="field__error" hidden>Enter a valid email to subscribe.</span>
+          </form>
+        </div>
+      </div>
+    </section>
+
+  </main>
+
+  <div data-include="/partials/footer.html"></div>
+
+  <script src="/js/includes.js"></script>
+  <script src="/js/components/nav.js"></script>
+  <script src="/js/components/theme-toggle.js"></script>
+  <script src="/js/content-inject.js"></script>
+  <script src="/js/components/calculator-utils.js"></script>
+  <script src="/js/components/calculator-compound-interest.js"></script>
+  <script src="/js/components/newsletter-form.js"></script>
+  <script src="/js/main.js"></script>
+</body>
+</html>

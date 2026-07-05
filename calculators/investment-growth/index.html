@@ -1,0 +1,341 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+
+  <title>Investment Growth Calculator | Robayer WealthLab</title>
+  <meta name="description" content="Project how an investment could grow over time, with the option to see its value adjusted for inflation — a free calculator for Ghanaian investors.">
+  <link rel="canonical" href="https://robayerwealthlab.com/calculators/investment-growth/">
+
+  <meta property="og:type" content="website">
+  <meta property="og:title" content="Investment Growth Calculator | Robayer WealthLab">
+  <meta property="og:description" content="Project how an investment could grow over time, with the option to see its value adjusted for inflation — a free calculator for Ghanaian investors.">
+  <meta property="og:url" content="https://robayerwealthlab.com/calculators/investment-growth/">
+  <meta property="og:image" content="https://robayerwealthlab.com/assets/branding/social/og-image.jpg">
+  <meta property="og:site_name" content="Robayer WealthLab">
+
+  <meta name="twitter:card" content="summary_large_image">
+  <meta name="twitter:title" content="Investment Growth Calculator | Robayer WealthLab">
+  <meta name="twitter:description" content="Project how an investment could grow over time, with an inflation-adjusted view.">
+
+  <link rel="icon" type="image/svg+xml" href="/assets/icons/favicon.svg">
+  <link rel="icon" type="image/png" sizes="32x32" href="/assets/icons/favicon-32.png">
+  <link rel="apple-touch-icon" href="/assets/icons/apple-touch-icon.png">
+
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Fraunces:ital,wght@0,500;0,600;1,500&family=Space+Grotesk:wght@500&family=Work+Sans:wght@400;500&family=IBM+Plex+Mono:wght@400;500&display=swap" rel="stylesheet">
+
+  <link rel="stylesheet" href="/css/tokens.css">
+  <link rel="stylesheet" href="/css/base.css">
+  <link rel="stylesheet" href="/css/layout.css">
+  <link rel="stylesheet" href="/css/components.css">
+  <link rel="stylesheet" href="/css/utilities.css">
+
+  <script type="application/ld+json">
+  {
+    "@context": "https://schema.org",
+    "@type": "Organization",
+    "name": "Robayer WealthLab",
+    "url": "https://robayerwealthlab.com",
+    "logo": "https://robayerwealthlab.com/assets/branding/logo/logo.png",
+    "description": "Financial education for ordinary Ghanaians — practical, honest guidance on saving, investing, and building wealth.",
+    "telephone": "+233 53 780 6352",
+    "address": {
+      "@type": "PostalAddress",
+      "addressLocality": "Accra",
+      "addressCountry": "GH"
+    },
+    "founder": {
+      "@type": "Person",
+      "name": "Robert Loh Kobla"
+    }
+  }
+  </script>
+
+  <script type="application/ld+json">
+  {
+    "@context": "https://schema.org",
+    "@type": "BreadcrumbList",
+    "itemListElement": [
+      { "@type": "ListItem", "position": 1, "name": "Home", "item": "https://robayerwealthlab.com/" },
+      { "@type": "ListItem", "position": 2, "name": "Calculators", "item": "https://robayerwealthlab.com/calculators/" },
+      { "@type": "ListItem", "position": 3, "name": "Investment Growth Calculator", "item": "https://robayerwealthlab.com/calculators/investment-growth/" }
+    ]
+  }
+  </script>
+
+  <script type="application/ld+json">
+  {
+    "@context": "https://schema.org",
+    "@type": "SoftwareApplication",
+    "name": "Investment Growth Calculator",
+    "applicationCategory": "FinanceApplication",
+    "operatingSystem": "Any (web browser)",
+    "description": "Project how an investment could grow over time, with the option to see its value adjusted for inflation.",
+    "offers": {
+      "@type": "Offer",
+      "price": "0",
+      "priceCurrency": "GHS"
+    },
+    "provider": {
+      "@type": "Organization",
+      "name": "Robayer WealthLab",
+      "url": "https://robayerwealthlab.com"
+    }
+  }
+  </script>
+
+  <script type="application/ld+json">
+  {
+    "@context": "https://schema.org",
+    "@type": "FAQPage",
+    "mainEntity": [
+      {
+        "@type": "Question",
+        "name": "Does this recommend specific investments?",
+        "acceptedAnswer": { "@type": "Answer", "text": "No — it's a projection tool based on assumptions you enter, not a recommendation for any specific investment." }
+      },
+      {
+        "@type": "Question",
+        "name": "What return rate should I use?",
+        "acceptedAnswer": { "@type": "Answer", "text": "That's your assumption to make — this site doesn't supply or endorse a specific expected return. Consider using a conservative estimate." }
+      },
+      {
+        "@type": "Question",
+        "name": "What is the inflation adjustment actually doing?",
+        "acceptedAnswer": { "@type": "Answer", "text": "It reduces the nominal projected value by your assumed inflation rate, so you can see what that future amount would be worth in today's purchasing power." }
+      },
+      {
+        "@type": "Question",
+        "name": "Is this the same as the Compound Interest calculator?",
+        "acceptedAnswer": { "@type": "Answer", "text": "They share the same underlying growth math, but this one is framed around investment return assumptions and includes the inflation comparison." }
+      },
+      {
+        "@type": "Question",
+        "name": "Can I model a specific investment vehicle like treasury bills?",
+        "acceptedAnswer": { "@type": "Answer", "text": "Not vehicle-specific — for that level of detail, see Investment Education." }
+      }
+    ]
+  }
+  </script>
+</head>
+<body>
+  <a href="#main-content" class="skip-link">Skip to main content</a>
+
+  <div data-include="/partials/header.html"></div>
+
+  <nav class="breadcrumbs container" aria-label="Breadcrumb">
+    <a href="/">Home</a><span class="breadcrumbs__separator" aria-hidden="true">/</span><a href="/calculators/">Calculators</a><span class="breadcrumbs__separator" aria-hidden="true">/</span><span aria-current="page">Investment Growth Calculator</span>
+  </nav>
+
+  <main id="main-content">
+
+    <section class="hero bg-paper">
+      <div class="container hero__content">
+        <span class="eyebrow hero__eyebrow">Calculators</span>
+        <h1 class="hero__title">Investment Growth Calculator</h1>
+        <p class="hero__subtitle">Project how an investment could grow over time, with the option to see its value adjusted for inflation.</p>
+        <div class="hero__actions">
+          <a href="#calculator" class="btn btn--primary">Try the calculator</a>
+          <a href="/calculators/" class="btn btn--secondary">See all calculators</a>
+        </div>
+      </div>
+    </section>
+
+    <section class="section--tight">
+      <div class="container content-column">
+        <p class="alert alert--info">This calculator is educational — results are projections based on the numbers you enter, not guarantees or investment advice.</p>
+      </div>
+    </section>
+
+    <section class="section" id="calculator" aria-labelledby="calculator-heading">
+      <div class="container content-column">
+        <span class="eyebrow text-center">Try it</span>
+        <h2 id="calculator-heading" class="mt-2 mb-5 text-center">Project your investment growth</h2>
+
+        <div class="calculator-panel">
+          <form data-calculator="investment-growth" novalidate aria-label="Investment growth calculator">
+            <div class="grid grid--2 gap-4">
+              <div class="field">
+                <label for="ig-principal" class="field__label">Initial investment (GH₵)</label>
+                <input type="number" id="ig-principal" name="principal" class="field__input" min="0" step="1" value="2000" inputmode="decimal">
+                <span class="field__error" hidden>Enter an amount of 0 or more.</span>
+              </div>
+              <div class="field">
+                <label for="ig-contribution" class="field__label">Monthly addition (GH₵)</label>
+                <input type="number" id="ig-contribution" name="contribution" class="field__input" min="0" step="1" value="200" inputmode="decimal">
+                <span class="field__error" hidden>Enter an amount of 0 or more.</span>
+              </div>
+              <div class="field">
+                <label for="ig-rate" class="field__label">Expected annual return (%)</label>
+                <input type="number" id="ig-rate" name="rate" class="field__input" min="0" step="0.1" value="8" inputmode="decimal">
+                <span class="field__error" hidden>Enter a rate of 0 or more.</span>
+              </div>
+              <div class="field">
+                <label for="ig-years" class="field__label">Number of years</label>
+                <input type="number" id="ig-years" name="years" class="field__input" min="1" max="100" step="1" value="15" inputmode="numeric">
+                <span class="field__error" hidden>Enter a number of years between 1 and 100.</span>
+              </div>
+            </div>
+
+            <div class="field field--checkbox mt-2">
+              <input type="checkbox" id="ig-inflation-toggle" name="inflation-toggle" class="field__input">
+              <label for="ig-inflation-toggle" class="field__label">Also show the inflation-adjusted (real) value</label>
+            </div>
+
+            <div class="field" data-inflation-field hidden>
+              <label for="ig-inflation-rate" class="field__label">Assumed annual inflation rate (%)</label>
+              <input type="number" id="ig-inflation-rate" name="inflation-rate" class="field__input" min="0" step="0.1" value="15" inputmode="decimal">
+              <span class="field__error" hidden>Enter a rate of 0 or more.</span>
+            </div>
+
+            <button type="submit" class="btn btn--primary btn--block mt-4">Calculate</button>
+
+            <div class="calculator-result" data-calculator-result hidden>
+              <div role="status" aria-live="polite">
+                <div class="calculator-result__label">Projected future value (nominal)</div>
+                <div class="calculator-result__figure" data-result="future-value">GH₵0.00</div>
+              </div>
+              <div class="calculator-result__row" data-real-value-row hidden><span>Inflation-adjusted (real) value</span><span data-result="real-value" class="numeric">GH₵0.00</span></div>
+              <div class="calculator-result__row"><span>Total contributed</span><span data-result="total-contributed" class="numeric">GH₵0.00</span></div>
+              <div class="calculator-result__row"><span>Total growth</span><span data-result="total-interest" class="numeric">GH₵0.00</span></div>
+
+              <p class="text-secondary text-small mt-4 mb-2">Year-by-year breakdown (nominal)</p>
+              <div style="overflow-x: auto;">
+                <table class="calculator-table">
+                  <thead>
+                    <tr><th>Year</th><th>Contributed</th><th>Growth</th><th>Balance</th></tr>
+                  </thead>
+                  <tbody data-calculator-table-body></tbody>
+                </table>
+              </div>
+            </div>
+          </form>
+        </div>
+      </div>
+    </section>
+
+    <section class="section bg-sand" aria-labelledby="explanation-heading">
+      <div class="container content-column">
+        <span class="eyebrow">Understanding it</span>
+        <h2 id="explanation-heading" class="mt-2 mb-4">Nominal vs. real growth</h2>
+        <p>This calculator projects how an initial investment plus regular contributions could grow at an assumed rate of return. It also lets you compare the nominal (face-value) result against the real (inflation-adjusted) result — the number that actually reflects future purchasing power.</p>
+      </div>
+    </section>
+
+    <section class="section" aria-labelledby="formula-heading">
+      <div class="container content-column">
+        <span class="eyebrow">How it's calculated</span>
+        <h2 id="formula-heading" class="mt-2 mb-4">The formula behind this calculator</h2>
+        <p>The nominal projection uses the same growth math as the other calculators here — a starting amount plus contributions, growing at your chosen rate. If you turn on inflation adjustment, that nominal result is then reduced by your assumed inflation rate to show its equivalent value in today's purchasing power.</p>
+      </div>
+    </section>
+
+    <section class="section bg-sand" aria-labelledby="interpretation-heading">
+      <div class="container content-column">
+        <span class="eyebrow">Reading your results</span>
+        <h2 id="interpretation-heading" class="mt-2 mb-4">What the numbers mean</h2>
+        <p>The gap between the nominal and real figures is often larger than people expect over long timeframes — that gap is exactly what inflation quietly costs you. Neither figure is a guarantee: this is a projection based on the return you assumed, not a promise of what any real investment will do.</p>
+      </div>
+    </section>
+
+    <section class="section" aria-labelledby="mistakes-heading">
+      <div class="container">
+        <span class="eyebrow">Watch out for</span>
+        <h2 id="mistakes-heading" class="mt-2 mb-4">Common mistakes</h2>
+        <ul class="grid grid--2 gap-4">
+          <li class="check-item"><svg class="icon check-item__icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M6 6l12 12M18 6L6 18"/></svg><span class="check-item__text">Assuming a past average return (from the GSE or a fund, for example) will definitely repeat in the future.</span></li>
+          <li class="check-item"><svg class="icon check-item__icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M6 6l12 12M18 6L6 18"/></svg><span class="check-item__text">Ignoring inflation entirely and only looking at the nominal figure.</span></li>
+          <li class="check-item"><svg class="icon check-item__icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M6 6l12 12M18 6L6 18"/></svg><span class="check-item__text">Withdrawing or restarting an investment frequently, which disrupts compounding.</span></li>
+          <li class="check-item"><svg class="icon check-item__icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M6 6l12 12M18 6L6 18"/></svg><span class="check-item__text">Using an overly optimistic return assumption instead of a conservative one.</span></li>
+        </ul>
+      </div>
+    </section>
+
+    <section class="section bg-sand" aria-labelledby="faq-heading">
+      <div class="container content-column">
+        <span class="eyebrow text-center">Questions</span>
+        <h2 id="faq-heading" class="mt-2 mb-5 text-center">Frequently asked questions</h2>
+        <div class="faq">
+          <details class="faq__item"><summary class="faq__question">Does this recommend specific investments?<span class="faq__icon" aria-hidden="true"></span></summary><p class="faq__answer">No — it's a projection tool based on assumptions you enter, not a recommendation for any specific investment.</p></details>
+          <details class="faq__item"><summary class="faq__question">What return rate should I use?<span class="faq__icon" aria-hidden="true"></span></summary><p class="faq__answer">That's your assumption to make — this site doesn't supply or endorse a specific expected return. Consider using a conservative estimate.</p></details>
+          <details class="faq__item"><summary class="faq__question">What is the inflation adjustment actually doing?<span class="faq__icon" aria-hidden="true"></span></summary><p class="faq__answer">It reduces the nominal projected value by your assumed inflation rate, so you can see what that future amount would be worth in today's purchasing power.</p></details>
+          <details class="faq__item"><summary class="faq__question">Is this the same as the Compound Interest calculator?<span class="faq__icon" aria-hidden="true"></span></summary><p class="faq__answer">They share the same underlying growth math, but this one is framed around investment return assumptions and includes the inflation comparison.</p></details>
+          <details class="faq__item"><summary class="faq__question">Can I model a specific investment vehicle like treasury bills?<span class="faq__icon" aria-hidden="true"></span></summary><p class="faq__answer">Not vehicle-specific — for that level of detail, see Investment Education.</p></details>
+        </div>
+      </div>
+    </section>
+
+    <section class="section" aria-labelledby="related-heading">
+      <div class="container">
+        <span class="eyebrow">Related</span>
+        <h2 id="related-heading" class="mt-2 mb-5">Keep exploring</h2>
+        <div class="grid grid--2 gap-5">
+          <div>
+            <h3 class="mb-2">Resources</h3>
+            <p class="text-secondary text-small">Check the <a href="/resources/#investment-readiness-checklist">Investment Readiness Checklist</a> before you start.</p>
+          </div>
+          <div>
+            <h3 class="mb-2">Articles</h3>
+            <p class="text-secondary text-small">Read <a href="/blog/what-are-treasury-bills-in-ghana/">What Are Treasury Bills in Ghana?</a> or browse the <a href="/blog/#beginners-guide-to-the-ghana-stock-exchange">Blog</a> for more.</p>
+          </div>
+          <div>
+            <h3 class="mb-2">Related services</h3>
+            <ol class="toc">
+              <li class="toc__item"><span class="toc__number numeric">01</span><span class="toc__title"><a href="/services/investment-education/">Investment Education</a></span></li>
+              <li class="toc__item"><span class="toc__number numeric">02</span><span class="toc__title"><a href="/services/retirement-planning-guidance/">Retirement Planning Guidance</a></span></li>
+            </ol>
+          </div>
+          <div>
+            <h3 class="mb-2">Other calculators</h3>
+            <ol class="toc">
+              <li class="toc__item"><span class="toc__number numeric">01</span><span class="toc__title"><a href="/calculators/compound-interest/">Compound Interest Calculator</a></span></li>
+              <li class="toc__item"><span class="toc__number numeric">02</span><span class="toc__title"><a href="/calculators/savings-goal/">Savings Goal Calculator</a></span></li>
+            </ol>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <section class="section bg-charcoal" aria-labelledby="consultation-heading">
+      <div class="container content-column text-center">
+        <span class="eyebrow feature-banner__eyebrow">Next step</span>
+        <h2 id="consultation-heading" class="mt-2 mb-3 feature-banner__title">Want to talk through your assumptions?</h2>
+        <p class="mb-4 feature-banner__copy mx-auto">Book a consultation and we'll work through your options together.</p>
+        <a href="/consultation/" class="btn btn--accent">Request a Consultation</a>
+      </div>
+    </section>
+
+    <section class="section section--tight">
+      <div class="container">
+        <div class="newsletter-band">
+          <div>
+            <h2 class="mb-2">Get one better money tip</h2>
+            <p>Weekly, free, no spam. Unsubscribe any time.</p>
+          </div>
+          <form class="cluster gap-2" data-newsletter-form novalidate aria-label="Newsletter signup">
+            <label for="newsletter-email" class="sr-only">Email address</label>
+            <input type="email" id="newsletter-email" class="field__input newsletter-band__input" placeholder="name@example.com" required>
+            <button type="submit" class="btn btn--accent">Subscribe</button>
+            <span class="field__error" hidden>Enter a valid email to subscribe.</span>
+          </form>
+        </div>
+      </div>
+    </section>
+
+  </main>
+
+  <div data-include="/partials/footer.html"></div>
+
+  <script src="/js/includes.js"></script>
+  <script src="/js/components/nav.js"></script>
+  <script src="/js/components/theme-toggle.js"></script>
+  <script src="/js/content-inject.js"></script>
+  <script src="/js/components/calculator-utils.js"></script>
+  <script src="/js/components/calculator-investment-growth.js"></script>
+  <script src="/js/components/newsletter-form.js"></script>
+  <script src="/js/main.js"></script>
+</body>
+</html>

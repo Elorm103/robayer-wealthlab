@@ -1,0 +1,20 @@
+{
+  "slug": "childrens-education",
+  "title": "Children's Education",
+  "goalDescription": "Setting aside money ahead of school fees — for a specific school year or a full programme.",
+  "resultIntro": "Here's a starting point for saving toward your child's education, based on what you entered.",
+  "questions": [
+    { "id": "targetAmount", "label": "Estimated total cost", "type": "number", "unit": "GH₵", "min": 1, "step": 1, "default": 20000, "help": "Fees, uniforms, books, and boarding costs if relevant." },
+    { "id": "currentSavings", "label": "Amount already saved toward this goal", "type": "number", "unit": "GH₵", "min": 0, "step": 1, "default": 0 },
+    { "id": "timeframeYears", "label": "Years until this cost is due", "type": "number", "min": 0.5, "max": 25, "step": 0.5, "default": 5 },
+    { "id": "expectedRate", "label": "Expected annual return on savings (%)", "type": "number", "min": 0, "max": 30, "step": 0.1, "default": 5, "help": "Leave at 0% if this will sit in a regular savings account rather than an interest-bearing one." }
+  ],
+  "targetAmount": { "source": "direct", "questionId": "targetAmount" },
+  "years": { "source": "direct", "questionId": "timeframeYears" },
+  "currentSavingsQuestionId": "currentSavings",
+  "rateQuestionId": "expectedRate",
+  "relatedCalculators": ["savings-goal", "compound-interest"],
+  "relatedServices": ["financial-education", "personal-financial-coaching"],
+  "includeTreasuryBillArticle": true,
+  "consultationCategory": "financial-education"
+}

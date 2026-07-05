@@ -1,0 +1,48 @@
+{
+  "slug": "mutual-funds",
+  "title": "Mutual Funds",
+  "summary": "Professionally managed investment vehicles that can include equities, bonds, or a mix — offering diversification beyond what most individuals could build alone.",
+  "category": "funds",
+  "difficulty": "intermediate",
+  "overview": "A mutual fund pools money from many investors to buy a diversified portfolio — which might include shares, bonds, or a blend of both, depending on the fund's stated strategy. A licensed fund manager makes the investment decisions, and you own units representing your share of the fund's total holdings.",
+  "whyItMatters": "Building a diversified portfolio of individual stocks and bonds takes capital and time most people don't have. Mutual funds let you access professional management and diversification with a smaller amount, making them a common step once someone is ready to take on more risk than fixed-income instruments alone.",
+  "benefits": [
+    "Diversification across many holdings, reducing the impact of any single investment performing poorly",
+    "Professional management by licensed fund managers who research and select holdings",
+    "Range of fund types (equity, bond, balanced) to match different risk appetites",
+    "Generally more accessible than building an equivalent portfolio individually"
+  ],
+  "risks": [
+    "Value can rise or fall with the markets the fund invests in — including the possibility of loss",
+    "Management fees and other charges reduce net returns",
+    "Past fund performance doesn't guarantee future results",
+    "Equity-heavy funds carry more short-term volatility than fixed-income options"
+  ],
+  "whoItSuits": [
+    "Investors ready to accept more volatility in exchange for higher long-term growth potential",
+    "Those who want diversified market exposure without picking individual stocks or bonds themselves",
+    "Medium- to long-term investors, since markets can be volatile in the short term",
+    "Anyone who wants professional fund management rather than a self-directed approach"
+  ],
+  "faq": [
+    { "question": "How is a mutual fund different from a money market fund?", "answer": "Money market funds stick to short-term, low-risk instruments; mutual funds can include equities and longer-term bonds, generally carrying more risk and more growth potential." },
+    { "question": "Can I lose money in a mutual fund?", "answer": "Yes — value depends on the performance of the fund's underlying holdings, which can fall as well as rise." },
+    { "question": "What's the difference between an equity fund and a balanced fund?", "answer": "An equity fund invests mainly in shares; a balanced fund mixes shares and fixed-income instruments to moderate risk. Check a specific fund's fact sheet for its actual mandate." },
+    { "question": "How do I choose a fund manager in Ghana?", "answer": "Confirm the manager is licensed by the Securities and Exchange Commission (SEC) Ghana, and review the fund's fact sheet, fees, and stated strategy before investing." },
+    { "question": "What fees do mutual funds charge?", "answer": "Typically a management fee and sometimes other charges, all disclosed in the fund's official documentation — always review these before investing." },
+    { "question": "Is this financial advice?", "answer": "No. This page is educational only. A consultation can help you think through which type of fund might suit your goals." }
+  ],
+  "relatedCalculators": ["investment-growth", "compound-interest"],
+  "relatedGoals": ["first-investment", "retirement"],
+  "relatedServices": ["investment-education"],
+  "relatedResources": ["/resources/#investment-readiness-checklist"],
+  "relatedArticles": [],
+  "seo": {
+    "title": "Mutual Funds in Ghana: An Educational Guide | Robayer WealthLab",
+    "metaDescription": "Learn how mutual funds work in Ghana, their benefits and risks, and who they typically suit for diversified, professionally managed investing. Educational only.",
+    "canonical": "https://robayerwealthlab.com/investment-centre/mutual-funds/"
+  },
+  "complianceNote": "This page is educational. It does not constitute financial, investment, legal, or tax advice, and fund performance, fees, and risk vary by fund — review official fund documentation and confirm details with a licensed fund manager before investing.",
+  "ctaLabel": "Request a Consultation",
+  "ctaHref": "/consultation/"
+}
