@@ -4,9 +4,13 @@ Financial education for ordinary Ghanaians, built as a static site: no
 frameworks, no build step, per the approved Phase 1 technical stack.
 Deploys directly to GitHub Pages.
 
-**Current status:** Phase 5 is underway. The foundation (design tokens,
+**Current status:** `v1.0.0-production-baseline` — Phases 1–18 complete.
+The site is production-ready and deployed to GitHub Pages behind the
+`robayerwealthlab.com` custom domain. The foundation (design tokens,
 global components, navigation, accessibility/SEO groundwork) shipped in
-Phase 5.1, and real pages have been built sprint by sprint since:
+Phase 5.1, and every real page plus the centralized configuration,
+branding, and content-scaffolding layers were built sprint by sprint
+since:
 
 | Sprint | Delivered |
 |---|---|
@@ -24,12 +28,21 @@ Phase 5.1, and real pages have been built sprint by sprint since:
 | 10 | Newsletter page (`/newsletter/`) |
 | 10.5 | Production Readiness Audit (read-only — no code changes) |
 | 10.6 | Launch readiness fixes — newsletter form validation-error bug, stale footer label, this table |
+| 11 | Privacy Policy page (`/legal/privacy-policy/`) |
+| 12 | Terms of Use page (`/legal/terms-of-use/`) |
+| 13 | Disclaimer page (`/legal/disclaimer/`) |
+| 14 | Site polish — nav scroll-shadow, hero redesign, homepage services section, founder section, contact page upgrade, footer redesign, JSON-LD telephone/address, scroll-reveal, dark mode |
+| 15 | Centralized business-info configuration (`assets/config/site.json` + `js/content-inject.js`) |
+| 16 | Brand asset & content architecture foundation (`assets/branding/`, `content/` scaffolding) |
+| 17 | Real branding integration — real logo and founder portrait replace coded placeholders |
+| 18 | Production Readiness Audit — sitewide fixes (see `CHANGELOG.md`), then finalized as the `v1.0.0-production-baseline` tag |
 
-Still to come: the three Legal pages (Privacy Policy, Terms of Use,
-Disclaimer), the remaining Blog articles, and the second Book are
-referenced throughout the site (nav, footer, sitemap) but not yet
-built — this is expected at this stage, not a bug. `CHANGELOG.md` has
-the full detail behind every sprint above.
+The three Legal pages, the remaining Blog articles, and the second Book
+that were "still to come" in earlier sprints are now resolved: Legal
+pages are built (Sprints 11–13); the not-yet-written Blog articles and
+book are represented honestly as "Coming soon" cards (see `blog/index.html`,
+`books/index.html`) rather than dead links or fabricated content.
+`CHANGELOG.md` has the full detail behind every sprint above.
 
 ## Folder structure
 
@@ -45,9 +58,14 @@ robayer-wealthlab/
 ├── js/
 │   ├── includes.js        Loads header/footer partials into every page
 │   ├── main.js             Site-wide behavior (footer year, etc.)
+│   ├── content-inject.js  Populates [data-content]/[data-content-href] elements from assets/config/site.json
 │   └── components/
-│       ├── nav.js                  Mobile menu toggle, active-link detection
+│       ├── nav.js                  Mobile menu toggle, active-link detection, sticky-header scroll shadow
+│       ├── theme-toggle.js         Dark/light mode toggle + localStorage persistence
+│       ├── scroll-reveal.js        Fades/slides [data-reveal] elements in on scroll (no-ops if prefers-reduced-motion)
+│       ├── founder-bio.js          Fetches content/founder/bio.json into [data-founder-bio] elements
 │       ├── newsletter-form.js      Client-side validation + confirmation for the newsletter form
+│       ├── contact-form.js         Client-side validation + confirmation for the contact form
 │       ├── content-filters.js      Generic category-pill + search filtering for any card grid
 │       ├── placeholder-action.js   Honest "not connected yet" feedback for buttons with no backend
 │       └── article-reading.js      Reading-progress bar + table-of-contents active-section highlighting
@@ -57,7 +75,9 @@ robayer-wealthlab/
 ├── templates/
 │   └── page-template.html Master template every real page is built from
 ├── assets/
-│   ├── images/logo/        Logo artwork (currently a coded placeholder — see its README)
+│   ├── config/site.json    Single source of truth for company/founder/contact/social facts (see Configuration below)
+│   ├── branding/            Home for future real logo/founder-portrait/favicon/OG-image files (see its README)
+│   ├── images/logo/        Retired — real logo now lives in assets/branding/logo/ (see its README)
 │   ├── icons/               Favicons (currently coded placeholders — see its README)
 │   └── fonts/                Reserved for future self-hosted fonts (see its README)
 ├── books/
@@ -76,12 +96,45 @@ robayer-wealthlab/
 │   └── index.html         Community page
 ├── newsletter/
 │   └── index.html         Newsletter page
+├── legal/
+│   ├── privacy-policy/index.html    Privacy Policy page
+│   ├── terms-of-use/index.html      Terms of Use page
+│   └── disclaimer/index.html        Disclaimer page
+├── content/                 Scaffold for future structured content — see content/README.md and content/SCHEMA.md
 ├── components.html         Living style guide — every reusable component, shown in every state
+├── CNAME                    Custom domain for GitHub Pages (robayerwealthlab.com)
 ├── robots.txt
 ├── sitemap.xml
 ├── CHANGELOG.md            Full sprint-by-sprint history
 └── README.md               You are here
 ```
+
+## Architecture overview
+
+The site is built in four layers, from most to least "finished":
+
+1. **Design system** (`css/tokens.css` → `base.css`/`layout.css`/
+   `components.css`/`utilities.css`, `components.html`) — fully built,
+   the foundation everything else sits on. See "How the pieces fit
+   together" below.
+2. **Configuration** (`assets/config/site.json` + `js/content-inject.js`)
+   — live and working. Centralizes recurring business facts (company,
+   founder, contact, social) so they're edited once instead of across
+   every page. See "Configuration architecture" below.
+3. **Branding** (`assets/branding/`) — live for the logo and founder
+   portrait (real assets, integrated in Sprint 17); favicons remain
+   coded placeholders pending a future phase. See "Brand asset
+   architecture" below.
+4. **Content** (`content/`) — mostly scaffolding, one exception: the
+   founder bio (`content/founder/bio.json`) is real and consumed by
+   `index.html`/`about/index.html`. Every other content type is
+   documentation only — no page reads from it yet. See "Content
+   architecture" below.
+
+Layers 2–4 were added specifically so a future local editor or
+Git-backed CMS (see "Future roadmap") has clear, documented places to
+read from and write to — without requiring that tool (or a person) to
+parse or rewrite page HTML directly.
 
 ## How the pieces fit together
 
@@ -134,6 +187,63 @@ python3 -m http.server 8000
 Then visit `http://localhost:8000/` to see the Home page, or
 `http://localhost:8000/components.html` for the full style guide.
 
+## Configuration architecture
+
+`assets/config/site.json` is the single source of truth for company,
+founder, contact, and social-link facts (company name/tagline, founder
+name/title, the three contact emails, phone, location, social hrefs).
+`js/content-inject.js` fetches it once per page load and populates any
+element marked `[data-content="dot.path"]` (text) or
+`[data-content-href="dot.path"]` (href) — currently the shared
+header/footer partials, the homepage/about founder byline, and the
+Contact page's email cards and direct-details block. The existing text
+already in the HTML is the fallback if the fetch ever fails, so editing
+`site.json` is the only step needed to update those values everywhere at
+once; no page HTML needs touching.
+
+Per-page `<title>`/meta/Open Graph/Twitter/JSON-LD tags are **not**
+wired to this file — see `assets/branding/README.md` for why (social
+crawlers don't run JavaScript) and what to do when one of those values
+needs to change.
+
+## Brand asset architecture
+
+`assets/branding/` is the designated future home for real brand assets
+— logo, founder portrait, favicons, Open Graph image, and (once they
+exist) book covers, resource thumbnails, and team photos. Each of its
+subfolders (`logo/`, `founder/`, `favicons/`, `social/`, `books/`,
+`resources/`, `team/`) has its own README covering expected filenames,
+dimensions, formats, optimization guidance, and exactly what happens
+today if that asset is still a placeholder (nothing breaks — every
+current placeholder is a real, working, documented stand-in, never a
+missing file). Nothing currently in `assets/icons/` or
+`assets/images/` has been moved — seeing a real asset arrive means
+dropping it into the matching `assets/branding/` subfolder and
+following that subfolder's README for the (small, currently manual)
+list of places its path is duplicated.
+
+## Content architecture
+
+`content/` is mostly a **scaffold, not a working feature** — directory
+structure and documentation only, covering Company, Founder, Books,
+Blog, Resources, Legal, Newsletter, Community, Events, Testimonials,
+and FAQ content. `content/SCHEMA.md` documents the recommended JSON
+shape for each content type (Book, Blog Article, Resource, Team Member,
+Testimonial, FAQ, Newsletter Issue, Community Event), matched to how
+that content already looks and behaves on the live site today. One
+exception: `content/founder/bio.json` is real, live content, fetched
+directly by `js/components/founder-bio.js` — the reference pattern any
+future consumer should follow (a small self-contained `fetch()` with
+the page's existing hand-written HTML as the fallback), rather than a
+shared loader module (an earlier attempt at one, `js/content-loader.js`,
+had zero consumers and was removed in the Sprint 18 audit).
+
+No other page has been migrated to read from `content/` — every other
+page's real content still lives directly in its own HTML, unchanged by
+any of this. This groundwork exists so that migrating a given page
+later is a rendering change, not a from-scratch content architecture
+decision made under time pressure later.
+
 ## Accessibility
 
 - Skip-to-content link, first focusable element on every page
@@ -166,11 +276,71 @@ Then visit `http://localhost:8000/` to see the Home page, or
   Blog Article pages specifically, `website` everywhere else
 - Clean, human-readable URL structure (`/section/slug/`) throughout
 
+## Future roadmap
+
+The configuration/branding/content layers above exist to make a few
+specific future capabilities straightforward to add later, without
+requiring any of them to be built now:
+
+- **A future local editor** (a small tool run on a contributor's own
+  machine, not deployed anywhere) could read and write
+  `assets/config/site.json` and the files described in `content/`
+  directly — both are plain JSON, readable/writable by any tool or
+  script, with no proprietary format or database to integrate with.
+- **A future Git-backed CMS** (e.g. a tool that opens a pull request
+  containing edited JSON files) has the same starting point — the
+  content model in `content/SCHEMA.md` was written to be a reasonable
+  target for that kind of tool's data model, not just for hand-editing.
+- **A future upload workflow** for brand assets would write into the
+  matching `assets/branding/` subfolder using that subfolder's
+  documented naming convention (e.g. `assets/branding/books/{slug}.jpg`
+  matching a book's URL slug) — predictable enough to automate without
+  a person deciding the filename each time.
+- **Future automated asset optimization** (running SVGO/`pngquant`/
+  similar over anything dropped into `assets/branding/` before it's
+  committed) is a natural pre-commit or CI step once there's a real
+  asset pipeline worth automating — not needed while every asset in
+  that folder is still a documented placeholder.
+- **A future build-time sync script** could regenerate the static
+  per-page `<title>`/meta/Open Graph/JSON-LD blocks from
+  `assets/config/site.json` before deploying, removing the last
+  manual-sync step described in `assets/branding/README.md`. This is
+  the one piece of the above that would introduce an actual build step
+  — everything else keeps working exactly as it does today, with zero
+  build step, deployed directly to GitHub Pages.
+
+None of the above is built yet. Nothing about the current architecture
+blocks building any of it later.
+
+## Developer onboarding
+
+New to this project? Here's where everything lives:
+
+| Looking for… | Go to |
+|---|---|
+| Colors, type, spacing, shadows, motion | `css/tokens.css` |
+| Reusable UI components (buttons, cards, forms…) | `css/components.css`, demoed live in `components.html` |
+| The shared header/footer | `partials/header.html`, `partials/footer.html` |
+| The starting point for a new page | `templates/page-template.html` |
+| Company/founder/contact/social facts | `assets/config/site.json` |
+| Logo, favicon, OG image, founder portrait | `assets/branding/` (see its README first) |
+| Future structured content (books, blog, FAQ, etc.) | `content/` (scaffold only — see `content/README.md`) |
+| Page-specific behavior (nav, forms, filters, dark mode…) | `js/components/` |
+| Site-wide behavior (partial loading, config injection) | `js/includes.js`, `js/content-inject.js`, `js/main.js` |
+| Full project history, sprint by sprint | `CHANGELOG.md` |
+
+If you're not sure where something belongs, it's almost always one of
+the four layers described in "Architecture overview" above — ask which
+layer the thing you're adding belongs to before deciding where the file
+goes.
+
 ## Open items
 
-- [ ] Replace the coded Sika step-mark SVG and favicon files with
-      final production artwork once available (`assets/images/logo/`,
-      `assets/icons/`) — currently honest, documented placeholders
+- [x] Replace the coded Sika step-mark SVG with real production logo
+      artwork — done in Sprint 17 (`assets/branding/logo/`)
+- [ ] Replace the coded favicon files with final production artwork
+      once available (`assets/icons/`) — currently honest, documented
+      placeholders
 - [x] Confirm the production domain — `robayerwealthlab.com`, used
       consistently since Phase 5.1
 - [ ] Decide whether to self-host fonts (`assets/fonts/`) instead of
@@ -187,13 +357,16 @@ Then visit `http://localhost:8000/` to see the Home page, or
 
 ## What comes next
 
-The three Legal pages, the remaining Blog articles, and the second
-Book are the main content still missing (see the Sprint 10.5 audit in
-`CHANGELOG.md` for the full launch-readiness picture — pages already
-linked sitewide that don't exist yet are the main gap, not the
-architecture). Building any of them continues to use this foundation
-exactly as-is — no new global styles or components should be
-introduced ad hoc at the page level; if a page needs something the
-design system doesn't yet provide, that's a signal to extend
-`components.css` (and update `components.html`), not to write a
-one-off style.
+All 13 real pages are built and the `v1.0.0-production-baseline` tag
+marks the site as deployable as-is. What's left is content and asset
+work, not architecture: real favicons, real book covers, and — when
+ready — writing the Blog articles and second Book that today are
+honestly represented as "Coming soon" cards rather than fabricated or
+dead-linked. See "Open items" above and the `Sprint 18 — Production
+Readiness Audit` / `v1.0.0-production-baseline` entries in
+`CHANGELOG.md` for the complete picture. Building any of the above
+continues to use this foundation exactly as-is — no new global styles
+or components should be introduced ad hoc at the page level; if a page
+needs something the design system doesn't yet provide, that's a signal
+to extend `components.css` (and update `components.html`), not to
+write a one-off style.

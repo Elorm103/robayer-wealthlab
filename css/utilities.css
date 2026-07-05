@@ -13,8 +13,12 @@
 .text-secondary { color: var(--color-text-secondary); }
 .text-on-dark   { color: var(--color-text-on-dark); }
 
-.bg-paper   { background-color: var(--color-warm-paper); }
-.bg-sand    { background-color: var(--color-light-sand); }
+/* bg-paper/bg-sand map to the semantic bg/bg-alt tokens so they flip
+   correctly under [data-theme="dark"]. bg-navy/bg-charcoal stay tied to
+   raw palette colors — they're used for sections that are deliberately
+   dark regardless of site theme (e.g. Featured eBook, Community CTA). */
+.bg-paper   { background-color: var(--color-bg); }
+.bg-sand    { background-color: var(--color-bg-alt); }
 .bg-navy    { background-color: var(--color-ink-navy); }
 .bg-charcoal{ background-color: var(--color-charcoal-ink); }
 
@@ -52,6 +56,9 @@
 .text-lg      { font-size: 1.25rem; }
 
 .aspect-4-5 { aspect-ratio: 4 / 5; }
+.aspect-16-9 { aspect-ratio: 16 / 9; }
+
+.img-cover { display: block; width: 100%; height: 100%; object-fit: cover; }
 
 .flex-1 { flex: 1; }
 

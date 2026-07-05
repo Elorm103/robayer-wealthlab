@@ -12,7 +12,7 @@
   <meta property="og:title" content="About Us &amp; Our Mission | Robayer WealthLab">
   <meta property="og:description" content="Meet Robert Loh Kobla, founder of Robayer WealthLab, and learn our mission to make honest financial education accessible to every Ghanaian.">
   <meta property="og:url" content="https://robayerwealthlab.com/about/">
-  <meta property="og:image" content="https://robayerwealthlab.com/assets/images/og-default.jpg">
+  <meta property="og:image" content="https://robayerwealthlab.com/assets/branding/social/og-image.jpg">
   <meta property="og:site_name" content="Robayer WealthLab">
 
   <meta name="twitter:card" content="summary_large_image">
@@ -39,8 +39,14 @@
     "@type": "Organization",
     "name": "Robayer WealthLab",
     "url": "https://robayerwealthlab.com",
-    "logo": "https://robayerwealthlab.com/assets/images/logo/logo.svg",
+    "logo": "https://robayerwealthlab.com/assets/branding/logo/logo.png",
     "description": "Financial education for ordinary Ghanaians — practical, honest guidance on saving, investing, and building wealth.",
+    "telephone": "+233 53 780 6352",
+    "address": {
+      "@type": "PostalAddress",
+      "addressLocality": "Accra",
+      "addressCountry": "GH"
+    },
     "founder": {
       "@type": "Person",
       "name": "Robert Loh Kobla"
@@ -119,7 +125,15 @@
               <a href="#founder-story" class="btn btn--primary">Read our story</a>
             </div>
           </div>
-          <div class="rounded-lg bg-sand aspect-4-5" aria-hidden="true"></div>
+          <img
+            class="rounded-lg aspect-4-5 img-cover"
+            src="/assets/branding/founder/founder-portrait.jpg"
+            alt="Robert Loh Kobla, Founder &amp; CEO of Robayer WealthLab"
+            width="648"
+            height="810"
+            loading="eager"
+            decoding="async"
+          >
         </div>
       </div>
     </section>
@@ -145,9 +159,10 @@
     <section class="section" id="founder-story" aria-labelledby="founder-story-heading">
       <div class="container content-column">
         <span class="eyebrow text-center">The founder</span>
-        <h2 id="founder-story-heading" class="mt-2 mb-4 text-center">Robert Loh Kobla</h2>
+        <h2 id="founder-story-heading" class="mt-2 mb-1 text-center" data-content="founder.name">Robert Loh Kobla</h2>
+        <p class="text-center text-secondary text-small mb-4" data-content="founder.title">Founder &amp; CEO</p>
 
-        <div class="article-body">
+        <div class="article-body" data-founder-bio="long">
           <p>Robert started Robayer WealthLab after watching too many smart, hardworking people in his own circle stay away from investing — not because they didn't want to build something, but because no one had ever explained it to them in plain language. Treasury bills, MoMo savings, the Ghana Stock Exchange — all of it felt like it belonged to people with more money, more connections, or more schooling than they had.</p>
           <p>He didn't set out to build a financial institution. He set out to be the person he wished he'd had early on: someone slightly ahead on the journey, willing to explain the confusing parts without making anyone feel behind.</p>
           <p>That's still the whole model. No hype, no guaranteed returns, no jargon for the sake of sounding smart — just honest, practical guidance for wherever you're starting from, delivered one guide, one article, and one better decision at a time.</p>
@@ -411,6 +426,9 @@
 
   <script src="/js/includes.js"></script>
   <script src="/js/components/nav.js"></script>
+  <script src="/js/components/theme-toggle.js"></script>
+  <script src="/js/content-inject.js"></script>
+  <script src="/js/components/founder-bio.js"></script>
   <script src="/js/components/newsletter-form.js"></script>
   <script src="/js/main.js"></script>
 </body>

@@ -128,3 +128,25 @@
   --z-overlay:   200;  /* fixed overlays above sticky content — reading progress bar, future toasts */
   --z-skip-link: 1000; /* accessibility skip-link — must sit above everything, always */
 }
+
+/* ----------------------------------------------------------------
+   Dark mode — opt-in via [data-theme="dark"] on <html>, toggled and
+   persisted by js/components/theme-toggle.js. Overrides only the
+   semantic role-mapping tokens above; component CSS reads those same
+   variable names, so most of the site adapts with no further changes.
+   A few components reference raw palette colors directly (by design,
+   for light-mode contrast) and get explicit dark counterparts in
+   components.css instead of here.
+   ---------------------------------------------------------------- */
+[data-theme="dark"] {
+  --color-bg:              #10161F;
+  --color-bg-alt:          #1B222D;
+  --color-bg-inverse:      var(--color-warm-paper);
+  --color-surface:         #1B222D;
+  --color-text-primary:    #E4E1D8;
+  --color-text-heading:    #FFFFFF;
+  --color-text-secondary:  #A8ACB3;
+  --color-text-on-dark:    var(--color-ink-navy);
+  --color-border:          rgba(255, 255, 255, 0.12);
+  --color-border-strong:   rgba(255, 255, 255, 0.28);
+}

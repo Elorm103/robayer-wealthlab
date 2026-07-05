@@ -5,14 +5,14 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
 
   <title>Robayer WealthLab — Financial Education for Ghana</title>
-  <meta name="description" content="Practical, honest financial education for ordinary Ghanaians. Free guides, calculators, and eBooks on saving, investing, and building wealth — starting with whatever you have.">
+  <meta name="description" content="Practical, honest financial education for Ghanaians. Free guides, calculators, and eBooks on saving, investing, and building wealth — start with what you have.">
   <link rel="canonical" href="https://robayerwealthlab.com/">
 
   <meta property="og:type" content="website">
   <meta property="og:title" content="Robayer WealthLab — Financial Education for Ghana">
   <meta property="og:description" content="Practical, honest financial education for ordinary Ghanaians. Free guides, calculators, and eBooks on saving, investing, and building wealth.">
   <meta property="og:url" content="https://robayerwealthlab.com/">
-  <meta property="og:image" content="https://robayerwealthlab.com/assets/images/og-default.jpg">
+  <meta property="og:image" content="https://robayerwealthlab.com/assets/branding/social/og-image.jpg">
   <meta property="og:site_name" content="Robayer WealthLab">
 
   <meta name="twitter:card" content="summary_large_image">
@@ -39,8 +39,14 @@
     "@type": "Organization",
     "name": "Robayer WealthLab",
     "url": "https://robayerwealthlab.com",
-    "logo": "https://robayerwealthlab.com/assets/images/logo/logo.svg",
+    "logo": "https://robayerwealthlab.com/assets/branding/logo/logo.png",
     "description": "Financial education for ordinary Ghanaians — practical, honest guidance on saving, investing, and building wealth.",
+    "telephone": "+233 53 780 6352",
+    "address": {
+      "@type": "PostalAddress",
+      "addressLocality": "Accra",
+      "addressCountry": "GH"
+    },
     "founder": {
       "@type": "Person",
       "name": "Robert Loh Kobla"
@@ -57,17 +63,34 @@
 
     <!-- ============================================================
          HERO
-         Per founder decision: logo + copy only at launch, no founder
-         photography here — photography is reserved for About/Blog.
+         Founder photography reserved for a future update — the image
+         slot below is an explicit placeholder, not a generated photo.
+         Decorative gradient + floating shapes are CSS-only (no images).
          ============================================================ -->
-    <section class="hero bg-paper">
-      <div class="container hero__content">
-        <span class="eyebrow hero__eyebrow">Financial education for Ghana</span>
-        <h1 class="hero__title">Where small money builds big futures</h1>
-        <p class="hero__subtitle">Start with what you have. One better financial decision at a time.</p>
-        <div class="hero__actions">
-          <a href="/newsletter/" class="btn btn--primary">Get one better money tip</a>
-          <a href="/resources/" class="btn btn--secondary">Browse resources</a>
+    <section class="hero hero--split hero--gradient bg-paper">
+      <div class="container">
+        <span class="hero__shape hero__shape--1" aria-hidden="true"></span>
+        <span class="hero__shape hero__shape--2" aria-hidden="true"></span>
+        <span class="hero__shape hero__shape--3" aria-hidden="true"></span>
+        <div class="hero__content">
+          <div data-reveal>
+            <span class="eyebrow hero__eyebrow">Financial education for Ghana</span>
+            <h1 class="hero__title">Build Wealth With Confidence</h1>
+            <p class="hero__subtitle">Helping individuals and businesses build wealth through informed financial decisions.</p>
+            <div class="hero__actions">
+              <a href="/resources/" class="btn btn--primary">Get Started</a>
+              <a href="/contact/" class="btn btn--secondary">Contact Us</a>
+            </div>
+          </div>
+          <img
+            class="rounded-lg aspect-4-5 img-cover"
+            src="/assets/branding/founder/founder-portrait.jpg"
+            alt="Robert Loh Kobla, Founder &amp; CEO of Robayer WealthLab"
+            width="648"
+            height="810"
+            loading="eager"
+            decoding="async"
+          >
         </div>
       </div>
     </section>
@@ -106,6 +129,49 @@
         <blockquote class="mt-5 pull-quote">
           "Wherever you're starting from, we'll meet you there."
         </blockquote>
+      </div>
+    </section>
+
+    <!-- ============================================================
+         SERVICES
+         ============================================================ -->
+    <section class="section bg-sand" aria-labelledby="services-heading" data-reveal>
+      <div class="container">
+        <span class="eyebrow text-center">What we offer</span>
+        <h2 id="services-heading" class="mb-5 mt-2 text-center">Built around how you actually make money decisions</h2>
+
+        <div class="grid grid--3">
+          <a href="/resources/" class="resource-card">
+            <svg class="resource-card__icon icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M12 3l9 4.5-9 4.5-9-4.5 9-4.5z"/><path d="M3 7.5v9L12 21l9-4.5v-9"/></svg>
+            <p class="resource-card__title">Financial Education</p>
+            <p class="text-secondary text-small mt-2">Practical guides that turn confusing money topics into plain language.</p>
+          </a>
+          <a href="/blog/" class="resource-card">
+            <svg class="resource-card__icon icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M4 19V5a2 2 0 0 1 2-2h9l5 5v11a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2z"/><path d="M8 12l3 3 5-6"/></svg>
+            <p class="resource-card__title">Investment Insights</p>
+            <p class="text-secondary text-small mt-2">Honest commentary on treasury bills, the GSE, and where money actually grows.</p>
+          </a>
+          <a href="/resources/" class="resource-card">
+            <svg class="resource-card__icon icon" viewBox="0 0 24 24" aria-hidden="true"><rect x="3" y="4" width="18" height="16" rx="2"/><path d="M3 9h18M8 14h4"/></svg>
+            <p class="resource-card__title">Budget Planning</p>
+            <p class="text-secondary text-small mt-2">Free templates and tools built for irregular, real-world income.</p>
+          </a>
+          <a href="/contact/" class="resource-card">
+            <svg class="resource-card__icon icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M3 21V9l9-6 9 6v12"/><path d="M9 21v-8h6v8"/></svg>
+            <p class="resource-card__title">Business Advisory</p>
+            <p class="text-secondary text-small mt-2">Founder-led guidance for small businesses building toward growth.</p>
+          </a>
+          <a href="/blog/" class="resource-card">
+            <svg class="resource-card__icon icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M4 19h16M7 19V9m5 10V5m5 14v-7"/></svg>
+            <p class="resource-card__title">Market Research</p>
+            <p class="text-secondary text-small mt-2">Plain-language reads on Ghana's market conditions and trends.</p>
+          </a>
+          <a href="/books/" class="resource-card">
+            <svg class="resource-card__icon icon" viewBox="0 0 24 24" aria-hidden="true"><rect x="4" y="3" width="16" height="18" rx="2"/><path d="M8 8h8M8 12h8M8 16h4"/></svg>
+            <p class="resource-card__title">Financial Tools</p>
+            <p class="text-secondary text-small mt-2">Calculators and eBooks that put a plan in your hands, not just theory.</p>
+          </a>
+        </div>
       </div>
     </section>
 
@@ -155,18 +221,25 @@
     </section>
 
     <!-- ============================================================
-         ABOUT TEASER
-         Photography reserved for the About page itself, per founder
-         decision — this teaser uses a placeholder block, not a photo.
+         MEET THE FOUNDER
          ============================================================ -->
-    <section class="section" aria-labelledby="about-heading">
+    <section class="section" aria-labelledby="about-heading" data-reveal>
       <div class="container grid grid--2 gap-5">
-        <div class="rounded-lg bg-sand aspect-4-5" aria-hidden="true"></div>
+        <img
+          class="rounded-lg aspect-4-5 img-cover"
+          src="/assets/branding/founder/founder-portrait.jpg"
+          alt="Robert Loh Kobla, Founder &amp; CEO of Robayer WealthLab"
+          width="648"
+          height="810"
+          loading="lazy"
+          decoding="async"
+        >
         <div>
-          <span class="eyebrow">About Robayer</span>
-          <h2 id="about-heading" class="mt-2 mb-3">Someone slightly ahead on the journey</h2>
-          <p class="mb-4">Founded by Robert Loh Kobla, Robayer WealthLab exists to simplify financial education for ordinary Ghanaians — practical knowledge, disciplined investing, and honest guidance, one step at a time.</p>
-          <a href="/about/" class="btn btn--secondary">Read the full story</a>
+          <span class="eyebrow">Meet the Founder</span>
+          <h2 id="about-heading" class="mt-2 mb-1" data-content="founder.name">Robert Loh Kobla</h2>
+          <p class="text-secondary text-small mb-3" data-content="founder.title">Founder &amp; CEO</p>
+          <p class="mb-4" data-founder-bio="short">Robert founded Robayer WealthLab to close the financial-education gap he saw around him — helping individuals and businesses turn investment awareness into practical, informed decisions. His work spans financial education, business growth, and disciplined wealth building, always in plain language, one step at a time.</p>
+          <a href="/about/" class="btn btn--secondary">Read More</a>
         </div>
       </div>
     </section>
@@ -240,7 +313,11 @@
 
   <script src="/js/includes.js"></script>
   <script src="/js/components/nav.js"></script>
+  <script src="/js/components/theme-toggle.js"></script>
+  <script src="/js/content-inject.js"></script>
+  <script src="/js/components/founder-bio.js"></script>
   <script src="/js/components/newsletter-form.js"></script>
+  <script src="/js/components/scroll-reveal.js"></script>
   <script src="/js/main.js"></script>
 </body>
 </html>

@@ -67,6 +67,16 @@ function initNav() {
       link.setAttribute('aria-current', 'page');
     }
   });
+
+  // Add a subtle shadow to the sticky header once the page has scrolled
+  const header = document.querySelector('.site-header');
+  if (header) {
+    const updateScrolledState = () => {
+      header.classList.toggle('site-header--scrolled', window.scrollY > 8);
+    };
+    updateScrolledState();
+    window.addEventListener('scroll', updateScrolledState, { passive: true });
+  }
 }
 
 document.addEventListener('partials:loaded', initNav);

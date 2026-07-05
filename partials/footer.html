@@ -1,5 +1,23 @@
 <footer class="site-footer">
   <div class="container">
+    <div class="footer__brand">
+      <div>
+        <a href="/" class="nav__logo" aria-label="Robayer WealthLab — home">
+          <img class="nav__logo-mark" src="/assets/branding/logo/logo-mark.png" alt="" width="415" height="355" loading="lazy" decoding="async">
+          <span data-content="company.name">Robayer WealthLab</span>
+        </a>
+        <p class="footer__brand__copy" data-content="company.tagline">Helping individuals and businesses build wealth through informed financial decisions.</p>
+      </div>
+
+      <!-- Social Placeholder: real profile URLs live in assets/config/site.json (social.*) — edit there, not here, once accounts exist -->
+      <div class="footer__social">
+        <a href="#" data-content-href="social.linkedin" aria-label="Robayer WealthLab on LinkedIn">in</a>
+        <a href="#" data-content-href="social.twitter" aria-label="Robayer WealthLab on X (Twitter)">X</a>
+        <a href="#" data-content-href="social.facebook" aria-label="Robayer WealthLab on Facebook">f</a>
+        <a href="#" data-content-href="social.instagram" aria-label="Robayer WealthLab on Instagram">ig</a>
+      </div>
+    </div>
+
     <div class="footer__grid">
       <div>
         <p class="footer__heading">Learn</p>
@@ -7,6 +25,15 @@
           <li><a href="/blog/">Blog</a></li>
           <li><a href="/books/">Books</a></li>
           <li><a href="/resources/">Resources</a></li>
+        </ul>
+      </div>
+      <div>
+        <p class="footer__heading">Services</p>
+        <ul class="footer__list">
+          <li><a href="/resources/">Financial Education</a></li>
+          <li><a href="/blog/">Investment Insights</a></li>
+          <li><a href="/books/">Financial Tools</a></li>
+          <li><a href="/contact/">Business Advisory</a></li>
         </ul>
       </div>
       <div>
@@ -35,8 +62,8 @@
     </div>
 
     <div class="footer__bottom">
-      <p>&copy; <span id="current-year">2026</span> Robayer WealthLab. Financial education, not licensed financial advice.</p>
-      <p>Accra, Ghana</p>
+      <p>&copy; <span id="current-year">2026</span> <span data-content="company.name">Robayer WealthLab</span>. <span data-content="company.disclaimer">Financial education, not licensed financial advice.</span></p>
+      <p><span data-content="contact.phone">+233 53 780 6352</span> &bull; <a href="https://robayerwealthlab.com" data-content="company.urlDisplay" data-content-href="company.url">robayerwealthlab.com</a> &bull; <span data-content="contact.location">Accra, Ghana</span></p>
     </div>
   </div>
 </footer>

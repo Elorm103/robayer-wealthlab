@@ -1,10 +1,500 @@
 # Changelog
 
 All notable work on the Robayer WealthLab website is recorded here. Dates
-are in `YYYY-MM-DD`. This project has no releases yet — entries are
-grouped by development phase/sprint instead of version number.
+are in `YYYY-MM-DD`. Entries are grouped by development phase/sprint;
+`v1.0.0-production-baseline` is the first tagged checkpoint (see below),
+marking the site as production-ready.
 
 ## [Unreleased]
+
+Nothing yet — the next phase starts here.
+
+## [v1.0.0-production-baseline] — 2026-07-05
+
+Closes out Phases 1–18. Everything below this heading (Sprint 1 through
+Sprint 18) is the full, unmodified history that makes up this baseline
+— nothing was rewritten to produce it. This entry itself only records
+the finalization pass done on top of Sprint 18's audit before tagging:
+
+- **Working tree review:** every uncommitted change from Phases 15–18
+  reviewed file-by-file against this changelog's own sprint history;
+  confirmed all of it intentional (no accidental edits, no leftover
+  debug code, no stray temp/test files). The `console.error(error)`
+  calls in `js/content-inject.js` and `js/components/founder-bio.js`
+  are deliberate fetch-failure logging, not debug leftovers — left in
+  place.
+- **Sitemap consistency:** `sitemap.xml` `<lastmod>` brought to
+  `2026-07-05` uniformly across all 12 real routes, since every page
+  received at least a script-tag or JSON-LD change during Phases 15–18
+  (previously a mix of 07-01–07-05 depending on when each page was last
+  touched).
+- **Stale changelog note closed out:** Sprint 1.5's "Known issue" about
+  the newsletter form's error message showing on page load was
+  re-tested and confirmed already fixed (a `.field__error[hidden]`
+  override exists in `components.css`) — annotated in place rather than
+  deleted, so the history stays honest about when it was actually
+  fixed.
+- **Final verification, re-run clean:** zero console errors, zero
+  failed network requests, zero broken internal links (12/12 resolve),
+  zero missing assets (25/25 referenced images/scripts/stylesheets/JSON
+  resolve), zero duplicate IDs, zero missing `alt` attributes — across
+  all 13 real pages. Confirmed no `package.json`/build tooling/
+  server-side includes exist; `CNAME` and `robots.txt` both point at
+  the correct production domain.
+- **No functional or visual changes in this entry** — this is a
+  checkpoint/tagging pass on top of Sprint 18's audit, not new work.
+
+### Sprint 18 — Production Readiness Audit — 2026-07-05
+
+A full sitewide audit across branding, SEO, accessibility, performance,
+responsiveness, contact consistency, forms, links, images, dead code,
+and GitHub Pages compatibility — no visual redesign, no new features,
+fixes only for genuine issues found. See the full Production Readiness
+Report in the project record for the complete findings/fixes/remaining-
+recommendations breakdown; summary below.
+
+**Fixed — stale references from prior phases**
+- `books/starting-to-invest-with-gh100/index.html`,
+  `blog/what-are-treasury-bills-in-ghana/index.html`: `Book`/`Article`
+  JSON-LD `image` fields (and the article's publisher `logo` field)
+  still pointed at the old placeholder paths retired in Sprint 17's
+  sitewide OG-image migration — missed because they're schema
+  sub-fields, not the top-level `Organization` block. Updated to the
+  real `assets/branding/` asset paths.
+- `legal/terms-of-use/`, `legal/privacy-policy/`, `legal/disclaimer/`:
+  the "reach us at hello@robayerwealthlab.com" sentence in each was
+  still hardcoded instead of wired to `assets/config/site.json` like
+  every other contact reference sitewide — added the matching
+  `data-content`/`data-content-href` attributes.
+- `js/components/contact-form.js`: the post-submit confirmation
+  message hardcoded the support email instead of reading the
+  already-populated `[data-content-href="contact.emails.general.href"]`
+  element, so it would have silently gone stale the next time the
+  contact email changed. Now reads it from the DOM at submit time.
+
+**Fixed — fabricated content presented as real**
+- `blog/index.html` (7 cards), `books/index.html` +
+  `books/starting-to-invest-with-gh100/index.html` (1 card each),
+  `blog/what-are-treasury-bills-in-ghana/index.html`'s "Related
+  articles" (3 cards): these linked to blog articles/a book that don't
+  exist yet, with fabricated publish dates, reading times, and a fake
+  price — inconsistent with the site's honesty-first tone. Converted
+  all 9 instances to the existing `.resource-card--upcoming` "Coming
+  soon" convention, extended with new `.blog-card--upcoming` /
+  `.book-card--upcoming` CSS, linking to `/newsletter/` instead of a
+  dead page.
+
+**Fixed — SEO**
+- `index.html`: homepage meta description trimmed from 175 to 159
+  characters (was truncating in search results); `og:description`/
+  `twitter:description` were already correctly sized and untouched.
+- `sitemap.xml`: `<lastmod>` bumped to 2026-07-05 for every page whose
+  content this sprint actually changed (`/books/`,
+  `/books/starting-to-invest-with-gh100/`, `/blog/`,
+  `/blog/what-are-treasury-bills-in-ghana/`, all three `/legal/*`
+  pages) — previously dated 07-01–07-04, no longer accurate.
+
+**Fixed — responsive/CSS bugs**
+- `css/components.css` `.check-item__text`: `overflow-wrap: break-word`
+  doesn't reduce an element's min-content size (per spec, it's a
+  last-resort break excluded from intrinsic sizing) — with no spaces
+  in an email address, this forced the flex row's, then the card's,
+  then the single-column mobile grid's min-content width to ~354px,
+  overflowing the 320px viewport by 50px on `/contact/`. Changed to
+  `overflow-wrap: anywhere`, which does participate in min-content
+  sizing. Verified via automated overflow scan: zero horizontal
+  overflow across all 13 real pages at 320/375/768/1024/1440px.
+- `.nav__cta`: added `white-space: normal` on mobile so the button
+  text wraps instead of forcing nav width.
+- `.footer__grid`: added a 768–1199px tablet breakpoint (3 columns)
+  instead of jumping straight from 1-column mobile to unconditional
+  5-column, which cramped text at iPad-portrait width.
+
+**Removed — dead code**
+- `js/content-loader.js` (zero consumers — an earlier abandoned
+  attempt at a shared content-fetch utility; `js/components/
+  founder-bio.js`'s self-contained-fetch pattern is the reference
+  implementation going forward).
+- `assets/images/og-default.jpg`, `assets/images/logo/logo.svg` —
+  orphaned once the JSON-LD fixes above removed their last references.
+  `assets/images/logo/README.md` rewritten to document the retirement.
+- Documentation (`content/README.md`, `content/founder/README.md`,
+  `content/company/README.md`, `assets/branding/books/README.md`, main
+  `README.md`) updated to stop referencing the deleted loader and point
+  at `founder-bio.js`'s pattern instead.
+
+**Verified clean (no changes needed)**
+- Accessibility: zero duplicate IDs within any page, zero `<img>` tags
+  missing an `alt` attribute, across all 13 real pages.
+- Internal links: all 12 unique internal paths resolve with no 404s.
+- Forms: contact form and newsletter signup both submit and render
+  their confirmation state correctly.
+- Console/network: zero console errors, zero failed network requests
+  across every page tested.
+- GitHub Pages compatibility: no `package.json`, no build tooling, no
+  server-side includes — confirmed still a pure static site with a
+  `CNAME` file for the custom domain.
+- Two audit-agent findings were investigated and found to be false
+  positives (title-tag lengths reported as 64–67 characters were
+  actually 50–53 when measured directly) — not changed.
+
+### Sprint 17 — Real Branding Integration (Logo, Founder Portrait) — 2026-07-05
+
+Introduces the site's first real brand assets — a real logo and a real
+founder portrait, both supplied this phase — using the centralized
+branding architecture built in Sprint 16. No design-system, IA, or
+accessibility change; every existing token/component/route is
+untouched. This is **not** a "pixel-identical" phase like 15–16 — the
+whole point is that the founder image slots and the header/footer
+logo mark now show real photography/artwork instead of coded
+placeholders. "Zero regression" here means nothing broke, not that
+nothing changed.
+
+**Added — real assets**
+- `assets/branding/founder/founder-portrait.jpg` — Robert Loh Kobla's
+  supplied headshot, center-cropped from its original 4:3 to the site's
+  established 4:5 portrait ratio, visually verified before use (648×810,
+  46KB).
+- `assets/branding/logo/logo-mark.png`, `logo.png`, `logo-with-tagline.png`
+  — cropped from the supplied production logo artwork (a transparent
+  PNG, confirmed via pixel-alpha inspection, not a design mockup with a
+  baked-in background as it first appeared to be): icon-only mark for
+  nav use, full mark+wordmark lockup for JSON-LD/larger contexts, and
+  the full lockup with tagline used to compose the OG image below. No
+  vector source was supplied, so no `.svg` exists yet — documented as a
+  known gap in `assets/branding/logo/README.md`, not silently assumed.
+- `assets/branding/social/og-image.jpg` — composed by centering the
+  real logo (with tagline) on the site's own Warm Paper background at
+  the standard 1200×630 OG size, rather than reusing a generic
+  placeholder.
+- `content/founder/bio.json` — the founder's real, already-approved
+  biography (short + long form), moved here verbatim from
+  `about/index.html`/`index.html`'s existing hand-written copy — not
+  rewritten or fabricated.
+
+**Changed — integration**
+- `partials/header.html`/`partials/footer.html`: `.nav__logo-mark`'s
+  coded inline `<svg>` (three gold bars) replaced with an `<img>`
+  pointing at the real `logo-mark.png` — `alt=""` (decorative; the
+  adjacent `<span>` company-name text already conveys the meaning,
+  matching WCAG guidance against redundant image descriptions),
+  explicit `width`/`height` matching the file's real dimensions,
+  `loading="eager"` in the header (always above the fold) vs.
+  `loading="lazy"` in the footer (always below the fold).
+- `index.html` (hero + "Meet the Founder") and `about/index.html`
+  (hero): the three `<!-- Founder Image Placeholder -->` `<div>`s
+  replaced with `<img>`s pointing at the real portrait — descriptive
+  `alt="Robert Loh Kobla, Founder & CEO of Robayer WealthLab"`,
+  explicit `width`/`height`, `loading="eager"` on the two above-the-fold
+  hero placements and `loading="lazy"` on the below-the-fold "Meet the
+  Founder" placement.
+- `js/components/founder-bio.js` (new) — fetches
+  `content/founder/bio.json` and renders `shortBio`/`longBio` into
+  `[data-founder-bio="short"/"long"]` elements on `index.html`/
+  `about/index.html`, with the existing hand-written text as the
+  fallback if the fetch fails. Founder *name*/*title* stay owned by
+  `assets/config/site.json` via `js/content-inject.js` — deliberately
+  not duplicated into this file, so each fact has exactly one source.
+- `assets/config/site.json`'s `branding.logo`/`branding.ogImage`/
+  `seo.defaultOgImage` updated to the real asset paths; every page's
+  `Organization` JSON-LD `logo` field and `og:image` meta tag updated
+  to match (same identical diff applied across all ~15 pages, per the
+  established pattern from Sprint 15).
+- `css/utilities.css`: new `.img-cover` utility
+  (`display:block; width:100%; height:100%; object-fit:cover`) so the
+  new `<img>`s fill their existing `.aspect-4-5` box the same way the
+  placeholder `<div>`s did, without distortion.
+- `css/components.css`: `.nav__logo-mark` changed from a forced
+  `24×24px` square to `width:24px; height:auto`, since the real mark's
+  proportions aren't square (the old coded mark was designed to be).
+
+**Documentation kept honest**
+- `assets/branding/logo/README.md`, `founder/README.md`,
+  `social/README.md` rewritten from "here's what to do when a real
+  file arrives" to "here's what's actually live now, and what's still
+  missing" (the SVG gap) — not left describing a step that already
+  happened.
+- `content/founder/README.md` and the top-level `content/README.md`
+  updated to reflect that this one content type now has a real
+  consumer, while every other content type remains scaffolding-only.
+
+**Verified**
+- Local static server, fresh session: zero console errors, zero failed
+  network requests, on `/`, `/about/`.
+- Confirmed via computed `naturalWidth`/`naturalHeight`/`complete` on
+  every `<img>` that all four images (2× logo mark, 2× founder
+  portrait instances checked) load successfully with no broken images.
+- Confirmed `loading="lazy"` images (footer logo, homepage "Meet the
+  Founder" portrait) report `complete: false` before being scrolled
+  into view, confirming lazy-loading is actually deferring the request,
+  not just present as a no-op attribute.
+- Zero duplicate `id` attributes on `/` (14 ids) and `/about/`.
+- Screenshot comparison confirms clean rendering of the real photo/logo
+  at both hero and "Meet the Founder" placements, both light and (from
+  Sprint 14) dark mode.
+- Diagnosed and resolved a false alarm during testing: the local dev
+  preview session had a stale/poisoned cache entry for one script URL
+  from early, broken iterations of this same file — confirmed via a
+  fresh-filename test that the final code executes correctly; not an
+  issue for real visitors, who fetch the file fresh on first visit.
+
+### Sprint 16 — Brand Asset & Content Architecture Foundation — 2026-07-05
+
+A documentation/scaffolding-only phase — **no page HTML, CSS, or JS
+behavior changed; verified pixel-identical, zero console errors, zero
+duplicate IDs, zero broken links**. Builds directly on Sprint 15's
+configuration layer: where that phase centralized simple facts
+(company/founder/contact/social), this phase prepares the structure for
+richer future content (books, articles, resources, testimonials, FAQ,
+etc.) and formalizes where brand assets will eventually live — without
+migrating anything or wiring any of it into a live page yet.
+
+**Added — Brand asset management**
+- `assets/branding/logo/`, `founder/`, `favicons/`, `social/`, `books/`,
+  `resources/`, `team/` (new subfolders, each with its own README
+  documenting expected filenames, recommended dimensions/formats/
+  optimization, and current fallback behavior). No image files added
+  anywhere — documentation only.
+- `assets/branding/README.md` rewritten as an overview/index linking to
+  each subfolder, keeping the existing "live-wired vs. static per page"
+  explanation from Sprint 15 intact.
+- Audited every page's `og:image` and favicon `<link>` tags — confirmed
+  zero drift (100% identical across all pages), so the existing
+  `assets/config/site.json` `branding` section remains the single
+  accurate reference value; no code change was needed to achieve
+  "one location, no duplicate paths" since nothing had drifted.
+
+**Added — Content architecture (scaffold only, no real content)**
+- `content/` — new top-level directory with `company/`, `founder/`,
+  `books/`, `blog/`, `resources/`, `legal/`, `newsletter/`, `community/`,
+  `events/`, `testimonials/`, `faq/` subdirectories, each with a README
+  covering that content type's purpose, future file structure, and how
+  content would be added once wired up. No sample/fake content files
+  anywhere.
+- `content/SCHEMA.md` — recommended JSON schema for Book, Blog Article,
+  Resource, Team Member, Testimonial, FAQ, Newsletter Issue, and
+  Community Event, each shaped to match how that content already
+  looks/behaves on the live site (e.g. Blog Article's `body` field is a
+  reference to the existing page, not inlined prose — long-form
+  writing stays hand-written, only its repeated metadata centralizes).
+- `js/content-loader.js` (new) — reusable `fetchContent`/
+  `fetchContentList`/`renderInto`/`renderList` helpers with graceful
+  fallback (resolve to `null`/no-op on any failure, never throw).
+  **Not included via `<script>` tag on any page** — confirmed via
+  search, matching the "do not implement dynamic rendering" instruction
+  this phase was scoped under.
+
+**Added — Documentation**
+- `README.md`: new "Architecture overview" (the four layers: design
+  system → configuration → branding → content), "Brand asset
+  architecture," "Content architecture," "Future roadmap" (what a
+  future local editor, Git-backed CMS, upload workflow, automated asset
+  optimization, and build-time head-tag sync script would each need —
+  none built), and "Developer onboarding" (a where-does-X-live table)
+  sections. Renamed the existing "Configuration" section to
+  "Configuration architecture" for naming consistency with the new
+  sections; its content is unchanged. Folder-structure tree updated
+  with the two new entries (`content/`, `js/content-loader.js`).
+
+**Not changed, by design**
+- Every page's real content, every existing page link, every design
+  token, every component, the founder name, and the information
+  architecture — untouched, per explicit instruction. This phase is
+  additive documentation and empty-of-content scaffolding only.
+- No build step was introduced. `content/` and `js/content-loader.js`
+  work the same way `assets/config/site.json`/`js/content-inject.js`
+  already do (plain static JSON, fetched same-origin) — GitHub Pages
+  compatibility is unaffected.
+
+**Verified**
+- Local static server: zero console errors, zero failed network
+  requests, homepage screenshot pixel-identical to the pre-phase state.
+- Zero duplicate `id` attributes checked on `/` (10 ids) and `/contact/`
+  (15 ids).
+- Confirmed `js/content-loader.js` is not referenced by any page's
+  `<script>` tag (grepped across the whole repo).
+- Confirmed `og:image`/favicon paths remain identical across every page
+  (no accidental drift introduced by this phase).
+
+### Sprint 15 — Centralized Business-Info Configuration — 2026-07-05
+
+A pure architecture/maintainability refactor — **no visual or content
+change, verified pixel-for-pixel identical before/after**. Explicit scope
+boundary for this sprint: don't touch the design system, IA, or founder
+name (all reaffirmed as correct in the request that started this sprint);
+instead give recurring business facts (company/founder/contact/social/
+branding) a single source of truth so a future admin panel or Git-backed
+CMS could edit them without touching HTML.
+
+**Added**
+- `assets/config/site.json` (new) — the single source of truth for
+  company name/tagline/URL, founder name/title, the 3 contact emails,
+  phone, location, and social links. `branding`/`seo` sections hold
+  reference-only values for the static per-page tags (see "Not changed"
+  below).
+- `js/content-inject.js` (new) — fetches `site.json` once per page load
+  (same fetch pattern as `js/includes.js`, same `partials:loaded`-driven
+  timing as `js/components/nav.js`) and populates any
+  `[data-content="dot.path"]` (textContent) or
+  `[data-content-href="dot.path"]` (href) element. Fails silently on any
+  fetch error — the page's existing static text is the fallback, not a
+  placeholder waiting to be filled.
+- `assets/branding/` (new folder + README) — where real logo/founder-
+  portrait/favicon/OG-image files go once produced, with exact expected
+  filenames and dimensions, and an explicit explanation of which fields
+  are live-wired vs. which remain static per page and why.
+- `data-content`/`data-content-href` bindings added to: `partials/header.html`
+  and `partials/footer.html` (wordmark, tagline, 4 social hrefs,
+  copyright company name + disclaimer, bottom-bar phone/location/
+  website — covers all ~15 pages from these two shared-partial edits
+  alone), `index.html`/`about/index.html` (founder name + title only —
+  the surrounding biography stays as page copy, not config), and
+  `contact/index.html` (the 3 email cards + the phone/website/location
+  "direct details" block).
+- `<script src="/js/content-inject.js"></script>` added to all ~15 pages
+  plus `templates/page-template.html`, so future pages scaffolded from
+  the template pick this up automatically.
+- New "Configuration" section in `README.md` documenting `site.json` as
+  the source of truth and pointing at `assets/branding/README.md` for
+  the static-tag caveat.
+
+**Not changed, by design**
+- `<title>`, meta description, canonical URL, Open Graph/Twitter tags,
+  favicon `<link>`s, and the `Organization` JSON-LD block on every page
+  — these stay exactly as they were, hardcoded per page. Centralizing
+  them via runtime JS would be a functional regression, not a
+  maintainability win: social-share crawlers (Facebook/Twitter/
+  LinkedIn link-unfurling bots) and favicon-fetching logic read the raw
+  HTML response before any JavaScript executes, so a JS-injected value
+  would never reach them. `site.json`'s `branding`/`seo` sections still
+  document the canonical values; `assets/branding/README.md` spells out
+  the manual-sync step this requires today, and notes a future
+  build-time sync script (not built) as the way to remove that
+  limitation entirely.
+- Design tokens, component library, page structure/IA, and the founder
+  name ("Robert Loh Kobla") — untouched, per explicit instruction.
+  Existing `assets/icons/`/`assets/images/` files were left in place
+  rather than moved into the new `assets/branding/` folder, since moving
+  them would touch every page's `<head>` for no benefit.
+
+**Verified**
+- Local static server; confirmed `assets/config/site.json` fetches
+  successfully and every `[data-content]`/`[data-content-href]` element
+  resolves to the exact pre-existing text/href on `/`, `/contact/`, and
+  `/blog/` (whose footer is only touched via the shared partial) — a
+  screenshot comparison against the pre-refactor state showed zero
+  visual difference.
+- Temporarily changed the phone number in `site.json`, confirmed it
+  updated on both the homepage/`/blog/` footer and the Contact page's
+  two phone references with no HTML edits, then reverted it.
+- Temporarily renamed `site.json` to simulate a fetch failure — pages
+  kept showing their correct static fallback text, no `"undefined"`
+  anywhere, no console error thrown — then restored the file and
+  confirmed it re-fetches cleanly (200 OK).
+- No console errors or failed requests on any page checked.
+
+### Sprint 14 — Site Polish (Nav, Hero, Founder, Services, Contact, Footer, SEO, Dark Mode) — 2026-07-05
+
+A broad polish pass across the homepage, Contact page, and shared header/
+footer partials. Scope was deliberately kept inside the existing
+architecture: no new pages, no palette replacement, no framework — every
+addition reuses an existing component pattern (`.resource-card`,
+`.hero--split`, `.field`/`.btn`, the site's placeholder convention) or
+extends the semantic design-token system already in place.
+
+**Added**
+- Dark mode, sitewide: `[data-theme="dark"]` token overrides in
+  `css/tokens.css`, a toggle button in `partials/header.html`, and
+  `js/components/theme-toggle.js` (persists the choice to
+  `localStorage`, applied on every page). Known trade-off: since there's
+  no shared `<head>` partial, the stored preference is applied by JS
+  after page scripts load rather than via a head-blocking inline
+  script, so a returning dark-mode visitor may see a brief light-mode
+  flash on navigation.
+- Homepage Services section — 6 cards (Financial Education, Investment
+  Insights, Budget Planning, Business Advisory, Market Research,
+  Financial Tools), each linking to the closest existing destination
+  page. Built on the existing `.resource-card` pattern, not a new
+  component.
+- Homepage hero rewrite — new headline/subhead copy, relabeled CTAs
+  (Get Started / Contact Us), a `<!-- Founder Image Placeholder -->`
+  block, and a decorative `.hero--gradient` background with slow-drift
+  floating shapes (CSS-only, `aria-hidden`, neutralized automatically
+  by the site's existing `prefers-reduced-motion` rule).
+- Contact page: a real contact form (Name/Email/Phone/Message) with
+  `js/components/contact-form.js` — client-side validation mirroring
+  `newsletter-form.js`'s pattern, honest "not connected to a backend
+  yet" confirmation on success (same honesty convention as
+  `placeholder-action.js`). Also added phone/website display and a
+  `<!-- Google Maps Placeholder -->` block.
+- `js/components/scroll-reveal.js` + `[data-reveal]`/`.is-visible` CSS —
+  a small IntersectionObserver-based fade-in, skipped entirely (content
+  shown immediately) under `prefers-reduced-motion: reduce`.
+- Footer: logo + one-line description band, a Services column, phone/
+  website added to the bottom bar, and an explicitly-labeled social
+  icon row (`<!-- Social Placeholder -->`, `href="#"`) ready to wire up
+  once real accounts exist.
+- `telephone` + `address` (`PostalAddress`, Accra, Ghana) fields added
+  to the `Organization` JSON-LD block already repeated across all ~15
+  pages — same small diff applied uniformly.
+
+**Changed**
+- Homepage "About Teaser" upgraded to "Meet the Founder" — name,
+  "Founder & CEO" title, condensed bio, "Read More" button. Same
+  section, same placeholder-image slot, just fuller content. The
+  "Founder & CEO" label was also added next to the founder-story
+  heading on `/about/` for consistency.
+- Nav: added a hover color transition on nav links (there was
+  previously only a static color and an active-page state, no hover
+  treatment at all), and a scroll-triggered `.site-header--scrolled`
+  shadow class via a small listener in `js/components/nav.js` (the
+  header previously only had a static bottom border).
+
+**Fixed**
+- `.bg-paper`/`.bg-sand` utility classes (`css/utilities.css`) were
+  pointing at raw palette colors instead of the semantic `--color-bg`/
+  `--color-bg-alt` tokens, so dark mode initially left every section
+  using them (hero, services, and others) stuck in light-mode colors
+  while the rest of the page went dark. Repointed both to the semantic
+  tokens — visually identical in light mode, correct in dark mode.
+  `.bg-navy`/`.bg-charcoal` were left untouched since those are used
+  for sections that are deliberately dark regardless of site theme.
+- The mobile-nav hamburger icon's stroke color was hardcoded as
+  `#16233D` inline in `partials/header.html`, so it wouldn't have
+  flipped color in dark mode. Changed to `stroke="currentColor"`.
+
+**Not changed (kept deliberately)**
+- Color palette (Growth Green / Ink Navy / Sika Gold / Warm Paper) —
+  kept as-is rather than replacing with the brief's literal "Deep Blue/
+  White/Gold," since Ink Navy already reads as a deep blue against
+  white surfaces and gold accents, and a sitewide token swap would
+  re-trigger every prior contrast audit for no visual-direction change.
+- Multi-page structure — new content became homepage sections/teasers
+  linking to the existing, fully-built `/about/` and `/contact/` pages
+  rather than replacing them.
+- Founder name — "Robert Loh Kobla" kept everywhere it already
+  appears (JSON-LD `founder.name`, page copy); "Founder & CEO" was
+  added as a title alongside it, not a replacement.
+
+**Verified**
+- Local static-file server; clicked through homepage (hero, founder
+  teaser, services, nav hover/scroll-shadow, dark-mode toggle across a
+  reload) and `/contact/` (empty submit, invalid email, valid submit;
+  phone/map display).
+- Dark-mode background/text/border colors checked via computed styles
+  after toggling, both immediately and after a page reload
+  (`localStorage` persistence confirmed).
+- Contact form: confirmed per-field error visibility toggling, focus
+  moves to the first invalid field, and the honest confirmation message
+  replaces the form on a valid submission.
+- Scroll-reveal: confirmed above-the-fold content is visible
+  immediately, below-the-fold content becomes visible on scroll, and a
+  mocked `prefers-reduced-motion: reduce` match immediately marks
+  content visible with no animation.
+- JSON-LD sampled on two pages (`/` and `/about/`) — both parse as
+  valid JSON and include the new `telephone` field.
+- No console errors and no failed network requests on `/`, `/contact/`,
+  or `/about/`.
 
 ### Sprint 13 — Disclaimer — 2026-07-04
 
@@ -1191,6 +1681,10 @@ before this sprint.
   message is visible on page load instead of only after a failed
   validation. This predates this cleanup sprint and is left as-is per
   the "no functionality changes" scope — worth a follow-up fix.
+  **Resolved as of the Sprint 18/Production Baseline audit:** a
+  `.field__error[hidden] { display: none; }` override now exists in
+  `components.css` and the error span was verified hidden on page load
+  — closing this out, no further action needed.
 
 ## Phase 5.1 — Foundation
 

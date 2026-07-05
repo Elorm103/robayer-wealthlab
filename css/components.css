@@ -98,6 +98,11 @@
   z-index: var(--z-sticky);
   background-color: var(--color-bg);
   border-bottom: 0.5px solid var(--color-border);
+  transition: box-shadow var(--duration-base) var(--ease-standard);
+}
+
+.site-header--scrolled {
+  box-shadow: var(--shadow-1);
 }
 
 .nav {
@@ -123,14 +128,14 @@
 
 .nav__logo-mark {
   width: 24px;
-  height: 24px;
+  height: auto;
   flex-shrink: 0;
 }
 
 .nav__menu {
   display: flex;
   align-items: center;
-  gap: var(--space-5);
+  gap: var(--space-6);
 }
 
 .nav__list {
@@ -144,12 +149,20 @@
 
 .nav__list a {
   color: var(--color-ink-navy);
+  padding-bottom: 2px;
+  border-bottom: 2px solid transparent;
+  transition: color var(--duration-base) var(--ease-standard),
+              border-color var(--duration-base) var(--ease-standard);
+}
+
+.nav__list a:hover {
+  color: var(--color-accent);
+  text-decoration: none;
 }
 
 .nav__list a[aria-current="page"] {
   color: var(--color-accent);
-  border-bottom: 2px solid var(--color-accent);
-  padding-bottom: 2px;
+  border-bottom-color: var(--color-accent);
 }
 
 .nav__toggle {
@@ -158,6 +171,44 @@
   height: 44px;
   align-items: center;
   justify-content: center;
+  color: var(--color-ink-navy);
+}
+
+.theme-toggle {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 40px;
+  height: 40px;
+  flex-shrink: 0;
+  border-radius: 999px;
+  border: 1px solid var(--color-border-strong);
+  background-color: transparent;
+  color: var(--color-ink-navy);
+  transition: background-color var(--duration-base) var(--ease-standard),
+              border-color var(--duration-base) var(--ease-standard);
+}
+
+.theme-toggle:hover {
+  border-color: var(--color-accent);
+  color: var(--color-accent);
+}
+
+.theme-toggle__icon {
+  width: 18px;
+  height: 18px;
+}
+
+.theme-toggle__icon--moon {
+  display: none;
+}
+
+[data-theme="dark"] .theme-toggle__icon--sun {
+  display: none;
+}
+
+[data-theme="dark"] .theme-toggle__icon--moon {
+  display: block;
 }
 
 /* Mobile navigation */
@@ -202,7 +253,26 @@
 
   .nav__cta {
     margin-top: var(--space-4);
+    white-space: normal;
   }
+}
+
+/* ============================================================
+   SCROLL REVEAL
+   Paired with js/components/scroll-reveal.js. Reduced-motion users get
+   .is-visible applied immediately (see that file), so this transition
+   simply never runs for them — no separate CSS override needed here.
+   ============================================================ */
+[data-reveal] {
+  opacity: 0;
+  transform: translateY(16px);
+  transition: opacity var(--duration-slow) var(--ease-standard),
+              transform var(--duration-slow) var(--ease-standard);
+}
+
+[data-reveal].is-visible {
+  opacity: 1;
+  transform: translateY(0);
 }
 
 /* ============================================================
@@ -445,17 +515,73 @@
   padding-block: var(--space-6);
 }
 
+.footer__brand {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-4);
+  padding-bottom: var(--space-5);
+  margin-bottom: var(--space-5);
+  border-bottom: 0.5px solid var(--color-border);
+}
+
+.footer__brand__copy {
+  max-width: 420px;
+  margin-top: var(--space-2);
+  font-size: var(--text-small);
+  color: var(--color-text-secondary);
+}
+
+.footer__social {
+  display: flex;
+  gap: var(--space-2);
+}
+
+.footer__social a {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 36px;
+  height: 36px;
+  border-radius: 999px;
+  background-color: var(--color-bg-alt);
+  color: var(--color-text-heading);
+  font-family: var(--font-heading);
+  font-weight: var(--weight-medium);
+  font-size: var(--text-small);
+  transition: background-color var(--duration-base) var(--ease-standard),
+              color var(--duration-base) var(--ease-standard);
+}
+
+.footer__social a:hover {
+  background-color: var(--color-accent);
+  color: var(--color-white);
+  text-decoration: none;
+}
+
 .footer__grid {
   display: grid;
-  grid-template-columns: repeat(4, 1fr);
+  grid-template-columns: repeat(3, 1fr);
   gap: var(--space-5);
   margin-bottom: var(--space-5);
+}
+
+@media (min-width: 1200px) {
+  .footer__grid {
+    grid-template-columns: repeat(5, 1fr);
+  }
 }
 
 @media (max-width: 767px) {
   .footer__grid {
     grid-template-columns: 1fr;
     gap: var(--space-4);
+  }
+
+  .footer__brand {
+    flex-direction: column;
+    align-items: flex-start;
   }
 }
 
@@ -574,6 +700,71 @@
   }
 }
 
+/* Gradient + floating-shape variant — decorative only, no images */
+.hero--gradient {
+  position: relative;
+  overflow: hidden;
+}
+
+.hero--gradient::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  z-index: 0;
+  background:
+    radial-gradient(circle at 15% 20%, rgba(31, 92, 78, 0.10), transparent 40%),
+    radial-gradient(circle at 85% 15%, rgba(212, 160, 23, 0.14), transparent 45%),
+    radial-gradient(circle at 75% 85%, rgba(22, 35, 61, 0.08), transparent 40%);
+  pointer-events: none;
+}
+
+.hero--gradient .container {
+  position: relative;
+  z-index: 1;
+}
+
+.hero__shape {
+  position: absolute;
+  display: block;
+  border-radius: 50%;
+  pointer-events: none;
+  animation: hero-shape-drift 12s var(--ease-standard) infinite;
+}
+
+.hero__shape--1 {
+  width: 140px;
+  height: 140px;
+  top: 8%;
+  left: 4%;
+  background-color: var(--color-sika-gold);
+  opacity: 0.12;
+}
+
+.hero__shape--2 {
+  width: 200px;
+  height: 200px;
+  bottom: -40px;
+  right: 6%;
+  background-color: var(--color-growth-green);
+  opacity: 0.10;
+  animation-delay: -4s;
+}
+
+.hero__shape--3 {
+  width: 90px;
+  height: 90px;
+  top: 55%;
+  right: 22%;
+  background-color: var(--color-ink-navy);
+  opacity: 0.06;
+  animation-delay: -8s;
+}
+
+@keyframes hero-shape-drift {
+  0%, 100% { transform: translateY(0) translateX(0); }
+  50% { transform: translateY(-16px) translateX(8px); }
+}
+
 /* ============================================================
    BOOK CARD
    ============================================================ */
@@ -595,6 +786,11 @@
 
 .book-card--featured {
   border: 2px solid var(--color-sika-gold);
+}
+
+.book-card--upcoming {
+  border-style: dashed;
+  opacity: 0.7;
 }
 
 .book-card__cover {
@@ -675,6 +871,10 @@
   color: var(--color-text-secondary);
 }
 
+.blog-card--upcoming {
+  opacity: 0.7;
+}
+
 /* ============================================================
    RESOURCE CARD
    ============================================================ */
@@ -683,11 +883,13 @@
   border: 0.5px solid var(--color-border);
   border-radius: var(--radius-md);
   padding: var(--space-4);
-  transition: box-shadow var(--duration-base) var(--ease-standard);
+  transition: box-shadow var(--duration-base) var(--ease-standard),
+              transform var(--duration-base) var(--ease-standard);
 }
 
 .resource-card:hover {
   box-shadow: var(--shadow-2);
+  transform: translateY(-2px);
 }
 
 /* Resource cards are sometimes whole-card links (Home resources preview) */
@@ -973,6 +1175,8 @@ a.resource-card {
 
 .check-item__text {
   flex: 1;
+  min-width: 0;
+  overflow-wrap: anywhere;
 }
 
 /* ============================================================
@@ -1047,4 +1251,37 @@ a.resource-card {
   width: calc(var(--reading-progress, 0) * 1%);
   background-color: var(--color-accent);
   z-index: var(--z-overlay);
+}
+
+/* ============================================================
+   DARK MODE — targeted overrides
+   Most components read the semantic tokens defined in tokens.css
+   and already adapt automatically under [data-theme="dark"]. These
+   are the few spots that reference raw palette colors directly (by
+   design, for light-mode contrast against a light page background)
+   and need an explicit dark-mode counterpart so they stay readable
+   once the page background flips dark.
+   ============================================================ */
+[data-theme="dark"] .nav__logo,
+[data-theme="dark"] .nav__list a,
+[data-theme="dark"] .nav__toggle {
+  color: var(--color-text-heading);
+}
+
+[data-theme="dark"] .btn--secondary {
+  border-color: var(--color-text-heading);
+  color: var(--color-text-heading);
+}
+
+[data-theme="dark"] .btn--secondary:hover {
+  background-color: var(--color-text-heading);
+  color: var(--color-bg);
+}
+
+[data-theme="dark"] .field__input,
+[data-theme="dark"] .field__textarea,
+[data-theme="dark"] .field__select {
+  background-color: var(--color-bg-alt);
+  border-color: var(--color-border-strong);
+  color: var(--color-text-primary);
 }
