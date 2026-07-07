@@ -69,10 +69,15 @@ function initNewsletterForms() {
   });
 
   function showConfirmation(form) {
+    // Optional per-form override (e.g. the /free-guide/ landing page
+    // wants "Check your email..." instead of the sitewide default) —
+    // every existing form without this attribute keeps today's exact
+    // message, unchanged.
+    const customMessage = form.getAttribute('data-confirmation-message');
     const confirmation = document.createElement('p');
     confirmation.className = 'alert alert--success';
     confirmation.setAttribute('role', 'status');
-    confirmation.textContent = "You're in. Look out for your first tip soon.";
+    confirmation.textContent = customMessage || "You're in. Look out for your first tip soon.";
     form.replaceWith(confirmation);
   }
 
