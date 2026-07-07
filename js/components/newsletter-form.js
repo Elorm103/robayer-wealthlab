@@ -2,14 +2,16 @@
  * Robayer WealthLab — Newsletter Form Component
  *
  * Progressive enhancement for any form marked [data-newsletter-form].
- * On submit: validates the email client-side, then swaps the form for a
- * warm confirmation message (per Phase 4 Section 2.9 interaction spec).
- *
- * NOTE: this does not yet send the email anywhere — there is no backend
- * on a GitHub Pages / vanilla-JS stack. Wire the fetch() call in
- * `submitToProvider()` once a form-handling service is chosen (see
- * Phase 3 A.7 and the Phase 5.1 README open items).
+ * On submit: validates the email client-side, then POSTs to the
+ * Cloudflare Worker backend (Version 1.2 Sprint 3, POST /api/newsletter)
+ * and swaps the form for a confirmation message. A failed request
+ * (network error, rate limit, server error) shows a retryable error
+ * alert instead, leaving the form in place so the visitor can try again.
  */
+
+// Update this after deploying the Worker (backend/wrangler.toml) — see
+// the Sprint 3 implementation report's "Deployment steps."
+const NEWSLETTER_API_URL = 'https://robayer-wealthlab-api.robayerwealthlab.workers.dev/api/newsletter';
 
 function initNewsletterForms() {
   const forms = document.querySelectorAll('[data-newsletter-form]:not([data-bound])');
@@ -33,9 +35,36 @@ function initNewsletterForms() {
 
       form.classList.remove('field--error');
       if (errorEl) errorEl.hidden = true;
+      clearServerError(form);
 
-      // TODO: submitToProvider(email) — wire once a form backend is chosen
-      showConfirmation(form);
+      const submitButton = form.querySelector('[type="submit"]');
+      if (submitButton) submitButton.disabled = true;
+
+      try {
+        const response = await fetch(NEWSLETTER_API_URL, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ email, source: window.location.pathname }),
+        });
+        const result = await response.json();
+
+        if (!response.ok || !result.success) {
+          throw new Error((result && result.error && result.error.message) || 'Something went wrong. Please try again.');
+        }
+
+        showConfirmation(form);
+      } catch (error) {
+        // fetch() itself throws a TypeError on a network/CORS failure —
+        // its message ("Failed to fetch") is a browser-internal string,
+        // not something to show a visitor. Any other error here was
+        // deliberately thrown above with a message the server or this
+        // file already wrote to be user-facing.
+        const message = error instanceof TypeError
+          ? 'Could not reach the server. Please check your connection and try again.'
+          : error.message;
+        showServerError(form, message);
+        if (submitButton) submitButton.disabled = false;
+      }
     });
   });
 
@@ -45,6 +74,23 @@ function initNewsletterForms() {
     confirmation.setAttribute('role', 'status');
     confirmation.textContent = "You're in. Look out for your first tip soon.";
     form.replaceWith(confirmation);
+  }
+
+  function showServerError(form, message) {
+    clearServerError(form);
+    const alertEl = document.createElement('p');
+    alertEl.className = 'alert alert--error';
+    alertEl.setAttribute('role', 'alert');
+    alertEl.setAttribute('data-server-error', 'true');
+    alertEl.textContent = message || 'Something went wrong. Please try again in a moment.';
+    form.insertAdjacentElement('beforebegin', alertEl);
+  }
+
+  function clearServerError(form) {
+    const previous = form.previousElementSibling;
+    if (previous && previous.matches('[data-server-error]')) {
+      previous.remove();
+    }
   }
 }
 
