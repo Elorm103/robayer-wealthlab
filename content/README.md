@@ -42,6 +42,22 @@ today, in different states:
   and `content/calculators/`. Its `relatedGoals` field is the first
   cross-reference to point *into* the Goal Planner from a
   reading-content page. See `content/investment-centre/README.md`.
+- `content/products/`, `content/product-types/`, and `content/topics/`
+  (Version 1.2 Sprint 1, extended Sprint 2.1) hold the commerce
+  content schema — **zero product data exists**, real or fake.
+  `content/products/index.json` is a genuinely empty `[]`;
+  `content/product-types/index.json` (renamed from Sprint 1's
+  `content/categories/`) holds 7 format definitions (ebook, guide,
+  template, spreadsheet, report, checklist, course); `content/topics/index.json`
+  (new in Sprint 2.1, split out of what was one `category` field) holds
+  5 subject-matter definitions (investing, personal-finance, budgeting,
+  business, mindset) — all ahead of any product referencing them.
+  `js/components/product-loader.js` exists and is ready but isn't
+  wired into any page — no storefront page exists yet. See
+  `content/products/README.md`, `content/product-types/README.md`,
+  `content/topics/README.md`, `docs/commerce-architecture.md`, and
+  `docs/product-platform-architecture.md` for the full commerce
+  architecture plan.
 
 Every other content type below remains scaffolding only — every other
 page still ships its real content directly in its own HTML, exactly as
@@ -82,6 +98,8 @@ subdirectory below, instead of parsing/rewriting page markup.
 | [`calculators/`](calculators/README.md) | Calculator metadata/educational copy (real, complete — no formulas; see its README) |
 | [`goal-planner/`](goal-planner/README.md) | Per-goal question/recommendation config (real, actively fetched — see its README) |
 | [`investment-centre/`](investment-centre/README.md) | Ghana Investment Centre topic records (real, complete — no consumer yet; see its README) |
+| [`products/`](products/README.md) | Digital Product commerce schema — zero product data exists yet |
+| [`categories/`](categories/README.md) | Product category taxonomy (4 real categories defined) |
 | [`legal/`](legal/README.md) | Privacy Policy / Terms of Use / Disclaimer section content |
 | [`newsletter/`](newsletter/README.md) | Past newsletter issue archive |
 | [`community/`](community/README.md) | Community page principles/roadmap content |
@@ -104,12 +122,17 @@ Pages compatibility is unaffected.
 ## What remains scaffolding only
 
 - Every content type except `founder/`, `services/`, `calculators/`,
-  `goal-planner/`, and `investment-centre/` has no consumer and no
-  real data file — only a README describing the future shape.
+  `goal-planner/`, `investment-centre/`, `products/`, and
+  `categories/` has no consumer and no real data file — only a README
+  describing the future shape.
 - No fake/sample content files exist anywhere else in this directory.
+  `products/index.json` is a real, empty `[]` — not a fake entry
+  standing in for a product that doesn't exist.
 - `founder/bio.json` and `goal-planner/*.json` are real, live content,
-  actively fetched today. `services/*.json`, `calculators/*.json`, and
-  `investment-centre/*.json` are real, complete content with no
-  consumer yet — a deliberately different state from both "live" and
-  "documentation only," explained in each folder's own README.
-  Everything else here remains documentation, not a feature.
+  actively fetched today. `services/*.json`, `calculators/*.json`,
+  `investment-centre/*.json`, and `categories/index.json` are real,
+  complete content with no consumer yet — a deliberately different
+  state from both "live" and "documentation only," explained in each
+  folder's own README. `products/index.json` is real but intentionally
+  empty (zero products exist). Everything else here remains
+  documentation, not a feature.

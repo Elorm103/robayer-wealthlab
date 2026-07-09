@@ -245,6 +245,151 @@ query-param pattern the Learning Hub already established in Sprint 5.
 where no genuine match exists — the same honesty standard applied to
 every other content type on this site.
 
+## Product
+
+Matches a future `/store/{slug}/`-style detail page and storefront
+grid (Version 1.2 Sprint 1, extended Sprint 2.1 — see
+`content/products/README.md`, `docs/commerce-architecture.md`, and
+`docs/product-platform-architecture.md`). **No product exists yet** —
+this is schema and documentation only. `js/components/product-loader.js`
+can render this shape once a real product and a storefront page both
+exist; today `content/products/index.json` is a real, empty `[]`.
+
+```json
+{
+  "id": "prod-starting-to-invest-with-gh100",
+  "slug": "starting-to-invest-with-gh100",
+  "title": "Starting to Invest with GH₵100",
+  "subtitle": "A practical first guide to treasury bills, mobile money savings, and the Ghana Stock Exchange.",
+  "shortDescription": "…",
+  "description": "…",
+  "topic": "investing",
+  "productType": "ebook",
+  "status": "draft",
+  "price": 39,
+  "currency": "GHS",
+  "pricingModel": "one-time",
+  "sku": "RWL-EBOOK-001",
+  "coverImage": "/assets/covers/starting-to-invest-with-gh100.jpg",
+  "thumbnail": "/assets/covers/starting-to-invest-with-gh100-thumb.jpg",
+  "previewImage": "/assets/covers/starting-to-invest-with-gh100-preview.jpg",
+  "gallery": [],
+  "downloadFiles": [
+    { "label": "eBook (PDF)", "path": "/assets/downloads/starting-to-invest-with-gh100.pdf", "format": "PDF" }
+  ],
+  "previewPages": [],
+  "fileFormat": ["PDF"],
+  "language": "en",
+  "estimatedReadingTime": 25,
+  "author": "Robert Loh Kobla",
+  "version": "1.0",
+  "publishedDate": null,
+  "updatedDate": null,
+  "featured": false,
+  "bestseller": false,
+  "newRelease": false,
+  "tags": ["ebook", "investing", "beginners"],
+  "seo": {
+    "title": "…",
+    "metaDescription": "…",
+    "canonical": "https://robayerwealthlab.com/store/starting-to-invest-with-gh100/"
+  },
+  "paystack": {
+    "metadata": { "productSlug": "starting-to-invest-with-gh100", "productType": "ebook" }
+  },
+  "downloads": { "maxPerPurchase": 5, "expiresAfterDays": 30 },
+  "license": null,
+  "relatedProducts": [],
+  "relatedResources": [],
+  "relatedServices": ["investment-education"]
+}
+```
+
+Field-by-field rationale is in `content/products/README.md`. The
+short version of what changed in Sprint 2.1, and why:
+
+- **`category` split into `topic` + `productType`.** Sprint 1's single
+  `category` field conflated two different questions: *what subject is
+  this about* (Investing, Personal Finance, Budgeting, Business,
+  Mindset — see `content/topics/`) and *what format is this* (eBook,
+  PDF Guide, Template, Spreadsheet, Report, Checklist, Course — see
+  `content/product-types/`, the renamed `content/categories/`). A
+  storefront needs to filter by both independently (e.g., "Templates"
+  grid showing items across every topic, or "Investing" showing every
+  format) — one field couldn't do that. Safe to rename now since zero
+  real product data exists to migrate.
+- **`id` added**, separate from `slug`. A slug can reasonably change
+  later (SEO, a typo fix); `id` is the stable internal identifier a
+  future order/download-token record would reference, so renaming a
+  product's URL never orphans its purchase history.
+- **`downloadFile` (single path) became `downloadFiles` (array of
+  `{ label, path, format }`).** Directly serves "multiple file
+  downloads" (e.g., a template pack shipping both an `.xlsx` and a
+  `.pdf` instructions sheet) — made the change now, at zero migration
+  cost, rather than as a future breaking change.
+- **`thumbnail` / `previewImage` added**, distinct from `coverImage`/
+  `gallery`. `coverImage` is the one image a detail-page hero uses;
+  `thumbnail` is a smaller/cropped variant for dense grid cards (so a
+  future grid of dozens of products doesn't load full-size covers);
+  `previewImage` is the one "here's a sample" image shown prominently
+  before purchase, distinct from `gallery` (general product images) and
+  `previewPages` (a multi-page sample array for a detail page).
+- **`fileFormat`, `language`, `estimatedReadingTime` added** — metadata
+  a storefront filter/detail page would show (PDF/ZIP/XLSX/DOCX/Video;
+  defaults to `"en"`; nullable, mainly relevant to ebooks/guides).
+- **`bestseller` / `newRelease` added**, alongside the existing
+  `featured` — three independent badges a card can show
+  simultaneously (a product can be both new *and* a bestseller),
+  matching how `.badge` is already used elsewhere on the site.
+- **`status` gains a 4th value, `"coming-soon"`** — matches the
+  already-live `.book-card--upcoming` treatment on `/books/` (a real,
+  existing pattern this schema now formally supports instead of a
+  product having to fake `"draft"` for something that's intentionally
+  publicly teased).
+- **`pricingModel` added**, one value in use today (`"one-time"`). A
+  single default-valued field costs nothing now and means a future
+  subscription/membership product (see "Future Compatibility" in
+  `content/products/README.md`) extends this enum rather than requiring
+  a new field bolted on later.
+
+`sku` is a short, human-assignable internal code (`RWL-` prefix +
+product type + running number) — useful for support conversations and
+Paystack transaction references, not a barcode system. `status` of
+`"draft"` means a record can exist and be worked on without appearing
+anywhere public; only `"active"` (and, for teased-but-unavailable
+items, `"coming-soon"`) products would ever render on a future
+storefront.
+
+## Product Type
+
+Matches `content/product-types/index.json` (renamed from Sprint 1's
+`content/categories/`) — the taxonomy every `Product.productType`
+field points to. See `content/product-types/README.md` for the full
+list and why a separate small content type is used instead of a
+hardcoded enum.
+
+```json
+{
+  "slug": "ebook",
+  "label": "eBooks",
+  "description": "Digital books — read on any device after instant download."
+}
+```
+
+## Topic
+
+Matches `content/topics/index.json` (Sprint 2.1) — the subject-matter
+taxonomy every `Product.topic` field points to, independent of
+`productType`. See `content/topics/README.md`.
+
+```json
+{
+  "slug": "investing",
+  "label": "Investing",
+  "description": "Treasury bills, the GSE, mutual funds, and other ways money grows over time."
+}
+```
+
 ## Team Member
 
 No team page exists yet — this schema generalizes the founder's shape

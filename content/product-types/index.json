@@ -1,0 +1,37 @@
+[
+  {
+    "slug": "ebook",
+    "label": "eBooks",
+    "description": "Digital books — read on any device after instant download."
+  },
+  {
+    "slug": "guide",
+    "label": "PDF Guides",
+    "description": "Shorter, focused PDF guides — practical and narrowly scoped, distinct from a full-length eBook."
+  },
+  {
+    "slug": "template",
+    "label": "Templates",
+    "description": "Spreadsheets, worksheets, and planning documents you fill in yourself."
+  },
+  {
+    "slug": "spreadsheet",
+    "label": "Spreadsheets",
+    "description": "Structured, formula-driven workbooks — more involved than a fill-in template, e.g. a budgeting or projection tool."
+  },
+  {
+    "slug": "report",
+    "label": "Premium Reports",
+    "description": "In-depth, research-backed writeups on a single topic — more detailed than a blog article, sold rather than free."
+  },
+  {
+    "slug": "checklist",
+    "label": "Checklists",
+    "description": "Focused, single-purpose step-by-step guides."
+  },
+  {
+    "slug": "course",
+    "label": "Courses",
+    "description": "Structured, multi-part educational content."
+  }
+]

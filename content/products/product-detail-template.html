@@ -1,0 +1,298 @@
+<!--
+  Robayer WealthLab — Product Detail Page Reference Template (Sprint 2.1)
+
+  STATUS: documentation / starting point only. This file is not wired
+  to any route, is not fetched by any script, and contains no working
+  logic — {{double-brace}} tokens are plain-text placeholders for a
+  future page author to fill in by hand, not a live templating engine
+  (this project has no build step; see docs/product-platform-architecture.md).
+
+  This generalizes the structure already proven live at
+  books/starting-to-invest-with-gh100/index.html — every section below
+  exists on that real page today. Building a NEW real product page
+  means copying that existing page (it's more complete/battle-tested
+  than this file) and adapting its content, OR starting from this file
+  if the product doesn't fit the "book" framing as naturally. Either
+  way, the section structure below is what a Product record's fields
+  (content/SCHEMA.md) map onto.
+
+  Explicitly NOT included, per Sprint 2.1's scope: no Paystack, no
+  working checkout. The Buy button below uses the same honest
+  data-placeholder-action pattern the real book page already uses for
+  the same reason — see js/components/placeholder-action.js.
+-->
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+
+  <!-- SEO: from Product.seo.title / Product.seo.metaDescription / Product.seo.canonical -->
+  <title>{{title}} | Robayer WealthLab</title>
+  <meta name="description" content="{{shortDescription}}">
+  <link rel="canonical" href="{{seo.canonical}}">
+
+  <meta property="og:type" content="website">
+  <meta property="og:title" content="{{title}} | Robayer WealthLab">
+  <meta property="og:description" content="{{shortDescription}}">
+  <meta property="og:url" content="{{seo.canonical}}">
+  <meta property="og:image" content="https://robayerwealthlab.com{{coverImage}}">
+  <meta property="og:site_name" content="Robayer WealthLab">
+
+  <meta name="twitter:card" content="summary_large_image">
+  <meta name="twitter:title" content="{{title}} | Robayer WealthLab">
+  <meta name="twitter:description" content="{{shortDescription}}">
+
+  <link rel="icon" type="image/svg+xml" href="/assets/icons/favicon.svg">
+  <link rel="icon" type="image/png" sizes="32x32" href="/assets/icons/favicon-32.png">
+  <link rel="apple-touch-icon" href="/assets/icons/apple-touch-icon.png">
+
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Fraunces:ital,wght@0,500;0,600;1,500&family=Space+Grotesk:wght@500&family=Work+Sans:wght@400;500&family=IBM+Plex+Mono:wght@400;500&display=swap" rel="stylesheet">
+
+  <link rel="stylesheet" href="/css/tokens.css">
+  <link rel="stylesheet" href="/css/base.css">
+  <link rel="stylesheet" href="/css/layout.css">
+  <link rel="stylesheet" href="/css/components.css">
+  <link rel="stylesheet" href="/css/utilities.css">
+
+  <!-- Organization JSON-LD — identical block on every page, copy as-is -->
+  <script type="application/ld+json">
+  {
+    "@context": "https://schema.org",
+    "@type": "Organization",
+    "name": "Robayer WealthLab",
+    "url": "https://robayerwealthlab.com",
+    "logo": "https://robayerwealthlab.com/assets/branding/logo/logo.png",
+    "description": "Financial education for ordinary Ghanaians — practical, honest guidance on saving, investing, and building wealth.",
+    "telephone": "+233 53 780 6352",
+    "address": { "@type": "PostalAddress", "addressLocality": "Accra", "addressCountry": "GH" },
+    "founder": { "@type": "Person", "name": "Robert Loh Kobla" }
+  }
+  </script>
+
+  <!-- Breadcrumb JSON-LD — from slug/title -->
+  <script type="application/ld+json">
+  {
+    "@context": "https://schema.org",
+    "@type": "BreadcrumbList",
+    "itemListElement": [
+      { "@type": "ListItem", "position": 1, "name": "Home", "item": "https://robayerwealthlab.com/" },
+      { "@type": "ListItem", "position": 2, "name": "Store", "item": "https://robayerwealthlab.com/store/" },
+      { "@type": "ListItem", "position": 3, "name": "{{title}}", "item": "{{seo.canonical}}" }
+    ]
+  }
+  </script>
+
+  <!-- Product JSON-LD — from Product.price/currency/status. Use "Product" (schema.org),
+       not "Book", unless productType is literally "ebook" and a book-specific
+       schema is genuinely warranted. -->
+  <script type="application/ld+json">
+  {
+    "@context": "https://schema.org",
+    "@type": "Product",
+    "name": "{{title}}",
+    "description": "{{shortDescription}}",
+    "image": "https://robayerwealthlab.com{{coverImage}}",
+    "offers": {
+      "@type": "Offer",
+      "url": "{{seo.canonical}}",
+      "priceCurrency": "{{currency}}",
+      "price": "{{price}}",
+      "availability": "https://schema.org/InStock"
+    }
+  }
+  </script>
+
+  <!-- FAQPage JSON-LD — must match the visible FAQ section below exactly -->
+  <script type="application/ld+json">
+  {
+    "@context": "https://schema.org",
+    "@type": "FAQPage",
+    "mainEntity": [
+      { "@type": "Question", "name": "{{faq[0].question}}", "acceptedAnswer": { "@type": "Answer", "text": "{{faq[0].answer}}" } }
+    ]
+  }
+  </script>
+</head>
+<body>
+  <a href="#main-content" class="skip-link">Skip to main content</a>
+
+  <div data-include="/partials/header.html"></div>
+
+  <nav class="breadcrumbs container" aria-label="Breadcrumb">
+    <a href="/">Home</a><span class="breadcrumbs__separator" aria-hidden="true">/</span><a href="/store/">Store</a><span class="breadcrumbs__separator" aria-hidden="true">/</span><span aria-current="page">{{title}}</span>
+  </nav>
+
+  <main id="main-content">
+
+    <!-- ============================================================
+         HERO — cover, title, subtitle, PRICE, BUY BUTTON placeholder
+         Reuses .hero--split + .book-card__cover, proven live on
+         books/starting-to-invest-with-gh100/index.html.
+         ============================================================ -->
+    <section class="hero hero--split bg-paper">
+      <div class="container">
+        <div class="hero__content">
+          <div>
+            <span class="eyebrow hero__eyebrow">{{productType label, e.g. "Featured eBook"}}</span>
+            <h1 class="hero__title">{{title}}</h1>
+            <p class="hero__subtitle">{{subtitle}}</p>
+
+            <!-- PRICE placeholder -->
+            <p class="book-card__price text-body-lg mb-3">{{currency symbol}}{{price}}</p>
+
+            <!-- BUY BUTTON placeholder — honest, not wired to Paystack.
+                 See js/components/placeholder-action.js. Replace the
+                 data-placeholder-action attributes with a real Paystack
+                 trigger only once Sprint 2.2 (or later) actually builds
+                 checkout — do not fake a working button before then. -->
+            <div class="hero__actions">
+              <a href="#" class="btn btn--accent" data-placeholder-action data-message="Checkout is launching soon — &lt;a href='/newsletter/'&gt;subscribe&lt;/a&gt; to know the moment it opens.">Buy — {{currency symbol}}{{price}}</a>
+            </div>
+            <p class="text-secondary text-small mt-3">Instant digital access &bull; Read on any device &bull; Secure checkout coming soon</p>
+          </div>
+          <!-- coverImage — real image once one exists, CSS placeholder block until then -->
+          <div class="book-card__cover" aria-hidden="true"></div>
+        </div>
+      </div>
+    </section>
+
+    <!-- ============================================================
+         FEATURES placeholder — "What you'll get / learn"
+         From a future Product.features array (not yet a schema field —
+         add one, array of strings, when the first real product needs it;
+         the book page's live equivalent hardcodes 4 check-items).
+         ============================================================ -->
+    <section class="section" aria-labelledby="features-heading">
+      <div class="container">
+        <span class="eyebrow">What you'll get</span>
+        <h2 id="features-heading" class="mt-2 mb-4">{{features heading}}</h2>
+        <ul class="grid grid--2 gap-4">
+          <li class="check-item">
+            <svg class="icon check-item__icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M5 12l4 4 10-10"/></svg>
+            <span class="check-item__text">{{feature 1}}</span>
+          </li>
+          <!-- repeat check-item per feature -->
+        </ul>
+      </div>
+    </section>
+
+    <!-- ============================================================
+         DOWNLOADS placeholder
+         From Product.downloadFiles (array). Shown here as informational
+         only pre-purchase (format/size), never a live link — the real
+         file only becomes reachable through a future signed-URL
+         download flow (docs/download-security.md), never this page
+         directly.
+         ============================================================ -->
+    <section class="section bg-sand" aria-labelledby="downloads-heading">
+      <div class="container content-column">
+        <span class="eyebrow text-center">What's included</span>
+        <h2 id="downloads-heading" class="mt-2 mb-4 text-center">Downloads included with purchase</h2>
+        <ul class="stack gap-2">
+          <!-- one li per Product.downloadFiles entry -->
+          <li class="check-item">
+            <svg class="icon check-item__icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M6 3h9l5 5v13a1 1 0 0 1-1 1H6a1 1 0 0 1-1-1V4a1 1 0 0 1 1-1z"/></svg>
+            <span class="check-item__text">{{downloadFiles[0].label}} ({{downloadFiles[0].format}})</span>
+          </li>
+        </ul>
+      </div>
+    </section>
+
+    <!-- ============================================================
+         REVIEWS placeholder
+         No review system exists (out of Sprint 2.1's scope entirely —
+         a future sprint, not "architecture now"). Show an honest empty
+         state, matching the exact pattern already used for the free
+         guide's testimonials section (free-guide/index.html) — never
+         fabricated quotes.
+         ============================================================ -->
+    <section class="section" aria-labelledby="reviews-heading">
+      <div class="container text-center content-column">
+        <span class="eyebrow">Reviews</span>
+        <h2 id="reviews-heading" class="mt-2 mb-4">What readers say</h2>
+        <p class="text-secondary">Reviews aren't collected yet for this product — once real ones exist, they'll appear here instead of this note.</p>
+      </div>
+    </section>
+
+    <!-- ============================================================
+         RELATED PRODUCTS placeholder
+         From Product.relatedProducts (slug array) — render each via
+         RobayerProducts.renderCard() once product-loader.js is wired
+         to a live page. Until then, this section has nothing to render
+         (matches product-loader.js's honest-empty-state behavior).
+         ============================================================ -->
+    <section class="section bg-sand" aria-labelledby="related-heading" data-product-grid data-product-type="{{productType}}">
+      <div class="container">
+        <span class="eyebrow">Keep going</span>
+        <h2 id="related-heading" class="mt-2 mb-4">You might also like</h2>
+        <div class="grid grid--3" data-product-grid>
+          <!-- js/components/product-loader.js renders cards here once wired -->
+        </div>
+      </div>
+    </section>
+
+    <!-- ============================================================
+         FAQ — must match the FAQPage JSON-LD above exactly
+         ============================================================ -->
+    <section class="section" aria-labelledby="faq-heading">
+      <div class="container content-column">
+        <span class="eyebrow text-center">Questions</span>
+        <h2 id="faq-heading" class="mt-2 mb-5 text-center">Frequently asked questions</h2>
+        <div class="faq">
+          <details class="faq__item">
+            <summary class="faq__question">{{faq[0].question}}<span class="faq__icon" aria-hidden="true"></span></summary>
+            <p class="faq__answer">{{faq[0].answer}}</p>
+          </details>
+        </div>
+      </div>
+    </section>
+
+    <!-- ============================================================
+         DISCLAIMER — required on every product page, verbatim
+         ============================================================ -->
+    <section class="section--tight">
+      <div class="container content-column">
+        <p class="alert alert--warning">Robayer WealthLab provides financial education, not licensed financial advice. This {{productType}} is for informational purposes only — always do your own research and consider your personal circumstances before making financial decisions.</p>
+      </div>
+    </section>
+
+    <!-- ============================================================
+         NEWSLETTER SIGNUP — identical block on every page
+         ============================================================ -->
+    <section class="section section--tight">
+      <div class="container">
+        <div class="newsletter-band">
+          <div>
+            <h2 class="mb-2">Get one better money tip</h2>
+            <p>Weekly, free, no spam. Unsubscribe any time.</p>
+          </div>
+          <form class="cluster gap-2" data-newsletter-form novalidate aria-label="Newsletter signup">
+            <label for="newsletter-email" class="sr-only">Email address</label>
+            <input type="email" id="newsletter-email" class="field__input newsletter-band__input" placeholder="name@example.com" required>
+            <button type="submit" class="btn btn--accent">Subscribe</button>
+            <span class="field__error" hidden>Enter a valid email to subscribe.</span>
+          </form>
+        </div>
+      </div>
+    </section>
+
+  </main>
+
+  <div data-include="/partials/footer.html"></div>
+
+  <script src="/js/includes.js"></script>
+  <script src="/js/components/nav.js"></script>
+  <script src="/js/components/theme-toggle.js"></script>
+  <script src="/js/content-inject.js"></script>
+  <script src="/js/components/newsletter-form.js"></script>
+  <script src="/js/components/placeholder-action.js"></script>
+  <!-- Add js/components/product-loader.js here once the Related Products
+       section above should actually render — omitted for now since
+       including it on a page with zero real products would be dead
+       weight, matching this project's "no script with zero consumers" rule. -->
+  <script src="/js/main.js"></script>
+</body>
+</html>

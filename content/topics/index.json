@@ -1,0 +1,27 @@
+[
+  {
+    "slug": "investing",
+    "label": "Investing",
+    "description": "Treasury bills, the GSE, mutual funds, and other ways money grows over time."
+  },
+  {
+    "slug": "personal-finance",
+    "label": "Personal Finance",
+    "description": "The everyday fundamentals — spending, saving habits, debt, and financial decision-making."
+  },
+  {
+    "slug": "budgeting",
+    "label": "Budgeting",
+    "description": "Planning and tracking income and spending, including for irregular or informal income."
+  },
+  {
+    "slug": "business",
+    "label": "Business",
+    "description": "Financial guidance for small business owners and entrepreneurs — cash flow, pricing, and growth."
+  },
+  {
+    "slug": "mindset",
+    "label": "Mindset",
+    "description": "The behavioural and psychological side of money — habits, discipline, and decision-making under pressure."
+  }
+]
