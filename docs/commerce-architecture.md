@@ -53,6 +53,11 @@ before Paystack is actually wired up would overstate readiness), but
 it's flagged here so Sprint 2 corrects it as part of actually wiring
 Paystack in, not forgotten.
 
+**Resolved — Version 1.2 Sprint 2.3 (Commerce Foundation):** the Buy
+CTA now calls a real checkout flow (`js/components/buy-button.js` →
+`POST /api/checkout/sessions`), so the copy was corrected to "Secure
+checkout via Paystack" — see `docs/commerce-foundation.md`.
+
 **Conclusion:** the eBook is the natural first real Product once
 commerce goes live. `content/books/` doesn't exist yet as a content
 type (the book's real content is hand-written directly in its own
@@ -128,7 +133,7 @@ this requires no architecture change, just future email content.
 
 | Area | Commerce role | Action this sprint |
 |---|---|---|
-| Books | First real Product (eBook) | Documented only — flagged stale "SkillsPad" copy |
+| Books | First real Product (eBook) | Documented only — flagged stale "SkillsPad" copy (resolved: the buy button is now wired to real Paystack checkout via `data-buy-button`, and the "SkillsPad" copy was corrected during the Version 1.0 Launch Readiness legal-page pass — see docs/launch-readiness.md Task 1) |
 | Resources | Future paid tier alongside free downloads | Documented only |
 | Goal Planner / Calculators | Future `relatedProducts` cross-sell | Documented only |
 | Services | Separate, quote-based commerce model — not a Product | Explicitly excluded, no change |

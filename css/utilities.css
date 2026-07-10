@@ -14,9 +14,13 @@
 .text-on-dark   { color: var(--color-text-on-dark); }
 
 /* bg-paper/bg-sand map to the semantic bg/bg-alt tokens so they flip
-   correctly under [data-theme="dark"]. bg-navy/bg-charcoal stay tied to
-   raw palette colors — they're used for sections that are deliberately
-   dark regardless of site theme (e.g. Featured eBook, Community CTA). */
+   correctly under [data-theme="dark"]. bg-navy stays tied to the raw
+   palette color — used for sections that are deliberately dark
+   regardless of site theme (e.g. Featured eBook, Community CTA).
+   bg-charcoal is unused in production as of Version 1.1 Brand Polish
+   (every dark band was moved to bg-navy for brand-color consistency —
+   see docs/brand-ux-review-v1.md) but is kept defined here in case a
+   real, distinct-from-navy neutral dark background is ever needed. */
 .bg-paper   { background-color: var(--color-bg); }
 .bg-sand    { background-color: var(--color-bg-alt); }
 .bg-navy    { background-color: var(--color-ink-navy); }
