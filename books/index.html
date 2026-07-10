@@ -142,7 +142,19 @@
     </section>
 
     <!-- ============================================================
-         BOOK GRID + CATEGORY FILTERS
+         BOOK GRID + TOPIC FILTERS
+         Sprint 2.2: migrated from two hand-coded .book-card divs to
+         js/components/product-loader.js — every card now comes from
+         content/products/*.json, none hardcoded here. Filter pills
+         updated to match the real 5-topic taxonomy from
+         content/topics/ (Sprint 2.1), replacing the old informal
+         "Saving/Investing/Entrepreneurship" set — a genuine
+         consistency improvement, not a cosmetic change (see
+         docs/product-discovery-architecture.md). A topic with zero
+         current products still shows a pill — clicking it correctly
+         falls through to the existing empty-state message below,
+         rather than being hidden, matching how a real bookstore shows
+         its full category list even when a shelf is momentarily bare.
          Grid uses the shared .grid--3 system (3 → 2 → 1) so it scales
          to any number of future books with no layout changes.
          ============================================================ -->
@@ -155,29 +167,18 @@
           <span id="filter-label" class="text-secondary text-small">Filter by topic:</span>
           <div class="filter-bar" role="group" aria-labelledby="filter-label" data-filter-controls>
             <button type="button" class="filter-pill" data-filter="all" aria-pressed="true">All</button>
-            <button type="button" class="filter-pill" data-filter="saving" aria-pressed="false">Saving</button>
             <button type="button" class="filter-pill" data-filter="investing" aria-pressed="false">Investing</button>
-            <button type="button" class="filter-pill" data-filter="entrepreneurship" aria-pressed="false">Entrepreneurship</button>
+            <button type="button" class="filter-pill" data-filter="personal-finance" aria-pressed="false">Personal Finance</button>
+            <button type="button" class="filter-pill" data-filter="budgeting" aria-pressed="false">Budgeting</button>
+            <button type="button" class="filter-pill" data-filter="business" aria-pressed="false">Business</button>
+            <button type="button" class="filter-pill" data-filter="mindset" aria-pressed="false">Mindset</button>
           </div>
         </div>
 
         <p class="alert alert--info hidden" data-filter-empty aria-live="polite">No guides in this category yet — <a href="/newsletter/">subscribe</a> to hear when one arrives.</p>
 
-        <div class="grid grid--3" data-filter-grid>
-          <div class="book-card book-card--featured" data-category="investing">
-            <div class="book-card__cover"></div>
-            <p class="book-card__title">Starting to Invest with GH₵100</p>
-            <p class="book-card__price">GH₵39</p>
-            <p class="book-card__description">A practical first guide to treasury bills, mobile money savings, and the Ghana Stock Exchange.</p>
-            <a href="/books/starting-to-invest-with-gh100/" class="btn btn--primary">Get the guide</a>
-          </div>
-          <div class="book-card book-card--upcoming" data-category="saving">
-            <div class="book-card__cover book-card__cover--green"></div>
-            <span class="badge badge--warning mb-2">Coming soon</span>
-            <p class="book-card__title">The MoMo Savings Playbook</p>
-            <p class="book-card__description">Turn mobile money into a real savings habit.</p>
-            <a href="/newsletter/" class="btn btn--secondary">Get notified</a>
-          </div>
+        <div class="grid grid--3" data-filter-grid data-product-grid data-empty-message="No guides published yet — check back soon.">
+          <!-- js/components/product-loader.js renders every card here from content/products/*.json -->
         </div>
       </div>
     </section>
@@ -287,6 +288,7 @@
   <script src="/js/components/theme-toggle.js"></script>
   <script src="/js/content-inject.js"></script>
   <script src="/js/components/newsletter-form.js"></script>
+  <script src="/js/components/product-loader.js"></script>
   <script src="/js/components/content-filters.js"></script>
   <script src="/js/main.js"></script>
 </body>

@@ -197,17 +197,41 @@
 
     <!-- ============================================================
          FEATURED EBOOK
+         Sprint 2.2: content now comes from js/components/product-loader.js
+         (getFeatured()), not hand-selected — see data-feature-* slots
+         below. Markup/CSS deliberately unchanged (no [data-product-grid]
+         swap here) so the visual identity stays identical; JS fills in
+         the *_title/_description/_cta slots with the real featured
+         product's data. The text already here doubles as the honest
+         fallback if JS/fetch ever fails — never a blank or broken banner.
          Cover placeholder: a professionally designed eBook mockup is
          pending (see README TODOs) — Sika Gold block stands in for now.
          ============================================================ -->
-    <section class="section bg-charcoal" aria-labelledby="featured-book-heading">
+    <section class="section bg-charcoal" aria-labelledby="featured-book-heading" data-feature-banner>
       <div class="container feature-banner">
         <div class="book-card__cover book-card__cover--compact" aria-hidden="true"></div>
         <div>
           <span class="eyebrow feature-banner__eyebrow">Featured eBook</span>
-          <h2 id="featured-book-heading" class="mt-2 mb-2 feature-banner__title">Starting to invest with GH₵100</h2>
-          <p class="mb-4 feature-banner__copy">A practical first guide to treasury bills, mobile money savings, and the Ghana Stock Exchange.</p>
-          <a href="/books/" class="btn btn--accent">Get the guide — GH₵39</a>
+          <h2 id="featured-book-heading" class="mt-2 mb-2 feature-banner__title" data-feature-title>Starting to invest with GH₵100</h2>
+          <p class="mb-4 feature-banner__copy" data-feature-description>A practical first guide to treasury bills, mobile money savings, and the Ghana Stock Exchange.</p>
+          <a href="/books/" class="btn btn--accent" data-feature-cta>Get the guide — GH₵39</a>
+        </div>
+      </div>
+    </section>
+
+    <!-- ============================================================
+         COMING SOON
+         Sprint 2.2, new section: data-driven via product-loader.js
+         (getComingSoon()) — hides itself entirely if nothing is
+         currently teased, rather than showing an empty section (see
+         docs/product-discovery-architecture.md's "Empty states").
+         ============================================================ -->
+    <section class="section bg-sand" aria-labelledby="coming-soon-heading">
+      <div class="container">
+        <span class="eyebrow">Coming soon</span>
+        <h2 id="coming-soon-heading" class="mt-2 mb-4">More guides on the way</h2>
+        <div class="grid grid--3" data-product-grid data-coming-soon="true" data-hide-section-if-empty="true">
+          <!-- js/components/product-loader.js renders coming-soon cards here -->
         </div>
       </div>
     </section>
@@ -336,6 +360,7 @@
   <script src="/js/components/theme-toggle.js"></script>
   <script src="/js/content-inject.js"></script>
   <script src="/js/components/founder-bio.js"></script>
+  <script src="/js/components/product-loader.js"></script>
   <script src="/js/components/newsletter-form.js"></script>
   <script src="/js/components/scroll-reveal.js"></script>
   <script src="/js/main.js"></script>

@@ -160,6 +160,15 @@
             <span class="eyebrow hero__eyebrow">Featured eBook</span>
             <h1 class="hero__title">Starting to Invest with GH₵100</h1>
             <p class="hero__subtitle">A practical first guide to treasury bills, mobile money savings, and the Ghana Stock Exchange — built for wherever you're starting from.</p>
+            <!-- Product metadata (Sprint 2.2) — mirrors
+                 content/products/starting-to-invest-with-gh100.json
+                 exactly (kept in sync by convention, same as every
+                 other content type's real-HTML/real-JSON pairing on
+                 this site). Publication date is genuinely unset today
+                 (see that file) — shown as "Available now" instead of
+                 a fabricated date, honest rather than invented. -->
+            <p class="text-secondary text-small mb-2">Investing &bull; eBook &bull; PDF &bull; ~35 min read &bull; Version 1.0 &bull; English &bull; Available now</p>
+            <p class="text-secondary text-small mb-3">Tags: eBook, Investing, Beginners</p>
             <p class="book-card__price text-body-lg mb-3">GH₵39</p>
             <div class="hero__actions">
               <!-- Temporary placeholder: wire to the real SkillsPad checkout URL once available. placeholder-action.js gives honest feedback in the meantime. -->
@@ -352,22 +361,20 @@
 
     <!-- ============================================================
          RELATED BOOKS
-         Reuses the same .grid--3 / .book-card system as the Books
-         listing page — scales the same way as more titles are added.
+         Sprint 2.2: migrated to js/components/product-loader.js.
+         getRelatedProducts() ranks by same topic, then same
+         productType, then featured fallback (see
+         docs/product-discovery-architecture.md) — reuses the same
+         .grid--3 / .book-card system as the Books listing page, no
+         duplicated markup.
          ============================================================ -->
     <section class="section bg-sand" aria-labelledby="related-heading">
       <div class="container">
         <span class="eyebrow">Keep going</span>
         <h2 id="related-heading" class="mt-2 mb-4">You might also like</h2>
 
-        <div class="grid grid--3">
-          <div class="book-card book-card--upcoming">
-            <div class="book-card__cover book-card__cover--green"></div>
-            <span class="badge badge--warning mb-2">Coming soon</span>
-            <p class="book-card__title">The MoMo Savings Playbook</p>
-            <p class="book-card__description">Turn mobile money into a real savings habit.</p>
-            <a href="/newsletter/" class="btn btn--secondary">Get notified</a>
-          </div>
+        <div class="grid grid--3" data-product-grid data-related-to="starting-to-invest-with-gh100">
+          <!-- js/components/product-loader.js renders related cards here -->
         </div>
       </div>
     </section>
@@ -418,6 +425,7 @@
   <script src="/js/content-inject.js"></script>
   <script src="/js/components/newsletter-form.js"></script>
   <script src="/js/components/placeholder-action.js"></script>
+  <script src="/js/components/product-loader.js"></script>
   <script src="/js/main.js"></script>
 </body>
 </html>

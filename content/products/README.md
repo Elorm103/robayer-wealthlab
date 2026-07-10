@@ -5,14 +5,22 @@
 Holds the structured record of every sellable digital product on
 Robayer WealthLab — ebooks, PDF guides, templates, spreadsheets,
 premium reports, checklists, courses, and any future digital product
-type. This is the same "real content, no consumer yet" arrangement
-already established for `content/services/` and `content/calculators/`:
-real, complete schema and documentation, but **zero product data
-exists yet, real or fake.**
+type.
 
-**No page fetches these files yet.** `js/components/product-loader.js`
-is written and ready, but isn't included in any page's `<script>`
-tags — there is no Shop/Store page to render products onto yet. See
+*(Updated — Sprint 2.2, `docs/product-discovery-architecture.md`.)*
+Two real records now exist:
+`starting-to-invest-with-gh100` (the already-live, already-selling-via-placeholder
+eBook — moved into this data layer, not new content) and
+`momo-savings-playbook` (`status: "coming-soon"`, matching its existing
+teased placement on `/books/`). No fabricated products — everything in
+both files was already genuinely public before this sprint. Every
+other field on both records that wasn't already publicly stated
+(cover images, reading time precision, publish dates) is either `null`
+or clearly flagged as an estimate — see each file's own values.
+
+**`js/components/product-loader.js` is now live** on `/books/` and the
+homepage (Sprint 2.2) — see `docs/product-discovery-architecture.md`
+for the discovery-experience architecture. See
 `docs/commerce-architecture.md` for the Sprint 1 audit of where a
 storefront will eventually connect, and `docs/product-platform-architecture.md`
 (Sprint 2.1) for the full loader API and how to add a real product

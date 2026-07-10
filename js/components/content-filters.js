@@ -22,11 +22,16 @@ function initContentFilters() {
   const bar = document.querySelector('[data-filter-controls]');
   const searchInput = document.querySelector('[data-filter-search]');
   const emptyState = document.querySelector('[data-filter-empty]');
-  const cards = Array.from(grid.children);
 
   let activeCategory = 'all';
 
   function applyFilters() {
+    // Re-queried on every call rather than cached at init — a grid
+    // populated asynchronously by js/components/product-loader.js
+    // (Sprint 2.2) has no real children yet at DOMContentLoaded, so a
+    // one-time snapshot here would silently filter zero/stale cards
+    // forever. Re-querying costs nothing at this project's grid sizes.
+    const cards = Array.from(grid.children);
     const query = searchInput ? searchInput.value.trim().toLowerCase() : '';
     let visibleCount = 0;
 

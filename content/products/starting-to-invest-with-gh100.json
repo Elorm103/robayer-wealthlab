@@ -1,0 +1,47 @@
+{
+  "id": "prod-starting-to-invest-with-gh100",
+  "slug": "starting-to-invest-with-gh100",
+  "title": "Starting to Invest with GH₵100",
+  "subtitle": "A practical first guide to treasury bills, mobile money savings, and the Ghana Stock Exchange.",
+  "shortDescription": "A practical first guide to treasury bills, mobile money savings, and the Ghana Stock Exchange.",
+  "description": "A practical first guide to treasury bills, mobile money savings, and the Ghana Stock Exchange — built for wherever you're starting from. Covers why GH₵100 is enough to start, how treasury bills work, turning MoMo savings into a real habit, your first steps on the Ghana Stock Exchange, building a simple monthly routine, and avoiding the most common first-year mistakes.",
+  "topic": "investing",
+  "productType": "ebook",
+  "status": "active",
+  "price": 39,
+  "currency": "GHS",
+  "pricingModel": "one-time",
+  "sku": "RWL-EBOOK-001",
+  "coverImage": null,
+  "thumbnail": null,
+  "previewImage": null,
+  "gallery": [],
+  "downloadFiles": [
+    { "label": "eBook (PDF)", "path": "/assets/products/starting-to-invest-with-gh100.pdf", "format": "PDF" }
+  ],
+  "previewPages": [],
+  "fileFormat": ["PDF"],
+  "language": "en",
+  "estimatedReadingTime": 35,
+  "author": "Robert Loh Kobla",
+  "version": "1.0",
+  "publishedDate": null,
+  "updatedDate": null,
+  "featured": true,
+  "bestseller": false,
+  "newRelease": false,
+  "tags": ["ebook", "investing", "beginners"],
+  "seo": {
+    "title": "Starting to Invest with GH₵100 | Robayer WealthLab",
+    "metaDescription": "A practical first guide to treasury bills, mobile money savings, and the Ghana Stock Exchange — start investing in Ghana with just GH₵100. GH₵39.",
+    "canonical": "https://robayerwealthlab.com/books/starting-to-invest-with-gh100/"
+  },
+  "paystack": {
+    "metadata": { "productSlug": "starting-to-invest-with-gh100", "productType": "ebook" }
+  },
+  "downloads": { "maxPerPurchase": 5, "expiresAfterDays": 30 },
+  "license": null,
+  "relatedProducts": [],
+  "relatedResources": [],
+  "relatedServices": ["investment-education"]
+}
