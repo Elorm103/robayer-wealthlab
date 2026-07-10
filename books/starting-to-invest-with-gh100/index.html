@@ -171,10 +171,18 @@
             <p class="text-secondary text-small mb-3">Tags: eBook, Investing, Beginners</p>
             <p class="book-card__price text-body-lg mb-3">GH₵39</p>
             <div class="hero__actions">
-              <!-- Temporary placeholder: wire to the real SkillsPad checkout URL once available. placeholder-action.js gives honest feedback in the meantime. -->
-              <a href="#" class="btn btn--accent" data-placeholder-action data-message="Checkout is launching soon — &lt;a href='/newsletter/'&gt;subscribe&lt;/a&gt; to know the moment it opens.">Buy the guide — GH₵39</a>
+              <!-- Sprint 2.3 (Commerce Foundation): wired to the real
+                   checkout flow via js/components/buy-button.js —
+                   clicking this calls the Worker's
+                   POST /api/checkout/sessions with only the product
+                   slug, then redirects to the checkout URL it returns.
+                   No price/currency is ever sent from here; the Worker
+                   loads both from content/products/starting-to-invest-with-gh100.json.
+                   Still no payment verification or delivery — see
+                   docs/commerce-foundation.md. -->
+              <a href="#" class="btn btn--accent" data-buy-button data-product-slug="starting-to-invest-with-gh100">Buy the guide — GH₵39</a>
             </div>
-            <p class="text-secondary text-small mt-3">Instant digital access &bull; Read on any device &bull; Secure checkout via SkillsPad</p>
+            <p class="text-secondary text-small mt-3">Instant digital access &bull; Read on any device &bull; Secure checkout via Paystack</p>
           </div>
           <div class="book-card__cover" aria-hidden="true"></div>
         </div>
@@ -294,24 +302,6 @@
     </section>
 
     <!-- ============================================================
-         TESTIMONIAL
-         Reuses .testimonial--inline, already documented in
-         components.css as "used on Book Detail immediately before a
-         CTA" — placed here ahead of the FAQ/decision zone below.
-         ============================================================ -->
-    <section class="section section--tight" aria-label="Reader testimonial">
-      <div class="container">
-        <div class="testimonial testimonial--inline">
-          <p class="testimonial__quote">"I finally understood treasury bills after years of being too embarrassed to ask."</p>
-          <div class="testimonial__attribution">
-            <div class="testimonial__avatar" aria-hidden="true">A</div>
-            <div><p class="testimonial__name">Ama</p><p class="testimonial__context">eBook reader, Accra</p></div>
-          </div>
-        </div>
-      </div>
-    </section>
-
-    <!-- ============================================================
          FAQ
          ============================================================ -->
     <section class="section" aria-labelledby="faq-heading">
@@ -424,7 +414,7 @@
   <script src="/js/components/theme-toggle.js"></script>
   <script src="/js/content-inject.js"></script>
   <script src="/js/components/newsletter-form.js"></script>
-  <script src="/js/components/placeholder-action.js"></script>
+  <script src="/js/components/buy-button.js"></script>
   <script src="/js/components/product-loader.js"></script>
   <script src="/js/main.js"></script>
 </body>

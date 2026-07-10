@@ -104,7 +104,9 @@
 
   /* ---------- Radius ---------- */
   --radius-sm: 8px;
-  --radius-md: 12px;
+  --radius-md: 14px; /* Version 1.1 Brand Polish: 12px -> 14px, a small refinement so cards read as
+                         deliberately soft rather than a default browser rounding — subtle enough
+                         not to read as playful, which would work against a finance brand */
   --radius-lg: 20px;
 
   /* ---------- Shadow (warm-toned, never pure black) ---------- */

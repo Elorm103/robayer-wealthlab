@@ -63,66 +63,84 @@
 
     <!-- ============================================================
          HERO
-         Founder photography reserved for a future update — the image
-         slot below is an explicit placeholder, not a generated photo.
-         Decorative gradient + floating shapes are CSS-only (no images).
+         Version 1.1 Brand Polish: revised from the Version 1.0 Brand
+         & UX Review's hero, which removed the founder entirely after
+         an earlier version let his portrait dominate half the first
+         screen. Neither extreme was right — this version keeps the
+         mission as the primary visual element (headline, subtitle,
+         CTAs, full width, no competing image) and reintroduces the
+         founder as a small, quiet signature line beneath the CTAs:
+         present, because financial education runs on trust in a real
+         person, but sized and placed so it can never out-compete the
+         mission for attention. Decorative gradient + floating shapes
+         are CSS-only (no images).
          ============================================================ -->
-    <section class="hero hero--split hero--gradient bg-paper">
+    <section class="hero hero--gradient bg-paper">
       <div class="container">
         <span class="hero__shape hero__shape--1" aria-hidden="true"></span>
         <span class="hero__shape hero__shape--2" aria-hidden="true"></span>
         <span class="hero__shape hero__shape--3" aria-hidden="true"></span>
-        <div class="hero__content">
-          <div data-reveal>
-            <span class="eyebrow hero__eyebrow">Financial education for Ghana</span>
-            <h1 class="hero__title">Practical Financial Education. Real Wealth, Honestly Built.</h1>
-            <p class="hero__subtitle">Clear, honest guidance on saving, investing, and growing money — no hype, no jargon, just practical steps for wherever you're starting from.</p>
-            <div class="hero__actions">
-              <a href="/resources/" class="btn btn--primary">Explore Free Resources</a>
-              <a href="/contact/" class="btn btn--secondary">Get in Touch</a>
+        <div class="hero__content" data-reveal>
+          <span class="eyebrow hero__eyebrow">Financial education for Ghana</span>
+          <h1 class="hero__title">Financial education built for everyday Ghanaians.</h1>
+          <p class="hero__subtitle">Practical, honest guidance on saving, investing, and growing money — grounded in treasury bills, mobile money, and the Ghana Stock Exchange, not advice imported from somewhere else.</p>
+          <div class="hero__actions">
+            <a href="/resources/" class="btn btn--primary">Explore Free Resources</a>
+            <a href="/contact/" class="btn btn--secondary">Get in Touch</a>
+          </div>
+          <div class="hero__signature">
+            <img
+              class="hero__signature-photo"
+              src="/assets/branding/founder/founder-portrait.jpg"
+              alt="Robert Loh Kobla"
+              width="44"
+              height="44"
+              loading="lazy"
+              decoding="async"
+            >
+            <div class="text-left">
+              <p class="hero__signature-name">Robert Loh Kobla</p>
+              <p class="hero__signature-title">Founder, Robayer WealthLab</p>
             </div>
           </div>
-          <img
-            class="rounded-lg aspect-4-5 img-cover portrait-frame"
-            src="/assets/branding/founder/founder-portrait.jpg"
-            alt="Robert Loh Kobla, Founder &amp; CEO of Robayer WealthLab"
-            width="648"
-            height="810"
-            loading="eager"
-            decoding="async"
-          >
         </div>
       </div>
     </section>
 
     <!-- ============================================================
-         TRUST SECTION — must build credibility before any product ask
+         CREDIBILITY SECTION
+         Version 1.1 Brand Polish: rewritten from the earlier "Why
+         Robayer" trust section into a dedicated credibility section
+         with the exact framing requested for launch — every statement
+         below is something Robayer WealthLab can already stand behind
+         today, not an aspiration or a fabricated stat. No customer
+         counts, success rates, or claims that can't be verified.
          ============================================================ -->
     <section class="section" aria-labelledby="trust-heading">
       <div class="container text-center">
-        <span class="eyebrow">Why Robayer</span>
-        <h2 id="trust-heading" class="mt-2 mb-5">Built to be trusted, not just followed</h2>
+        <span class="eyebrow">Why trust us</span>
+        <h2 id="trust-heading" class="mt-2 mb-5">Why people choose Robayer WealthLab</h2>
 
         <ul class="grid grid--4 text-left">
           <li>
-            <svg class="icon icon--lg mb-2" viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="8" r="3.5"/><path d="M5 20c0-4 3-6 7-6s7 2 7 6"/></svg>
-            <h3 class="mb-2 font-body font-medium text-body-lg">Founder-led</h3>
-            <p class="text-secondary text-small">Built by Robert Loh Kobla, not a faceless institution.</p>
-          </li>
-          <li>
-            <svg class="icon icon--lg mb-2" viewBox="0 0 24 24" aria-hidden="true"><rect x="5" y="11" width="14" height="9" rx="2"/><path d="M8 11V8a4 4 0 0 1 8 0v3"/></svg>
-            <h3 class="mb-2 font-body font-medium text-body-lg">No hype, ever</h3>
-            <p class="text-secondary text-small">No guaranteed returns. No urgency tricks. Just honest guidance.</p>
+            <svg class="icon icon--lg mb-2" viewBox="0 0 24 24" aria-hidden="true"><path d="M12 3l2.6 5.6 6.1.6-4.6 4.1 1.3 6-5.4-3.2-5.4 3.2 1.3-6-4.6-4.1 6.1-.6z"/></svg>
+            <h3 class="mb-2 font-body font-medium text-body-lg">Independent, always</h3>
+            <p class="text-secondary text-small">No financial products to sell — nothing here is written to earn a commission or steer you toward a specific bank or platform.</p>
           </li>
           <li>
             <svg class="icon icon--lg mb-2" viewBox="0 0 24 24" aria-hidden="true"><path d="M12 20s-7-4.4-9.5-8.5C.8 8 2.5 4.5 6 4.5c2 0 3.3 1.1 4 2.2.7-1.1 2-2.2 4-2.2 3.5 0 5.2 3.5 3.5 7C19 15.6 12 20 12 20z"/></svg>
-            <h3 class="mb-2 font-body font-medium text-body-lg">Ghana-first</h3>
-            <p class="text-secondary text-small">Treasury bills, MoMo, and the GSE — built around where you actually live.</p>
+            <h3 class="mb-2 font-body font-medium text-body-lg">Built for Ghana</h3>
+            <p class="text-secondary text-small">Every guide is grounded in treasury bills, mobile money, and the GSE — not advice written for another country's markets.</p>
           </li>
           <li>
-            <svg class="icon icon--lg mb-2" viewBox="0 0 24 24" aria-hidden="true"><path d="M12 3l2.6 5.6 6.1.6-4.6 4.1 1.3 6-5.4-3.2-5.4 3.2 1.3-6-4.6-4.1 6.1-.6z"/></svg>
-            <h3 class="mb-2 font-body font-medium text-body-lg">Free to start</h3>
-            <p class="text-secondary text-small">Real value before we ever ask for anything.</p>
+            <svg class="icon icon--lg mb-2" viewBox="0 0 24 24" aria-hidden="true"><rect x="5" y="11" width="14" height="9" rx="2"/><path d="M8 11V8a4 4 0 0 1 8 0v3"/></svg>
+            <h3 class="mb-2 font-body font-medium text-body-lg">Practical over theoretical</h3>
+            <p class="text-secondary text-small">Real steps you can take this week — no guaranteed returns, no urgency tricks, no textbook jargon.</p>
+          </li>
+          <li>
+            <svg class="icon icon--lg mb-2" viewBox="0 0 24 24" aria-hidden="true"><rect x="3" y="4" width="18" height="16" rx="2"/><path d="M3 9h18M8 14h4"/></svg>
+            <h3 class="mb-2 font-body font-medium text-body-lg">Learning before investing</h3>
+            <p class="text-secondary text-small">We believe understanding a decision matters more than rushing into one — education always comes first here.</p>
           </li>
         </ul>
 
@@ -137,7 +155,7 @@
          Links to /free-guide/ — the new lead-magnet landing page.
          Placed before Services/eBook as the lowest-friction first ask.
          ============================================================ -->
-    <section class="section bg-charcoal" aria-labelledby="free-guide-heading">
+    <section class="section bg-navy" aria-labelledby="free-guide-heading">
       <div class="container feature-banner">
         <div class="book-card__cover book-card__cover--compact book-card__cover--green" aria-hidden="true"></div>
         <div>
@@ -207,7 +225,7 @@
          Cover placeholder: a professionally designed eBook mockup is
          pending (see README TODOs) — Sika Gold block stands in for now.
          ============================================================ -->
-    <section class="section bg-charcoal" aria-labelledby="featured-book-heading" data-feature-banner>
+    <section class="section bg-navy" aria-labelledby="featured-book-heading" data-feature-banner>
       <div class="container feature-banner">
         <div class="book-card__cover book-card__cover--compact" aria-hidden="true"></div>
         <div>
@@ -266,6 +284,12 @@
 
     <!-- ============================================================
          MEET THE FOUNDER
+         Version 1.1 Brand Polish: warmed the copy from a formal
+         "Founder & CEO" bio into the same voice /about/'s founder
+         story already established — a real person explaining why he
+         started this, not a corporate title. Portrait stays a
+         supporting element (half-width, lazy-loaded, this far down
+         the page) rather than the section's focal point.
          ============================================================ -->
     <section class="section" aria-labelledby="about-heading" data-reveal>
       <div class="container grid grid--2 gap-5">
@@ -279,45 +303,11 @@
           decoding="async"
         >
         <div>
-          <span class="eyebrow">Meet the Founder</span>
+          <span class="eyebrow">Meet the founder</span>
           <h2 id="about-heading" class="mt-2 mb-1" data-content="founder.name">Robert Loh Kobla</h2>
-          <p class="text-secondary text-small mb-3" data-content="founder.title">Founder &amp; CEO</p>
-          <p class="mb-4" data-founder-bio="short">Robert founded Robayer WealthLab to close the financial-education gap he saw around him — helping individuals and businesses turn investment awareness into practical, informed decisions. His work spans financial education, business growth, and disciplined wealth building, always in plain language, one step at a time.</p>
-          <a href="/about/" class="btn btn--secondary">Read More</a>
-        </div>
-      </div>
-    </section>
-
-    <!-- ============================================================
-         TESTIMONIALS
-         ============================================================ -->
-    <section class="section" aria-labelledby="testimonials-heading">
-      <div class="container">
-        <span class="eyebrow text-center">What readers say</span>
-        <h2 id="testimonials-heading" class="mb-5 mt-2 text-center">Real people, real starting points</h2>
-
-        <div class="grid grid--3">
-          <div class="testimonial">
-            <p class="testimonial__quote">"I finally understood treasury bills after years of being too embarrassed to ask."</p>
-            <div class="testimonial__attribution">
-              <div class="testimonial__avatar" aria-hidden="true">A</div>
-              <div><p class="testimonial__name">Ama</p><p class="testimonial__context">eBook reader, Accra</p></div>
-            </div>
-          </div>
-          <div class="testimonial">
-            <p class="testimonial__quote">"The budget tracker is the first one I've actually kept using."</p>
-            <div class="testimonial__attribution">
-              <div class="testimonial__avatar" aria-hidden="true">K</div>
-              <div><p class="testimonial__name">Kwame</p><p class="testimonial__context">Newsletter subscriber</p></div>
-            </div>
-          </div>
-          <div class="testimonial">
-            <p class="testimonial__quote">"Wherever you're starting from, they actually meet you there."</p>
-            <div class="testimonial__attribution">
-              <div class="testimonial__avatar" aria-hidden="true">E</div>
-              <div><p class="testimonial__name">Efua</p><p class="testimonial__context">Course waitlist</p></div>
-            </div>
-          </div>
+          <p class="text-secondary text-small mb-3" data-content="founder.title">Founder, Robayer WealthLab</p>
+          <p class="mb-4" data-founder-bio="short">Robert started Robayer WealthLab after watching people around him avoid investing — not from disinterest, but because no one had ever explained it in plain language. He set out to be the person he wished he'd had earlier: someone slightly ahead on the journey, happy to explain the confusing parts without judgment.</p>
+          <a href="/about/" class="btn btn--secondary">Read Robert's Story</a>
         </div>
       </div>
     </section>
