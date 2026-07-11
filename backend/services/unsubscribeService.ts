@@ -110,18 +110,29 @@ export async function getUnsubscribeStatus(env: Env, tokenInput: unknown): Promi
   return { ok: true, email: row.email, alreadyUnsubscribed: false };
 }
 
+/**
+ * A used/expired token whose subscriber is currently subscribed again
+ * (they resubscribed after this exact token was used to unsubscribe
+ * them) is a distinct outcome from a genuine replay — the token can
+ * never legitimately unsubscribe anyone again, but reporting success
+ * would be false, since this click did not (and structurally cannot)
+ * unsubscribe them. See the production readiness audit's "Re-subscribe
+ * Behaviour" finding.
+ */
+export type ConfirmUnsubscribeReason = TokenLookupReason | 'token_stale';
+
 export type ConfirmUnsubscribeResult =
   | { ok: true; email: string; alreadyUnsubscribed: boolean }
-  | { ok: false; reason: TokenLookupReason };
+  | { ok: false; reason: ConfirmUnsubscribeReason };
 
 /**
  * The mutating action — POST /api/newsletter/unsubscribe/:token.
  * Consumes the token atomically (single-use, replay-safe), then sets
  * the subscriber's status. If the atomic consume fails (already used,
- * expired, or never existed), falls back to the same idempotent
- * "already unsubscribed" success reported by getUnsubscribeStatus,
- * rather than surfacing an error for a state the visitor already
- * achieved — see this file's header comment.
+ * expired, or never existed), falls back to getUnsubscribeStatus's
+ * already-correct read of the subscriber's real current state — it
+ * must never be assumed the visitor achieved their goal, only reported
+ * when that's actually true.
  */
 export async function confirmUnsubscribe(env: Env, logger: Logger, tokenInput: unknown): Promise<ConfirmUnsubscribeResult> {
   if (typeof tokenInput !== 'string' || !TOKEN_PATTERN.test(tokenInput)) {
@@ -147,14 +158,24 @@ export async function confirmUnsubscribe(env: Env, logger: Logger, tokenInput: u
 
   // The atomic consume didn't apply — either this token was already
   // used, has expired, or never existed. Re-check via the same
-  // read-only status logic used by the GET endpoint: if the
-  // subscriber this token belongs to is already unsubscribed, that's
-  // a genuine idempotent success (a replay or a double-click), not an
-  // error.
+  // read-only status logic used by the GET endpoint, and — this is the
+  // fix — trust what it actually found instead of assuming success.
   logger.warn('newsletter.unsubscribe_token_rejected', { tokenPrefix: token.slice(0, 8), reason: consumed.reason });
   const status = await getUnsubscribeStatus(env, token);
-  if (status.ok) return { ok: true, email: status.email, alreadyUnsubscribed: true };
-  return { ok: false, reason: status.reason };
+  if (!status.ok) return { ok: false, reason: status.reason };
+
+  if (status.alreadyUnsubscribed) {
+    // Genuine idempotent replay (or a double-click race with another
+    // request that consumed the token a moment earlier) — the
+    // subscriber really is unsubscribed, verified fresh just now.
+    return { ok: true, email: status.email, alreadyUnsubscribed: true };
+  }
+
+  // The token exists and belongs to a real subscriber, but it's used
+  // or expired AND that subscriber is currently subscribed — meaning
+  // they resubscribed since this token was last used. This click did
+  // not unsubscribe them; saying otherwise would be false.
+  return { ok: false, reason: 'token_stale' };
 }
 
 interface ConsumeTokenResult {

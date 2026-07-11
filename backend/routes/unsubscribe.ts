@@ -14,19 +14,29 @@ import type { Env } from '../worker/env';
 import type { Logger } from '../utils/logger';
 import { jsonError, jsonSuccess } from '../utils/responses';
 import { isRateLimited } from '../middleware/rateLimit';
-import { getUnsubscribeStatus, confirmUnsubscribe, type TokenLookupReason } from '../services/unsubscribeService';
+import { getUnsubscribeStatus, confirmUnsubscribe, type ConfirmUnsubscribeReason } from '../services/unsubscribeService';
 import type { ApiErrorCode } from '../types/api-contracts';
 
 const RATE_LIMIT = { endpoint: 'newsletter-unsubscribe', limit: 20, windowSeconds: 60 };
 
-const REASON_TO_CODE: Record<TokenLookupReason, ApiErrorCode> = {
+// Keyed on the broader ConfirmUnsubscribeReason (POST's reason set) —
+// a strict superset of GET's TokenLookupReason, so both handlers can
+// safely index into the same maps.
+const REASON_TO_CODE: Record<ConfirmUnsubscribeReason, ApiErrorCode> = {
   token_not_found: 'TOKEN_NOT_FOUND',
   token_expired: 'TOKEN_EXPIRED',
+  // Reuses the existing TOKEN_ALREADY_USED code (already defined for
+  // download tokens) rather than adding a new one — this endpoint only
+  // ever returns it for the resubscribed-since-this-token-was-used
+  // case (a genuine replay now returns ok:true instead, see
+  // confirmUnsubscribe()), so there's no ambiguity with any other case.
+  token_stale: 'TOKEN_ALREADY_USED',
 };
 
-const REASON_TO_MESSAGE: Record<TokenLookupReason, string> = {
+const REASON_TO_MESSAGE: Record<ConfirmUnsubscribeReason, string> = {
   token_not_found: 'This unsubscribe link is invalid.',
   token_expired: 'This unsubscribe link has expired. Please email hello@robayerwealthlab.com and we’ll remove you right away.',
+  token_stale: 'This unsubscribe link is no longer valid because your subscription has changed. Please contact hello@robayerwealthlab.com if you would like to unsubscribe.',
 };
 
 export async function handleUnsubscribeStatus(request: Request, env: Env, logger: Logger, params: Record<string, string | undefined>): Promise<Response> {

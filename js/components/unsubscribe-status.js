@@ -72,6 +72,15 @@ function initUnsubscribeStatus() {
     try {
       result = await fetchJson(`${UNSUBSCRIBE_API_BASE}/api/newsletter/unsubscribe/${encodeURIComponent(token)}`, 'POST');
     } catch (error) {
+      // A stale token (used before, but the subscription has since
+      // changed — e.g. they resubscribed) is a terminal outcome, not a
+      // transient failure: retrying the same click can never succeed,
+      // so this goes to the invalid state with its own clear message
+      // rather than the retry-friendly inline error below.
+      if (error.code === 'TOKEN_ALREADY_USED') {
+        showInvalid(error.message);
+        return;
+      }
       showConfirmError(error.message);
       confirmButton.disabled = false;
       confirmButton.textContent = defaultLabel;
@@ -118,7 +127,9 @@ function initUnsubscribeStatus() {
     }
     const body = await response.json();
     if (!response.ok || !body.success) {
-      throw new Error((body && body.error && body.error.message) || 'Something went wrong. Please try again.');
+      const error = new Error((body && body.error && body.error.message) || 'Something went wrong. Please try again.');
+      error.code = body && body.error && body.error.code;
+      throw error;
     }
     return body.data;
   }
