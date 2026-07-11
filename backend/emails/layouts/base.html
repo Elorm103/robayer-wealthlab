@@ -1,0 +1,52 @@
+<!--
+  Robayer WealthLab — shared email shell.
+  Colors hardcoded from css/tokens.css (email clients don't support CSS
+  custom properties): --color-ink-navy #16233D, --color-light-sand
+  #E8E4DC, --color-warm-paper #FAF6EF, --color-charcoal-ink #22252B,
+  --color-slate #6B675E. Kept in sync by convention, not a build step —
+  see docs/email-architecture.md's "Branding strategy."
+
+  Placeholders substituted by services/emailService.ts:
+    {{SUBJECT}}      — also used as the <title>
+    {{PREHEADER}}    — hidden preview text shown by inbox lists
+    {{BODY_CONTENT}} — the template-specific content
+    {{FOOTER_EXTRA}} — empty for transactional emails; an unsubscribe
+                       line for the one marketing-style email (newsletter welcome)
+-->
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>{{SUBJECT}}</title>
+</head>
+<body style="margin:0;padding:0;background-color:#E8E4DC;font-family:Georgia,'Times New Roman',serif;">
+  <span style="display:none;max-height:0;overflow:hidden;opacity:0;">{{PREHEADER}}</span>
+  <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="background-color:#E8E4DC;padding:24px 0;">
+    <tr>
+      <td align="center">
+        <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="max-width:560px;background-color:#FFFFFF;border-radius:8px;overflow:hidden;">
+          <tr>
+            <td style="background-color:#16233D;padding:24px;text-align:center;">
+              <img src="https://robayerwealthlab.com/assets/branding/logo/logo-mark.png" alt="Robayer WealthLab" width="48" height="41" style="display:block;margin:0 auto 8px;border:0;">
+              <span style="color:#FFFFFF;font-size:18px;font-weight:bold;">Robayer WealthLab</span>
+            </td>
+          </tr>
+          <tr>
+            <td style="padding:32px 24px;color:#22252B;font-size:16px;line-height:1.6;">
+              {{BODY_CONTENT}}
+            </td>
+          </tr>
+          <tr>
+            <td style="background-color:#FAF6EF;padding:24px;text-align:center;color:#6B675E;font-size:12px;line-height:1.6;">
+              <p style="margin:0 0 8px;">Robayer WealthLab &bull; Accra, Ghana &bull; +233 53 780 6352</p>
+              <p style="margin:0 0 8px;">Educational content only. Nothing we publish constitutes personalised financial advice.</p>
+              {{FOOTER_EXTRA}}
+            </td>
+          </tr>
+        </table>
+      </td>
+    </tr>
+  </table>
+</body>
+</html>

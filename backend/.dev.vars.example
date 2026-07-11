@@ -1,0 +1,40 @@
+# Robayer WealthLab — local development secrets template.
+#
+# Copy this file to `.dev.vars` (already git-ignored — see backend/.gitignore)
+# and fill in real values. `.dev.vars` is read automatically by `wrangler dev`
+# and never committed, matching docs/deployment-checklist.md's "Local
+# development" checklist and backend/config/README.md's secret-handling rule.
+#
+# Only secrets this sprint's endpoints (newsletter/contact/consultation,
+# checkout session creation, and — as of Version 1.2 Sprint 2.4 —
+# payment webhook verification) actually use are listed below.
+# ADMIN_SESSION_SECRET is deliberately absent — it belongs to the admin
+# dashboard, out of scope until that sprint.
+
+# Resend API key for sending acknowledgement/welcome emails — get a test-mode
+# key from https://resend.com/api-keys. See docs/email-architecture.md.
+RESEND_API_KEY=re_placeholder_replace_with_a_real_resend_api_key
+
+# Paystack secret key — used server-side only, to call
+# POST /transaction/initialize when creating a checkout session (see
+# docs/commerce-foundation.md). Get a test-mode key from
+# https://dashboard.paystack.com/#/settings/developer. Never exposed to
+# the frontend, never logged. No real Paystack account has been created
+# for this project yet — see docs/paystack-integration.md.
+PAYSTACK_SECRET_KEY=sk_test_placeholder_replace_with_a_real_paystack_secret_key
+# As of Version 1.2 Sprint 2.4, this same key also verifies the
+# x-paystack-signature header on incoming webhooks (see
+# docs/payment-verification.md's "Webhook security") — Paystack signs
+# webhooks with the account's secret key, not a separate webhook
+# secret (unlike some other providers). No new variable needed.
+
+# Uncomment to test CORS against a local static-site preview instead of
+# production — overrides wrangler.jsonc's [vars] ALLOWED_ORIGIN for local
+# `wrangler dev` only.
+# ALLOWED_ORIGIN=http://localhost:8080
+
+# Uncomment to test checkout session creation against a local static-site
+# preview instead of production — overrides wrangler.jsonc's [vars]
+# SITE_BASE_URL for local `wrangler dev` only. Must serve
+# content/products/*.json for productCatalogService.ts to find anything.
+# SITE_BASE_URL=http://localhost:8080

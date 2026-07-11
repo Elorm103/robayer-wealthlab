@@ -1,0 +1,100 @@
+{
+  "$schema": "./node_modules/wrangler/config-schema.json",
+  // Robayer WealthLab — Cloudflare Worker configuration (Version 1.2 Sprint 3).
+  //
+  // No secret value belongs in this file, ever — see config/README.md and
+  // docs/backend-security.md. Only non-secret configuration and binding
+  // *names* live here. The D1/KV IDs below are real (provisioned in
+  // Sprint 3, Phase 3 — see docs/cloudflare-resources.md) — the Worker
+  // itself has still never been deployed.
+  "name": "robayer-wealthlab-api",
+  "main": "worker/index.ts",
+  "compatibility_date": "2026-07-06",
+  // No compatibility_flags: this Worker has zero runtime npm dependencies
+  // (only fetch/crypto/D1/R2/KV — all native Workers Web APIs), so
+  // `nodejs_compat` has nothing to shim here. Add it if/when a future
+  // sprint introduces a library that actually needs a Node.js built-in —
+  // not by default.
+  "compatibility_flags": [],
+
+  // Logs/traces via Cloudflare's dashboard — no separate Worker code or
+  // third-party APM needed, matching docs/monitoring-and-alerting.md's
+  // "Cloudflare's own built-in tooling is sufficient at this project's
+  // scale" reasoning. head_sampling_rate: 1 means every request is
+  // sampled (appropriate at this project's real, low traffic volume).
+  "observability": {
+    "enabled": true,
+    "head_sampling_rate": 1
+  },
+
+  // Non-secret environment variables (secrets are set via
+  // `wrangler secret put`, never here — see .dev.vars.example for local
+  // development values).
+  //
+  // Added in Version 1.2 Sprint 2.3 (Commerce Foundation): SITE_BASE_URL,
+  // PAYMENT_PROVIDER, PAYSTACK_BASE_URL — all non-secret. PAYSTACK_SECRET_KEY
+  // and PAYSTACK_PUBLIC_KEY are deliberately absent from this file (see
+  // docs/commerce-foundation.md and config/README.md) — PAYSTACK_SECRET_KEY
+  // is a genuine secret (`wrangler secret put`, never here); PAYSTACK_PUBLIC_KEY
+  // isn't secret but has no real value yet (no Paystack account exists —
+  // see docs/paystack-integration.md's "What this document does not
+  // decide"), and this project doesn't commit placeholder-shaped fake
+  // values for real credentials, even non-secret ones.
+  "vars": {
+    "ALLOWED_ORIGIN": "https://robayerwealthlab.com",
+    "SITE_BASE_URL": "https://robayerwealthlab.com",
+    "PAYMENT_PROVIDER": "paystack",
+    "PAYSTACK_BASE_URL": "https://api.paystack.co"
+  },
+
+  // D1 — structured data (Phase 2 schema: backend/database/schema.sql).
+  // database_id is real — created via `wrangler d1 create
+  // robayer-wealthlab-db` (Sprint 3, Phase 3).
+  "d1_databases": [
+    {
+      "binding": "DB",
+      "database_name": "robayer-wealthlab-db",
+      "database_id": "1c4c883e-afc0-4d74-bad4-6b8b2caa1570",
+      "migrations_dir": "database/migrations"
+    }
+  ],
+
+  // R2 — file storage (Phase 3: docs/storage-strategy.md). Bound now per
+  // this sprint's explicit scope ("configure R2 bucket bindings, no
+  // uploads yet") — no route reads or writes to it yet; that begins only
+  // once Orders/Downloads are implemented in a future sprint.
+  "r2_buckets": [
+    {
+      "binding": "STORAGE",
+      "bucket_name": "robayer-wealthlab-storage"
+    }
+  ],
+
+  // KV — rate-limit counters only, per docs/backend-security.md's
+  // "only where appropriate" scope (the admin-session-storage use case
+  // does not apply yet — no admin dashboard exists in this sprint).
+  // id is real — created via `wrangler kv namespace create RATE_LIMIT_KV`
+  // (Sprint 3, Phase 3).
+  "kv_namespaces": [
+    {
+      "binding": "RATE_LIMIT_KV",
+      "id": "fb02f751cac14749a4b2efa3701c0ba9"
+    }
+  ],
+
+  // Bundles each backend/emails/**/*.html file as an importable string
+  // constant at build time — Workers have no runtime filesystem access,
+  // so email templates must be inlined this way rather than read from
+  // disk (see backend/emails/README.md and docs/email-architecture.md).
+  "rules": [
+    { "type": "Text", "globs": ["**/*.html"], "fallthrough": true }
+  ]
+
+  // Staging environment: intentionally not configured yet. No staging
+  // domain/subdomain has been decided (docs/deployment-checklist.md
+  // describes the *pattern* — a separate "env": { "staging": {...} }
+  // block with its own D1/R2/KV — but inventing a placeholder staging
+  // domain here would be exactly the kind of fabricated detail this
+  // project avoids elsewhere). Add it following that document once a
+  // real staging domain exists.
+}
