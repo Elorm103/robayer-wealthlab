@@ -44,6 +44,7 @@ import { handleCreateCheckoutSession } from '../routes/checkout';
 import { handlePaystackWebhook } from '../routes/webhooks';
 import { handleGetPurchaseStatus, handleRequestDownload } from '../routes/purchases';
 import { handleDownload } from '../routes/downloads';
+import { handleUnsubscribeStatus, handleUnsubscribeConfirm } from '../routes/unsubscribe';
 
 export type { Env };
 
@@ -74,6 +75,12 @@ const ROUTES: Route[] = [
   { pattern: new URLPattern({ pathname: '/api/purchases/:reference' }), method: 'GET', handler: handleGetPurchaseStatus },
   { pattern: new URLPattern({ pathname: '/api/purchases/:reference/downloads' }), method: 'POST', handler: handleRequestDownload },
   { pattern: new URLPattern({ pathname: '/api/download/:token' }), method: 'GET', handler: handleDownload },
+  // Added for newsletter compliance — docs/newsletter-unsubscribe-design.md.
+  // GET is a safe, non-mutating status check; POST is the actual
+  // confirm action (also what Resend's List-Unsubscribe-Post header
+  // points mail clients' native one-click button at).
+  { pattern: new URLPattern({ pathname: '/api/newsletter/unsubscribe/:token' }), method: 'GET', handler: handleUnsubscribeStatus },
+  { pattern: new URLPattern({ pathname: '/api/newsletter/unsubscribe/:token' }), method: 'POST', handler: handleUnsubscribeConfirm },
 ];
 
 export default {

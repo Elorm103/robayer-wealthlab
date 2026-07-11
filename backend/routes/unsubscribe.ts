@@ -1,0 +1,54 @@
+/**
+ * GET/POST /api/newsletter/unsubscribe/:token — see
+ * docs/newsletter-unsubscribe-design.md. Thin HTTP layer only: the
+ * GET is a safe, non-mutating status check (what the visible footer
+ * link in an email points to, and what a link-scanner/prefetcher can
+ * safely hit without unsubscribing anyone); the POST is the actual
+ * mutating confirm action, and is also the URL Resend's
+ * `List-Unsubscribe`/`List-Unsubscribe-Post` headers point mail
+ * clients' native one-click "Unsubscribe" button at (RFC 8058) — both
+ * verbs share the same token-based identification, deliberately.
+ */
+
+import type { Env } from '../worker/env';
+import type { Logger } from '../utils/logger';
+import { jsonError, jsonSuccess } from '../utils/responses';
+import { isRateLimited } from '../middleware/rateLimit';
+import { getUnsubscribeStatus, confirmUnsubscribe, type TokenLookupReason } from '../services/unsubscribeService';
+import type { ApiErrorCode } from '../types/api-contracts';
+
+const RATE_LIMIT = { endpoint: 'newsletter-unsubscribe', limit: 20, windowSeconds: 60 };
+
+const REASON_TO_CODE: Record<TokenLookupReason, ApiErrorCode> = {
+  token_not_found: 'TOKEN_NOT_FOUND',
+  token_expired: 'TOKEN_EXPIRED',
+};
+
+const REASON_TO_MESSAGE: Record<TokenLookupReason, string> = {
+  token_not_found: 'This unsubscribe link is invalid.',
+  token_expired: 'This unsubscribe link has expired. Please email hello@robayerwealthlab.com and we’ll remove you right away.',
+};
+
+export async function handleUnsubscribeStatus(request: Request, env: Env, logger: Logger, params: Record<string, string | undefined>): Promise<Response> {
+  if (await isRateLimited(request, env, RATE_LIMIT)) {
+    return jsonError('RATE_LIMITED', 'Too many requests. Please try again in a minute.');
+  }
+
+  const result = await getUnsubscribeStatus(env, params.token);
+  if (!result.ok) {
+    return jsonError(REASON_TO_CODE[result.reason], REASON_TO_MESSAGE[result.reason]);
+  }
+  return jsonSuccess({ email: result.email, alreadyUnsubscribed: result.alreadyUnsubscribed });
+}
+
+export async function handleUnsubscribeConfirm(request: Request, env: Env, logger: Logger, params: Record<string, string | undefined>): Promise<Response> {
+  if (await isRateLimited(request, env, RATE_LIMIT)) {
+    return jsonError('RATE_LIMITED', 'Too many requests. Please try again in a minute.');
+  }
+
+  const result = await confirmUnsubscribe(env, logger, params.token);
+  if (!result.ok) {
+    return jsonError(REASON_TO_CODE[result.reason], REASON_TO_MESSAGE[result.reason]);
+  }
+  return jsonSuccess({ email: result.email, alreadyUnsubscribed: result.alreadyUnsubscribed });
+}

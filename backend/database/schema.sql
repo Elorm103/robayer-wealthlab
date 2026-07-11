@@ -432,3 +432,22 @@ CREATE TABLE email_log (
 
 CREATE INDEX idx_email_log_status ON email_log(status);
 CREATE INDEX idx_email_log_entity ON email_log(entity_type, entity_id);
+
+-- ============================================================
+-- UNSUBSCRIBE_TOKENS
+-- Added for newsletter compliance (docs/newsletter-unsubscribe-design.md).
+-- Mirrors download_tokens' proven shape/pattern exactly: single-use,
+-- expiring, atomically-consumed. One outstanding unused token per
+-- subscriber is generated lazily (on first need, e.g. the next email
+-- sent to them) rather than backfilled for every existing row.
+-- ============================================================
+CREATE TABLE unsubscribe_tokens (
+  id             INTEGER PRIMARY KEY AUTOINCREMENT,
+  token          TEXT NOT NULL UNIQUE,
+  subscriber_id  INTEGER NOT NULL REFERENCES newsletter_subscribers(id),
+  expires_at     TEXT NOT NULL,
+  used_at        TEXT, -- set once redeemed; a used token is never valid again
+  created_at     TEXT NOT NULL DEFAULT (datetime('now'))
+);
+
+CREATE INDEX idx_unsubscribe_tokens_subscriber ON unsubscribe_tokens(subscriber_id);

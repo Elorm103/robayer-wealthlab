@@ -10,6 +10,15 @@
 import type { Env } from '../worker/env';
 import type { Logger } from '../utils/logger';
 import { sendEmail, type EmailTemplateName } from './emailService';
+import { getOrCreateUnsubscribeToken } from './unsubscribeService';
+
+// This Worker doesn't know its own public origin from an incoming
+// request alone (no `request` is threaded this deep) — matches
+// js/components/buy-button.js / fulfilment-status.js's own
+// hardcoded-constant-with-an-update-comment convention for the same
+// reason. `env.SITE_BASE_URL` already exists for the static site's
+// own origin (Env, see worker/env.ts) — reused as-is, not duplicated.
+const API_BASE_URL = 'https://robayer-wealthlab-api.robayerwealthlab.workers.dev';
 
 /**
  * `source` is `window.location.pathname` from js/components/newsletter-form.js
@@ -76,12 +85,19 @@ export async function subscribeToNewsletter(
       ? 'free-guide-delivery'
       : 'newsletter-welcome';
 
+    // Both newsletter-family templates carry a real unsubscribe link
+    // (docs/newsletter-unsubscribe-design.md) — generated here, once,
+    // rather than backfilled for every existing subscriber.
+    const unsubscribeToken = await getOrCreateUnsubscribeToken(env, subscriberId);
+    const unsubscribeUrl = `${env.SITE_BASE_URL}/newsletter/unsubscribe/?token=${unsubscribeToken}`;
+
     await sendEmail(env, logger, {
       template,
       to: input.email,
-      data: {},
+      data: { unsubscribeUrl },
       entityType: 'newsletter_subscriber',
       entityId: subscriberId,
+      listUnsubscribeUrl: `${API_BASE_URL}/api/newsletter/unsubscribe/${unsubscribeToken}`,
     });
   }
 

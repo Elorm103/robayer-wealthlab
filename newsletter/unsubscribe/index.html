@@ -1,0 +1,107 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+
+  <title>Unsubscribe | Robayer WealthLab</title>
+  <meta name="description" content="Unsubscribe from Robayer WealthLab emails.">
+  <link rel="canonical" href="https://robayerwealthlab.com/newsletter/unsubscribe/">
+  <!-- noindex: a private, per-link action page, not content meant to
+       appear in search results — same reasoning as checkout/callback/. -->
+  <meta name="robots" content="noindex, nofollow">
+
+  <link rel="icon" type="image/svg+xml" href="/assets/icons/favicon.svg">
+  <link rel="icon" type="image/png" sizes="32x32" href="/assets/icons/favicon-32.png">
+  <link rel="apple-touch-icon" href="/assets/icons/apple-touch-icon.png">
+
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Fraunces:ital,wght@0,500;0,600;1,500&family=Space+Grotesk:wght@500&family=Work+Sans:wght@400;500&family=IBM+Plex+Mono:wght@400;500&display=swap" rel="stylesheet">
+
+  <link rel="stylesheet" href="/css/tokens.css">
+  <link rel="stylesheet" href="/css/base.css">
+  <link rel="stylesheet" href="/css/layout.css">
+  <link rel="stylesheet" href="/css/components.css">
+  <link rel="stylesheet" href="/css/utilities.css">
+</head>
+<body>
+  <a href="#main-content" class="skip-link">Skip to main content</a>
+
+  <div data-include="/partials/header.html"></div>
+
+  <main id="main-content">
+
+    <!-- ============================================================
+         UNSUBSCRIBE STATE
+         js/components/unsubscribe-status.js drives everything below
+         via [data-unsubscribe-*] hooks — same progressive-enhancement,
+         honest-loading-fallback pattern as checkout/callback/index.html's
+         [data-fulfilment-*] hooks. Three states: confirm (a real,
+         explicit second click before anything is mutated — protects
+         against email-client link scanners/prefetchers that GET this
+         page automatically), success, and invalid/expired.
+         ============================================================ -->
+    <section class="section" aria-labelledby="unsubscribe-heading" data-unsubscribe-root>
+
+      <div class="container content-column text-center">
+
+        <!-- Loading / initial state -->
+        <div data-unsubscribe-loading>
+          <span class="eyebrow">One moment</span>
+          <h1 id="unsubscribe-heading" class="mt-2 mb-4">Checking your link&hellip;</h1>
+        </div>
+
+        <!-- Confirm state -->
+        <div data-unsubscribe-confirm hidden>
+          <span class="eyebrow">Before you go</span>
+          <h1 class="mt-2 mb-4">Unsubscribe <span data-unsubscribe-email>&nbsp;</span> from the newsletter?</h1>
+          <p class="text-secondary mb-5">
+            You'll stop receiving newsletter and free-guide emails from
+            Robayer WealthLab. This won't affect a purchase receipt or
+            download link if you have an order in progress.
+          </p>
+          <button type="button" class="btn btn--primary" data-unsubscribe-confirm-button>Yes, unsubscribe me</button>
+          <p class="text-secondary text-small mt-3" data-unsubscribe-confirm-error role="alert" hidden></p>
+        </div>
+
+        <!-- Success state -->
+        <div data-unsubscribe-success hidden>
+          <span class="eyebrow">Done</span>
+          <h1 class="mt-2 mb-4">You've been unsubscribed.</h1>
+          <p class="text-secondary mb-5">
+            <span data-unsubscribe-success-email>&nbsp;</span> won't receive
+            any more newsletter or free-guide emails from us. If that was a
+            mistake, you can subscribe again any time.
+          </p>
+          <a href="/newsletter/" class="btn btn--secondary">Resubscribe</a>
+        </div>
+
+        <!-- Invalid / expired state -->
+        <div data-unsubscribe-invalid hidden>
+          <span class="eyebrow">We need a moment</span>
+          <h1 class="mt-2 mb-4">This link isn't working.</h1>
+          <p class="text-secondary mb-2" data-unsubscribe-invalid-message>
+            This unsubscribe link may be incorrect or expired.
+          </p>
+          <p class="text-secondary">
+            Email <a href="mailto:hello@robayerwealthlab.com">hello@robayerwealthlab.com</a>
+            and we'll remove you right away.
+          </p>
+        </div>
+
+      </div>
+    </section>
+
+  </main>
+
+  <div data-include="/partials/footer.html"></div>
+
+  <script src="/js/includes.js"></script>
+  <script src="/js/components/nav.js"></script>
+  <script src="/js/components/theme-toggle.js"></script>
+  <script src="/js/content-inject.js"></script>
+  <script src="/js/components/unsubscribe-status.js"></script>
+  <script src="/js/main.js"></script>
+</body>
+</html>

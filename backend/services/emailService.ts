@@ -55,6 +55,18 @@ export interface SendEmailOptions {
   /** Ties this attempt back to the row that triggered it, mirroring audit_logs' generic entity_type/entity_id pattern (docs/database-design.md). */
   entityType: string;
   entityId: number;
+  /**
+   * Set only for the newsletter-family templates that carry a real
+   * unsubscribe link (docs/newsletter-unsubscribe-design.md) — adds
+   * `List-Unsubscribe` + `List-Unsubscribe-Post` headers so mail
+   * clients that support RFC 8058 (Gmail, Yahoo, others) can offer
+   * their own native one-click "Unsubscribe" button, which POSTs
+   * directly to this same URL rather than opening the visible footer
+   * link. Never set for transactional templates (purchase-receipt,
+   * secure-download, consultation/contact acknowledgements) — those
+   * aren't a recurring list a person "unsubscribes" from.
+   */
+  listUnsubscribeUrl?: string;
 }
 
 export interface SendEmailResult {
@@ -117,20 +129,37 @@ async function callResend(
   env: Env,
   to: string,
   subject: string,
-  html: string
+  html: string,
+  listUnsubscribeUrl?: string
 ): Promise<{ ok: boolean; status: number; body: string }> {
+  const payload: Record<string, unknown> = {
+    from: 'Robayer WealthLab <hello@robayerwealthlab.com>',
+    to: [to],
+    subject,
+    html,
+  };
+
+  // Resend's send API accepts a `headers` map for custom email headers
+  // (verify against the current Resend API reference before relying on
+  // this in production — not independently confirmed against a live
+  // Resend account in this change, see docs/newsletter-unsubscribe-design.md's
+  // "Known limitations"). `List-Unsubscribe-Post` is what makes Gmail/Yahoo's
+  // native one-click button actually one-click (RFC 8058) rather than
+  // just linking to our own confirmation page.
+  if (listUnsubscribeUrl) {
+    payload.headers = {
+      'List-Unsubscribe': `<${listUnsubscribeUrl}>`,
+      'List-Unsubscribe-Post': 'List-Unsubscribe=One-Click',
+    };
+  }
+
   const response = await fetch('https://api.resend.com/emails', {
     method: 'POST',
     headers: {
       Authorization: `Bearer ${env.RESEND_API_KEY}`,
       'Content-Type': 'application/json',
     },
-    body: JSON.stringify({
-      from: 'Robayer WealthLab <hello@robayerwealthlab.com>',
-      to: [to],
-      subject,
-      html,
-    }),
+    body: JSON.stringify(payload),
   });
   const body = await response.text();
   return { ok: response.ok, status: response.status, body };
@@ -199,7 +228,7 @@ export async function sendEmail(
   while (attempt < 2) {
     attempt += 1;
     try {
-      const result = await callResend(env, options.to, subject, html);
+      const result = await callResend(env, options.to, subject, html, options.listUnsubscribeUrl);
 
       if (result.ok) {
         const providerId = parseProviderId(result.body);
