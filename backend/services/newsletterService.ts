@@ -9,7 +9,16 @@
 
 import type { Env } from '../worker/env';
 import type { Logger } from '../utils/logger';
-import { sendEmail } from './emailService';
+import { sendEmail, type EmailTemplateName } from './emailService';
+
+/**
+ * `source` is `window.location.pathname` from js/components/newsletter-form.js
+ * (e.g. "/free-guide/"), not a bare slug — normalize before comparing so a
+ * trailing/leading slash doesn't cause a silent mismatch.
+ */
+function isFreeGuideSource(source: string | null): boolean {
+  return source !== null && source.replace(/^\/|\/$/g, '') === 'free-guide';
+}
 
 export interface SubscribeInput {
   email: string;
@@ -63,8 +72,12 @@ export async function subscribeToNewsletter(
   }
 
   if (isFirstSubscribe) {
+    const template: EmailTemplateName = isFreeGuideSource(input.source)
+      ? 'free-guide-delivery'
+      : 'newsletter-welcome';
+
     await sendEmail(env, logger, {
-      template: 'newsletter-welcome',
+      template,
       to: input.email,
       data: {},
       entityType: 'newsletter_subscriber',

@@ -22,6 +22,7 @@
 
 import baseLayout from '../emails/layouts/base.html';
 import newsletterWelcomeTemplate from '../emails/templates/newsletter-welcome.html';
+import freeGuideDeliveryTemplate from '../emails/templates/free-guide-delivery.html';
 import consultationAcknowledgementTemplate from '../emails/templates/consultation-acknowledgement.html';
 import contactAcknowledgementTemplate from '../emails/templates/contact-acknowledgement.html';
 import purchaseReceiptTemplate from '../emails/templates/purchase-receipt.html';
@@ -31,6 +32,7 @@ import type { Logger } from '../utils/logger';
 
 export type EmailTemplateName =
   | 'newsletter-welcome'
+  | 'free-guide-delivery'
   | 'consultation-acknowledgement'
   | 'contact-acknowledgement'
   | 'purchase-receipt'
@@ -38,6 +40,7 @@ export type EmailTemplateName =
 
 const TEMPLATES: Record<EmailTemplateName, string> = {
   'newsletter-welcome': newsletterWelcomeTemplate,
+  'free-guide-delivery': freeGuideDeliveryTemplate,
   'consultation-acknowledgement': consultationAcknowledgementTemplate,
   'contact-acknowledgement': contactAcknowledgementTemplate,
   'purchase-receipt': purchaseReceiptTemplate,
