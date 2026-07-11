@@ -1,0 +1,146 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+
+  <title>Your Purchase | Robayer WealthLab</title>
+  <meta name="description" content="Access your Robayer WealthLab purchase.">
+  <link rel="canonical" href="https://robayerwealthlab.com/checkout/callback/">
+  <!-- noindex: this is a private, per-purchase confirmation page, not
+       content meant to appear in search results — every visit is
+       unique (?ref=) and the page has nothing to offer a search
+       visitor who didn't just complete a purchase. -->
+  <meta name="robots" content="noindex, nofollow">
+
+  <link rel="icon" type="image/svg+xml" href="/assets/icons/favicon.svg">
+  <link rel="icon" type="image/png" sizes="32x32" href="/assets/icons/favicon-32.png">
+  <link rel="apple-touch-icon" href="/assets/icons/apple-touch-icon.png">
+
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Fraunces:ital,wght@0,500;0,600;1,500&family=Space+Grotesk:wght@500&family=Work+Sans:wght@400;500&family=IBM+Plex+Mono:wght@400;500&display=swap" rel="stylesheet">
+
+  <link rel="stylesheet" href="/css/tokens.css">
+  <link rel="stylesheet" href="/css/base.css">
+  <link rel="stylesheet" href="/css/layout.css">
+  <link rel="stylesheet" href="/css/components.css">
+  <link rel="stylesheet" href="/css/utilities.css">
+</head>
+<body>
+  <a href="#main-content" class="skip-link">Skip to main content</a>
+
+  <div data-include="/partials/header.html"></div>
+
+  <main id="main-content">
+
+    <!-- ============================================================
+         FULFILMENT STATE
+         Sprint 2.5 (Digital Fulfilment Platform): js/components/
+         fulfilment-status.js drives everything below via
+         [data-fulfilment-*] hooks — this markup is the honest,
+         no-JS/loading fallback ("Confirming your purchase…"), matching
+         this site's established progressive-enhancement pattern. No
+         internal identifiers (purchase_sessions ids, delivery ids,
+         raw status enum values) ever appear here or in the JS that
+         populates it — see docs/digital-fulfilment.md's "Security."
+         ============================================================ -->
+    <section class="section" aria-labelledby="fulfilment-heading" data-fulfilment-root>
+
+      <div class="container content-column text-center">
+
+        <!-- Processing / initial state -->
+        <div data-fulfilment-processing>
+          <span class="eyebrow">Almost there</span>
+          <h1 id="fulfilment-heading" class="mt-2 mb-4">Confirming your purchase&hellip;</h1>
+          <p class="text-secondary">
+            This usually takes a few seconds. This page will update
+            automatically — no need to refresh.
+          </p>
+        </div>
+
+        <!-- Ready state -->
+        <div data-fulfilment-ready hidden>
+          <span class="eyebrow">Thank you</span>
+          <h1 class="mt-2 mb-4">Your purchase is ready.</h1>
+          <p class="mb-2">
+            <strong data-fulfilment-product>&nbsp;</strong>
+          </p>
+          <p class="text-secondary text-small mb-5">
+            Purchase reference: <strong data-fulfilment-reference>&nbsp;</strong>
+          </p>
+
+          <div class="stack gap-3 mb-5" data-fulfilment-downloads aria-label="Your downloads">
+            <!-- js/components/fulfilment-status.js renders one Download
+                 button per digital asset here -->
+          </div>
+
+          <p class="text-secondary text-small" data-fulfilment-download-error role="alert" hidden></p>
+        </div>
+
+        <!-- Unavailable / error state -->
+        <div data-fulfilment-unavailable hidden>
+          <span class="eyebrow">We need a moment</span>
+          <h1 class="mt-2 mb-4">We couldn't load this purchase.</h1>
+          <p class="text-secondary mb-2" data-fulfilment-unavailable-message>
+            This link may be incorrect, or your payment may still be
+            processing.
+          </p>
+          <p class="text-secondary">
+            If you completed a payment, check your email for your
+            receipt and download link — it can take a few minutes to
+            arrive. Still stuck? See "Need help?" below.
+          </p>
+        </div>
+
+      </div>
+    </section>
+
+    <!-- ============================================================
+         NEXT STEPS + SUPPORT
+         Static — shown regardless of fulfilment state, since a
+         visitor who's stuck (unavailable state) needs support contact
+         information at least as much as a visitor who succeeded.
+         ============================================================ -->
+    <section class="section--tight bg-sand" aria-labelledby="next-steps-heading">
+      <div class="container content-column">
+        <h2 id="next-steps-heading" class="mb-4 text-center">What happens next</h2>
+        <ul class="grid grid--3 text-left">
+          <li class="check-item">
+            <svg class="icon check-item__icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M5 12l4 4 10-10"/></svg>
+            <span class="check-item__text">A receipt and download link are on their way to your email.</span>
+          </li>
+          <li class="check-item">
+            <svg class="icon check-item__icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M5 12l4 4 10-10"/></svg>
+            <span class="check-item__text">You can also download directly from this page — bookmark it if you'd like to come back.</span>
+          </li>
+          <li class="check-item">
+            <svg class="icon check-item__icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M5 12l4 4 10-10"/></svg>
+            <span class="check-item__text">Keep your purchase reference — quote it if you ever contact support about this order.</span>
+          </li>
+        </ul>
+      </div>
+    </section>
+
+    <section class="section--tight" aria-labelledby="support-heading">
+      <div class="container content-column text-center">
+        <h2 id="support-heading" class="mb-2">Need help?</h2>
+        <p class="text-secondary">
+          Email <a href="mailto:hello@robayerwealthlab.com">hello@robayerwealthlab.com</a>
+          and mention your purchase reference — we read every message.
+        </p>
+      </div>
+    </section>
+
+  </main>
+
+  <div data-include="/partials/footer.html"></div>
+
+  <script src="/js/includes.js"></script>
+  <script src="/js/components/nav.js"></script>
+  <script src="/js/components/theme-toggle.js"></script>
+  <script src="/js/content-inject.js"></script>
+  <script src="/js/components/fulfilment-status.js"></script>
+  <script src="/js/main.js"></script>
+</body>
+</html>
