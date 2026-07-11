@@ -17,7 +17,18 @@
   "previewImage": null,
   "gallery": [],
   "downloadFiles": [
-    { "label": "eBook (PDF)", "path": "/assets/products/starting-to-invest-with-gh100.pdf", "format": "PDF" }
+    {
+      "assetId": "asset-starting-to-invest-with-gh100-pdf-v1",
+      "productSlug": "starting-to-invest-with-gh100",
+      "filename": "starting-to-invest-with-gh100.pdf",
+      "displayName": "eBook (PDF)",
+      "fileType": "PDF",
+      "fileSizeBytes": null,
+      "version": "1.0",
+      "checksum": null,
+      "storageKey": "ebooks/starting-to-invest-with-gh100.pdf",
+      "status": "published"
+    }
   ],
   "previewPages": [],
   "fileFormat": ["PDF"],
