@@ -275,7 +275,18 @@ exist; today `content/products/index.json` is a real, empty `[]`.
   "previewImage": "/assets/covers/starting-to-invest-with-gh100-preview.jpg",
   "gallery": [],
   "downloadFiles": [
-    { "label": "eBook (PDF)", "path": "/assets/downloads/starting-to-invest-with-gh100.pdf", "format": "PDF" }
+    {
+      "assetId": "asset-starting-to-invest-with-gh100-pdf-v1",
+      "productSlug": "starting-to-invest-with-gh100",
+      "filename": "starting-to-invest-with-gh100.pdf",
+      "displayName": "eBook (PDF)",
+      "fileType": "PDF",
+      "fileSizeBytes": null,
+      "version": "1.0",
+      "checksum": null,
+      "storageKey": "ebooks/starting-to-invest-with-gh100.pdf",
+      "status": "published"
+    }
   ],
   "previewPages": [],
   "fileFormat": ["PDF"],
@@ -327,6 +338,25 @@ short version of what changed in Sprint 2.1, and why:
   downloads" (e.g., a template pack shipping both an `.xlsx` and a
   `.pdf` instructions sheet) — made the change now, at zero migration
   cost, rather than as a future breaking change.
+- **`downloadFiles` entries became full Digital Asset records** (Version
+  1.2 Sprint 2.5 — Digital Fulfilment Platform, see
+  `docs/digital-fulfilment.md`): `label`/`path`/`format` are replaced
+  by `assetId`, `productSlug`, `filename`, `displayName`, `fileType`,
+  `fileSizeBytes`, `version`, `checksum`, `storageKey`, `status`. Each
+  entry is now the single, self-contained source of truth an
+  entitlement check reads — `assetId` is the stable identifier a
+  `deliveries` D1 row references (never a filename or path, which can
+  change); `storageKey` is the planned R2 object key (see
+  `docs/storage-strategy.md`'s bucket layout), distinct from the
+  legacy `path` field it replaces (an `assets/` git-repository path,
+  the authoring/staging location, not the live serving location);
+  `status` (`draft`/`published`/`archived`) lets an individual file be
+  pulled or swapped independently of the parent product's own
+  `status`. `fileSizeBytes`/`checksum` are `null` until a real file
+  exists to measure/hash — never fabricated, same discipline as every
+  other honestly-`null` field in this schema. `js/components/product-loader.js`
+  never reads this field (confirmed unused there), so this change has
+  zero frontend impact.
 - **`thumbnail` / `previewImage` added**, distinct from `coverImage`/
   `gallery`. `coverImage` is the one image a detail-page hero uses;
   `thumbnail` is a smaller/cropped variant for dense grid cards (so a
