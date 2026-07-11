@@ -31,10 +31,12 @@
     }
   },
   "social": {
-    "linkedin": "#",
-    "twitter": "#",
-    "facebook": "#",
-    "instagram": "#"
+    "facebook": "https://facebook.com/RobayerWealthLab",
+    "instagram": "https://www.instagram.com/robayerwealthlab/",
+    "linkedin": "https://linkedin.com/company/robayerwealthlab",
+    "youtube": "https://www.youtube.com/@RobayerWealthLab",
+    "whatsapp": "https://wa.me/233537806352",
+    "tiktok": "https://www.tiktok.com/@robayerwealthlab"
   },
   "branding": {
     "_comment": "Reference-only. These paths are duplicated as static <link>/<meta>/JSON-LD tags in every page's <head> — see assets/branding/README.md before changing any of them. logo/ogImage are the real production assets as of Phase 17; favicon* remain coded placeholders pending a future phase.",

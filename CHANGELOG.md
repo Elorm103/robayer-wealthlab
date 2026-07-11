@@ -7,7 +7,21 @@ marking the site as production-ready.
 
 ## [Unreleased]
 
-Nothing yet — the next phase starts here.
+**Changed — social media integration**
+- Connected the site's official social channels (Facebook, Instagram,
+  LinkedIn, YouTube, WhatsApp, TikTok), replacing the `href="#"`
+  placeholders in the footer social icon row that had been in place
+  since `[v1.0 Sprint N]` below ("ready to wire up once real accounts
+  exist"). Updated `assets/config/site.json`'s `social` block (the
+  single source of truth the footer reads at runtime) and
+  `partials/footer.html`'s static fallback hrefs; added
+  `target="_blank" rel="noopener noreferrer"` to each. Removed the
+  unused `twitter`/X placeholder — no real account exists for that
+  platform yet, so no link is shown rather than a dead one.
+- Added a `sameAs` array (the 6 real profile URLs above) to the
+  `Organization` JSON-LD block on every page, for correct
+  structured-data association between the site and its social
+  profiles.
 
 ## [v1.1 Sprint 6] — 2026-07-05 — Ghana Investment Centre
 
