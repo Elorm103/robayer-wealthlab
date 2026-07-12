@@ -631,21 +631,37 @@ function initAdminMedia() {
 
   async function deleteItem(item) {
     if (!item) return;
+    // Disabling the button (rather than just awaiting the fetch) closes
+    // the double-submission window a real, impatient double-click opens —
+    // without it, a second request can land after the first already
+    // succeeded and 409 with ALREADY_DELETED, and refresh() ALWAYS
+    // running afterward (not just on success) means the grid re-syncs
+    // with the server's real state even when that happens, instead of
+    // being stuck showing the pre-action view forever.
+    const button = deleteModal.querySelector('[data-media-delete-confirm]');
+    button.disabled = true;
     try {
       await window.AdminAuth.adminFetch(`${MEDIA_API_BASE}/${item.id}`, { method: 'DELETE' });
-      refresh();
     } catch (error) {
       alert(error.message || 'Could not delete this item.'); // eslint-disable-line no-alert
+    } finally {
+      button.disabled = false;
+      refresh();
     }
   }
 
   async function restoreItem(item) {
     if (!item) return;
+    // See deleteItem()'s comment — same double-submission + stale-view fix.
+    const button = previewModal.querySelector('[data-media-restore-trigger]');
+    button.disabled = true;
     try {
       await window.AdminAuth.adminFetch(`${MEDIA_API_BASE}/${item.id}/restore`, { method: 'POST' });
-      refresh();
     } catch (error) {
       alert(error.message || 'Could not restore this item.'); // eslint-disable-line no-alert
+    } finally {
+      button.disabled = false;
+      refresh();
     }
   }
 

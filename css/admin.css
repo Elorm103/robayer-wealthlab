@@ -732,6 +732,16 @@
   color: var(--color-text-secondary);
 }
 
+/* The [hidden] attribute alone loses to the display:flex rule above
+   (author stylesheet always beats the UA stylesheet, regardless of
+   specificity) — same fix as .modal-overlay[hidden] below and
+   .field__error[hidden] in components.css. Without this, Media
+   Library's dynamically-toggled empty state renders on top of real
+   results instead of being hidden. */
+.empty-state[hidden] {
+  display: none;
+}
+
 .empty-state__icon {
   width: 40px;
   height: 40px;
@@ -804,6 +814,11 @@
   flex-direction: column;
   gap: var(--space-2);
   margin-bottom: var(--space-4);
+}
+
+/* See .empty-state[hidden] above — same author-vs-UA-stylesheet fix. */
+.upload-queue[hidden] {
+  display: none;
 }
 
 .upload-queue__item {
@@ -945,6 +960,15 @@
   display: grid;
   grid-template-columns: repeat(auto-fill, minmax(160px, 1fr));
   gap: var(--space-3);
+}
+
+/* See .empty-state[hidden] above — same author-vs-UA-stylesheet fix.
+   Without this, the grid stays visible (and, in list view, still
+   collapses correctly since .media-list sets no competing display
+   rule) even when admin-media.js sets grid.hidden = true for an
+   empty result set. */
+.media-grid[hidden] {
+  display: none;
 }
 
 .media-card {

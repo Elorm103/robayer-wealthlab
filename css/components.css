@@ -56,6 +56,16 @@
   box-shadow: 0 0 0 4px rgba(31, 92, 78, 0.15);
 }
 
+/* The [hidden] attribute alone loses to the display:inline-flex rule
+   above (author stylesheet always beats the UA stylesheet, regardless
+   of specificity) — same fix as .field__error[hidden] below. Without
+   this, any button toggled via the hidden attribute (e.g. Media
+   Library's conditional Restore/Delete/Replace actions) stays visible
+   and clickable regardless of its intended state. */
+.btn[hidden] {
+  display: none;
+}
+
 .btn--primary {
   background-color: var(--color-growth-green);
   color: var(--color-white);
@@ -543,6 +553,14 @@
   border-radius: var(--radius-sm);
   border-left: 3px solid;
   font-size: var(--text-small);
+}
+
+/* See .btn[hidden] above — same author-vs-UA-stylesheet fix. Without
+   this, a page that starts an alert hidden (e.g. Media Library's
+   load-error banner) shows it as an empty bar before any error has
+   actually occurred. */
+.alert[hidden] {
+  display: none;
 }
 
 .alert--success { border-color: var(--color-success); background-color: var(--color-success-tint); }
