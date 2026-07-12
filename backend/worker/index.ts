@@ -58,6 +58,16 @@ import { handleUnsubscribeStatus, handleUnsubscribeConfirm } from '../routes/uns
 import { handleAdminLogin, handleAdminLogout, handleAdminSession } from '../routes/admin/auth';
 import { handleAdminDashboardSummary } from '../routes/admin/dashboard';
 import { handleHealth } from '../routes/health';
+import {
+  handleMediaUpload,
+  handleMediaList,
+  handleMediaGet,
+  handleMediaUpdate,
+  handleMediaReplace,
+  handleMediaDelete,
+  handleMediaRestore,
+} from '../routes/admin/media';
+import { handleMediaFile } from '../routes/media';
 
 export type { Env };
 
@@ -110,6 +120,23 @@ const ROUTES: Route[] = [
   // — the first thing verified through the new robayerwealthlab.com/api/*
   // Workers Route, before anything that touches real state.
   { pattern: new URLPattern({ pathname: '/api/health' }), method: 'GET', handler: handleHealth },
+  // Added Version 2.0 Phase 1 (Media Library) — see
+  // docs/v2-media-library-spec.md. Ordered before the public file
+  // route below so a future collision between an admin sub-path and a
+  // storage key can never happen (they're disjoint prefixes anyway,
+  // but explicit order removes any doubt).
+  { pattern: new URLPattern({ pathname: '/api/admin/media' }), method: 'POST', handler: handleMediaUpload },
+  { pattern: new URLPattern({ pathname: '/api/admin/media' }), method: 'GET', handler: handleMediaList },
+  { pattern: new URLPattern({ pathname: '/api/admin/media/:id' }), method: 'GET', handler: handleMediaGet },
+  { pattern: new URLPattern({ pathname: '/api/admin/media/:id' }), method: 'PATCH', handler: handleMediaUpdate },
+  { pattern: new URLPattern({ pathname: '/api/admin/media/:id/replace' }), method: 'POST', handler: handleMediaReplace },
+  { pattern: new URLPattern({ pathname: '/api/admin/media/:id' }), method: 'DELETE', handler: handleMediaDelete },
+  { pattern: new URLPattern({ pathname: '/api/admin/media/:id/restore' }), method: 'POST', handler: handleMediaRestore },
+  // Public — no auth, matching assets/covers/*.png's existing trust
+  // model. `:key(.*)` captures the full remaining path including
+  // slashes, since a real storage key is itself a path
+  // (media/images/books/<uuid>.jpg) — see routes/media.ts.
+  { pattern: new URLPattern({ pathname: '/api/media/file/:key(.*)' }), method: 'GET', handler: handleMediaFile },
 ];
 
 export default {

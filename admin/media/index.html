@@ -5,7 +5,7 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
 
   <title>Media Library | Robayer WealthLab Admin</title>
-  <meta name="description" content="Upload and manage images, PDFs, and other files. This module arrives in a later phase.">
+  <meta name="description" content="Upload and manage images, PDFs, and other files.">
   <link rel="canonical" href="https://robayerwealthlab.com/admin/media/">
   <meta name="robots" content="noindex, nofollow">
 
@@ -33,15 +33,172 @@
     <div class="admin-main">
       <div class="admin-include" data-include="/partials/admin-topbar.html"></div>
 
-      <main class="admin-content" id="main-content">
-        <div class="card">
-          <div class="empty-state">
-            <svg class="icon empty-state__icon" viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="10"/><path d="M12 8v4M12 16h.01"/></svg>
-            <p class="empty-state__title">Coming soon</p>
-            <p class="empty-state__body">Upload and manage images, PDFs, and other files. This module arrives in a later phase.</p>
+      <main class="admin-content" id="main-content" data-media-root>
+        <p class="alert alert--error" role="alert" data-media-load-error hidden></p>
+
+        <div class="media-dropzone" data-media-dropzone>
+          <svg class="icon media-dropzone__icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><path d="M17 8l-5-5-5 5"/><path d="M12 3v12"/></svg>
+          <p>Drag and drop files here, or</p>
+          <button type="button" class="btn btn--secondary" data-media-browse>Browse files</button>
+          <input type="file" data-media-file-input accept=".jpg,.jpeg,.png,.webp,.svg,.pdf" multiple hidden>
+          <p class="text-small text-secondary">JPG, PNG, WebP, SVG up to 5MB · PDF up to 25MB</p>
+        </div>
+
+        <div class="upload-queue" data-upload-queue hidden></div>
+
+        <div class="toolbar">
+          <div class="toolbar__group">
+            <div class="search-bar">
+              <svg class="icon search-bar__icon" viewBox="0 0 24 24" aria-hidden="true"><circle cx="11" cy="11" r="7"/><path d="m21 21-4.3-4.3"/></svg>
+              <input type="search" class="field__input search-bar__input" placeholder="Search by filename, title, or tag&hellip;" aria-label="Search media" data-media-search>
+            </div>
+            <select class="field__select" aria-label="Sort by" data-media-sort>
+              <option value="newest">Newest</option>
+              <option value="oldest">Oldest</option>
+              <option value="largest">Largest</option>
+              <option value="smallest">Smallest</option>
+              <option value="az">A–Z</option>
+              <option value="za">Z–A</option>
+            </select>
+          </div>
+          <div class="toolbar__group">
+            <span class="text-small text-secondary" data-media-result-count></span>
+            <div class="media-view-toggle" role="group" aria-label="View">
+              <button type="button" class="media-view-toggle__button" data-media-view="grid" aria-pressed="true" aria-label="Grid view">
+                <svg class="icon" width="18" height="18" viewBox="0 0 24 24" aria-hidden="true"><rect x="3" y="3" width="7" height="7"/><rect x="14" y="3" width="7" height="7"/><rect x="3" y="14" width="7" height="7"/><rect x="14" y="14" width="7" height="7"/></svg>
+              </button>
+              <button type="button" class="media-view-toggle__button" data-media-view="list" aria-pressed="false" aria-label="List view">
+                <svg class="icon" width="18" height="18" viewBox="0 0 24 24" aria-hidden="true"><path d="M3 6h18M3 12h18M3 18h18"/></svg>
+              </button>
+            </div>
+          </div>
+        </div>
+
+        <div class="media-filters" role="group" aria-label="Filters">
+          <button type="button" class="media-filter-chip" aria-pressed="false" data-media-filter="type" data-media-filter-value="image">Images</button>
+          <button type="button" class="media-filter-chip" aria-pressed="false" data-media-filter="type" data-media-filter-value="document">PDFs</button>
+          <button type="button" class="media-filter-chip" aria-pressed="false" data-media-filter="folder" data-media-filter-value="books">Books</button>
+          <button type="button" class="media-filter-chip" aria-pressed="false" data-media-filter="folder" data-media-filter-value="blog">Blog</button>
+          <button type="button" class="media-filter-chip" aria-pressed="false" data-media-filter="folder" data-media-filter-value="resources">Resources</button>
+          <button type="button" class="media-filter-chip" aria-pressed="false" data-media-filter="folder" data-media-filter-value="branding">Branding</button>
+          <button type="button" class="media-filter-chip" aria-pressed="false" data-media-filter="recent" data-media-filter-value="">Recently uploaded</button>
+          <button type="button" class="media-filter-chip" aria-pressed="false" data-media-filter="deleted" data-media-filter-value="">Deleted</button>
+        </div>
+
+        <div class="empty-state" data-media-empty hidden>
+          <svg class="icon empty-state__icon" viewBox="0 0 24 24" aria-hidden="true"><rect x="3" y="3" width="18" height="18" rx="2"/><path d="m9 9 3 3-3 3M15 9v6"/></svg>
+          <p class="empty-state__title">No media yet</p>
+          <p class="empty-state__body">Drag a file onto the area above, or use Browse files, to add your first image or PDF.</p>
+        </div>
+
+        <div class="media-grid" data-media-grid></div>
+
+        <div class="pagination" data-media-pagination>
+          <span data-media-pagination-label></span>
+          <div class="pagination__controls">
+            <button type="button" class="pagination__button" data-media-pagination-prev aria-label="Previous page">
+              <svg class="icon" width="16" height="16" viewBox="0 0 24 24" aria-hidden="true"><path d="M15 18l-6-6 6-6"/></svg>
+            </button>
+            <button type="button" class="pagination__button" data-media-pagination-next aria-label="Next page">
+              <svg class="icon" width="16" height="16" viewBox="0 0 24 24" aria-hidden="true"><path d="M9 6l6 6-6 6"/></svg>
+            </button>
           </div>
         </div>
       </main>
+    </div>
+  </div>
+
+  <!-- Preview / metadata editor modal -->
+  <div class="modal-overlay" data-media-preview-modal hidden>
+    <div class="modal" role="dialog" aria-modal="true" aria-labelledby="media-preview-title" style="max-width: 640px;">
+      <div class="modal__header">
+        <h2 class="modal__title" id="media-preview-title">Media details</h2>
+        <button type="button" class="modal__close" data-modal-close aria-label="Close">
+          <svg class="icon" width="18" height="18" viewBox="0 0 24 24" aria-hidden="true"><path d="M18 6 6 18M6 6l12 12"/></svg>
+        </button>
+      </div>
+      <div class="modal__body">
+        <div class="media-preview">
+          <div class="media-preview__image-wrap" data-media-preview-image-wrap>
+            <img class="media-preview__image" data-media-preview-image alt="">
+          </div>
+          <div class="card" data-media-preview-doc hidden>
+            <p class="text-secondary text-small">PDF document</p>
+            <p data-media-preview-doc-name></p>
+            <a class="btn btn--secondary" data-media-preview-doc-link target="_blank" rel="noopener">Open / Download</a>
+          </div>
+          <p class="text-small text-secondary" data-media-preview-size></p>
+
+          <div class="field" data-media-alt-group>
+            <label class="field__label" for="media-alt-input">Alt text</label>
+            <input type="text" class="field__input" id="media-alt-input" data-media-alt-input maxlength="300">
+          </div>
+          <div class="field">
+            <label class="field__label" for="media-title-input">Title</label>
+            <input type="text" class="field__input" id="media-title-input" data-media-title-input maxlength="200">
+          </div>
+          <div class="field">
+            <label class="field__label" for="media-description-input">Description</label>
+            <textarea class="field__textarea" id="media-description-input" data-media-description-input maxlength="2000"></textarea>
+          </div>
+          <div class="field">
+            <label class="field__label" for="media-tags-input">Tags</label>
+            <input type="text" class="field__input" id="media-tags-input" data-media-tags-input placeholder="comma, separated, tags" maxlength="500">
+          </div>
+          <div class="field">
+            <label class="field__label" for="media-folder-select">Folder</label>
+            <select class="field__select" id="media-folder-select" data-media-folder-select>
+              <option value="uncategorized">Uncategorized</option>
+              <option value="books">Books</option>
+              <option value="blog">Blog</option>
+              <option value="resources">Resources</option>
+              <option value="branding">Branding</option>
+            </select>
+          </div>
+
+          <div class="media-preview__field">
+            <label for="media-url-input">Public URL</label>
+            <div class="media-preview__url-row">
+              <input type="text" class="field__input" id="media-url-input" data-media-url-input readonly>
+              <button type="button" class="btn btn--secondary" data-media-copy-url>Copy</button>
+            </div>
+          </div>
+          <div class="media-preview__field">
+            <label for="media-key-input">Storage key</label>
+            <div class="media-preview__url-row">
+              <input type="text" class="field__input" id="media-key-input" data-media-key-input readonly>
+              <button type="button" class="btn btn--secondary" data-media-copy-key>Copy</button>
+            </div>
+          </div>
+
+          <input type="file" data-media-replace-input accept=".jpg,.jpeg,.png,.webp,.svg,.pdf" hidden>
+        </div>
+      </div>
+      <div class="modal__footer">
+        <button type="button" class="btn btn--secondary" data-media-restore-trigger hidden>Restore</button>
+        <button type="button" class="btn btn--secondary" data-media-delete-trigger>Delete</button>
+        <button type="button" class="btn btn--secondary" data-media-replace-trigger>Replace file</button>
+        <button type="button" class="btn btn--primary" data-media-save-metadata>Save changes</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Delete confirmation modal -->
+  <div class="modal-overlay" data-media-delete-modal hidden>
+    <div class="modal" role="dialog" aria-modal="true" aria-labelledby="media-delete-title">
+      <div class="modal__header">
+        <h2 class="modal__title" id="media-delete-title">Delete this file?</h2>
+        <button type="button" class="modal__close" data-modal-close aria-label="Close">
+          <svg class="icon" width="18" height="18" viewBox="0 0 24 24" aria-hidden="true"><path d="M18 6 6 18M6 6l12 12"/></svg>
+        </button>
+      </div>
+      <div class="modal__body">
+        <p>"<span data-media-delete-name></span>" will be hidden from the library. It can be restored later — nothing is permanently deleted yet.</p>
+      </div>
+      <div class="modal__footer">
+        <button type="button" class="btn btn--secondary" data-modal-close>Cancel</button>
+        <button type="button" class="btn btn--accent" data-media-delete-confirm>Delete</button>
+      </div>
     </div>
   </div>
 
@@ -49,5 +206,6 @@
   <script src="/js/components/theme-toggle.js"></script>
   <script src="/js/components/admin/admin-auth.js"></script>
   <script src="/js/components/admin/admin-shell.js"></script>
+  <script src="/js/components/admin/admin-media.js"></script>
 </body>
 </html>

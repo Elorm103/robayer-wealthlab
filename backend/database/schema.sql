@@ -482,4 +482,47 @@ CREATE TABLE unsubscribe_tokens (
   created_at     TEXT NOT NULL DEFAULT (datetime('now'))
 );
 
+-- ============================================================
+-- MEDIA_ASSETS
+-- Added in migration 0007 (Version 2.0 Phase 1, Media Library) — see
+-- docs/v2-media-library-spec.md. The Media Library's own index over R2
+-- (real bucket `robayer-wealthlab-storage`, binding `STORAGE`) — R2 has
+-- no native browse/search/folder UI of its own. Every object lives
+-- under a `media/` R2 prefix, deliberately distinct from the
+-- `ebooks/`/`covers/`/etc. prefixes the separate, pre-existing paid
+-- digital-fulfilment system (deliveries/download_tokens) uses — two
+-- different domains sharing one bucket, not one system.
+-- ============================================================
+CREATE TABLE media_assets (
+  id                     INTEGER PRIMARY KEY AUTOINCREMENT,
+  filename               TEXT NOT NULL,   -- the safe, generated filename actually used
+  original_filename      TEXT NOT NULL,   -- as uploaded, sanitized for display only — never used to build storage_key
+  mime_type              TEXT NOT NULL,
+  size_bytes             INTEGER NOT NULL,
+  width                  INTEGER,         -- images only; extracted server-side from real file bytes, never trusted from the client
+  height                 INTEGER,         -- images only
+  content_hash           TEXT NOT NULL,   -- SHA-256 hex of the file bytes — the real duplicate-detection key
+  storage_key            TEXT NOT NULL UNIQUE,
+  public_url             TEXT NOT NULL,   -- denormalized on purpose — derived once at upload time so list/search never recomputes it
+  thumbnail_storage_key  TEXT,            -- images only; a genuinely separate R2 object (client-generated), not resize-on-read
+  thumbnail_public_url   TEXT,
+  media_type             TEXT NOT NULL CHECK (media_type IN ('image', 'document')),
+  folder                 TEXT NOT NULL DEFAULT 'uncategorized' CHECK (folder IN ('books', 'blog', 'resources', 'branding', 'uncategorized')),
+  alt_text               TEXT,
+  title                  TEXT,
+  description            TEXT,
+  tags                   TEXT,            -- comma-separated; no separate tags table at this scale
+  status                 TEXT NOT NULL DEFAULT 'ready' CHECK (status IN ('ready', 'processing', 'failed')),
+  uploaded_by            INTEGER REFERENCES admin_users(id),
+  created_at             TEXT NOT NULL DEFAULT (datetime('now')),
+  updated_at             TEXT NOT NULL DEFAULT (datetime('now')),
+  deleted_at             TEXT
+);
+
+CREATE INDEX idx_media_assets_folder ON media_assets(folder);
+CREATE INDEX idx_media_assets_media_type ON media_assets(media_type);
+CREATE INDEX idx_media_assets_content_hash ON media_assets(content_hash);
+CREATE INDEX idx_media_assets_deleted_at ON media_assets(deleted_at);
+CREATE INDEX idx_media_assets_created_at ON media_assets(created_at);
+
 CREATE INDEX idx_unsubscribe_tokens_subscriber ON unsubscribe_tokens(subscriber_id);

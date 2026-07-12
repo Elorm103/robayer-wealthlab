@@ -23,12 +23,13 @@ only, never database queries or Paystack calls directly (that's what
 | `products.ts` | `GET /api/products` |
 | `admin/auth.ts` ✅ | `POST /api/admin/auth/login`, `POST /api/admin/auth/logout`, `GET /api/admin/auth/session` — added Version 2.0 Phase 0.1 (Authentication Foundation), see `docs/v2-authentication-design.md`. Supersedes this table's originally-planned flat `admin.ts`/`POST /api/admin/login` shape — see `docs/v2-architecture.md`'s approved `routes/admin/` folder structure |
 | `admin/dashboard.ts` ✅ | `GET /api/admin/dashboard/summary` — added Version 2.0 Phase 0.2 (Admin Shell), see `docs/v2-admin-shell-architecture.md`. Open to every authenticated role (no `requireRole` gate) per the approved permissions table |
+| `admin/media.ts` ✅ | `POST/GET /api/admin/media`, `GET/PATCH/DELETE /api/admin/media/:id`, `POST /api/admin/media/:id/replace`, `POST /api/admin/media/:id/restore` — added Version 2.0 Phase 1 (Media Library), see `docs/v2-media-library-spec.md`. Viewing open to every role; every mutation gated `editor`/`super_admin` via `requireRole()` |
+| `media.ts` ✅ | `GET /api/media/file/:key` — the public, unauthenticated counterpart to `admin/media.ts`, added the same phase. Deliberately outside `admin/` (no auth), matching `downloads.ts`'s top-level placement for its own public-but-token-gated route |
 
 ✅ = implemented. `products.ts` remains unimplemented. Every other
 `routes/admin/*` module (products, blog, resources, newsletter,
-consultations, contacts, orders, media, analytics, settings, users —
-per `docs/v2-architecture.md`) remains out of scope until its own
-phase.
+consultations, contacts, orders, analytics, settings, users — per
+`docs/v2-architecture.md`) remains out of scope until its own phase.
 
 Each endpoint's purpose, request/response shape, authentication
 requirement, validation rules, and possible errors are documented in
@@ -69,3 +70,17 @@ envelope (the file itself) — see that file's own header comment, and
 `docs/digital-fulfilment.md`. Both new routes have dynamic path
 segments (`:reference`, `:token`) — see `worker/index.ts`'s own
 updated dispatch logic for how those are extracted.
+
+*(Updated again — Version 2.0 Phase 1, Media Library.)* `admin/media.ts`
+and top-level `media.ts` are implemented. `admin/media.ts` is a thin
+HTTP layer only — every real check (auth, role, CSRF, rate limit) is
+called explicitly in each handler, then delegates to
+`services/mediaService.ts`. `media.ts`'s `GET /api/media/file/:key`
+is now the second route in this Worker (after `downloads.ts`) whose
+successful response isn't the standard JSON envelope — it streams the
+real R2 object body with a `Cache-Control: immutable` header, safe
+because every real key is a fresh UUID that never gets reused for
+different content. Registered in `worker/index.ts` with the
+`:key(.*)` regex-group pattern, since a real storage key is itself a
+multi-segment path (`media/images/books/<uuid>.jpg`), not a single
+path segment like every other dynamic route here.

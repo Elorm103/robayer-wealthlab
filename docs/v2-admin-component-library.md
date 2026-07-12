@@ -61,3 +61,40 @@ pagination logic — the toolbar/search-bar/pagination/modal CSS exists
 so the next phase's modules don't have to invent their own, but no
 module in this phase actually drives them with real data. That's
 Product Management and every module after it, not the Admin Shell.
+
+---
+
+## Updated — Version 2.0 Phase 1 (Media Library)
+
+Media Library is the first module to actually drive the
+toolbar/search-bar/pagination/modal/empty-state components with real
+data — `.toolbar`, `.search-bar`, `.pagination`, `.modal-overlay`,
+`.empty-state`, `.field__input`/`__select`/`__textarea`, `.btn`,
+`.badge`, `.card`, and `.admin-activity-item` (reused as the list
+view's row shape) are all consumed unmodified, exactly as this
+component library anticipated. No new design tokens, colors, or
+spacing values were introduced for it either — see
+`css/admin.css`'s "MEDIA LIBRARY" section, appended after the
+components documented above.
+
+New components, scoped specifically to Media Library and not
+generically reusable the way the table above is (they're shaped around
+"a grid of uploadable files," not a general list-view concern):
+
+| Component | Classes | Notes |
+|---|---|---|
+| Dropzone | `.media-dropzone` (+ `.is-dragover`) | Drag-and-drop target; the visible "Browse files" button and hidden `<input type="file" multiple>` are the accessible/keyboard-operable path, drag-and-drop is progressive enhancement on top |
+| Upload queue | `.upload-queue`, `.upload-queue__item` (`[data-upload-state="uploading"\|"done"\|"error"]`), `.upload-queue__filename`, `.upload-queue__meta`, `.upload-queue__bar`, `.upload-queue__bar-fill`, `.upload-queue__icon-button` | One row per in-flight upload; real `XMLHttpRequest` progress events drive `__bar-fill`'s width, not a simulated/fake progress animation |
+| Media grid / card | `.media-grid`, `.media-card` (+ `--deleted`), `.media-card__thumb-wrap`, `.media-card__thumb`, `.media-card__badge`, `.media-card__button`, `.media-card__body`, `.media-card__title`, `.media-card__meta`, `.media-card__doc-icon` | `repeat(auto-fill, minmax(160px, 1fr))` grid; the whole thumbnail is one `<button>` (not a wrapping `<a>`/click-anywhere-div) for correct keyboard/screen-reader semantics |
+| Media list row | `.media-list-row`, `.media-list-row__thumb` | Reuses `.admin-activity-item` as its outer row shape rather than a new one |
+| Filters | `.media-filters`, `.media-filter-chip` (`[aria-pressed]`) | A toggle-button group, not a `<select>` — multiple filter dimensions (type, folder, recency, deleted) visible and tappable at once |
+| View toggle | `.media-view-toggle`, `.media-view-toggle__button` (`[aria-pressed]`) | Grid/list switch, `role="group"` with an `aria-label`, state persisted to `localStorage` |
+| Preview / metadata panel | `.media-preview`, `.media-preview__image-wrap`, `.media-preview__image` (`.is-zoomed`), `.media-preview__field`, `.media-preview__url-row` | Lives inside the existing `.modal` shape — no new dialog component, just new content inside the one that already existed |
+
+All of the above respect `prefers-reduced-motion` (transitions removed
+on the dropzone, upload progress bar, and card hover, matching the
+existing `.spinner`/`.skeleton` precedent) and inherit the sitewide
+`:focus-visible` outline from `base.css` — none needed a per-component
+focus style of their own. See `docs/v2-media-library-spec.md` for the
+feature-level design and `js/components/admin/admin-media.js` for the
+behavior driving all of this.

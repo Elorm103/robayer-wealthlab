@@ -82,4 +82,12 @@ export type ApiErrorCode =
   // GET /api/download/:token — added Version 1.2 Sprint 2.5. TOKEN_NOT_FOUND/
   // TOKEN_EXPIRED/TOKEN_ALREADY_USED/DOWNLOAD_LIMIT_REACHED above (already
   // present since Phase 4's original design) are reused as-is, unchanged.
-  | 'ASSET_UNAVAILABLE';
+  | 'ASSET_UNAVAILABLE'
+  // /api/admin/media/* — added Version 2.0 Phase 1 (Media Library)
+  | 'MEDIA_NOT_FOUND'
+  | 'UNSUPPORTED_FILE_TYPE'
+  | 'FILE_TOO_LARGE'
+  | 'DUPLICATE_ASSET'
+  | 'ALREADY_DELETED'
+  | 'NOT_DELETED'
+  | 'FILE_REJECTED';

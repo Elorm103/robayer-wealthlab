@@ -63,3 +63,16 @@ applied to production. Scoped deliberately narrow: the other new
 tables `docs/v2-database-expansion.md` describes (`blog_posts`,
 `resources`, `media_assets`, etc.) belong to later phases that build
 the modules which actually use them, not to this migration.
+(Since applied to production — see `docs/v2-same-origin-migration-audit.md`
+and later deployment reports for confirmation.)
+
+*(Updated — Version 2.0 Phase 1, Media Library.)*
+[`migrations/0007_media_library.sql`](migrations/0007_media_library.sql)
+adds the `media_assets` table (5 indexes: folder, media_type,
+content_hash, deleted_at, created_at) — the richer, real shape that
+superseded `docs/v2-database-expansion.md`'s earlier sketch (added
+`content_hash`, `thumbnail_storage_key`/`thumbnail_public_url`,
+`status`; renamed `content_type` to `mime_type`) — see that doc's own
+updated note and `docs/v2-media-library-spec.md`. Verified against
+local D1; production application is this phase's final step (see
+`docs/v2-media-library-spec.md`'s "Status" line for where that stands).

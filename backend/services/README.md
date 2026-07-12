@@ -26,6 +26,7 @@ means `routes/` files stay thin and easy to read.
 | `admin/sessionService.ts` ✅ | Creates/validates/revokes `admin_sessions` rows — the only code that writes to that table. Added Version 2.0 Phase 0.1 |
 | `admin/auditService.ts` ✅ | Writes to the `audit_logs` D1 table whenever another service performs a sensitive action (login, logout, a rejected session/role/CSRF check). Added Version 2.0 Phase 0.1 |
 | `admin/dashboardService.ts` ✅ | Real D1 aggregate queries backing the dashboard's KPI cards (orders/revenue, subscribers, consultations, contacts, recent activity). Added Version 2.0 Phase 0.2 — see `docs/v2-admin-shell-architecture.md`. Every figure independently degrades to `null` ("No data yet") on its own query failure rather than blanking the whole dashboard; `productsCount` is always `null` this phase since the product catalog lives in `content/products/*.json`, not D1 |
+| `mediaService.ts` ✅ | Added Version 2.0 Phase 1 — the only code that writes to `media_assets` or the `media/` R2 prefix. Upload (sniff → hash → dedupe → threat-scan hook → R2 put → D1 insert), list/search/filter/paginate, metadata update, replace, soft delete, restore. See `docs/v2-media-library-spec.md` |
 
 ✅ = implemented. Every other admin module (`admin/productsService.ts`
 and similar, per `docs/v2-architecture.md`'s `services/admin/` folder
@@ -99,3 +100,15 @@ is the first code in this project to write to `admin_users` (beyond its
 initial empty creation) and to `admin_sessions`/`audit_logs` at all —
 both tables existed, live, since Version 1.2 Sprint 2, unused until now.
 See `docs/v2-authentication-design.md`.
+
+*(Updated again — Version 2.0 Phase 1, Media Library.)* `mediaService.ts`
+is implemented, backing `POST/GET /api/admin/media`,
+`GET/PATCH/DELETE /api/admin/media/:id`, `POST /api/admin/media/:id/replace`,
+`POST /api/admin/media/:id/restore`, and the public
+`GET /api/media/file/:key` route. This is the first code in this
+project to *write* to R2 — every prior use of the `STORAGE` binding
+(`routes/downloads.ts`) was read-only. `requireRole()` (existed since
+Phase 0.1, never called by any route until now) gates every mutating
+media action to `editor`/`super_admin`; viewing is open to all three
+admin roles, matching `dashboardService.ts`'s existing read-only
+precedent. See `docs/v2-media-library-spec.md`.

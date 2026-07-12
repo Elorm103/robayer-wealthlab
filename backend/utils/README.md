@@ -63,3 +63,15 @@ via `crypto.getRandomValues`, the same Web-Crypto-only, zero-dependency
 approach as `webhookSignature.ts` — finally closes this table's
 longest-standing planned entry. See `docs/digital-fulfilment.md`'s
 "Security."
+
+*(Updated — Version 2.0 Phase 1, Media Library.)* Three new pure
+utilities, all zero-dependency (native Workers Web APIs only, matching
+this folder's established posture):
+
+| File | Exports |
+|---|---|
+| `mediaValidation.ts` | `detectMediaType()` — the real file-type security boundary, sniffing actual bytes (magic numbers / RIFF-WEBP container / SVG content check) rather than trusting a client-supplied `Content-Type` or filename extension. Also `sanitizeOriginalFilename()`, `hashBytes()` (SHA-256 dedupe key), `isAllowedFolder()`, and `scanForThreats()` — a genuine, documented no-op hook for a future virus-scan provider, not a fake implementation |
+| `imageDimensions.ts` | `extractDimensions()` — raw byte-level PNG/JPEG/WebP/SVG header parsing (no image library; this project has no runtime npm dependencies). Best-effort by design: an unusual variant (e.g. a lossy-VP8-only WebP frame) returns `null` rather than guessing, since `media_assets.width`/`height` are nullable for exactly this reason |
+| `mediaKey.ts` | `buildStorageKey()`, `buildThumbnailStorageKey()`, `publicUrlForKey()` — every R2 key is built from a validated folder enum plus `crypto.randomUUID()` only, never from client input, making path traversal and filename collisions structurally impossible rather than merely validated-against |
+
+See `docs/v2-media-library-spec.md`.
