@@ -46,6 +46,7 @@ import { handleGetPurchaseStatus, handleRequestDownload } from '../routes/purcha
 import { handleDownload } from '../routes/downloads';
 import { handleUnsubscribeStatus, handleUnsubscribeConfirm } from '../routes/unsubscribe';
 import { handleAdminLogin, handleAdminLogout, handleAdminSession } from '../routes/admin/auth';
+import { handleAdminDashboardSummary } from '../routes/admin/dashboard';
 
 export type { Env };
 
@@ -89,6 +90,11 @@ const ROUTES: Route[] = [
   { pattern: new URLPattern({ pathname: '/api/admin/auth/login' }), method: 'POST', handler: handleAdminLogin },
   { pattern: new URLPattern({ pathname: '/api/admin/auth/logout' }), method: 'POST', handler: handleAdminLogout },
   { pattern: new URLPattern({ pathname: '/api/admin/auth/session' }), method: 'GET', handler: handleAdminSession },
+  // Added Version 2.0 Phase 0.2 (Admin Shell) — see
+  // docs/v2-admin-shell-architecture.md. The dashboard's only real data
+  // source; every other admin module route remains out of scope until
+  // its own phase.
+  { pattern: new URLPattern({ pathname: '/api/admin/dashboard/summary' }), method: 'GET', handler: handleAdminDashboardSummary },
 ];
 
 export default {

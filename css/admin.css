@@ -1,0 +1,761 @@
+/*
+  Robayer WealthLab — Admin Shell + Component Library
+  Version 2.0 Phase 0.2. Loaded after utilities.css on every /admin/*
+  page — additive only, references existing tokens exclusively (no new
+  colors/spacing/radii/type sizes), so dark mode ([data-theme="dark"]
+  in tokens.css) and every existing component (.btn/.card/.badge/
+  .alert/.field/.table/.breadcrumbs/.icon) keep working unmodified.
+  Depends on: tokens.css, base.css, layout.css, components.css, utilities.css
+*/
+
+/* ============================================================
+   ADMIN SHELL — sidebar + topbar + content frame
+   ============================================================ */
+.admin-shell {
+  display: flex;
+  min-height: 100vh;
+  background-color: var(--color-bg-alt);
+}
+
+/* The [data-include] wrapper divs (js/includes.js) around the sidebar/
+   topbar partials would otherwise become unwanted flex items inside
+   .admin-shell/.admin-main — display: contents makes the wrapper
+   itself invisible to layout so its children (.admin-sidebar,
+   .admin-sidebar-backdrop, .admin-topbar) participate directly. */
+.admin-include {
+  display: contents;
+}
+
+.admin-sidebar {
+  width: 260px;
+  flex-shrink: 0;
+  position: sticky;
+  top: 0;
+  height: 100vh;
+  overflow-y: auto;
+  display: flex;
+  flex-direction: column;
+  background-color: var(--color-ink-navy);
+  color: var(--color-text-on-dark);
+  transition: width var(--duration-base) var(--ease-standard);
+}
+
+.admin-sidebar__brand {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  padding: var(--space-4);
+  min-height: var(--header-height);
+  font-family: var(--font-display);
+  font-weight: var(--weight-semibold);
+  color: var(--color-white);
+  white-space: nowrap;
+  overflow: hidden;
+}
+
+.admin-sidebar__brand-mark {
+  width: 24px;
+  height: auto;
+  flex-shrink: 0;
+}
+
+.admin-sidebar__nav {
+  flex: 1;
+  padding: var(--space-3) var(--space-2);
+}
+
+.admin-sidebar__link {
+  display: flex;
+  align-items: center;
+  gap: var(--space-3);
+  padding: var(--space-2) var(--space-3);
+  margin-bottom: var(--space-1);
+  border-radius: var(--radius-sm);
+  color: rgba(255, 255, 255, 0.72);
+  font-family: var(--font-heading);
+  font-weight: var(--weight-medium);
+  font-size: var(--text-small);
+  white-space: nowrap;
+  transition: background-color var(--duration-fast) var(--ease-standard),
+              color var(--duration-fast) var(--ease-standard);
+}
+
+.admin-sidebar__link:hover {
+  background-color: rgba(255, 255, 255, 0.08);
+  color: var(--color-white);
+  text-decoration: none;
+}
+
+.admin-sidebar__link[aria-current="page"] {
+  background-color: var(--color-growth-green);
+  color: var(--color-white);
+}
+
+.admin-sidebar__link-icon {
+  flex-shrink: 0;
+  width: 20px;
+  height: 20px;
+}
+
+.admin-sidebar__link-label {
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.admin-sidebar__footer {
+  padding: var(--space-3);
+  border-top: 1px solid rgba(255, 255, 255, 0.12);
+}
+
+.admin-sidebar__collapse {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: var(--space-2);
+  width: 100%;
+  min-height: 40px;
+  border-radius: var(--radius-sm);
+  color: rgba(255, 255, 255, 0.72);
+  font-size: var(--text-small);
+}
+
+.admin-sidebar__collapse:hover {
+  background-color: rgba(255, 255, 255, 0.08);
+  color: var(--color-white);
+}
+
+/* Collapsed (icon-rail) state — desktop only, toggled via [data-sidebar-collapsed] on .admin-shell */
+.admin-shell[data-sidebar-collapsed="true"] .admin-sidebar {
+  width: 72px;
+}
+
+.admin-shell[data-sidebar-collapsed="true"] .admin-sidebar__brand span,
+.admin-shell[data-sidebar-collapsed="true"] .admin-sidebar__link-label,
+.admin-shell[data-sidebar-collapsed="true"] .admin-sidebar__collapse span {
+  display: none;
+}
+
+.admin-shell[data-sidebar-collapsed="true"] .admin-sidebar__link {
+  justify-content: center;
+}
+
+/* ---------- Main column ---------- */
+.admin-main {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+}
+
+.admin-topbar {
+  position: sticky;
+  top: 0;
+  z-index: var(--z-sticky);
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-4);
+  min-height: var(--header-height);
+  padding-inline: var(--space-5);
+  background-color: var(--color-surface);
+  border-bottom: 0.5px solid var(--color-border);
+}
+
+.admin-topbar__start {
+  display: flex;
+  align-items: center;
+  gap: var(--space-3);
+  min-width: 0;
+}
+
+.admin-topbar__menu-toggle {
+  display: none;
+  width: 40px;
+  height: 40px;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  color: var(--color-text-heading);
+}
+
+.admin-topbar__sidebar-toggle {
+  display: none;
+  width: 40px;
+  height: 40px;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  color: var(--color-text-secondary);
+  border-radius: var(--radius-sm);
+}
+
+@media (min-width: 1200px) {
+  .admin-topbar__sidebar-toggle {
+    display: inline-flex;
+  }
+}
+
+.admin-topbar__sidebar-toggle:hover {
+  background-color: var(--color-bg-alt);
+  color: var(--color-text-heading);
+}
+
+.admin-topbar__titles {
+  min-width: 0;
+}
+
+.admin-topbar__title {
+  font-family: var(--font-display);
+  font-weight: var(--weight-semibold);
+  font-size: var(--text-h4);
+  color: var(--color-text-heading);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.admin-topbar__breadcrumbs {
+  padding-block: 0;
+}
+
+.admin-topbar__end {
+  display: flex;
+  align-items: center;
+  gap: var(--space-3);
+  flex-shrink: 0;
+}
+
+.admin-content {
+  flex: 1;
+  padding: var(--space-5);
+}
+
+@media (max-width: 767px) {
+  .admin-content {
+    padding: var(--space-4) var(--space-3);
+  }
+}
+
+/* ---------- Mobile sidebar (off-canvas) ---------- */
+@media (max-width: 1199px) {
+  .admin-topbar__menu-toggle {
+    display: inline-flex;
+  }
+
+  .admin-sidebar {
+    position: fixed;
+    inset: 0 auto 0 0;
+    z-index: var(--z-overlay);
+    width: 280px;
+    transform: translateX(-100%);
+    /* visibility (not just transform) — matches .nav__menu's own mobile
+       pattern in components.css: without it, a closed sidebar's links
+       stay keyboard-focusable while sitting off-screen, since transform
+       alone doesn't remove an element from tab order. */
+    visibility: hidden;
+    transition: transform var(--duration-base) var(--ease-standard),
+                visibility var(--duration-base);
+  }
+
+  .admin-sidebar.is-open {
+    transform: translateX(0);
+    visibility: visible;
+  }
+
+  .admin-shell[data-sidebar-collapsed="true"] .admin-sidebar {
+    width: 280px; /* collapse is a desktop-only affordance; mobile always shows full labels when open */
+  }
+
+  .admin-shell[data-sidebar-collapsed="true"] .admin-sidebar__brand span,
+  .admin-shell[data-sidebar-collapsed="true"] .admin-sidebar__link-label,
+  .admin-shell[data-sidebar-collapsed="true"] .admin-sidebar__collapse span {
+    display: initial;
+  }
+
+  .admin-shell[data-sidebar-collapsed="true"] .admin-sidebar__link {
+    justify-content: flex-start;
+  }
+}
+
+.admin-sidebar-backdrop {
+  display: none;
+  position: fixed;
+  inset: 0;
+  z-index: calc(var(--z-overlay) - 1);
+  background-color: rgba(22, 35, 61, 0.5);
+}
+
+.admin-sidebar-backdrop.is-visible {
+  display: block;
+}
+
+/* ============================================================
+   USER MENU / DROPDOWN — also used for any future action menu
+   ============================================================ */
+.dropdown {
+  position: relative;
+}
+
+.dropdown__trigger {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  padding: var(--space-1) var(--space-2);
+  border-radius: var(--radius-sm);
+  color: var(--color-text-heading);
+}
+
+.dropdown__trigger:hover {
+  background-color: var(--color-bg-alt);
+}
+
+.dropdown__avatar {
+  width: 32px;
+  height: 32px;
+  border-radius: 50%;
+  background-color: var(--color-growth-green);
+  color: var(--color-white);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-family: var(--font-heading);
+  font-size: var(--text-small);
+  font-weight: var(--weight-medium);
+  flex-shrink: 0;
+}
+
+.dropdown__name {
+  font-family: var(--font-heading);
+  font-weight: var(--weight-medium);
+  font-size: var(--text-small);
+  white-space: nowrap;
+}
+
+.dropdown__role {
+  display: block;
+  font-size: 0.6875rem;
+  color: var(--color-text-secondary);
+  text-transform: capitalize;
+}
+
+.dropdown__menu {
+  position: absolute;
+  top: calc(100% + var(--space-2));
+  right: 0;
+  min-width: 200px;
+  padding: var(--space-2);
+  background-color: var(--color-surface);
+  border: 0.5px solid var(--color-border);
+  border-radius: var(--radius-md);
+  box-shadow: var(--shadow-3);
+  z-index: var(--z-overlay);
+}
+
+.dropdown__menu[hidden] {
+  display: none;
+}
+
+.dropdown__item {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  width: 100%;
+  padding: var(--space-2) var(--space-3);
+  border-radius: var(--radius-sm);
+  font-size: var(--text-small);
+  color: var(--color-text-primary);
+  text-align: left;
+}
+
+.dropdown__item:hover {
+  background-color: var(--color-bg-alt);
+  text-decoration: none;
+}
+
+.dropdown__divider {
+  height: 1px;
+  margin-block: var(--space-2);
+  background-color: var(--color-border);
+}
+
+/* ============================================================
+   NOTIFICATION AREA
+   ============================================================ */
+.notification-bell {
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 40px;
+  height: 40px;
+  border-radius: var(--radius-sm);
+  color: var(--color-text-secondary);
+}
+
+.notification-bell:hover {
+  background-color: var(--color-bg-alt);
+  color: var(--color-text-heading);
+}
+
+.notification-bell__dot {
+  position: absolute;
+  top: 8px;
+  right: 8px;
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background-color: var(--color-kente-red);
+  display: none;
+}
+
+.notification-bell[data-has-notifications="true"] .notification-bell__dot {
+  display: block;
+}
+
+/* ============================================================
+   STAT CARDS
+   ============================================================ */
+.stat-card {
+  background-color: var(--color-surface);
+  border: 0.5px solid var(--color-border);
+  border-radius: var(--radius-md);
+  padding: var(--space-4);
+  box-shadow: var(--shadow-1);
+}
+
+.stat-card__label {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  font-family: var(--font-heading);
+  font-weight: var(--weight-medium);
+  font-size: var(--text-small);
+  color: var(--color-text-secondary);
+  margin-bottom: var(--space-2);
+}
+
+.stat-card__icon {
+  width: 18px;
+  height: 18px;
+  color: var(--color-accent);
+  flex-shrink: 0;
+}
+
+.stat-card__value {
+  font-family: var(--font-display);
+  font-weight: var(--weight-semibold);
+  font-size: var(--text-h2);
+  color: var(--color-text-heading);
+  font-variant-numeric: tabular-nums;
+}
+
+.stat-card__value--muted {
+  font-size: var(--text-body-lg);
+  color: var(--color-text-secondary);
+  font-family: var(--font-body);
+  font-weight: var(--weight-regular);
+}
+
+.stat-card__meta {
+  margin-top: var(--space-1);
+  font-size: var(--text-small);
+  color: var(--color-text-secondary);
+}
+
+/* ============================================================
+   RECENT ACTIVITY LIST (dashboard-specific, but a generic enough
+   shape other modules may reuse for their own recent-activity lists)
+   ============================================================ */
+.admin-activity-list {
+  display: flex;
+  flex-direction: column;
+}
+
+.admin-activity-item {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-3);
+  padding: var(--space-3) 0;
+  border-bottom: 0.5px solid var(--color-border);
+  font-size: var(--text-small);
+}
+
+.admin-activity-item:last-child {
+  border-bottom: none;
+}
+
+/* ============================================================
+   ADMIN TABLE (extends .table from components.css)
+   ============================================================ */
+.admin-table-wrap {
+  background-color: var(--color-surface);
+  border: 0.5px solid var(--color-border);
+  border-radius: var(--radius-md);
+  overflow: hidden;
+  box-shadow: var(--shadow-1);
+}
+
+.admin-table-wrap .table {
+  border-radius: 0;
+}
+
+.admin-table-wrap .table thead th {
+  position: sticky;
+  top: 0;
+}
+
+.admin-table-row-actions {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  justify-content: flex-end;
+}
+
+/* ============================================================
+   TOOLBAR / SEARCH BAR
+   ============================================================ */
+.toolbar {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-3);
+  margin-bottom: var(--space-4);
+}
+
+.toolbar__group {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--space-2);
+}
+
+.search-bar {
+  position: relative;
+  min-width: 220px;
+}
+
+.search-bar__icon {
+  position: absolute;
+  top: 50%;
+  left: var(--space-3);
+  transform: translateY(-50%);
+  width: 18px;
+  height: 18px;
+  color: var(--color-text-secondary);
+  pointer-events: none;
+}
+
+.search-bar__input {
+  width: 100%;
+  padding-left: calc(var(--space-3) * 2 + 18px);
+}
+
+/* ============================================================
+   PAGINATION
+   ============================================================ */
+.pagination {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-3);
+  padding-top: var(--space-4);
+  font-size: var(--text-small);
+  color: var(--color-text-secondary);
+}
+
+.pagination__controls {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+}
+
+.pagination__button {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 36px;
+  height: 36px;
+  border-radius: var(--radius-sm);
+  border: 1px solid var(--color-border-strong);
+  color: var(--color-text-primary);
+}
+
+.pagination__button:hover:not(:disabled) {
+  background-color: var(--color-bg-alt);
+}
+
+.pagination__button:disabled {
+  opacity: 0.4;
+  cursor: not-allowed;
+}
+
+/* ============================================================
+   MODAL / CONFIRMATION DIALOG
+   ============================================================ */
+.modal-overlay {
+  position: fixed;
+  inset: 0;
+  z-index: var(--z-overlay);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: var(--space-4);
+  background-color: rgba(22, 35, 61, 0.55);
+}
+
+.modal-overlay[hidden] {
+  display: none;
+}
+
+.modal {
+  width: 100%;
+  max-width: 480px;
+  max-height: calc(100vh - var(--space-6));
+  overflow-y: auto;
+  background-color: var(--color-surface);
+  border-radius: var(--radius-lg);
+  box-shadow: var(--shadow-3);
+}
+
+.modal__header {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: var(--space-3);
+  padding: var(--space-4) var(--space-5) 0;
+}
+
+.modal__title {
+  font-size: var(--text-h4);
+}
+
+.modal__close {
+  width: 32px;
+  height: 32px;
+  flex-shrink: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: var(--radius-sm);
+  color: var(--color-text-secondary);
+}
+
+.modal__close:hover {
+  background-color: var(--color-bg-alt);
+  color: var(--color-text-heading);
+}
+
+.modal__body {
+  padding: var(--space-4) var(--space-5);
+  color: var(--color-text-secondary);
+}
+
+.modal__footer {
+  display: flex;
+  justify-content: flex-end;
+  gap: var(--space-2);
+  padding: 0 var(--space-5) var(--space-5);
+}
+
+/* ============================================================
+   LOADING SPINNER
+   ============================================================ */
+.spinner {
+  width: 24px;
+  height: 24px;
+  border: 3px solid var(--color-border);
+  border-top-color: var(--color-accent);
+  border-radius: 50%;
+  animation: spinner-rotate var(--duration-slow) linear infinite;
+  animation-duration: 800ms;
+}
+
+@keyframes spinner-rotate {
+  to { transform: rotate(360deg); }
+}
+
+.spinner--sm {
+  width: 16px;
+  height: 16px;
+  border-width: 2px;
+}
+
+/* ============================================================
+   SKELETON LOADER
+   ============================================================ */
+.skeleton {
+  background: linear-gradient(90deg, var(--color-bg-alt) 25%, var(--color-border) 37%, var(--color-bg-alt) 63%);
+  background-size: 400% 100%;
+  border-radius: var(--radius-sm);
+  animation: skeleton-shimmer 1.4s ease infinite;
+}
+
+@keyframes skeleton-shimmer {
+  0% { background-position: 100% 50%; }
+  100% { background-position: 0 50%; }
+}
+
+.skeleton--text {
+  height: 0.9em;
+  margin-bottom: var(--space-2);
+}
+
+.skeleton--title {
+  height: 1.5em;
+  width: 40%;
+  margin-bottom: var(--space-3);
+}
+
+.skeleton--block {
+  height: 96px;
+  width: 100%;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .skeleton,
+  .spinner {
+    animation: none;
+  }
+}
+
+/* ============================================================
+   EMPTY STATE (also used for "Coming Soon" module pages)
+   ============================================================ */
+.empty-state {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  text-align: center;
+  padding: var(--space-7) var(--space-4);
+  color: var(--color-text-secondary);
+}
+
+.empty-state__icon {
+  width: 40px;
+  height: 40px;
+  margin-bottom: var(--space-4);
+  color: var(--color-border-strong);
+}
+
+.empty-state__title {
+  font-size: var(--text-h4);
+  color: var(--color-text-heading);
+  margin-bottom: var(--space-2);
+}
+
+.empty-state__body {
+  max-width: 420px;
+}
+
+/* Compact variant — used inline (e.g. inside a stat card or table body), not as a full-page state */
+.empty-state--compact {
+  padding: var(--space-4);
+}
+
+.empty-state--compact .empty-state__icon {
+  width: 28px;
+  height: 28px;
+  margin-bottom: var(--space-2);
+}

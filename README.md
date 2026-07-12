@@ -72,7 +72,8 @@ robayer-wealthlab/
 │   ├── layout.css         Container, grid system, section rhythm
 │   ├── components.css     Every reusable component (see components.html for the full catalog)
 │   ├── utilities.css      Small single-purpose helper classes
-│   └── dev-showcase.css   Dev-only styling for components.html — never linked from a real page
+│   ├── dev-showcase.css   Dev-only styling for components.html — never linked from a real page
+│   └── admin.css          Admin shell + component library (sidebar/topbar/stat-card/table/toolbar/modal/dropdown/pagination/spinner/skeleton/empty-state) — Version 2.0 Phase 0.2, see docs/v2-admin-shell-architecture.md
 ├── js/
 │   ├── includes.js        Loads header/footer partials into every page
 │   ├── main.js             Site-wide behavior (footer year, etc.)
@@ -92,10 +93,17 @@ robayer-wealthlab/
 │       ├── calculator-compound-interest.js   Compound Interest calculator
 │       ├── calculator-savings-goal.js        Savings Goal calculator
 │       ├── calculator-investment-growth.js   Investment Growth calculator
-│       └── goal-planner.js                   Fetches content/goal-planner/{slug}.json, renders questions, reuses RobayerCalc.requiredContribution()
+│       ├── goal-planner.js                   Fetches content/goal-planner/{slug}.json, renders questions, reuses RobayerCalc.requiredContribution()
+│       └── admin/                            Version 2.0 Phase 0.2 — see docs/v2-admin-shell-architecture.md
+│           ├── admin-auth.js       The only file that calls /api/admin/auth/* — session guard, CSRF-aware fetch wrapper, login/logout
+│           ├── admin-shell.js      Sidebar collapse, mobile off-canvas nav, user-menu dropdown, active-link marking (pure UI, no API calls)
+│           ├── admin-login.js      Drives admin/login/ — form submit + already-authenticated bounce-away
+│           └── admin-dashboard.js  Drives admin/ — fetches and renders the real dashboard KPIs
 ├── partials/
 │   ├── header.html         Shared site header + navigation
-│   └── footer.html         Shared site footer
+│   ├── footer.html         Shared site footer
+│   ├── admin-sidebar.html  Admin nav — Version 2.0 Phase 0.2
+│   └── admin-topbar.html   Admin title/breadcrumbs/user menu — Version 2.0 Phase 0.2
 ├── templates/
 │   └── page-template.html Master template every real page is built from
 ├── assets/
@@ -156,6 +164,11 @@ robayer-wealthlab/
 │   ├── terms-of-use/index.html      Terms of Use page
 │   └── disclaimer/index.html        Disclaimer page
 ├── content/                 Scaffold for future structured content — see content/README.md and content/SCHEMA.md
+├── admin/                   Admin dashboard (Version 2.0 Phase 0.2 — see docs/v2-admin-shell-architecture.md)
+│   ├── login/index.html                    Admin login
+│   ├── index.html                          Dashboard — the only module with real data this phase
+│   ├── products/, media/, resources/, blog/, newsletter/, orders/,
+│   │   consultations/, contacts/, analytics/, settings/, users/    "Coming soon" placeholders — same shell, no duplicated layout/nav/CSS
 ├── components.html         Living style guide — every reusable component, shown in every state
 ├── CNAME                    Custom domain for GitHub Pages (robayerwealthlab.com)
 ├── robots.txt

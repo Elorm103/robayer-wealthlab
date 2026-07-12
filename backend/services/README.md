@@ -25,6 +25,7 @@ means `routes/` files stay thin and easy to read.
 | `admin/authService.ts` ✅ | Login/logout orchestration — credential verification (PBKDF2), delegates session-row lifecycle to `admin/sessionService.ts`. Added Version 2.0 Phase 0.1, see `docs/v2-authentication-design.md` |
 | `admin/sessionService.ts` ✅ | Creates/validates/revokes `admin_sessions` rows — the only code that writes to that table. Added Version 2.0 Phase 0.1 |
 | `admin/auditService.ts` ✅ | Writes to the `audit_logs` D1 table whenever another service performs a sensitive action (login, logout, a rejected session/role/CSRF check). Added Version 2.0 Phase 0.1 |
+| `admin/dashboardService.ts` ✅ | Real D1 aggregate queries backing the dashboard's KPI cards (orders/revenue, subscribers, consultations, contacts, recent activity). Added Version 2.0 Phase 0.2 — see `docs/v2-admin-shell-architecture.md`. Every figure independently degrades to `null` ("No data yet") on its own query failure rather than blanking the whole dashboard; `productsCount` is always `null` this phase since the product catalog lives in `content/products/*.json`, not D1 |
 
 ✅ = implemented. Every other admin module (`admin/productsService.ts`
 and similar, per `docs/v2-architecture.md`'s `services/admin/` folder

@@ -1,0 +1,98 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+
+  <title>Admin Login | Robayer WealthLab</title>
+  <meta name="description" content="Sign in to the Robayer WealthLab admin.">
+  <link rel="canonical" href="https://robayerwealthlab.com/admin/login/">
+  <!-- Private admin surface — never indexed, never followed. -->
+  <meta name="robots" content="noindex, nofollow">
+
+  <link rel="icon" type="image/svg+xml" href="/assets/icons/favicon.svg">
+  <link rel="icon" type="image/png" sizes="32x32" href="/assets/icons/favicon-32.png">
+  <link rel="apple-touch-icon" href="/assets/icons/apple-touch-icon.png">
+
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Fraunces:ital,wght@0,500;0,600;1,500&family=Space+Grotesk:wght@500&family=Work+Sans:wght@400;500&family=IBM+Plex+Mono:wght@400;500&display=swap" rel="stylesheet">
+
+  <link rel="stylesheet" href="/css/tokens.css">
+  <link rel="stylesheet" href="/css/base.css">
+  <link rel="stylesheet" href="/css/layout.css">
+  <link rel="stylesheet" href="/css/components.css">
+  <link rel="stylesheet" href="/css/utilities.css">
+  <link rel="stylesheet" href="/css/admin.css">
+
+  <style>
+    /* Page-specific layout only (centering the login card) — every
+       visual property still comes from existing tokens/components, no
+       new colors or one-off values, consistent with this project's
+       "no inline hardcoded styles" rule. */
+    .admin-login-page {
+      min-height: 100vh;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      background-color: var(--color-bg-alt);
+      padding: var(--space-4);
+    }
+    .admin-login-card {
+      width: 100%;
+      max-width: 380px;
+    }
+    .admin-login-brand {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: var(--space-2);
+      margin-bottom: var(--space-5);
+      font-family: var(--font-display);
+      font-weight: var(--weight-semibold);
+      font-size: var(--text-h4);
+      color: var(--color-ink-navy);
+    }
+    .admin-login-brand img { width: 28px; height: auto; }
+  </style>
+</head>
+<body>
+  <a href="#admin-login-heading" class="skip-link">Skip to sign-in form</a>
+  <div class="admin-login-page">
+    <div class="admin-login-card" id="admin-login-heading">
+      <div class="admin-login-brand">
+        <img src="/assets/branding/logo/logo-mark.png" alt="" width="415" height="355" loading="eager" decoding="async">
+        <span>Robayer WealthLab Admin</span>
+      </div>
+
+      <div class="card">
+        <h1 class="card__title text-center mb-4">Sign in</h1>
+
+        <form data-admin-login-form novalidate>
+          <p class="alert alert--error" role="alert" data-admin-login-error hidden></p>
+
+          <div class="field">
+            <label class="field__label" for="admin-login-email">Email</label>
+            <input class="field__input" type="email" id="admin-login-email" name="email" autocomplete="username" required>
+          </div>
+
+          <div class="field">
+            <label class="field__label" for="admin-login-password">Password</label>
+            <input class="field__input" type="password" id="admin-login-password" name="password" autocomplete="current-password" required>
+          </div>
+
+          <button type="submit" class="btn btn--primary btn--block">Sign in</button>
+        </form>
+      </div>
+
+      <p class="text-center text-small text-secondary mt-4">
+        <a href="/">&larr; Back to robayerwealthlab.com</a>
+      </p>
+    </div>
+  </div>
+
+  <script src="/js/components/theme-toggle.js"></script>
+  <script src="/js/components/admin/admin-auth.js"></script>
+  <script src="/js/components/admin/admin-login.js"></script>
+</body>
+</html>

@@ -1,0 +1,62 @@
+<header class="admin-topbar">
+  <div class="admin-topbar__start">
+    <button type="button" class="admin-topbar__menu-toggle" data-admin-menu-toggle aria-expanded="false" aria-controls="admin-sidebar" aria-label="Toggle admin navigation">
+      <svg width="20" height="20" viewBox="0 0 20 20" aria-hidden="true"><path d="M2 5h16M2 10h16M2 15h16" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" fill="none"/></svg>
+    </button>
+    <button type="button" class="admin-topbar__sidebar-toggle" data-admin-sidebar-toggle aria-label="Toggle sidebar width">
+      <svg class="icon" viewBox="0 0 24 24" aria-hidden="true"><rect x="3" y="4" width="18" height="16" rx="2"/><path d="M9 4v16"/></svg>
+    </button>
+    <div class="admin-topbar__titles">
+      <nav class="breadcrumbs admin-topbar__breadcrumbs" aria-label="Breadcrumb">
+        <a href="/admin/">Admin</a>
+        <span class="breadcrumbs__separator" aria-hidden="true">/</span>
+        <span data-admin-breadcrumb-current aria-current="page">Dashboard</span>
+      </nav>
+      <h1 class="admin-topbar__title" data-admin-page-title>Dashboard</h1>
+    </div>
+  </div>
+
+  <div class="admin-topbar__end">
+    <!-- Same component/behavior as partials/header.html's public toggle
+         (js/components/theme-toggle.js, unmodified) — the admin shell
+         shares one dark-mode preference with the rest of the site via
+         the same localStorage key, not a separate admin-only setting. -->
+    <button
+      class="theme-toggle"
+      type="button"
+      data-theme-toggle
+      aria-pressed="false"
+      aria-label="Toggle dark mode"
+    >
+      <svg class="icon theme-toggle__icon theme-toggle__icon--sun" viewBox="0 0 24 24" aria-hidden="true">
+        <circle cx="12" cy="12" r="4"/>
+        <path d="M12 2v2M12 20v2M4.2 4.2l1.4 1.4M18.4 18.4l1.4 1.4M2 12h2M20 12h2M4.2 19.8l1.4-1.4M18.4 5.6l1.4-1.4"/>
+      </svg>
+      <svg class="icon theme-toggle__icon theme-toggle__icon--moon" viewBox="0 0 24 24" aria-hidden="true">
+        <path d="M20 14.5A8 8 0 1 1 9.5 4a6.5 6.5 0 0 0 10.5 10.5z"/>
+      </svg>
+    </button>
+
+    <button type="button" class="notification-bell" data-has-notifications="false" aria-label="Notifications">
+      <svg class="icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M18 8a6 6 0 0 0-12 0c0 7-3 9-3 9h18s-3-2-3-9"/><path d="M13.73 21a2 2 0 0 1-3.46 0"/></svg>
+      <span class="notification-bell__dot" aria-hidden="true"></span>
+    </button>
+
+    <div class="dropdown" data-admin-user-menu>
+      <button type="button" class="dropdown__trigger" data-admin-user-menu-trigger aria-haspopup="true" aria-expanded="false">
+        <span class="dropdown__avatar" data-admin-user-initial aria-hidden="true">&nbsp;</span>
+        <span>
+          <span class="dropdown__name" data-admin-user-name>&nbsp;</span>
+          <span class="dropdown__role" data-admin-user-role></span>
+        </span>
+        <svg class="icon" width="16" height="16" viewBox="0 0 24 24" aria-hidden="true"><path d="M6 9l6 6 6-6"/></svg>
+      </button>
+      <div class="dropdown__menu" data-admin-user-menu-dropdown hidden role="menu">
+        <button type="button" class="dropdown__item" data-admin-logout role="menuitem">
+          <svg class="icon" width="16" height="16" viewBox="0 0 24 24" aria-hidden="true"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/><path d="M16 17l5-5-5-5"/><path d="M21 12H9"/></svg>
+          Log out
+        </button>
+      </div>
+    </div>
+  </div>
+</header>

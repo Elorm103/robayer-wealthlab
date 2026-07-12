@@ -43,6 +43,18 @@ per its own row above. All three apply so far only to the three
 `/api/admin/*` route remains out of scope until its own phase. See
 `docs/v2-authentication-design.md`.
 
+*(Updated — Version 2.0 Phase 0.2, Admin Shell.)* `cors.ts` gained
+`Access-Control-Allow-Credentials: true` and `X-CSRF-Token` in
+`Access-Control-Allow-Headers` — required once a real browser (the
+admin frontend, on `robayerwealthlab.com`) started calling this Worker
+(a different origin) with cookies. Additive only: every existing
+public, cookie-less endpoint is unaffected. Also required a correction
+to the admin session cookies themselves (`SameSite=Strict` → `None`,
+in `routes/admin/auth.ts`) since a `Strict` cookie is never sent
+cross-site regardless of this header — see
+`docs/v2-admin-shell-architecture.md`'s "Critical finding" for the
+full reasoning.
+
 One additional file exists beyond this table: `errorHandler.ts` —
 top-level error handling wrapping route dispatch in `worker/index.ts`,
 implementing the promise already made in `worker/README.md` ("an

@@ -104,10 +104,17 @@ export async function handleAdminLogin(request: Request, env: Env, logger: Logge
 
   return withNoStore(
     withCookies(response, [
+      // SameSite=None (not Strict) — Version 2.0 Phase 0.2 correction:
+      // the admin frontend (robayerwealthlab.com) and this Worker are
+      // different sites, so a Strict cookie is never sent on the
+      // cross-site fetch() calls the admin UI actually makes. Requires
+      // Secure (already true). The real CSRF defense remains the
+      // double-submit X-CSRF-Token header (middleware/csrf.ts),
+      // unchanged — see docs/v2-admin-shell-architecture.md.
       serializeCookie(SESSION_COOKIE_NAME, result.sessionToken, {
         httpOnly: true,
         secure: true,
-        sameSite: 'Strict',
+        sameSite: 'None',
         path: '/',
         maxAgeSeconds: SESSION_COOKIE_MAX_AGE_SECONDS,
       }),
@@ -116,7 +123,7 @@ export async function handleAdminLogin(request: Request, env: Env, logger: Logge
       serializeCookie(CSRF_COOKIE_NAME, result.csrfSecret, {
         httpOnly: false,
         secure: true,
-        sameSite: 'Strict',
+        sameSite: 'None',
         path: '/',
         maxAgeSeconds: SESSION_COOKIE_MAX_AGE_SECONDS,
       }),
@@ -138,8 +145,8 @@ export async function handleAdminLogout(request: Request, env: Env, logger: Logg
 
   return withNoStore(
     withCookies(response, [
-      serializeCookie(SESSION_COOKIE_NAME, '', { httpOnly: true, secure: true, sameSite: 'Strict', path: '/', maxAgeSeconds: 0 }),
-      serializeCookie(CSRF_COOKIE_NAME, '', { httpOnly: false, secure: true, sameSite: 'Strict', path: '/', maxAgeSeconds: 0 }),
+      serializeCookie(SESSION_COOKIE_NAME, '', { httpOnly: true, secure: true, sameSite: 'None', path: '/', maxAgeSeconds: 0 }),
+      serializeCookie(CSRF_COOKIE_NAME, '', { httpOnly: false, secure: true, sameSite: 'None', path: '/', maxAgeSeconds: 0 }),
     ])
   );
 }
