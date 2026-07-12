@@ -28,20 +28,22 @@ route in `routes/`, rather than one Worker per endpoint, because:
 
 ## Today
 
-*(Updated in Version 1.2 Sprint 3.)* `index.ts` routes
-`POST /api/newsletter`, `POST /api/contact`, and
-`POST /api/consultation` using the Workers-native `URLPattern` API (no
-router dependency, per the "no unnecessary dependencies" posture
-below), applies CORS (`middleware/cors.ts`) and top-level error
-handling (`middleware/errorHandler.ts`), and generates one requestId
-per request threaded through every log line
+*(Updated in Version 1.2 Sprint 3; CORS note corrected in the Version 2.0
+Same-Origin Migration — see `../../docs/v2-same-origin-architecture.md`.)*
+`index.ts` routes every `/api/*` endpoint using the Workers-native
+`URLPattern` API (no router dependency, per the "no unnecessary
+dependencies" posture below), applies top-level error handling
+(`middleware/errorHandler.ts`) and baseline security headers
+(`middleware/securityHeaders.ts`), and generates one requestId per
+request threaded through every log line
 (`docs/monitoring-and-alerting.md`). Any other path/method gets a
 standard `NOT_FOUND` envelope. `env.ts` declares the `Env` bindings
-configured in `../wrangler.jsonc` (migrated from `wrangler.toml` during
-Sprint 3's Worker-initialization pass — see `../config/README.md`).
-**Nothing here is deployed** — this is still local, unpushed code; see
-the Sprint 3 implementation report for the manual test plan and
-deployment steps.
+configured in `../wrangler.jsonc`. There is no CORS middleware — the
+frontend and this Worker are same-origin (a Cloudflare Workers Route on
+`robayerwealthlab.com/api/*`, alongside the still-live `workers.dev`
+subdomain), so same-origin requests never trigger CORS in the browser
+at all; see `../../docs/v2-same-origin-architecture.md` for the full
+routing model.
 
 **Verified locally (Phase 2, not just reviewed):** `wrangler d1 execute
 --local` applied `database/schema.sql` to a local D1 instance, then

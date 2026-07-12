@@ -10,9 +10,8 @@
  * error alert instead of the confirmation, leaving the form in place.
  */
 
-// Update this after deploying the Worker (backend/wrangler.jsonc) — see
-// js/components/newsletter-form.js's equivalent constant.
-const CONSULTATION_API_URL = 'https://robayer-wealthlab-api.robayerwealthlab.workers.dev/api/consultation';
+// Relative — see js/components/newsletter-form.js's equivalent constant.
+const CONSULTATION_API_URL = '/api/consultation';
 
 function initConsultationForms() {
   const forms = document.querySelectorAll('[data-consultation-form]:not([data-bound])');

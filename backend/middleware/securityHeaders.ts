@@ -5,11 +5,12 @@
  * and docs/platform-review-v1.md's "Security headers" finding, which
  * this file resolves).
  *
- * Deliberately a separate file from `cors.ts`, not folded into it —
- * `cors.ts` is frozen, working, completed functionality; adding to it
- * would touch a file this pass has no reason to modify. `worker/index.ts`
- * applies both wrappers to the same response, same composable pattern
- * `withCors()` already established.
+ * Was deliberately kept as its own file, separate from the former
+ * `middleware/cors.ts` (removed in the Version 2.0 Same-Origin Migration
+ * — see docs/v2-same-origin-migration-audit.md) rather than folded into
+ * it, so this pass had no reason to touch that file. `worker/index.ts`
+ * applies this same composable `withXyz(response, env)` wrapper pattern
+ * to every response.
  *
  * Every header below is scoped to what's actually appropriate for a
  * JSON/binary API with no HTML rendering surface of its own — this is

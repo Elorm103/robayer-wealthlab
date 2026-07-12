@@ -12,39 +12,25 @@
  * system — see js/README conventions) rather than a `<script type="module">`,
  * consistent with every other component here.
  *
- * Cross-origin note: the admin frontend (robayerwealthlab.com) and the
- * Worker API (robayer-wealthlab-api.robayerwealthlab.workers.dev) are
- * different origins, so every call here needs `credentials: 'include'`
- * to send the session cookie at all — see
- * docs/v2-admin-shell-architecture.md's "Critical finding" for why the
- * cookie itself had to move from SameSite=Strict to SameSite=None to
- * make this possible, and middleware/csrf.ts for why that's still safe
- * (the double-submit X-CSRF-Token header below is the real CSRF
- * defense, not SameSite).
+ * Same-origin: the admin frontend and this Worker are both served from
+ * robayerwealthlab.com (the API via a Cloudflare Workers Route matching
+ * /api/*, see backend/wrangler.jsonc) — a plain same-origin fetch(),
+ * with the standard double-submit-cookie CSRF pattern working exactly
+ * as documented (see middleware/csrf.ts). See
+ * docs/v2-same-origin-migration-audit.md for the migration this
+ * replaced (a temporary cross-origin workaround that existed while the
+ * API was on a separate workers.dev domain).
  */
 
 window.AdminAuth = (function () {
-  const API_BASE = 'https://robayer-wealthlab-api.robayerwealthlab.workers.dev';
+  const API_BASE = '';
   const LOGIN_PATH = '/admin/login/';
+  const CSRF_COOKIE_NAME = 'admin_csrf';
 
-  /**
-   * Holds the CSRF token in memory rather than reading it from the
-   * `admin_csrf` cookie's `document.cookie`. Found during the Phase 0.2
-   * independent audit: this cookie is set on the API's origin
-   * (robayer-wealthlab-api.robayerwealthlab.workers.dev), a different
-   * registrable domain from the frontend (robayerwealthlab.com) — a
-   * cookie is only readable via `document.cookie` by script running on
-   * the exact origin that owns it, regardless of `SameSite`, so
-   * `document.cookie` here could never see it and the X-CSRF-Token
-   * header was silently never sent, making every mutation (starting
-   * with logout) fail with FORBIDDEN. The token now travels in the
-   * (CORS-readable) JSON response body of login/session instead — see
-   * backend/routes/admin/auth.ts's matching comment.
-   */
-  let cachedCsrfToken = null;
-
+  /** Reads the CSRF token straight from its cookie — safe now that the frontend and API share an origin (see this file's header comment). */
   function getCsrfToken() {
-    return cachedCsrfToken;
+    const match = document.cookie.match(new RegExp(`(?:^|; )${CSRF_COOKIE_NAME}=([^;]*)`));
+    return match ? decodeURIComponent(match[1]) : null;
   }
 
   /**
@@ -84,12 +70,6 @@ window.AdminAuth = (function () {
       error.code = body && body.error && body.error.code;
       error.status = response.status;
       throw error;
-    }
-    // Login and session-check both carry a fresh csrfToken (see the
-    // cachedCsrfToken comment above) — cache it here, in the one place
-    // every response already passes through, rather than in each caller.
-    if (body.data && typeof body.data.csrfToken === 'string') {
-      cachedCsrfToken = body.data.csrfToken;
     }
     return body.data;
   }
@@ -166,7 +146,6 @@ window.AdminAuth = (function () {
       // request fails (network error, already-expired session), the
       // user's intent is to leave the admin area, so still redirect.
     }
-    cachedCsrfToken = null;
     window.location.href = LOGIN_PATH;
   }
 

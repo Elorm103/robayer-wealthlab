@@ -100,45 +100,35 @@ export async function handleAdminLogin(request: Request, env: Env, logger: Logge
     role: result.role,
     name: result.name,
     expiresAt: result.expiresAt,
-    // The frontend and this Worker are cross-site (different registrable
-    // domains — robayerwealthlab.com vs *.workers.dev), so JS on the
-    // frontend page can never read the admin_csrf cookie set below via
-    // document.cookie: a cookie is only readable by script running on
-    // the exact origin/domain that owns it, regardless of SameSite.
-    // Found during the Phase 0.2 independent audit by actually calling
-    // logout end-to-end: the double-submit pattern's readable-cookie
-    // premise silently never worked cross-site, so every CSRF-protected
-    // mutation (starting with logout) always failed with FORBIDDEN. The
-    // response body IS readable cross-origin (CORS already allows it —
-    // see middleware/cors.ts), so the token travels here instead; the
-    // frontend caches it in memory (js/components/admin/admin-auth.js)
-    // and echoes it back as X-CSRF-Token. The admin_csrf cookie itself
-    // is harmless to keep issuing but is no longer the actual transport.
-    csrfToken: result.csrfSecret,
   });
 
   return withNoStore(
     withCookies(response, [
-      // SameSite=None (not Strict) — Version 2.0 Phase 0.2 correction:
-      // the admin frontend (robayerwealthlab.com) and this Worker are
-      // different sites, so a Strict cookie is never sent on the
-      // cross-site fetch() calls the admin UI actually makes. Requires
-      // Secure (already true). The real CSRF defense remains the
-      // double-submit X-CSRF-Token header (middleware/csrf.ts),
-      // unchanged — see docs/v2-admin-shell-architecture.md.
+      // SameSite=Lax — the admin frontend and this Worker are same-origin
+      // (robayerwealthlab.com/api/*, via the Cloudflare Workers Route in
+      // wrangler.jsonc), so there is no cross-site fetch() this cookie
+      // needs to survive. Lax (not Strict) avoids the "looks logged out
+      // after clicking an external link" wrinkle Strict causes on
+      // top-level cross-site navigation, while still blocking the
+      // cross-site POSTs Strict/Lax both exist to stop. The real CSRF
+      // defense remains the double-submit X-CSRF-Token header
+      // (middleware/csrf.ts), unchanged by this.
       serializeCookie(SESSION_COOKIE_NAME, result.sessionToken, {
         httpOnly: true,
         secure: true,
-        sameSite: 'None',
+        sameSite: 'Lax',
         path: '/',
         maxAgeSeconds: SESSION_COOKIE_MAX_AGE_SECONDS,
       }),
-      // Deliberately NOT HttpOnly — the frontend must read this value to
-      // attach it as the X-CSRF-Token header. See middleware/csrf.ts.
+      // Deliberately NOT HttpOnly — the frontend reads this value
+      // straight from document.cookie to attach it as the X-CSRF-Token
+      // header (the standard double-submit-cookie pattern — see
+      // middleware/csrf.ts). Readable natively now that frontend and API
+      // share an origin; no separate transport is needed.
       serializeCookie(CSRF_COOKIE_NAME, result.csrfSecret, {
         httpOnly: false,
         secure: true,
-        sameSite: 'None',
+        sameSite: 'Lax',
         path: '/',
         maxAgeSeconds: SESSION_COOKIE_MAX_AGE_SECONDS,
       }),
@@ -160,8 +150,8 @@ export async function handleAdminLogout(request: Request, env: Env, logger: Logg
 
   return withNoStore(
     withCookies(response, [
-      serializeCookie(SESSION_COOKIE_NAME, '', { httpOnly: true, secure: true, sameSite: 'None', path: '/', maxAgeSeconds: 0 }),
-      serializeCookie(CSRF_COOKIE_NAME, '', { httpOnly: false, secure: true, sameSite: 'None', path: '/', maxAgeSeconds: 0 }),
+      serializeCookie(SESSION_COOKIE_NAME, '', { httpOnly: true, secure: true, sameSite: 'Lax', path: '/', maxAgeSeconds: 0 }),
+      serializeCookie(CSRF_COOKIE_NAME, '', { httpOnly: false, secure: true, sameSite: 'Lax', path: '/', maxAgeSeconds: 0 }),
     ])
   );
 }
@@ -176,10 +166,6 @@ export async function handleAdminSession(request: Request, env: Env, logger: Log
       email: auth.auth.email,
       role: auth.auth.role,
       name: auth.auth.name,
-      // See handleAdminLogin's csrfToken comment — a page load only calls
-      // this endpoint (not login), so it must also re-supply the token
-      // the in-memory JS cache lost on reload/new tab.
-      csrfToken: auth.auth.csrfSecret,
     })
   );
 }

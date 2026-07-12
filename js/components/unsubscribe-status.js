@@ -11,7 +11,8 @@
  * retryably on a network error rather than silently.
  */
 
-const UNSUBSCRIBE_API_BASE = 'https://robayer-wealthlab-api.robayerwealthlab.workers.dev';
+// Relative — see js/components/newsletter-form.js's equivalent constant.
+const UNSUBSCRIBE_API_BASE = '';
 
 function initUnsubscribeStatus() {
   const root = document.querySelector('[data-unsubscribe-root]');

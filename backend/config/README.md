@@ -14,7 +14,7 @@ or dashboard, entirely outside git.
 | Variable (future) | Purpose | Secret? |
 |---|---|---|
 | `ADMIN_SESSION_SECRET` | Signing admin session tokens — see `docs/authentication-strategy.md` | Yes |
-| `ALLOWED_ORIGIN` | CORS allow-list (`https://robayerwealthlab.com`) | No — not sensitive, but still environment-specific |
+| ~~`ALLOWED_ORIGIN`~~ | Was a CORS allow-list. Implemented in Version 2.0 Phase 0.2, then **removed entirely** in the Version 2.0 Same-Origin Migration once the frontend and this Worker became same-origin (no CORS-consuming caller remained) — see `../../docs/v2-same-origin-architecture.md` | — |
 | `RESEND_API_KEY` | Outbound transactional email via Resend — see `docs/email-architecture.md` (this row was a generic `EMAIL_API_KEY` placeholder until the provider was chosen) | Yes |
 
 `PAYSTACK_WEBHOOK_SECRET` (originally planned here as a distinct

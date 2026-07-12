@@ -11,16 +11,26 @@
   "main": "worker/index.ts",
   "compatibility_date": "2026-07-06",
 
-  // Same-Origin Routing Proof of Concept (docs/v2-same-origin-routing-poc.md)
-  // — Option C from the CSRF architecture review. Adds a second, additive
-  // path to this same Worker: matching requests to robayerwealthlab.com/api/*
-  // are now also served here, at the edge, before ever reaching GitHub
-  // Pages (which continues serving every other path on that zone
-  // unchanged — a Route only intercepts what it matches). `workers_dev`
-  // is left explicitly `true` (its default, but stated here on purpose)
-  // so the existing robayer-wealthlab-api.robayerwealthlab.workers.dev
-  // endpoint keeps serving traffic exactly as before, unaffected — this
-  // is additive, not a cutover.
+  // Version 2.0 Same-Origin Migration (Option C from the CSRF
+  // architecture review, proven out first as a proof of concept — see
+  // docs/v2-same-origin-routing-poc.md and
+  // docs/v2-same-origin-migration-audit.md). This Route is now the
+  // permanent, primary way the frontend reaches this Worker: matching
+  // requests to robayerwealthlab.com/api/* are served here, at the
+  // edge, before ever reaching GitHub Pages (which continues serving
+  // every other path on that zone unchanged — a Route only intercepts
+  // what it matches).
+  //
+  // `workers_dev` stays `true` deliberately, not as a leftover from the
+  // migration — kept as a genuine, zero-cost operational escape hatch
+  // (direct `wrangler tail`-adjacent access, isolated debugging/curl
+  // testing against the exact same deployed code, independent of the
+  // zone's routing) with no meaningful security downside: the Worker
+  // enforces every protection (auth, CSRF, rate limiting) identically
+  // regardless of which hostname a request arrives on, so this endpoint
+  // grants no different access than the same-origin route does — it's
+  // one extra reachable URL for the same already-protected API, not a
+  // second, weaker one.
   "routes": [
     { "pattern": "robayerwealthlab.com/api/*", "zone_name": "robayerwealthlab.com" }
   ],
@@ -56,7 +66,6 @@
   // decide"), and this project doesn't commit placeholder-shaped fake
   // values for real credentials, even non-secret ones.
   "vars": {
-    "ALLOWED_ORIGIN": "https://robayerwealthlab.com",
     "SITE_BASE_URL": "https://robayerwealthlab.com",
     "PAYMENT_PROVIDER": "paystack",
     "PAYSTACK_BASE_URL": "https://api.paystack.co"

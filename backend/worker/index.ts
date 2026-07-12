@@ -6,14 +6,13 @@
  *
  * Routes every incoming request via the Workers-native `URLPattern`
  * API (no router dependency — worker/README.md's stated preference),
- * applies CORS, generates one requestId per request (threaded through
- * the logger passed to every route/service, per
- * docs/monitoring-and-alerting.md), and guarantees every response —
- * success, a known error, an unmatched route, or an unhandled
- * exception — comes back through the same standardized envelope
- * (backend/types/api-contracts.ts), never a raw stack trace. The one
- * exception is `GET /api/download/:token`'s success case, which
- * returns the file itself — see routes/downloads.ts.
+ * generates one requestId per request (threaded through the logger
+ * passed to every route/service, per docs/monitoring-and-alerting.md),
+ * and guarantees every response — success, a known error, an unmatched
+ * route, or an unhandled exception — comes back through the same
+ * standardized envelope (backend/types/api-contracts.ts), never a raw
+ * stack trace. The one exception is `GET /api/download/:token`'s
+ * success case, which returns the file itself — see routes/downloads.ts.
  *
  * Updated Version 1.2 Sprint 2.5: dispatch now uses `URLPattern.exec()`
  * instead of `.test()`, so routes with dynamic segments (`:reference`,
@@ -24,17 +23,28 @@
  * parameters to a type expecting more, since JavaScript itself ignores
  * extra arguments a function doesn't declare.
  *
- * Updated — Version 1.0 Launch Readiness pass: every response (including
- * the CORS preflight short-circuit) now also passes through
- * `withSecurityHeaders()` — see middleware/securityHeaders.ts and
- * docs/launch-readiness.md for the full per-header reasoning.
+ * Updated — Version 1.0 Launch Readiness pass: every response now also
+ * passes through `withSecurityHeaders()` — see
+ * middleware/securityHeaders.ts and docs/launch-readiness.md for the
+ * full per-header reasoning.
+ *
+ * Updated — Version 2.0 Same-Origin Migration: CORS handling (the
+ * former middleware/cors.ts) removed entirely. The frontend and this
+ * Worker are now served from the same origin (robayerwealthlab.com,
+ * via the Cloudflare Workers Route in wrangler.jsonc's `routes`) —
+ * same-origin fetch() requests never trigger CORS in the browser at
+ * all, confirmed live (zero preflight OPTIONS requests observed — see
+ * docs/v2-same-origin-migration-audit.md). The one caller that was
+ * ever genuinely cross-origin (Paystack's webhook POST) is a
+ * server-to-server request, never subject to browser CORS enforcement
+ * in the first place — its access control has always been signature
+ * verification (utils/webhookSignature.ts), unrelated to this.
  */
 
 import type { Env } from './env';
 import { generateRequestId } from '../utils/requestId';
 import { createLogger, type Logger } from '../utils/logger';
 import { jsonError } from '../utils/responses';
-import { handlePreflight, withCors } from '../middleware/cors';
 import { withSecurityHeaders } from '../middleware/securityHeaders';
 import { withErrorHandling } from '../middleware/errorHandler';
 import { handleNewsletter } from '../routes/newsletter';
@@ -104,9 +114,6 @@ const ROUTES: Route[] = [
 
 export default {
   async fetch(request: Request, env: Env): Promise<Response> {
-    const preflight = handlePreflight(request, env);
-    if (preflight) return withSecurityHeaders(preflight, env);
-
     const requestId = generateRequestId();
     const url = new URL(request.url);
 
@@ -128,6 +135,6 @@ export default {
       ? await withErrorHandling(() => matchedRoute.handler(request, env, logger, params), logger, requestId)
       : jsonError('NOT_FOUND', 'Not found.');
 
-    return withSecurityHeaders(withCors(response, env), env);
+    return withSecurityHeaders(response, env);
   },
 };

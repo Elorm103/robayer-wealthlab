@@ -28,11 +28,6 @@ PAYSTACK_SECRET_KEY=sk_test_placeholder_replace_with_a_real_paystack_secret_key
 # webhooks with the account's secret key, not a separate webhook
 # secret (unlike some other providers). No new variable needed.
 
-# Uncomment to test CORS against a local static-site preview instead of
-# production — overrides wrangler.jsonc's [vars] ALLOWED_ORIGIN for local
-# `wrangler dev` only.
-# ALLOWED_ORIGIN=http://localhost:8080
-
 # Uncomment to test checkout session creation against a local static-site
 # preview instead of production — overrides wrangler.jsonc's [vars]
 # SITE_BASE_URL for local `wrangler dev` only. Must serve

@@ -21,9 +21,8 @@
  * identical rule for the same reason.
  */
 
-// Update this after deploying the Worker (backend/wrangler.jsonc) — see
-// js/components/buy-button.js's equivalent constant.
-const FULFILMENT_API_BASE = 'https://robayer-wealthlab-api.robayerwealthlab.workers.dev';
+// Relative — see js/components/newsletter-form.js's equivalent constant.
+const FULFILMENT_API_BASE = '';
 
 const POLL_INTERVAL_MS = 3000;
 const MAX_POLL_ATTEMPTS = 10; // ~30 seconds — long enough for normal webhook latency, short enough not to spin forever

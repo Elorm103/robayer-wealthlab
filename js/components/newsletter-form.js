@@ -9,9 +9,10 @@
  * alert instead, leaving the form in place so the visitor can try again.
  */
 
-// Update this after deploying the Worker (backend/wrangler.toml) — see
-// the Sprint 3 implementation report's "Deployment steps."
-const NEWSLETTER_API_URL = 'https://robayer-wealthlab-api.robayerwealthlab.workers.dev/api/newsletter';
+// Relative — the frontend and Worker API are same-origin (Cloudflare
+// Workers Route on robayerwealthlab.com/api/*, see backend/wrangler.jsonc
+// and docs/v2-same-origin-migration-audit.md).
+const NEWSLETTER_API_URL = '/api/newsletter';
 
 function initNewsletterForms() {
   const forms = document.querySelectorAll('[data-newsletter-form]:not([data-bound])');

@@ -11,7 +11,6 @@ export interface Env {
   DB: D1Database;
   STORAGE: R2Bucket;
   RATE_LIMIT_KV: KVNamespace;
-  ALLOWED_ORIGIN: string;
   RESEND_API_KEY: string;
   // Added in Version 1.2 Sprint 2.3 (Commerce Foundation) — see
   // docs/commerce-foundation.md.
@@ -20,9 +19,9 @@ export interface Env {
    * the Product Platform's source of truth) is publicly served. The
    * Commerce Service fetches product data from here rather than from
    * any D1 table — see docs/commerce-foundation.md's "Where product
-   * data comes from." Distinct from ALLOWED_ORIGIN (a CORS setting)
-   * even though both currently hold the same value — different
-   * concerns that happen to coincide today.
+   * data comes from." A server-side fetch *by* this Worker, unrelated
+   * to the same-origin routing the frontend itself uses to call this
+   * Worker — different relationship entirely.
    */
   SITE_BASE_URL: string;
   /** Selects a backend/services/payments/ implementation — see that folder's PaymentProvider abstraction. Only "paystack" exists today. */

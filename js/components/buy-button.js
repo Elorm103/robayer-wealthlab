@@ -21,9 +21,8 @@
  * never a dead link or a silent no-op.
  */
 
-// Update this after deploying the Worker (backend/wrangler.jsonc) — see
-// js/components/newsletter-form.js's equivalent constant.
-const CHECKOUT_API_URL = 'https://robayer-wealthlab-api.robayerwealthlab.workers.dev/api/checkout/sessions';
+// Relative — see js/components/newsletter-form.js's equivalent constant.
+const CHECKOUT_API_URL = '/api/checkout/sessions';
 
 function initBuyButtons() {
   const buttons = document.querySelectorAll('[data-buy-button]:not([data-bound])');

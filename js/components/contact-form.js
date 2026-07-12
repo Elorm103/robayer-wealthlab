@@ -9,9 +9,8 @@
  * in place so the visitor can try again or email us directly.
  */
 
-// Update this after deploying the Worker (backend/wrangler.jsonc) — see
-// js/components/newsletter-form.js's equivalent constant.
-const CONTACT_API_URL = 'https://robayer-wealthlab-api.robayerwealthlab.workers.dev/api/contact';
+// Relative — see js/components/newsletter-form.js's equivalent constant.
+const CONTACT_API_URL = '/api/contact';
 
 function initContactForms() {
   const forms = document.querySelectorAll('[data-contact-form]:not([data-bound])');
