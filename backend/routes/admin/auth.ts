@@ -49,16 +49,38 @@ function withCookies(response: Response, cookies: string[]): Response {
   return new Response(response.body, { status: response.status, headers });
 }
 
+/**
+ * Every response from these three routes carries either session-adjacent
+ * secrets (login's Set-Cookie headers) or admin PII (email/role/name, on
+ * login and session-check) — none of it should ever be written to a
+ * shared/proxy cache or a browser's disk cache. Found during the Phase
+ * 0.1 security audit: `GET /api/admin/auth/session` is otherwise a
+ * plain cacheable GET with no explicit Cache-Control, meaning a shared
+ * corporate proxy or the browser's own HTTP cache could legitimately
+ * store and later replay the admin's email/role/name — e.g. on a shared
+ * or public computer, after logout, via the browser's cache/history.
+ * `Cache-Control: no-store` is the correct directive (not just
+ * `private` or `no-cache`, which still permit storage under some
+ * conditions) — applied uniformly to success AND error responses here
+ * so no caching layer ever treats this endpoint as cacheable at all.
+ */
+function withNoStore(response: Response): Response {
+  const headers = new Headers(response.headers);
+  headers.set('Cache-Control', 'no-store, no-cache, must-revalidate');
+  headers.set('Pragma', 'no-cache');
+  return new Response(response.body, { status: response.status, headers });
+}
+
 export async function handleAdminLogin(request: Request, env: Env, logger: Logger): Promise<Response> {
   if (await isRateLimited(request, env, LOGIN_RATE_LIMIT)) {
-    return jsonError('RATE_LIMITED', 'Too many login attempts. Please try again in a few minutes.');
+    return withNoStore(jsonError('RATE_LIMITED', 'Too many login attempts. Please try again in a few minutes.'));
   }
 
   let body: unknown;
   try {
     body = await request.json();
   } catch {
-    return jsonError('INVALID_CREDENTIALS', 'Invalid email or password.');
+    return withNoStore(jsonError('INVALID_CREDENTIALS', 'Invalid email or password.'));
   }
 
   const { email, password } = (body as { email?: unknown; password?: unknown }) ?? {};
@@ -69,7 +91,7 @@ export async function handleAdminLogin(request: Request, env: Env, logger: Logge
   });
 
   if (!result.ok) {
-    return jsonError('INVALID_CREDENTIALS', 'Invalid email or password.');
+    return withNoStore(jsonError('INVALID_CREDENTIALS', 'Invalid email or password.'));
   }
 
   const response = jsonSuccess({
@@ -80,52 +102,58 @@ export async function handleAdminLogin(request: Request, env: Env, logger: Logge
     expiresAt: result.expiresAt,
   });
 
-  return withCookies(response, [
-    serializeCookie(SESSION_COOKIE_NAME, result.sessionToken, {
-      httpOnly: true,
-      secure: true,
-      sameSite: 'Strict',
-      path: '/',
-      maxAgeSeconds: SESSION_COOKIE_MAX_AGE_SECONDS,
-    }),
-    // Deliberately NOT HttpOnly — the frontend must read this value to
-    // attach it as the X-CSRF-Token header. See middleware/csrf.ts.
-    serializeCookie(CSRF_COOKIE_NAME, result.csrfSecret, {
-      httpOnly: false,
-      secure: true,
-      sameSite: 'Strict',
-      path: '/',
-      maxAgeSeconds: SESSION_COOKIE_MAX_AGE_SECONDS,
-    }),
-  ]);
+  return withNoStore(
+    withCookies(response, [
+      serializeCookie(SESSION_COOKIE_NAME, result.sessionToken, {
+        httpOnly: true,
+        secure: true,
+        sameSite: 'Strict',
+        path: '/',
+        maxAgeSeconds: SESSION_COOKIE_MAX_AGE_SECONDS,
+      }),
+      // Deliberately NOT HttpOnly — the frontend must read this value to
+      // attach it as the X-CSRF-Token header. See middleware/csrf.ts.
+      serializeCookie(CSRF_COOKIE_NAME, result.csrfSecret, {
+        httpOnly: false,
+        secure: true,
+        sameSite: 'Strict',
+        path: '/',
+        maxAgeSeconds: SESSION_COOKIE_MAX_AGE_SECONDS,
+      }),
+    ])
+  );
 }
 
 export async function handleAdminLogout(request: Request, env: Env, logger: Logger): Promise<Response> {
   const auth = await requireAuth(request, env, logger);
-  if (!auth.ok) return auth.response;
+  if (!auth.ok) return withNoStore(auth.response);
 
   const csrfFailure = await requireCsrf(request, env, logger, auth.auth);
-  if (csrfFailure) return csrfFailure;
+  if (csrfFailure) return withNoStore(csrfFailure);
 
   const cookies = parseCookies(request.headers.get('Cookie'));
   await authService.logout(env, logger, cookies[SESSION_COOKIE_NAME]);
 
   const response = jsonSuccess({ loggedOut: true });
 
-  return withCookies(response, [
-    serializeCookie(SESSION_COOKIE_NAME, '', { httpOnly: true, secure: true, sameSite: 'Strict', path: '/', maxAgeSeconds: 0 }),
-    serializeCookie(CSRF_COOKIE_NAME, '', { httpOnly: false, secure: true, sameSite: 'Strict', path: '/', maxAgeSeconds: 0 }),
-  ]);
+  return withNoStore(
+    withCookies(response, [
+      serializeCookie(SESSION_COOKIE_NAME, '', { httpOnly: true, secure: true, sameSite: 'Strict', path: '/', maxAgeSeconds: 0 }),
+      serializeCookie(CSRF_COOKIE_NAME, '', { httpOnly: false, secure: true, sameSite: 'Strict', path: '/', maxAgeSeconds: 0 }),
+    ])
+  );
 }
 
 export async function handleAdminSession(request: Request, env: Env, logger: Logger): Promise<Response> {
   const auth = await requireAuth(request, env, logger);
-  if (!auth.ok) return auth.response;
+  if (!auth.ok) return withNoStore(auth.response);
 
-  return jsonSuccess({
-    adminId: auth.auth.adminId,
-    email: auth.auth.email,
-    role: auth.auth.role,
-    name: auth.auth.name,
-  });
+  return withNoStore(
+    jsonSuccess({
+      adminId: auth.auth.adminId,
+      email: auth.auth.email,
+      role: auth.auth.role,
+      name: auth.auth.name,
+    })
+  );
 }

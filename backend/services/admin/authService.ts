@@ -56,6 +56,27 @@ export interface LoginContext {
 }
 
 /**
+ * RFC 5321 §4.5.3.1.3 caps a full email path (mailbox) at 254
+ * characters. Rejecting anything longer here — before the value ever
+ * reaches D1 — closes a real crash found during the Phase 0.1 security
+ * audit: an unbounded email string bound into the `admin_users` lookup
+ * causes D1 to throw `SQLITE_TOOBIG` (confirmed at ~5MB locally),
+ * which `login()` had no guard against, so it propagated as an
+ * unhandled exception. `errorHandler.ts` catches it and returns a safe
+ * generic 500 (no stack trace leaks), so this was never an information
+ * disclosure — but it IS a distinct, fast-failing code path that skips
+ * the DUMMY_PASSWORD_HASH comparison entirely, meaning an attacker
+ * sending an oversized email gets a measurably faster response than a
+ * normal wrong-password attempt, undermining exactly the "identical
+ * timing regardless of why the attempt failed" guarantee this function
+ * exists to provide. See docs/v2-authentication-design.md's "identical
+ * response shape/timing."
+ */
+const MAX_EMAIL_LENGTH = 254;
+/** Generous enough for any real password; bounds the input fed into `crypto.subtle.importKey`/`deriveBits` so a maliciously huge string can't be used to inflate a single request's cost. */
+const MAX_PASSWORD_LENGTH = 256;
+
+/**
  * Steps 3-6 of docs/v2-authentication-design.md's login flow (rate
  * limiting is step 2, applied by the route before this is ever called —
  * see routes/admin/auth.ts). Looks up `admin_users WHERE email = ? AND
@@ -66,7 +87,13 @@ export interface LoginContext {
  * of the three actually happened, in the response OR in its timing.
  */
 export async function login(env: Env, logger: Logger, emailInput: unknown, passwordInput: unknown, context: LoginContext): Promise<LoginResult> {
-  if (typeof emailInput !== 'string' || typeof passwordInput !== 'string' || passwordInput.length === 0) {
+  if (
+    typeof emailInput !== 'string' ||
+    typeof passwordInput !== 'string' ||
+    passwordInput.length === 0 ||
+    emailInput.length > MAX_EMAIL_LENGTH ||
+    passwordInput.length > MAX_PASSWORD_LENGTH
+  ) {
     return { ok: false, reason: 'invalid_credentials' };
   }
   const email = emailInput.trim().toLowerCase();
