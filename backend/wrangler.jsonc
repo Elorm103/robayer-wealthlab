@@ -10,6 +10,21 @@
   "name": "robayer-wealthlab-api",
   "main": "worker/index.ts",
   "compatibility_date": "2026-07-06",
+
+  // Same-Origin Routing Proof of Concept (docs/v2-same-origin-routing-poc.md)
+  // — Option C from the CSRF architecture review. Adds a second, additive
+  // path to this same Worker: matching requests to robayerwealthlab.com/api/*
+  // are now also served here, at the edge, before ever reaching GitHub
+  // Pages (which continues serving every other path on that zone
+  // unchanged — a Route only intercepts what it matches). `workers_dev`
+  // is left explicitly `true` (its default, but stated here on purpose)
+  // so the existing robayer-wealthlab-api.robayerwealthlab.workers.dev
+  // endpoint keeps serving traffic exactly as before, unaffected — this
+  // is additive, not a cutover.
+  "routes": [
+    { "pattern": "robayerwealthlab.com/api/*", "zone_name": "robayerwealthlab.com" }
+  ],
+  "workers_dev": true,
   // No compatibility_flags: this Worker has zero runtime npm dependencies
   // (only fetch/crypto/D1/R2/KV — all native Workers Web APIs), so
   // `nodejs_compat` has nothing to shim here. Add it if/when a future

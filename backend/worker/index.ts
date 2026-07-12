@@ -47,6 +47,7 @@ import { handleDownload } from '../routes/downloads';
 import { handleUnsubscribeStatus, handleUnsubscribeConfirm } from '../routes/unsubscribe';
 import { handleAdminLogin, handleAdminLogout, handleAdminSession } from '../routes/admin/auth';
 import { handleAdminDashboardSummary } from '../routes/admin/dashboard';
+import { handleHealth } from '../routes/health';
 
 export type { Env };
 
@@ -95,6 +96,10 @@ const ROUTES: Route[] = [
   // source; every other admin module route remains out of scope until
   // its own phase.
   { pattern: new URLPattern({ pathname: '/api/admin/dashboard/summary' }), method: 'GET', handler: handleAdminDashboardSummary },
+  // Same-Origin Routing Proof of Concept (docs/v2-same-origin-routing-poc.md)
+  // — the first thing verified through the new robayerwealthlab.com/api/*
+  // Workers Route, before anything that touches real state.
+  { pattern: new URLPattern({ pathname: '/api/health' }), method: 'GET', handler: handleHealth },
 ];
 
 export default {
