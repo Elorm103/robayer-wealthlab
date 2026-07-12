@@ -22,11 +22,13 @@ means `routes/` files stay thin and easy to read.
 | `payments/` ✅ | Payment provider abstraction (`PaymentProvider` interface + `paystackProvider.ts`). `createCheckoutSession()` (Sprint 2.3) and `verifyPayment()` (Sprint 2.4) implemented; `refundPayment()` remains a documented stub — see `docs/payment-verification.md`'s "Payment provider" |
 | `entitlementService.ts` ✅ | Added Sprint 2.5 — "does this purchase grant access to this asset?", mints/redeems download tokens. See `docs/digital-fulfilment.md`'s "Entitlement model" |
 | `fulfilmentService.ts` ✅ | Added Sprint 2.5 — grants entitlements (`deliveries` rows) and sends fulfilment emails once a payment verifies. See `docs/digital-fulfilment.md`'s "Fulfilment flow" |
-| `adminAuthService.ts` | Session creation/verification for admin login — see `docs/authentication-strategy.md` |
-| `auditService.ts` | Writes to the `audit_logs` D1 table whenever another service performs a sensitive action (login, refund, product edit) |
+| `admin/authService.ts` ✅ | Login/logout orchestration — credential verification (PBKDF2), delegates session-row lifecycle to `admin/sessionService.ts`. Added Version 2.0 Phase 0.1, see `docs/v2-authentication-design.md` |
+| `admin/sessionService.ts` ✅ | Creates/validates/revokes `admin_sessions` rows — the only code that writes to that table. Added Version 2.0 Phase 0.1 |
+| `admin/auditService.ts` ✅ | Writes to the `audit_logs` D1 table whenever another service performs a sensitive action (login, logout, a rejected session/role/CSRF check). Added Version 2.0 Phase 0.1 |
 
-✅ = implemented. `adminAuthService.ts` and `auditService.ts` remain
-unimplemented — the admin dashboard, out of scope until that sprint.
+✅ = implemented. Every other admin module (`admin/productsService.ts`
+and similar, per `docs/v2-architecture.md`'s `services/admin/` folder
+structure) remains unimplemented — out of scope until its own phase.
 `downloadService.ts` (planned as of Sprint 2.3/2.4) never materialized
 as its own file — its responsibility split across
 `entitlementService.ts` (access decisions, token issuance/redemption)
@@ -87,3 +89,12 @@ tighter than the "Sprint 2.5 will call `getPurchaseVerificationStatus()`"
 note above originally anticipated (that function still exists and is
 still exported, for any future read-only use outside the webhook flow
 itself).
+
+*(Updated again — Version 2.0 Phase 0.1, Authentication Foundation.)*
+A new `admin/` subfolder holds `authService.ts`, `sessionService.ts`,
+and `auditService.ts` — backing `POST /api/admin/auth/login`,
+`POST /api/admin/auth/logout`, and `GET /api/admin/auth/session`. This
+is the first code in this project to write to `admin_users` (beyond its
+initial empty creation) and to `admin_sessions`/`audit_logs` at all —
+both tables existed, live, since Version 1.2 Sprint 2, unused until now.
+See `docs/v2-authentication-design.md`.

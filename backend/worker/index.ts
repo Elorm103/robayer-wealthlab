@@ -45,6 +45,7 @@ import { handlePaystackWebhook } from '../routes/webhooks';
 import { handleGetPurchaseStatus, handleRequestDownload } from '../routes/purchases';
 import { handleDownload } from '../routes/downloads';
 import { handleUnsubscribeStatus, handleUnsubscribeConfirm } from '../routes/unsubscribe';
+import { handleAdminLogin, handleAdminLogout, handleAdminSession } from '../routes/admin/auth';
 
 export type { Env };
 
@@ -81,6 +82,13 @@ const ROUTES: Route[] = [
   // points mail clients' native one-click button at).
   { pattern: new URLPattern({ pathname: '/api/newsletter/unsubscribe/:token' }), method: 'GET', handler: handleUnsubscribeStatus },
   { pattern: new URLPattern({ pathname: '/api/newsletter/unsubscribe/:token' }), method: 'POST', handler: handleUnsubscribeConfirm },
+  // Added Version 2.0 Phase 0.1 (Authentication Foundation) — see
+  // docs/v2-authentication-design.md. The only /api/admin/* routes that
+  // exist so far; every other admin module remains out of scope until
+  // its own phase.
+  { pattern: new URLPattern({ pathname: '/api/admin/auth/login' }), method: 'POST', handler: handleAdminLogin },
+  { pattern: new URLPattern({ pathname: '/api/admin/auth/logout' }), method: 'POST', handler: handleAdminLogout },
+  { pattern: new URLPattern({ pathname: '/api/admin/auth/session' }), method: 'GET', handler: handleAdminSession },
 ];
 
 export default {

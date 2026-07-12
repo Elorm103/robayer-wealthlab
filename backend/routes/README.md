@@ -21,11 +21,13 @@ only, never database queries or Paystack calls directly (that's what
 | `downloads.ts` ✅ | `GET /api/download/:token` — added in Sprint 2.5, see `docs/digital-fulfilment.md` |
 | `purchases.ts` ✅ | `GET /api/purchases/:reference`, `POST /api/purchases/:reference/downloads` — added in Sprint 2.5, not in this table originally (the fulfilment page's own two endpoints, no prior design doc anticipated the exact shape) |
 | `products.ts` | `GET /api/products` |
-| `admin.ts` | `POST /api/admin/login`, `POST /api/admin/logout` |
+| `admin/auth.ts` ✅ | `POST /api/admin/auth/login`, `POST /api/admin/auth/logout`, `GET /api/admin/auth/session` — added Version 2.0 Phase 0.1 (Authentication Foundation), see `docs/v2-authentication-design.md`. Supersedes this table's originally-planned flat `admin.ts`/`POST /api/admin/login` shape — see `docs/v2-architecture.md`'s approved `routes/admin/` folder structure |
 
-✅ = implemented. `products.ts` and `admin.ts` remain unimplemented —
-Products listing/Admin are out of scope until their respective
-sprints.
+✅ = implemented. `products.ts` remains unimplemented. Every other
+`routes/admin/*` module (dashboard, products, blog, resources,
+newsletter, consultations, contacts, orders, media, analytics,
+settings, users — per `docs/v2-architecture.md`) remains out of scope
+until its own phase.
 
 Each endpoint's purpose, request/response shape, authentication
 requirement, validation rules, and possible errors are documented in

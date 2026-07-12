@@ -372,18 +372,50 @@ CREATE INDEX idx_contact_messages_email ON contact_messages(email);
 
 -- ============================================================
 -- ADMIN_USERS
+-- `name`/`totp_secret` added in migration 0006 (Version 2.0 Phase 0.1,
+-- Authentication Foundation) — see docs/v2-authentication-design.md.
+-- `password_hash` stores PBKDF2-SHA256 output as `salt:iterations:hash`,
+-- decided in docs/v2-authentication-design.md's "Password hashing".
 -- ============================================================
 CREATE TABLE admin_users (
   id             INTEGER PRIMARY KEY AUTOINCREMENT,
   email          TEXT NOT NULL UNIQUE,
-  password_hash  TEXT NOT NULL, -- hashing algorithm decided in docs/authentication-strategy.md; never plain text
+  password_hash  TEXT NOT NULL, -- PBKDF2-SHA256, stored as "salt:iterations:hash"; never plain text
   role           TEXT NOT NULL DEFAULT 'editor' CHECK (role IN ('super_admin', 'editor', 'support')),
   is_active      INTEGER NOT NULL DEFAULT 1,
   last_login_at  TEXT,
+  name           TEXT, -- display name for audit-log readability; nullable
+  totp_secret    TEXT, -- nullable; populated only if/when 2FA is turned on for that user (not built in Phase 0.1)
   created_at     TEXT NOT NULL DEFAULT (datetime('now')),
   updated_at     TEXT NOT NULL DEFAULT (datetime('now')),
   deleted_at     TEXT
 );
+
+-- ============================================================
+-- ADMIN_SESSIONS
+-- Added in migration 0006 (Version 2.0 Phase 0.1, Authentication
+-- Foundation) — see docs/v2-authentication-design.md. One row per
+-- active login. Mirrors download_tokens'/unsubscribe_tokens' proven
+-- shape (random unique token, expires_at, a nullable "consumed"
+-- marker — here `revoked_at`) with the two additions a browser session
+-- needs: `csrf_secret` (double-submit CSRF pattern) and `last_seen_at`
+-- (sliding-expiry window, capped at 12h absolute lifetime).
+-- ============================================================
+CREATE TABLE admin_sessions (
+  id           INTEGER PRIMARY KEY AUTOINCREMENT,
+  token        TEXT NOT NULL UNIQUE,        -- 256-bit, same generation pattern as download/unsubscribe tokens
+  admin_id     INTEGER NOT NULL REFERENCES admin_users(id),
+  csrf_secret  TEXT NOT NULL,               -- per-session, backs the double-submit CSRF pattern
+  ip_created   TEXT,                        -- CF-Connecting-IP at login, audit/anomaly context only, never an access decision
+  user_agent   TEXT,
+  expires_at   TEXT NOT NULL,               -- absolute 12h lifetime, refreshed (slid) on activity up to that cap
+  revoked_at   TEXT,                        -- set on logout; a revoked session is never valid again regardless of expires_at
+  created_at   TEXT NOT NULL DEFAULT (datetime('now')),
+  last_seen_at TEXT NOT NULL DEFAULT (datetime('now'))
+);
+
+CREATE INDEX idx_admin_sessions_admin ON admin_sessions(admin_id);
+CREATE INDEX idx_admin_sessions_expires ON admin_sessions(expires_at);
 
 -- ============================================================
 -- AUDIT_LOGS

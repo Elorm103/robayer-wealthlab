@@ -33,6 +33,16 @@ equivalent — written once, applied declaratively per route in
 routes, and the admin dashboard is explicitly out of scope for this
 sprint.
 
+*(Updated — Version 2.0 Phase 0.1, Authentication Foundation.)*
+`requireAuth.ts` and `requireRole.ts` are implemented (the planned
+`auth.ts` entry, split into two files to match `docs/v2-architecture.md`'s
+approved folder structure — session validation and role-gating are
+distinct, separately-callable checks). `csrf.ts` is also implemented,
+per its own row above. All three apply so far only to the three
+`/api/admin/auth/*` routes built in this phase — every other
+`/api/admin/*` route remains out of scope until its own phase. See
+`docs/v2-authentication-design.md`.
+
 One additional file exists beyond this table: `errorHandler.ts` —
 top-level error handling wrapping route dispatch in `worker/index.ts`,
 implementing the promise already made in `worker/README.md` ("an

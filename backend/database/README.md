@@ -52,3 +52,14 @@ indexes, and `CHECK` constraints all verified directly against
 production (not just reviewed as text). The Worker itself has not been
 deployed, so nothing outside `wrangler d1 execute`/`wrangler dev` has
 touched this database yet.
+
+*(Updated — Version 2.0 Phase 0.1, Authentication Foundation.)*
+[`migrations/0006_admin_auth_foundation.sql`](migrations/0006_admin_auth_foundation.sql)
+adds `admin_users.name`/`admin_users.totp_secret` (additive `ALTER
+TABLE`) and a new `admin_sessions` table — see
+`docs/v2-authentication-design.md` and `docs/v2-database-expansion.md`.
+Verified against local D1 (`wrangler d1 execute --local`), not yet
+applied to production. Scoped deliberately narrow: the other new
+tables `docs/v2-database-expansion.md` describes (`blog_posts`,
+`resources`, `media_assets`, etc.) belong to later phases that build
+the modules which actually use them, not to this migration.
