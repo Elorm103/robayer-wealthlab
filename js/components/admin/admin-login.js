@@ -48,7 +48,7 @@ function initAdminLogin() {
     }
 
     const params = new URLSearchParams(window.location.search);
-    window.location.href = params.get('next') || '/admin/';
+    window.location.href = window.AdminAuth.sanitizeNextPath(params.get('next'));
   });
 
   function showError(message) {

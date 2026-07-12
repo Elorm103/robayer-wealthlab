@@ -100,6 +100,21 @@ export async function handleAdminLogin(request: Request, env: Env, logger: Logge
     role: result.role,
     name: result.name,
     expiresAt: result.expiresAt,
+    // The frontend and this Worker are cross-site (different registrable
+    // domains — robayerwealthlab.com vs *.workers.dev), so JS on the
+    // frontend page can never read the admin_csrf cookie set below via
+    // document.cookie: a cookie is only readable by script running on
+    // the exact origin/domain that owns it, regardless of SameSite.
+    // Found during the Phase 0.2 independent audit by actually calling
+    // logout end-to-end: the double-submit pattern's readable-cookie
+    // premise silently never worked cross-site, so every CSRF-protected
+    // mutation (starting with logout) always failed with FORBIDDEN. The
+    // response body IS readable cross-origin (CORS already allows it —
+    // see middleware/cors.ts), so the token travels here instead; the
+    // frontend caches it in memory (js/components/admin/admin-auth.js)
+    // and echoes it back as X-CSRF-Token. The admin_csrf cookie itself
+    // is harmless to keep issuing but is no longer the actual transport.
+    csrfToken: result.csrfSecret,
   });
 
   return withNoStore(
@@ -161,6 +176,10 @@ export async function handleAdminSession(request: Request, env: Env, logger: Log
       email: auth.auth.email,
       role: auth.auth.role,
       name: auth.auth.name,
+      // See handleAdminLogin's csrfToken comment — a page load only calls
+      // this endpoint (not login), so it must also re-supply the token
+      // the in-memory JS cache lost on reload/new tab.
+      csrfToken: auth.auth.csrfSecret,
     })
   );
 }

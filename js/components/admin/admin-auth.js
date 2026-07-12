@@ -25,12 +25,26 @@
 
 window.AdminAuth = (function () {
   const API_BASE = 'https://robayer-wealthlab-api.robayerwealthlab.workers.dev';
-  const CSRF_COOKIE_NAME = 'admin_csrf';
   const LOGIN_PATH = '/admin/login/';
 
+  /**
+   * Holds the CSRF token in memory rather than reading it from the
+   * `admin_csrf` cookie's `document.cookie`. Found during the Phase 0.2
+   * independent audit: this cookie is set on the API's origin
+   * (robayer-wealthlab-api.robayerwealthlab.workers.dev), a different
+   * registrable domain from the frontend (robayerwealthlab.com) — a
+   * cookie is only readable via `document.cookie` by script running on
+   * the exact origin that owns it, regardless of `SameSite`, so
+   * `document.cookie` here could never see it and the X-CSRF-Token
+   * header was silently never sent, making every mutation (starting
+   * with logout) fail with FORBIDDEN. The token now travels in the
+   * (CORS-readable) JSON response body of login/session instead — see
+   * backend/routes/admin/auth.ts's matching comment.
+   */
+  let cachedCsrfToken = null;
+
   function getCsrfToken() {
-    const match = document.cookie.match(new RegExp(`(?:^|; )${CSRF_COOKIE_NAME}=([^;]*)`));
-    return match ? decodeURIComponent(match[1]) : null;
+    return cachedCsrfToken;
   }
 
   /**
@@ -71,12 +85,41 @@ window.AdminAuth = (function () {
       error.status = response.status;
       throw error;
     }
+    // Login and session-check both carry a fresh csrfToken (see the
+    // cachedCsrfToken comment above) — cache it here, in the one place
+    // every response already passes through, rather than in each caller.
+    if (body.data && typeof body.data.csrfToken === 'string') {
+      cachedCsrfToken = body.data.csrfToken;
+    }
     return body.data;
   }
 
   function loginUrlWithNext() {
     const next = window.location.pathname + window.location.search;
     return LOGIN_PATH + '?next=' + encodeURIComponent(next);
+  }
+
+  /**
+   * Validates a `?next=` value before it's ever used as a navigation
+   * target. Found during the Phase 0.2 independent audit: both this
+   * file's `redirectIfAuthenticated()` and admin-login.js's post-login
+   * redirect previously assigned `params.get('next')` straight to
+   * `window.location.href` with no validation — a classic open
+   * redirect (CWE-601). `?next=https://evil.com` (or the protocol-
+   * relative `?next=//evil.com`, which browsers resolve identically to
+   * a full cross-origin URL) would silently send an authenticated
+   * admin off-site, a real phishing vector against exactly the
+   * people with the most to lose. Only a value starting with the
+   * literal path `/admin/` — never a scheme, never `//` — is accepted;
+   * anything else falls back to the dashboard root. A leading single
+   * `/admin/` can never be reinterpreted as a different origin by any
+   * browser, regardless of encoding.
+   */
+  function sanitizeNextPath(rawNext) {
+    if (typeof rawNext === 'string' && /^\/admin\/(?!\/)/.test(rawNext)) {
+      return rawNext;
+    }
+    return '/admin/';
   }
 
   /**
@@ -104,7 +147,7 @@ window.AdminAuth = (function () {
       return; // not authenticated — show the login form as normal
     }
     const params = new URLSearchParams(window.location.search);
-    window.location.replace(params.get('next') || '/admin/');
+    window.location.replace(sanitizeNextPath(params.get('next')));
   }
 
   async function login(email, password) {
@@ -123,8 +166,9 @@ window.AdminAuth = (function () {
       // request fails (network error, already-expired session), the
       // user's intent is to leave the admin area, so still redirect.
     }
+    cachedCsrfToken = null;
     window.location.href = LOGIN_PATH;
   }
 
-  return { adminFetch, requireSession, redirectIfAuthenticated, login, logout, getCsrfToken };
+  return { adminFetch, requireSession, redirectIfAuthenticated, login, logout, getCsrfToken, sanitizeNextPath };
 })();

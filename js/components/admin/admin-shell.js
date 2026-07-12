@@ -46,19 +46,44 @@ function renderUserMenu(session) {
 
 const SIDEBAR_COLLAPSE_KEY = 'robayer-admin-sidebar-collapsed';
 
+/**
+ * Two controls trigger the same collapse state: the topbar's
+ * `[data-admin-sidebar-toggle]` and the sidebar footer's own
+ * `[data-admin-sidebar-collapse]` button. Found during the Phase 0.2
+ * independent audit: only the topbar control was ever wired up — the
+ * sidebar's own "Collapse" button (real markup, real aria-label,
+ * real aria-pressed attribute) did nothing when clicked, a dead
+ * control that's actively misleading for both sighted and
+ * screen-reader users. Both now drive one shared toggle function and
+ * both get their `aria-pressed` state kept in sync — previously
+ * neither button updated `aria-pressed` at all, so even the one
+ * working control never announced its own state change.
+ */
 function initSidebarCollapse(shell) {
-  const toggle = document.querySelector('[data-admin-sidebar-toggle]');
-  if (!toggle) return;
+  const toggles = Array.from(
+    document.querySelectorAll('[data-admin-sidebar-toggle], [data-admin-sidebar-collapse]')
+  );
+  if (toggles.length === 0) return;
 
-  if (localStorage.getItem(SIDEBAR_COLLAPSE_KEY) === 'true') {
+  const startCollapsed = localStorage.getItem(SIDEBAR_COLLAPSE_KEY) === 'true';
+  if (startCollapsed) {
     shell.setAttribute('data-sidebar-collapsed', 'true');
   }
+  syncPressedState(toggles, startCollapsed);
 
-  toggle.addEventListener('click', () => {
-    const collapsed = shell.getAttribute('data-sidebar-collapsed') === 'true';
-    shell.setAttribute('data-sidebar-collapsed', String(!collapsed));
-    localStorage.setItem(SIDEBAR_COLLAPSE_KEY, String(!collapsed));
+  toggles.forEach((toggle) => {
+    toggle.addEventListener('click', () => {
+      const collapsed = shell.getAttribute('data-sidebar-collapsed') === 'true';
+      const nowCollapsed = !collapsed;
+      shell.setAttribute('data-sidebar-collapsed', String(nowCollapsed));
+      localStorage.setItem(SIDEBAR_COLLAPSE_KEY, String(nowCollapsed));
+      syncPressedState(toggles, nowCollapsed);
+    });
   });
+}
+
+function syncPressedState(toggles, collapsed) {
+  toggles.forEach((toggle) => toggle.setAttribute('aria-pressed', String(collapsed)));
 }
 
 function initMobileNav(shell) {
