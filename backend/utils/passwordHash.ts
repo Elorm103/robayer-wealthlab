@@ -14,8 +14,23 @@
  * stored, not the current constant.
  */
 
-/** ≥600,000 per current OWASP guidance for PBKDF2-SHA256 (docs/v2-authentication-design.md). */
-const PBKDF2_ITERATIONS = 600_000;
+/**
+ * 100,000 — NOT a design preference, a hard platform ceiling. Discovered
+ * during Phase 0.1 production deployment verification: `wrangler dev`'s
+ * local runtime accepted 600,000 (OWASP's current PBKDF2-SHA256
+ * guidance, and this constant's original value), but the real deployed
+ * Cloudflare Workers `SubtleCrypto` throws `NotSupportedError: Pbkdf2
+ * failed: iteration counts above 100000 are not supported` for
+ * anything higher — confirmed via `wrangler tail` against production,
+ * where it made every login attempt (real password, wrong password, or
+ * nonexistent account — the DUMMY_PASSWORD_HASH path in authService.ts
+ * hits the identical cap) fail with a 500. 100,000 is the maximum this
+ * runtime allows, and remains a real, still-credible PBKDF2-SHA256
+ * iteration count (well above legacy defaults like 1,000–10,000) — not
+ * a compromise below any usable security bar, just below OWASP's
+ * current *upper* recommendation.
+ */
+const PBKDF2_ITERATIONS = 100_000;
 /** 128 bits — standard, generous salt length; independent of the 256-bit token entropy used elsewhere in this codebase. */
 const SALT_BYTES = 16;
 /** 256-bit derived key, matching PBKDF2-SHA256's natural output size. */

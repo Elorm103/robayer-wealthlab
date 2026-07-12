@@ -17,15 +17,26 @@ import * as auditService from './auditService';
  * A fixed, syntactically-valid `salt:iterations:hash` value that does
  * not correspond to any real password. Used as the comparison target
  * when no matching active admin account is found, so `verifyPassword()`
- * still performs a full PBKDF2 derivation (600,000 iterations) before
- * returning — without this, a lookup miss would return almost
- * instantly while a lookup hit takes the full KDF time, letting a
- * timing attack distinguish "no such account" from "wrong password"
- * even though the response body/status are identical. See
- * docs/v2-authentication-design.md's "identical response shape/timing
- * whether the email doesn't exist or the password is wrong."
+ * still performs a full PBKDF2 derivation before returning — without
+ * this, a lookup miss would return almost instantly while a lookup hit
+ * takes the full KDF time, letting a timing attack distinguish "no such
+ * account" from "wrong password" even though the response body/status
+ * are identical. See docs/v2-authentication-design.md's "identical
+ * response shape/timing whether the email doesn't exist or the
+ * password is wrong."
+ *
+ * The embedded iteration count must match `passwordHash.ts`'s
+ * `PBKDF2_ITERATIONS` (100,000 — a Cloudflare Workers `SubtleCrypto`
+ * ceiling, not a design choice, see that file's comment). A mismatch
+ * here isn't just a timing-consistency bug: `verifyPassword()` re-derives
+ * using whatever iteration count is embedded in the string it's given,
+ * so a stale value above the runtime's cap makes this exact path throw
+ * `NotSupportedError` in production — precisely the bug this comment
+ * now documents, found via `wrangler tail` when this constant still
+ * said 600000 after `passwordHash.ts`'s own constant had already been
+ * lowered to fit the real Workers ceiling.
  */
-const DUMMY_PASSWORD_HASH = `${'0'.repeat(32)}:600000:${'0'.repeat(64)}`;
+const DUMMY_PASSWORD_HASH = `${'0'.repeat(32)}:100000:${'0'.repeat(64)}`;
 
 interface AdminUserRow {
   id: number;
