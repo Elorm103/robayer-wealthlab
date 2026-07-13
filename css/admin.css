@@ -513,6 +513,31 @@
 }
 
 /* ============================================================
+   BULK ACTION BAR — appears above the table when 1+ rows are
+   checkbox-selected (Products list, and any future list module that
+   needs bulk actions).
+   ============================================================ */
+.admin-bulk-bar {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-3);
+  padding: var(--space-3) var(--space-4);
+  margin-bottom: var(--space-4);
+  background-color: var(--color-accent-tint, var(--color-bg-alt));
+  border: 1px solid var(--color-accent);
+  border-radius: var(--radius-md);
+  font-size: var(--text-small);
+}
+
+.admin-bulk-bar__actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-2);
+}
+
+/* ============================================================
    TOOLBAR / SEARCH BAR
    ============================================================ */
 .toolbar {
@@ -1143,4 +1168,330 @@
   .media-card {
     transition: none;
   }
+}
+
+/* ============================================================
+   PRODUCT EDITOR — Version 2.0 Phase 2 (Products Module).
+   Two-column layout (main fields + a sticky publish/metadata
+   sidebar), a lightweight rich-text editor (contenteditable, no
+   framework), a reusable media-picker modal, and small list rows for
+   files/gallery/relations — all built from existing primitives
+   (.card/.field/.btn/.badge) rather than new page-specific components
+   where one already covers the need.
+   ============================================================ */
+.editor-layout {
+  display: grid;
+  grid-template-columns: 1fr 320px;
+  gap: var(--space-5);
+  align-items: start;
+}
+
+.editor-main {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-4);
+  min-width: 0;
+}
+
+.editor-sidebar {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-4);
+  position: sticky;
+  top: var(--space-4);
+}
+
+@media (max-width: 1023px) {
+  .editor-layout {
+    grid-template-columns: 1fr;
+  }
+
+  .editor-sidebar {
+    position: static;
+  }
+}
+
+.editor-section-title {
+  font-family: var(--font-heading);
+  font-weight: var(--weight-medium);
+  font-size: var(--text-body-lg, 1.125rem);
+  color: var(--color-text-heading);
+  margin-bottom: var(--space-3);
+}
+
+.editor-field-row {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: var(--space-3);
+}
+
+@media (max-width: 599px) {
+  .editor-field-row {
+    grid-template-columns: 1fr;
+  }
+}
+
+.editor-char-count {
+  font-size: 0.75rem;
+  color: var(--color-text-secondary);
+  text-align: right;
+}
+
+.editor-char-count[data-over-limit="true"] {
+  color: var(--color-error);
+}
+
+/* ---------- Rich text editor ---------- */
+.richtext-toolbar {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-1);
+  padding: var(--space-2);
+  background-color: var(--color-bg-alt);
+  border: 1px solid var(--color-stone-grey);
+  border-bottom: none;
+  border-radius: var(--radius-sm) var(--radius-sm) 0 0;
+}
+
+.richtext-toolbar__button {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 32px;
+  height: 32px;
+  border: none;
+  background: transparent;
+  border-radius: var(--radius-sm);
+  color: var(--color-text-primary);
+  cursor: pointer;
+}
+
+.richtext-toolbar__button:hover {
+  background-color: var(--color-surface);
+}
+
+.richtext-toolbar__divider {
+  width: 1px;
+  align-self: stretch;
+  background-color: var(--color-border);
+  margin: 0 var(--space-1);
+}
+
+.richtext-editor {
+  min-height: 260px;
+  padding: var(--space-3);
+  background-color: var(--color-light-sand);
+  border: 1px solid var(--color-stone-grey);
+  border-radius: 0 0 var(--radius-sm) var(--radius-sm);
+  color: var(--color-text-primary);
+  line-height: var(--leading-body);
+}
+
+.richtext-editor:focus {
+  outline: 2px solid var(--color-accent);
+  outline-offset: -2px;
+}
+
+.richtext-editor h2,
+.richtext-editor h3 {
+  font-family: var(--font-heading);
+  margin: var(--space-3) 0 var(--space-2);
+}
+
+.richtext-editor p {
+  margin: 0 0 var(--space-2);
+}
+
+.richtext-editor ul,
+.richtext-editor ol {
+  margin: 0 0 var(--space-2);
+  padding-left: var(--space-5);
+}
+
+.richtext-editor blockquote {
+  margin: var(--space-2) 0;
+  padding-left: var(--space-3);
+  border-left: 3px solid var(--color-accent);
+  color: var(--color-text-secondary);
+}
+
+.richtext-editor code {
+  font-family: var(--font-mono);
+  background-color: var(--color-bg-alt);
+  padding: 0 var(--space-1);
+  border-radius: var(--radius-sm);
+}
+
+.richtext-editor img {
+  max-width: 100%;
+  border-radius: var(--radius-sm);
+}
+
+/* ---------- Media reference picker (cover/thumbnail/preview/OG) ---------- */
+.media-ref-picker {
+  display: flex;
+  align-items: center;
+  gap: var(--space-3);
+}
+
+.media-ref-picker__preview {
+  width: 72px;
+  height: 72px;
+  flex-shrink: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background-color: var(--color-bg-alt);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-sm);
+  overflow: hidden;
+}
+
+.media-ref-picker__preview img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+.media-ref-picker__actions {
+  display: flex;
+  gap: var(--space-2);
+}
+
+/* ---------- Files / gallery / relations list rows ---------- */
+.editor-list {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+}
+
+.editor-list-row {
+  display: flex;
+  align-items: center;
+  gap: var(--space-3);
+  padding: var(--space-2) var(--space-3);
+  background-color: var(--color-bg-alt);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-sm);
+}
+
+.editor-list-row__thumb {
+  width: 40px;
+  height: 40px;
+  flex-shrink: 0;
+  border-radius: var(--radius-sm);
+  object-fit: cover;
+  background-color: var(--color-surface);
+}
+
+.editor-list-row__info {
+  flex: 1;
+  min-width: 0;
+}
+
+.editor-list-row__title {
+  font-size: var(--text-small);
+  font-weight: var(--weight-medium);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.editor-list-row__meta {
+  font-size: 0.75rem;
+  color: var(--color-text-secondary);
+}
+
+/* ---------- Relation search combobox ---------- */
+.relation-search {
+  position: relative;
+}
+
+.relation-search__results {
+  position: absolute;
+  top: 100%;
+  left: 0;
+  right: 0;
+  z-index: 10;
+  margin-top: var(--space-1);
+  max-height: 240px;
+  overflow-y: auto;
+  background-color: var(--color-surface);
+  border: 1px solid var(--color-border-strong);
+  border-radius: var(--radius-sm);
+  box-shadow: var(--shadow-2);
+}
+
+.relation-search__result {
+  display: block;
+  width: 100%;
+  text-align: left;
+  padding: var(--space-2) var(--space-3);
+  border: none;
+  background: transparent;
+  font-size: var(--text-small);
+  cursor: pointer;
+}
+
+.relation-search__result:hover,
+.relation-search__result:focus-visible {
+  background-color: var(--color-bg-alt);
+}
+
+/* ---------- Media picker modal (reused for cover/gallery/files/rich-text images) ---------- */
+.media-picker-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(120px, 1fr));
+  gap: var(--space-2);
+  max-height: 400px;
+  overflow-y: auto;
+}
+
+.media-picker-item {
+  display: flex;
+  flex-direction: column;
+  border: 2px solid transparent;
+  border-radius: var(--radius-sm);
+  overflow: hidden;
+  cursor: pointer;
+  background: none;
+  padding: 0;
+}
+
+.media-picker-item:hover,
+.media-picker-item:focus-visible {
+  border-color: var(--color-accent);
+}
+
+.media-picker-item__thumb {
+  width: 100%;
+  aspect-ratio: 1;
+  object-fit: cover;
+  background-color: var(--color-bg-alt);
+}
+
+.media-picker-item__name {
+  padding: var(--space-1);
+  font-size: 0.7rem;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+/* ---------- Live preview panel ---------- */
+.editor-preview {
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-md);
+  overflow: hidden;
+}
+
+.editor-preview__cover {
+  width: 100%;
+  aspect-ratio: 16 / 9;
+  object-fit: cover;
+  background-color: var(--color-bg-alt);
+}
+
+.editor-preview__body {
+  padding: var(--space-4);
 }

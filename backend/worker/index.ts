@@ -68,6 +68,23 @@ import {
   handleMediaRestore,
 } from '../routes/admin/media';
 import { handleMediaFile } from '../routes/media';
+import {
+  handleProductsMeta,
+  handleProductsList,
+  handleProductGet,
+  handleProductCreate,
+  handleProductUpdate,
+  handleProductStatusTransition,
+  handleProductDuplicate,
+  handleProductDelete,
+  handleProductRestore,
+  handleProductFilesUpdate,
+  handleProductGalleryUpdate,
+  handleProductRelationsUpdate,
+  handleProductsBulkAction,
+} from '../routes/admin/products';
+import { handlePublicProductsList, handlePublicProductGet } from '../routes/products';
+import { handleBooksIndex, handleBookDetail, handleBookRedirect } from '../routes/books';
 
 export type { Env };
 
@@ -137,6 +154,38 @@ const ROUTES: Route[] = [
   // slashes, since a real storage key is itself a path
   // (media/images/books/<uuid>.jpg) — see routes/media.ts.
   { pattern: new URLPattern({ pathname: '/api/media/file/:key(.*)' }), method: 'GET', handler: handleMediaFile },
+  // Added Version 2.0 Phase 2 (Products Module) — see
+  // docs/v2-products-module-spec.md. `/api/admin/products/meta` and
+  // `/api/admin/products/bulk` are ordered before `/api/admin/products/:id`
+  // so their literal path never gets swallowed as an `:id` value by the
+  // dynamic route below (first-match-wins array order).
+  { pattern: new URLPattern({ pathname: '/api/admin/products/meta' }), method: 'GET', handler: handleProductsMeta },
+  { pattern: new URLPattern({ pathname: '/api/admin/products/bulk' }), method: 'POST', handler: handleProductsBulkAction },
+  { pattern: new URLPattern({ pathname: '/api/admin/products' }), method: 'GET', handler: handleProductsList },
+  { pattern: new URLPattern({ pathname: '/api/admin/products' }), method: 'POST', handler: handleProductCreate },
+  { pattern: new URLPattern({ pathname: '/api/admin/products/:id' }), method: 'GET', handler: handleProductGet },
+  { pattern: new URLPattern({ pathname: '/api/admin/products/:id' }), method: 'PATCH', handler: handleProductUpdate },
+  { pattern: new URLPattern({ pathname: '/api/admin/products/:id' }), method: 'DELETE', handler: handleProductDelete },
+  { pattern: new URLPattern({ pathname: '/api/admin/products/:id/restore' }), method: 'POST', handler: handleProductRestore },
+  { pattern: new URLPattern({ pathname: '/api/admin/products/:id/duplicate' }), method: 'POST', handler: handleProductDuplicate },
+  { pattern: new URLPattern({ pathname: '/api/admin/products/:id/status' }), method: 'POST', handler: handleProductStatusTransition },
+  { pattern: new URLPattern({ pathname: '/api/admin/products/:id/files' }), method: 'PUT', handler: handleProductFilesUpdate },
+  { pattern: new URLPattern({ pathname: '/api/admin/products/:id/gallery' }), method: 'PUT', handler: handleProductGalleryUpdate },
+  { pattern: new URLPattern({ pathname: '/api/admin/products/:id/relations' }), method: 'PUT', handler: handleProductRelationsUpdate },
+  // Public — no auth, only publicly-listed statuses. Ordered after the
+  // admin routes above for readability; no collision risk since the
+  // path prefixes are disjoint (`/api/admin/products` vs `/api/products`).
+  { pattern: new URLPattern({ pathname: '/api/products' }), method: 'GET', handler: handlePublicProductsList },
+  { pattern: new URLPattern({ pathname: '/api/products/:slug' }), method: 'GET', handler: handlePublicProductGet },
+  // Added Version 2.0 Phase 2 (Products Module) — public site
+  // integration. This Worker fully owns `/books/*` via a new Workers
+  // Route (wrangler.jsonc) — see routes/books.ts's header comment for
+  // why it never falls through to GitHub Pages for any case (index,
+  // known slug, unknown slug all render/404 from D1 directly). Ordered
+  // last since `/books/*` is the broadest pattern on this table.
+  { pattern: new URLPattern({ pathname: '/books/' }), method: 'GET', handler: handleBooksIndex },
+  { pattern: new URLPattern({ pathname: '/books/:slug/' }), method: 'GET', handler: handleBookDetail },
+  { pattern: new URLPattern({ pathname: '/books/:slug' }), method: 'GET', handler: handleBookRedirect },
 ];
 
 export default {

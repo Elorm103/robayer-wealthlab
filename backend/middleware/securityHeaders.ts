@@ -1,9 +1,10 @@
 /**
  * Baseline HTTP security headers — applied to every response this
- * Worker returns, success or error, JSON or binary file. Added during
- * the Version 1.0 Launch Readiness pass (see docs/launch-readiness.md
- * and docs/platform-review-v1.md's "Security headers" finding, which
- * this file resolves).
+ * Worker returns, success or error, JSON, binary file, or (since
+ * Version 2.0 Phase 2) full HTML page. Added during the Version 1.0
+ * Launch Readiness pass (see docs/launch-readiness.md and
+ * docs/platform-review-v1.md's "Security headers" finding, which this
+ * file resolves).
  *
  * Was deliberately kept as its own file, separate from the former
  * `middleware/cors.ts` (removed in the Version 2.0 Same-Origin Migration
@@ -12,26 +13,53 @@
  * applies this same composable `withXyz(response, env)` wrapper pattern
  * to every response.
  *
- * Every header below is scoped to what's actually appropriate for a
- * JSON/binary API with no HTML rendering surface of its own — this is
- * not a copy-pasted "best practices" header block. See each header's
- * own comment for the specific reasoning.
+ * Updated Version 2.0 Phase 2 (Products Module): this Worker gained a
+ * genuine HTML-rendering surface for the first time (routes/books.ts,
+ * via the new /books/* Workers Route) — a real regression was found
+ * during local verification: the original blanket
+ * `Content-Security-Policy: default-src 'none'` (correct when every
+ * response really was JSON/binary only) silently blocked every
+ * CSS/JS/font asset on the new pages, since a strict `'none'` default
+ * applies to stylesheets and scripts too, not just XHR/fetch. The CSP
+ * now branches on the response's own Content-Type: an HTML page gets a
+ * policy that actually allows this site's real asset origins (same-
+ * origin CSS/JS/images plus Google Fonts); every other response
+ * (JSON, binary downloads) keeps the original, maximally strict
+ * `'none'` policy — those genuinely load nothing.
  */
 
 import type { Env } from '../worker/env';
 
-function securityHeaders(): Record<string, string> {
+const HTML_CONTENT_SECURITY_POLICY = [
+  "default-src 'self'",
+  "style-src 'self' 'unsafe-inline' https://fonts.googleapis.com", // 'unsafe-inline' covers this Worker's own inline `style="background-image:...url(cover)"` attributes (routes/books.ts) — a fixed, developer-authored pattern, not user-controllable CSS
+  "font-src 'self' https://fonts.gstatic.com",
+  "script-src 'self'",
+  "img-src 'self' https: data:",
+  "connect-src 'self'",
+  "frame-ancestors 'none'",
+].join('; ');
+
+const API_CONTENT_SECURITY_POLICY = "default-src 'none'; frame-ancestors 'none'";
+
+function isHtmlResponse(response: Response): boolean {
+  const contentType = response.headers.get('Content-Type') ?? '';
+  return contentType.includes('text/html');
+}
+
+function securityHeaders(response: Response): Record<string, string> {
   return {
-    // This Worker never serves HTML, CSS, or JavaScript to be
-    // executed — every legitimate response is either a JSON envelope
-    // or a binary file download (GET /api/download/:token). `'none'`
-    // is correct, not merely restrictive-by-default: there is no
-    // route where loosening this would ever be needed. frame-ancestors
-    // 'none' additionally covers the (already syntactically distinct)
-    // clickjacking protection X-Frame-Options provides below — kept
-    // as two headers for the widest browser compatibility, not
-    // because they protect against different things.
-    'Content-Security-Policy': "default-src 'none'; frame-ancestors 'none'",
+    // Every legitimate non-HTML response is a JSON envelope or a
+    // binary file download (GET /api/download/:token) and gets the
+    // original, maximally strict policy — there is no route among
+    // those where loosening it would ever be needed. HTML responses
+    // (routes/books.ts) get a policy scoped to what that page actually
+    // needs to load — still real hardening (no inline scripts, no
+    // third-party script origins, no framing), just not `'none'`.
+    // frame-ancestors 'none' is present in both variants, additionally
+    // covered by the (already syntactically distinct) X-Frame-Options
+    // below — kept as two headers for the widest browser compatibility.
+    'Content-Security-Policy': isHtmlResponse(response) ? HTML_CONTENT_SECURITY_POLICY : API_CONTENT_SECURITY_POLICY,
 
     // Belt-and-braces alongside the CSP frame-ancestors directive
     // above — some older browsers only honor this one, not CSP.
@@ -48,13 +76,14 @@ function securityHeaders(): Record<string, string> {
     // information, and this API's own URLs (e.g. a purchase reference
     // in a query string, or a signed download link) should never leak
     // into a third party's server logs via an outbound link from a
-    // response this Worker returns. This Worker never returns HTML
-    // with outbound links, so this header is defense-in-depth rather
-    // than a live requirement — cheap enough to set anyway.
+    // response this Worker returns. Applies equally to the HTML pages
+    // added in Phase 2 — an outbound link from a product page (e.g.
+    // "Read the full story") still shouldn't leak this site's own URL
+    // structure via the Referer header any more than necessary.
     'Referrer-Policy': 'strict-origin-when-cross-origin',
 
-    // This API grants itself none of these browser features (it isn't
-    // a page a browser renders) and explicitly disclaims them so nothing
+    // Neither the API nor the new HTML pages use any of these browser
+    // features, and explicitly disclaiming them means nothing
     // downstream (a proxy, a future embedded use) can assume otherwise.
     'Permissions-Policy': 'camera=(), microphone=(), geolocation=(), payment=()',
 
@@ -77,7 +106,7 @@ function securityHeaders(): Record<string, string> {
 /** Adds baseline security headers to an already-built response, without altering its body or status. */
 export function withSecurityHeaders(response: Response, _env: Env): Response {
   const headers = new Headers(response.headers);
-  for (const [key, value] of Object.entries(securityHeaders())) {
+  for (const [key, value] of Object.entries(securityHeaders(response))) {
     headers.set(key, value);
   }
   return new Response(response.body, { status: response.status, headers });

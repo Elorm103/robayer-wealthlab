@@ -15,6 +15,19 @@
  * media. A soft-deleted or nonexistent key gets the same generic 404,
  * matching this codebase's "identical outcome regardless of why" habit
  * for public lookup endpoints.
+ *
+ * Updated Version 2.0 Phase 2 (Products Module): a product's
+ * downloadable file is now stored in Media Library too (see
+ * product_files.media_id — "select from Media Library, never
+ * duplicate uploads"), which would otherwise make a paid ebook's PDF
+ * reachable through this exact public, unauthenticated route. Before
+ * serving any key, this checks whether it belongs to a `product_files`
+ * row on a product with `price_pesewas > 0` and, if so, returns the
+ * same generic 404 a nonexistent key would — forcing paid files
+ * through the existing entitlement -> download-token flow
+ * (routes/downloads.ts) instead. A free product's files (price_pesewas
+ * IS NULL or 0) remain publicly fetchable here as normal, matching how
+ * a free lead magnet has always been openly linkable.
  */
 
 import type { Env } from '../worker/env';
@@ -26,6 +39,16 @@ import { getMediaByStorageKey } from '../services/mediaService';
 export async function handleMediaFile(_request: Request, env: Env, _logger: Logger, params: RouteParams): Promise<Response> {
   const storageKey = params.key;
   if (!storageKey) return jsonError('MEDIA_NOT_FOUND', 'This file could not be found.');
+
+  const paidFile = await env.DB.prepare(
+    `SELECT pf.id FROM product_files pf
+     JOIN media_assets m ON m.id = pf.media_id
+     JOIN products p ON p.id = pf.product_id
+     WHERE m.storage_key = ? AND p.price_pesewas IS NOT NULL AND p.price_pesewas > 0`
+  )
+    .bind(storageKey)
+    .first<{ id: number }>();
+  if (paidFile) return jsonError('MEDIA_NOT_FOUND', 'This file could not be found.');
 
   const media = await getMediaByStorageKey(env, storageKey);
   let contentType: string;

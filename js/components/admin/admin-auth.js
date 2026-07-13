@@ -69,6 +69,15 @@ window.AdminAuth = (function () {
       const error = new Error((body && body.error && body.error.message) || 'Something went wrong. Please try again.');
       error.code = body && body.error && body.error.code;
       error.status = response.status;
+      // Widens rather than replaces the envelope, same pattern already used
+      // by routes/admin/media.ts's duplicate-asset response and
+      // routes/admin/products.ts's validationErrorResponse(): some error
+      // bodies carry extra fields alongside the standard {code, message}
+      // (here, a per-field `fields` array from product validation) —
+      // surfaced on the thrown Error so a caller like the product editor
+      // can highlight the exact invalid inputs instead of only showing
+      // one generic message.
+      if (body && Array.isArray(body.fields)) error.fields = body.fields;
       throw error;
     }
     return body.data;

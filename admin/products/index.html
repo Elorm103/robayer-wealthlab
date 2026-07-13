@@ -5,7 +5,7 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
 
   <title>Products | Robayer WealthLab Admin</title>
-  <meta name="description" content="Manage your product catalog, pricing, and digital assets. This module arrives in a later phase.">
+  <meta name="description" content="Manage your product catalog, pricing, and digital assets.">
   <link rel="canonical" href="https://robayerwealthlab.com/admin/products/">
   <meta name="robots" content="noindex, nofollow">
 
@@ -33,15 +33,115 @@
     <div class="admin-main">
       <div class="admin-include" data-include="/partials/admin-topbar.html"></div>
 
-      <main class="admin-content" id="main-content">
-        <div class="card">
-          <div class="empty-state">
-            <svg class="icon empty-state__icon" viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="10"/><path d="M12 8v4M12 16h.01"/></svg>
-            <p class="empty-state__title">Coming soon</p>
-            <p class="empty-state__body">Manage your product catalog, pricing, and digital assets. This module arrives in a later phase.</p>
+      <main class="admin-content" id="main-content" data-products-root>
+        <p class="alert alert--error" role="alert" data-products-load-error hidden></p>
+
+        <div class="toolbar">
+          <div class="toolbar__group">
+            <div class="search-bar">
+              <svg class="icon search-bar__icon" viewBox="0 0 24 24" aria-hidden="true"><circle cx="11" cy="11" r="7"/><path d="m21 21-4.3-4.3"/></svg>
+              <input type="search" class="field__input search-bar__input" placeholder="Search by title, slug, or SKU&hellip;" aria-label="Search products" data-products-search>
+            </div>
+            <select class="field__select" aria-label="Filter by topic" data-products-topic>
+              <option value="">All topics</option>
+            </select>
+            <select class="field__select" aria-label="Filter by product type" data-products-type>
+              <option value="">All types</option>
+            </select>
+            <select class="field__select" aria-label="Sort by" data-products-sort>
+              <option value="newest">Newest</option>
+              <option value="oldest">Oldest</option>
+              <option value="title-az">Title A&ndash;Z</option>
+              <option value="title-za">Title Z&ndash;A</option>
+              <option value="price-asc">Price: low to high</option>
+              <option value="price-desc">Price: high to low</option>
+            </select>
+          </div>
+          <div class="toolbar__group">
+            <span class="text-small text-secondary" data-products-result-count></span>
+            <a href="/admin/products/new/" class="btn btn--primary" data-products-new-link>New product</a>
+          </div>
+        </div>
+
+        <div class="media-filters" role="group" aria-label="Status filters" data-products-status-filters>
+          <button type="button" class="media-filter-chip" aria-pressed="true" data-products-status-filter="">All</button>
+          <button type="button" class="media-filter-chip" aria-pressed="false" data-products-status-filter="draft">Draft</button>
+          <button type="button" class="media-filter-chip" aria-pressed="false" data-products-status-filter="active">Active</button>
+          <button type="button" class="media-filter-chip" aria-pressed="false" data-products-status-filter="coming-soon">Coming soon</button>
+          <button type="button" class="media-filter-chip" aria-pressed="false" data-products-status-filter="hidden">Hidden</button>
+          <button type="button" class="media-filter-chip" aria-pressed="false" data-products-status-filter="unavailable">Unavailable</button>
+          <button type="button" class="media-filter-chip" aria-pressed="false" data-products-status-filter="archived">Archived</button>
+          <button type="button" class="media-filter-chip" aria-pressed="false" data-products-featured-filter="">Featured</button>
+          <button type="button" class="media-filter-chip" aria-pressed="false" data-products-deleted-filter="">Deleted</button>
+        </div>
+
+        <div class="admin-bulk-bar" data-products-bulk-bar hidden>
+          <span data-products-bulk-count></span>
+          <div class="admin-bulk-bar__actions">
+            <button type="button" class="btn btn--secondary" data-products-bulk-action="publish">Publish</button>
+            <button type="button" class="btn btn--secondary" data-products-bulk-action="unpublish">Unpublish</button>
+            <button type="button" class="btn btn--secondary" data-products-bulk-action="archive">Archive</button>
+            <button type="button" class="btn btn--secondary" data-products-bulk-action="unarchive" data-products-bulk-restore-status hidden>Unarchive</button>
+            <button type="button" class="btn btn--secondary" data-products-bulk-action="restore" data-products-bulk-restore-action hidden>Restore</button>
+            <button type="button" class="btn btn--accent" data-products-bulk-action="delete" data-products-bulk-delete-action>Delete</button>
+          </div>
+        </div>
+
+        <div class="empty-state" data-products-empty hidden>
+          <svg class="icon empty-state__icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M4 4h16v4H4zM4 12h16v8H4z"/></svg>
+          <p class="empty-state__title">No products yet</p>
+          <p class="empty-state__body">Create your first product to start selling — no JSON files required.</p>
+        </div>
+
+        <div class="admin-table-wrap" data-products-table-wrap hidden>
+          <table class="table" aria-label="Products">
+            <thead>
+              <tr>
+                <th scope="col"><input type="checkbox" aria-label="Select all products" data-products-select-all></th>
+                <th scope="col">Product</th>
+                <th scope="col">Status</th>
+                <th scope="col">Topic</th>
+                <th scope="col">Type</th>
+                <th scope="col" class="numeric">Price</th>
+                <th scope="col">Updated</th>
+                <th scope="col"><span class="sr-only">Actions</span></th>
+              </tr>
+            </thead>
+            <tbody data-products-table-body></tbody>
+          </table>
+        </div>
+
+        <div class="pagination" data-products-pagination>
+          <span data-products-pagination-label></span>
+          <div class="pagination__controls">
+            <button type="button" class="pagination__button" data-products-pagination-prev aria-label="Previous page">
+              <svg class="icon" width="16" height="16" viewBox="0 0 24 24" aria-hidden="true"><path d="M15 18l-6-6 6-6"/></svg>
+            </button>
+            <button type="button" class="pagination__button" data-products-pagination-next aria-label="Next page">
+              <svg class="icon" width="16" height="16" viewBox="0 0 24 24" aria-hidden="true"><path d="M9 6l6 6-6 6"/></svg>
+            </button>
           </div>
         </div>
       </main>
+    </div>
+  </div>
+
+  <!-- Delete confirmation modal -->
+  <div class="modal-overlay" data-products-delete-modal hidden>
+    <div class="modal" role="dialog" aria-modal="true" aria-labelledby="products-delete-title">
+      <div class="modal__header">
+        <h2 class="modal__title" id="products-delete-title" data-products-delete-title>Delete this product?</h2>
+        <button type="button" class="modal__close" data-modal-close aria-label="Close">
+          <svg class="icon" width="18" height="18" viewBox="0 0 24 24" aria-hidden="true"><path d="M18 6 6 18M6 6l12 12"/></svg>
+        </button>
+      </div>
+      <div class="modal__body">
+        <p data-products-delete-body>It will be hidden from the catalog and checkout. It can be restored later — nothing is permanently deleted.</p>
+      </div>
+      <div class="modal__footer">
+        <button type="button" class="btn btn--secondary" data-modal-close>Cancel</button>
+        <button type="button" class="btn btn--accent" data-products-delete-confirm>Delete</button>
+      </div>
     </div>
   </div>
 
@@ -49,5 +149,6 @@
   <script src="/js/components/theme-toggle.js"></script>
   <script src="/js/components/admin/admin-auth.js"></script>
   <script src="/js/components/admin/admin-shell.js"></script>
+  <script src="/js/components/admin/admin-products.js"></script>
 </body>
 </html>

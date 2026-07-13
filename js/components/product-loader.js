@@ -1,11 +1,16 @@
 /**
  * Robayer WealthLab — Product Loader
- * (Version 1.2 Sprint 1, rebuilt Sprint 2.1, extended Sprint 2.2)
+ * (Version 1.2 Sprint 1, rebuilt Sprint 2.1, extended Sprint 2.2,
+ * migrated off content/products/*.json to the D1-backed public API
+ * in Version 2.0 Phase 2 — see backend/routes/products.ts.)
  *
- * Live as of Sprint 2.2 on /books/index.html and index.html (homepage)
- * — the first pages to actually include this script. See
- * docs/product-discovery-architecture.md for the discovery-experience
- * architecture (ranking strategy, badge system, empty states).
+ * As of Phase 2, only index.html (homepage) still uses this script for
+ * its feature banner + coming-soon grid — the Books listing and
+ * individual product pages are now server-rendered directly from D1
+ * by the Worker (backend/routes/books.ts), not client-hydrated. This
+ * file is kept for the homepage's sake and for any future page that
+ * wants a lightweight, client-rendered product grid without a full
+ * server-rendered page.
  *
  * No Paystack code here. This loader only reads and renders product
  * *content* — price, cover, description. A future storefront wires
@@ -48,7 +53,7 @@
 
 (function () {
   const REQUIRED_FIELDS = ['id', 'slug', 'title', 'productType', 'status'];
-  const VALID_STATUSES = ['draft', 'active', 'archived', 'coming-soon'];
+  const VALID_STATUSES = ['draft', 'active', 'archived', 'coming-soon', 'hidden', 'unavailable'];
 
   function validateProduct(product) {
     const errors = [];
@@ -63,36 +68,26 @@
     if (product.status && !VALID_STATUSES.includes(product.status)) {
       errors.push('Invalid status: ' + product.status);
     }
-    // price/currency are only meaningful once a product is actually
-    // purchasable — a "coming-soon" record legitimately may not have
-    // an announced price yet (see momo-savings-playbook.json).
-    if (product.status === 'active') {
-      if (product.price === undefined || product.price === null) errors.push('Missing required field: price (required once status is "active")');
-      if (!product.currency) errors.push('Missing required field: currency (required once status is "active")');
-    }
     return { valid: errors.length === 0, errors };
   }
 
-  function fetchProduct(slug) {
-    return fetch('/content/products/' + slug + '.json')
-      .then((response) => (response.ok ? response.json() : null))
-      .catch(() => null);
-  }
-
+  /**
+   * Reads one page of the public product API (backend/routes/products.ts
+   * — GET /api/products, publicly-listed statuses only, D1-backed).
+   * Always returns an array — a fetch/parse failure is an honest empty
+   * result here, matching this file's existing "never throw a caller
+   * must remember to catch" pattern for the old JSON registry fetch.
+   */
   function loadAll() {
-    return fetch('/content/products/index.json')
+    return fetch('/api/products?pageSize=100')
       .then((response) => {
-        if (!response.ok) throw new Error('Failed to load product registry.');
+        if (!response.ok) throw new Error('Failed to load products.');
         return response.json();
       })
-      .then((slugs) => {
-        if (!Array.isArray(slugs) || slugs.length === 0) return [];
-        return Promise.all(slugs.map(fetchProduct));
-      })
-      .then((products) => {
+      .then((body) => {
+        if (!body || body.success !== true || !body.data || !Array.isArray(body.data.items)) return [];
         const valid = [];
-        products.forEach((product, index) => {
-          if (!product) return; // fetch failed for this slug — skip silently, matches honest-failure pattern elsewhere
+        body.data.items.forEach((product, index) => {
           const result = validateProduct(product);
           if (result.valid) {
             valid.push(product);
@@ -102,7 +97,15 @@
         });
         return valid;
       })
-      .catch(() => []); // Registry fetch itself failed — honest empty result, not a thrown error a caller must remember to catch.
+      .catch(() => []);
+  }
+
+  /** Single-product fetch, by slug — publicly-listed statuses only (see routes/products.ts). Returns null for anything not found, not just a fetch failure — a caller never needs to distinguish "404" from "network error." */
+  function fetchProduct(slug) {
+    return fetch('/api/products/' + encodeURIComponent(slug))
+      .then((response) => (response.ok ? response.json() : null))
+      .then((body) => (body && body.success === true ? body.data : null))
+      .catch(() => null);
   }
 
   function getBySlug(products, slug) {
@@ -126,8 +129,8 @@
   }
 
   function isGenuinelyUpdated(product) {
-    if (!product.updatedDate || !product.publishedDate) return false;
-    return new Date(product.updatedDate).getTime() > new Date(product.publishedDate).getTime();
+    if (!product.updatedAt || !product.publishedAt) return false;
+    return new Date(product.updatedAt).getTime() > new Date(product.publishedAt).getTime();
   }
 
   function getUpdated(products) {
@@ -269,8 +272,9 @@
     if (!isUpcoming && product.price === 0) badges.push('<span class="badge badge--success mb-2">Free</span>');
     if (isGenuinelyUpdated(product)) badges.push('<span class="badge badge--info mb-2">Updated</span>');
 
-    const coverStyle = product.thumbnail
-      ? ' style="background-image:url(\'' + escapeHtml(product.thumbnail) + '\');background-size:cover;background-position:center;"'
+    const cardImage = product.thumbnailImage || product.coverImage;
+    const coverStyle = cardImage
+      ? ' style="background-image:url(\'' + escapeHtml(cardImage) + '\');background-size:cover;background-position:center;"'
       : '';
 
     const cta = isUpcoming

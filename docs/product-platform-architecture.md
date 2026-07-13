@@ -1,5 +1,7 @@
 # Digital Product Platform Architecture — Version 1.2 Sprint 2.1
 
+**Note (Version 2.0 Phase 2):** the `content/products/*.json` storage layer this doc describes has since been migrated into a D1 `products` table and retired as a live data source — see `docs/products-module-implementation.md`. The `content/product-types/` and `content/topics/` taxonomies described below are still the reference vocabulary for the `product_type`/`topic` columns.
+
 ## Status
 
 **Architecture only. Nothing in this sprint sells anything, and

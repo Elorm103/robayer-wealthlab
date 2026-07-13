@@ -1,0 +1,356 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+
+  <title>Edit Product | Robayer WealthLab Admin</title>
+  <meta name="description" content="Edit an existing product.">
+  <link rel="canonical" href="https://robayerwealthlab.com/admin/products/edit/">
+  <meta name="robots" content="noindex, nofollow">
+
+  <link rel="icon" type="image/svg+xml" href="/assets/icons/favicon.svg">
+  <link rel="icon" type="image/png" sizes="32x32" href="/assets/icons/favicon-32.png">
+  <link rel="apple-touch-icon" href="/assets/icons/apple-touch-icon.png">
+
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Fraunces:ital,wght@0,500;0,600;1,500&family=Space+Grotesk:wght@500&family=Work+Sans:wght@400;500&family=IBM+Plex+Mono:wght@400;500&display=swap" rel="stylesheet">
+
+  <link rel="stylesheet" href="/css/tokens.css">
+  <link rel="stylesheet" href="/css/base.css">
+  <link rel="stylesheet" href="/css/layout.css">
+  <link rel="stylesheet" href="/css/components.css">
+  <link rel="stylesheet" href="/css/utilities.css">
+  <link rel="stylesheet" href="/css/admin.css">
+</head>
+<body>
+  <a href="#main-content" class="skip-link">Skip to main content</a>
+
+  <div class="admin-shell" data-sidebar-collapsed="false">
+    <div class="admin-include" data-include="/partials/admin-sidebar.html"></div>
+
+    <div class="admin-main">
+      <div class="admin-include" data-include="/partials/admin-topbar.html"></div>
+
+      <main class="admin-content" id="main-content" data-product-editor-root data-product-editor-mode="edit">
+        <p class="alert alert--error" role="alert" data-editor-load-error hidden></p>
+        <p class="alert alert--success" role="alert" data-editor-save-success hidden></p>
+
+        <div class="editor-layout">
+          <div class="editor-main">
+
+            <section class="card">
+              <h2 class="editor-section-title">Basic</h2>
+              <div class="field">
+                <label class="field__label" for="pe-title">Title</label>
+                <input class="field__input" id="pe-title" data-pe-title maxlength="200">
+                <span class="field__error" data-pe-error-field="title" hidden></span>
+              </div>
+              <div class="field">
+                <label class="field__label" for="pe-slug">Slug</label>
+                <input class="field__input" id="pe-slug" data-pe-slug>
+                <span class="field__hint">Used in the product's URL. Lowercase letters, numbers, and hyphens only.</span>
+                <span class="field__error" data-pe-error-field="slug" hidden></span>
+              </div>
+              <div class="field">
+                <label class="field__label" for="pe-subtitle">Subtitle</label>
+                <input class="field__input" id="pe-subtitle" data-pe-subtitle maxlength="300">
+              </div>
+              <div class="field">
+                <label class="field__label" for="pe-short-description">Short description</label>
+                <textarea class="field__textarea" id="pe-short-description" data-pe-short-description maxlength="500"></textarea>
+              </div>
+              <div class="editor-field-row">
+                <div class="field">
+                  <label class="field__label" for="pe-topic">Topic</label>
+                  <select class="field__select" id="pe-topic" data-pe-topic></select>
+                  <span class="field__error" data-pe-error-field="topic" hidden></span>
+                </div>
+                <div class="field">
+                  <label class="field__label" for="pe-product-type">Product type</label>
+                  <select class="field__select" id="pe-product-type" data-pe-product-type></select>
+                  <span class="field__error" data-pe-error-field="productType" hidden></span>
+                </div>
+              </div>
+              <div class="editor-field-row">
+                <div class="field">
+                  <label class="field__label" for="pe-author">Author</label>
+                  <input class="field__input" id="pe-author" data-pe-author>
+                </div>
+                <div class="field">
+                  <label class="field__label" for="pe-language">Language</label>
+                  <input class="field__input" id="pe-language" data-pe-language value="en">
+                </div>
+              </div>
+              <div class="editor-field-row">
+                <div class="field">
+                  <label class="field__label" for="pe-version">Version</label>
+                  <input class="field__input" id="pe-version" data-pe-version placeholder="e.g. 1.0">
+                </div>
+                <div class="field">
+                  <label class="field__label" for="pe-reading-time">Estimated reading time (minutes)</label>
+                  <input class="field__input" type="number" min="0" id="pe-reading-time" data-pe-reading-time>
+                </div>
+              </div>
+            </section>
+
+            <section class="card">
+              <h2 class="editor-section-title">Content</h2>
+              <div class="field">
+                <span class="field__label" id="pe-description-label">Description</span>
+                <div class="richtext-toolbar" role="toolbar" aria-label="Formatting" data-rt-toolbar>
+                  <button type="button" class="richtext-toolbar__button" data-rt-cmd="bold" aria-label="Bold"><strong>B</strong></button>
+                  <button type="button" class="richtext-toolbar__button" data-rt-cmd="italic" aria-label="Italic"><em>I</em></button>
+                  <span class="richtext-toolbar__divider" aria-hidden="true"></span>
+                  <button type="button" class="richtext-toolbar__button" data-rt-cmd="formatBlock" data-rt-value="H2" aria-label="Heading 2">H2</button>
+                  <button type="button" class="richtext-toolbar__button" data-rt-cmd="formatBlock" data-rt-value="H3" aria-label="Heading 3">H3</button>
+                  <button type="button" class="richtext-toolbar__button" data-rt-cmd="formatBlock" data-rt-value="P" aria-label="Paragraph">¶</button>
+                  <span class="richtext-toolbar__divider" aria-hidden="true"></span>
+                  <button type="button" class="richtext-toolbar__button" data-rt-cmd="insertUnorderedList" aria-label="Bulleted list">•</button>
+                  <button type="button" class="richtext-toolbar__button" data-rt-cmd="insertOrderedList" aria-label="Numbered list">1.</button>
+                  <button type="button" class="richtext-toolbar__button" data-rt-cmd="formatBlock" data-rt-value="BLOCKQUOTE" aria-label="Quote">&rdquo;</button>
+                  <button type="button" class="richtext-toolbar__button" data-rt-cmd="code" aria-label="Code">&lt;/&gt;</button>
+                  <span class="richtext-toolbar__divider" aria-hidden="true"></span>
+                  <button type="button" class="richtext-toolbar__button" data-rt-cmd="link" aria-label="Insert link">&#128279;</button>
+                  <button type="button" class="richtext-toolbar__button" data-rt-cmd="image" aria-label="Insert image from Media Library">&#128247;</button>
+                </div>
+                <div class="richtext-editor" contenteditable="true" role="textbox" aria-multiline="true" aria-labelledby="pe-description-label" data-rt-editor></div>
+              </div>
+            </section>
+
+            <section class="card">
+              <h2 class="editor-section-title">Pricing</h2>
+              <div class="editor-field-row">
+                <div class="field">
+                  <label class="field__label" for="pe-price">Price (GHS)</label>
+                  <input class="field__input" type="number" min="0" step="0.01" id="pe-price" data-pe-price placeholder="Leave blank if not yet priced">
+                  <span class="field__error" data-pe-error-field="pricePesewas" hidden></span>
+                </div>
+                <div class="field">
+                  <label class="field__label" for="pe-compare-price">Compare-at price (GHS)</label>
+                  <input class="field__input" type="number" min="0" step="0.01" id="pe-compare-price" data-pe-compare-price>
+                  <span class="field__error" data-pe-error-field="compareAtPricePesewas" hidden></span>
+                </div>
+              </div>
+              <div class="editor-field-row">
+                <div class="field">
+                  <label class="field__label" for="pe-tax-behavior">Tax behavior</label>
+                  <select class="field__select" id="pe-tax-behavior" data-pe-tax-behavior>
+                    <option value="inclusive">Inclusive</option>
+                    <option value="exclusive">Exclusive</option>
+                    <option value="exempt">Exempt</option>
+                  </select>
+                </div>
+                <div class="field">
+                  <label class="field__label" for="pe-sku">SKU</label>
+                  <input class="field__input" id="pe-sku" data-pe-sku>
+                  <span class="field__error" data-pe-error-field="sku" hidden></span>
+                </div>
+              </div>
+              <p class="field__hint">Currency is fixed to GHS (Ghana Cedis) — the only currency this store's Paystack integration supports.</p>
+            </section>
+
+            <section class="card" data-pe-files-section>
+              <h2 class="editor-section-title">Downloadable files</h2>
+              <p class="text-small text-secondary">Selected from the Media Library — files are never uploaded here directly, and are never duplicated.</p>
+              <div class="editor-list" data-pe-files-list></div>
+              <button type="button" class="btn btn--secondary" data-pe-add-file>Add file from Media Library</button>
+              <p class="field__hint" data-pe-files-hint hidden>Save this product first before attaching files.</p>
+            </section>
+
+            <section class="card" data-pe-gallery-section>
+              <h2 class="editor-section-title">Gallery</h2>
+              <div class="editor-list" data-pe-gallery-list></div>
+              <button type="button" class="btn btn--secondary" data-pe-add-gallery-image>Add image from Media Library</button>
+              <p class="field__hint" data-pe-gallery-hint hidden>Save this product first before adding gallery images.</p>
+            </section>
+
+            <section class="card">
+              <h2 class="editor-section-title">SEO</h2>
+              <div class="field">
+                <label class="field__label" for="pe-seo-title">SEO title</label>
+                <input class="field__input" id="pe-seo-title" data-pe-seo-title maxlength="70">
+                <span class="editor-char-count" data-pe-char-count="seoTitle">0 / 70</span>
+                <span class="field__error" data-pe-error-field="seoTitle" hidden></span>
+              </div>
+              <div class="field">
+                <label class="field__label" for="pe-seo-description">SEO description</label>
+                <textarea class="field__textarea" id="pe-seo-description" data-pe-seo-description maxlength="160"></textarea>
+                <span class="editor-char-count" data-pe-char-count="seoDescription">0 / 160</span>
+                <span class="field__error" data-pe-error-field="seoDescription" hidden></span>
+              </div>
+              <div class="field">
+                <label class="field__label" for="pe-seo-canonical">Canonical URL</label>
+                <input class="field__input" id="pe-seo-canonical" data-pe-seo-canonical placeholder="https://robayerwealthlab.com/books/…">
+              </div>
+              <div class="field">
+                <span class="field__label">OG image</span>
+                <div class="media-ref-picker">
+                  <div class="media-ref-picker__preview" data-pe-media-ref="og"></div>
+                  <div class="media-ref-picker__actions">
+                    <button type="button" class="btn btn--secondary" data-pe-media-choose="og">Choose</button>
+                    <button type="button" class="btn btn--secondary" data-pe-media-remove="og" hidden>Remove</button>
+                  </div>
+                </div>
+              </div>
+            </section>
+
+            <section class="card" data-pe-relations-section>
+              <h2 class="editor-section-title">Related products</h2>
+              <div class="field">
+                <label class="field__label" for="pe-relation-search">Add related product</label>
+                <div class="relation-search">
+                  <input class="field__input" id="pe-relation-search" data-pe-relation-search placeholder="Search products&hellip;" autocomplete="off">
+                  <div class="relation-search__results" data-pe-relation-results hidden></div>
+                </div>
+              </div>
+              <div class="editor-list" data-pe-relations-list></div>
+            </section>
+
+            <section class="card">
+              <h2 class="editor-section-title">Discovery</h2>
+              <div class="field">
+                <label class="field__label" for="pe-tags">Tags</label>
+                <input class="field__input" id="pe-tags" data-pe-tags placeholder="comma, separated, tags">
+              </div>
+              <div class="field field--checkbox">
+                <input type="checkbox" id="pe-featured" data-pe-featured>
+                <label class="field__label" for="pe-featured">Featured</label>
+              </div>
+              <div class="field field--checkbox">
+                <input type="checkbox" id="pe-bestseller" data-pe-bestseller>
+                <label class="field__label" for="pe-bestseller">Bestseller</label>
+              </div>
+              <div class="field field--checkbox">
+                <input type="checkbox" id="pe-new-release" data-pe-new-release>
+                <label class="field__label" for="pe-new-release">New release</label>
+              </div>
+              <div class="editor-field-row">
+                <div class="field">
+                  <label class="field__label" for="pe-max-downloads">Max downloads per purchase</label>
+                  <input class="field__input" type="number" min="0" id="pe-max-downloads" data-pe-max-downloads placeholder="Unlimited">
+                </div>
+                <div class="field">
+                  <label class="field__label" for="pe-download-expires">Download link expires (days)</label>
+                  <input class="field__input" type="number" min="0" id="pe-download-expires" data-pe-download-expires placeholder="Never">
+                </div>
+              </div>
+            </section>
+
+          </div>
+
+          <div class="editor-sidebar">
+            <section class="card">
+              <h2 class="editor-section-title">Status</h2>
+              <p><span class="badge badge--info" data-pe-status-badge>Draft</span></p>
+              <div class="field">
+                <label class="field__label" for="pe-status">Set status</label>
+                <select class="field__select" id="pe-status" data-pe-status></select>
+              </div>
+              <button type="button" class="btn btn--primary" style="width:100%" data-pe-save>Save changes</button>
+              <p class="text-small text-secondary" data-pe-saved-at hidden></p>
+            </section>
+
+            <section class="card">
+              <h2 class="editor-section-title">Cover image</h2>
+              <div class="media-ref-picker">
+                <div class="media-ref-picker__preview" data-pe-media-ref="cover"></div>
+                <div class="media-ref-picker__actions">
+                  <button type="button" class="btn btn--secondary" data-pe-media-choose="cover">Choose</button>
+                  <button type="button" class="btn btn--secondary" data-pe-media-remove="cover" hidden>Remove</button>
+                </div>
+              </div>
+            </section>
+
+            <section class="card">
+              <h2 class="editor-section-title">Thumbnail</h2>
+              <div class="media-ref-picker">
+                <div class="media-ref-picker__preview" data-pe-media-ref="thumbnail"></div>
+                <div class="media-ref-picker__actions">
+                  <button type="button" class="btn btn--secondary" data-pe-media-choose="thumbnail">Choose</button>
+                  <button type="button" class="btn btn--secondary" data-pe-media-remove="thumbnail" hidden>Remove</button>
+                </div>
+              </div>
+            </section>
+
+            <section class="card">
+              <h2 class="editor-section-title">Preview image</h2>
+              <div class="media-ref-picker">
+                <div class="media-ref-picker__preview" data-pe-media-ref="preview"></div>
+                <div class="media-ref-picker__actions">
+                  <button type="button" class="btn btn--secondary" data-pe-media-choose="preview">Choose</button>
+                  <button type="button" class="btn btn--secondary" data-pe-media-remove="preview" hidden>Remove</button>
+                </div>
+              </div>
+            </section>
+
+            <section class="card">
+              <h2 class="editor-section-title">Live preview</h2>
+              <div class="editor-preview">
+                <img class="editor-preview__cover" data-pe-live-cover alt="" hidden>
+                <div class="editor-preview__body">
+                  <p class="text-small text-secondary" data-pe-live-topic>&nbsp;</p>
+                  <h3 data-pe-live-title>Untitled product</h3>
+                  <p class="text-small" data-pe-live-subtitle></p>
+                  <p data-pe-live-price>&mdash;</p>
+                </div>
+              </div>
+            </section>
+
+            <section class="card" data-pe-danger-zone hidden>
+              <h2 class="editor-section-title">Danger zone</h2>
+              <button type="button" class="btn btn--secondary" style="width:100%" data-pe-duplicate>Duplicate</button>
+              <button type="button" class="btn btn--accent" style="width:100%; margin-top: var(--space-2);" data-pe-delete>Delete</button>
+            </section>
+          </div>
+        </div>
+      </main>
+    </div>
+  </div>
+
+  <!-- Media picker modal — shared by cover/thumbnail/preview/OG/files/gallery/rich-text-image -->
+  <div class="modal-overlay" data-media-picker-modal hidden>
+    <div class="modal" role="dialog" aria-modal="true" aria-labelledby="media-picker-title" style="max-width: 720px;">
+      <div class="modal__header">
+        <h2 class="modal__title" id="media-picker-title" data-media-picker-title>Choose media</h2>
+        <button type="button" class="modal__close" data-modal-close aria-label="Close">
+          <svg class="icon" width="18" height="18" viewBox="0 0 24 24" aria-hidden="true"><path d="M18 6 6 18M6 6l12 12"/></svg>
+        </button>
+      </div>
+      <div class="modal__body">
+        <div class="search-bar" style="margin-bottom: var(--space-3); width: 100%;">
+          <svg class="icon search-bar__icon" viewBox="0 0 24 24" aria-hidden="true"><circle cx="11" cy="11" r="7"/><path d="m21 21-4.3-4.3"/></svg>
+          <input type="search" class="field__input search-bar__input" placeholder="Search media&hellip;" aria-label="Search media" data-media-picker-search>
+        </div>
+        <div class="media-picker-grid" data-media-picker-grid></div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Delete confirmation modal -->
+  <div class="modal-overlay" data-pe-delete-modal hidden>
+    <div class="modal" role="dialog" aria-modal="true" aria-labelledby="pe-delete-title">
+      <div class="modal__header">
+        <h2 class="modal__title" id="pe-delete-title">Delete this product?</h2>
+        <button type="button" class="modal__close" data-modal-close aria-label="Close">
+          <svg class="icon" width="18" height="18" viewBox="0 0 24 24" aria-hidden="true"><path d="M18 6 6 18M6 6l12 12"/></svg>
+        </button>
+      </div>
+      <div class="modal__body">
+        <p>It will be hidden from the catalog and checkout. It can be restored later — nothing is permanently deleted.</p>
+      </div>
+      <div class="modal__footer">
+        <button type="button" class="btn btn--secondary" data-modal-close>Cancel</button>
+        <button type="button" class="btn btn--accent" data-pe-delete-confirm>Delete</button>
+      </div>
+    </div>
+  </div>
+
+  <script src="/js/includes.js"></script>
+  <script src="/js/components/theme-toggle.js"></script>
+  <script src="/js/components/admin/admin-auth.js"></script>
+  <script src="/js/components/admin/admin-shell.js"></script>
+  <script src="/js/components/admin/admin-product-editor.js"></script>
+</body>
+</html>

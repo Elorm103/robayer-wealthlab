@@ -90,4 +90,9 @@ export type ApiErrorCode =
   | 'DUPLICATE_ASSET'
   | 'ALREADY_DELETED'
   | 'NOT_DELETED'
-  | 'FILE_REJECTED';
+  | 'FILE_REJECTED'
+  // /api/admin/products/* — added Version 2.0 Phase 2 (Products Module)
+  | 'SLUG_TAKEN'
+  | 'SKU_TAKEN'
+  | 'INVALID_MEDIA_REFERENCE'
+  | 'INVALID_STATUS_TRANSITION';

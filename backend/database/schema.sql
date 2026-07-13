@@ -19,96 +19,6 @@
 --     docs/database-design.md for which tables use it and why.
 
 -- ============================================================
--- PRODUCTS, CUSTOMERS, ORDERS — DEPRECATED, kept for history only
--- ============================================================
--- These three tables (and payment_transactions.order_id, before
--- Sprint 2.4 repointed it) were designed before Sprint 2.1 pivoted the
--- real, live product catalog to content/products/{slug}.json files.
--- `products` has never been populated under the live architecture, so
--- `orders`/`downloads` (which key off it) can never resolve for a real
--- purchase. Sprint 2.3 introduced `purchase_sessions` as the real,
--- live checkout record (keyed by `product_slug` TEXT, matching the
--- actual Product Platform); Sprint 2.4 resolved the question Sprint
--- 2.3 flagged ("how does purchase_sessions relate to orders?") by
--- repointing `payment_transactions` at `purchase_sessions` directly —
--- `purchase_sessions` IS this project's order-equivalent record; a
--- separate `orders` table is not needed on top of it. `products`,
--- `customers`, and `orders` remain below, unused by any live code,
--- purely as a record of earlier planning — not deleted, since deleting
--- schema that was never actually run against a real database carries
--- no real risk either way, and keeping it costs nothing while
--- preserving the design history. Do not build new code against these
--- three tables.
---
--- `downloads`/`download_tokens` below still reference `orders`/
--- `products` as originally designed — Sprint 2.5 (Secure Ebook
--- Delivery) decides their real shape once fulfilment is actually
--- built; likely candidates are repointing them at `purchase_sessions`
--- the same way `payment_transactions` now is, or a redesign informed
--- by whatever Sprint 2.5 actually needs. Not resolved here, since
--- Sprint 2.4 is explicitly payment verification only, no delivery.
--- ============================================================
-CREATE TABLE products (
-  id                INTEGER PRIMARY KEY AUTOINCREMENT,
-  slug              TEXT NOT NULL UNIQUE,
-  title             TEXT NOT NULL,
-  subtitle          TEXT,
-  category          TEXT NOT NULL, -- references content/categories/index.json's slug; not a D1 foreign key — see docs/database-design.md
-  price_pesewas     INTEGER NOT NULL CHECK (price_pesewas >= 0),
-  currency          TEXT NOT NULL DEFAULT 'GHS',
-  status            TEXT NOT NULL DEFAULT 'draft' CHECK (status IN ('draft', 'active', 'archived')),
-  sku               TEXT UNIQUE,
-  cover_image_key   TEXT, -- R2 object key, e.g. covers/{slug}.jpg
-  download_file_key TEXT, -- R2 object key, e.g. ebooks/{slug}.pdf — never served directly, see docs/storage-strategy.md
-  max_downloads     INTEGER NOT NULL DEFAULT 5,
-  download_expires_days INTEGER NOT NULL DEFAULT 30,
-  featured          INTEGER NOT NULL DEFAULT 0,
-  created_at        TEXT NOT NULL DEFAULT (datetime('now')),
-  updated_at        TEXT NOT NULL DEFAULT (datetime('now')),
-  deleted_at        TEXT
-);
-
-CREATE INDEX idx_products_category ON products(category);
-CREATE INDEX idx_products_status ON products(status);
-
--- ============================================================
--- CUSTOMERS
--- Deliberately minimal — no password, no login. A customer is an
--- email address with an order history (see docs/admin-module.md's
--- "Customers" section for why no separate account system exists).
--- ============================================================
-CREATE TABLE customers (
-  id          INTEGER PRIMARY KEY AUTOINCREMENT,
-  email       TEXT NOT NULL UNIQUE,
-  name        TEXT,
-  created_at  TEXT NOT NULL DEFAULT (datetime('now')),
-  updated_at  TEXT NOT NULL DEFAULT (datetime('now'))
-);
-
--- ============================================================
--- ORDERS
--- This project's own business-level purchase record — distinct from
--- payment_transactions (Paystack's own record of the payment attempt).
--- ============================================================
-CREATE TABLE orders (
-  id                      INTEGER PRIMARY KEY AUTOINCREMENT,
-  order_reference         TEXT NOT NULL UNIQUE, -- e.g. RWL-starting-to-invest-with-gh100-1751760000-x7f2
-  customer_id             INTEGER NOT NULL REFERENCES customers(id),
-  product_id              INTEGER NOT NULL REFERENCES products(id),
-  amount_pesewas          INTEGER NOT NULL CHECK (amount_pesewas >= 0),
-  currency                TEXT NOT NULL DEFAULT 'GHS',
-  status                  TEXT NOT NULL DEFAULT 'pending' CHECK (status IN ('pending', 'paid', 'failed', 'refunded')),
-  payment_transaction_id  INTEGER REFERENCES payment_transactions(id),
-  created_at              TEXT NOT NULL DEFAULT (datetime('now')),
-  updated_at              TEXT NOT NULL DEFAULT (datetime('now')),
-  deleted_at              TEXT
-);
-
-CREATE INDEX idx_orders_customer ON orders(customer_id);
-CREATE INDEX idx_orders_product ON orders(product_id);
-CREATE INDEX idx_orders_status ON orders(status);
-
--- ============================================================
 -- PAYMENT_TRANSACTIONS
 -- The raw, append-only record of every webhook delivery this project
 -- has received from Paystack — kept separate from purchase_sessions
@@ -122,11 +32,11 @@ CREATE INDEX idx_orders_status ON orders(status);
 -- "Idempotency" for the full two-layer design (this table, plus the
 -- status-gated conditional UPDATE on purchase_sessions itself).
 --
--- Updated Version 1.2 Sprint 2.4: `order_id` (referencing the
--- deprecated `orders` table above, never populated under the live
--- architecture) is replaced by `purchase_session_id`, referencing the
--- real, live checkout record. See the deprecation note above
--- `products`/`customers`/`orders`.
+-- Updated Version 1.2 Sprint 2.4: `order_id` (referencing an
+-- earlier-planned `orders` table that was never populated under the
+-- live architecture, and was dropped entirely in migration 0008,
+-- Version 2.0 Phase 2) is replaced by `purchase_session_id`,
+-- referencing the real, live checkout record.
 -- ============================================================
 CREATE TABLE payment_transactions (
   id                   INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -148,32 +58,6 @@ CREATE INDEX idx_payment_transactions_purchase_session ON payment_transactions(p
 CREATE INDEX idx_payment_transactions_status ON payment_transactions(status);
 
 -- ============================================================
--- DOWNLOADS — deprecated, kept for history only (Version 1.2 Sprint 2.5)
--- ============================================================
--- Designed before Sprint 2.1's pivot to content-JSON products (same
--- reason `products`/`customers`/`orders` above are deprecated) —
--- `order_id`/`product_id` never had a real target under the live
--- architecture. `deliveries` below is the real table Sprint 2.5
--- (Digital Fulfilment Platform, see docs/digital-fulfilment.md)
--- actually uses — keyed off `purchase_sessions` and a content-JSON
--- `assetId`, not a D1 `orders`/`products` row. Do not build new code
--- against this table.
--- ============================================================
-CREATE TABLE downloads (
-  id              INTEGER PRIMARY KEY AUTOINCREMENT,
-  order_id        INTEGER NOT NULL REFERENCES orders(id),
-  product_id      INTEGER NOT NULL REFERENCES products(id),
-  max_downloads   INTEGER NOT NULL,
-  downloads_used  INTEGER NOT NULL DEFAULT 0,
-  expires_at      TEXT NOT NULL,
-  created_at      TEXT NOT NULL DEFAULT (datetime('now')),
-  updated_at      TEXT NOT NULL DEFAULT (datetime('now'))
-);
-
-CREATE INDEX idx_downloads_order ON downloads(order_id);
-CREATE INDEX idx_downloads_product ON downloads(product_id);
-
--- ============================================================
 -- DELIVERIES
 -- Added in Version 1.2 Sprint 2.5 (Digital Fulfilment Platform) — see
 -- docs/digital-fulfilment.md. The real entitlement record: "this
@@ -189,11 +73,11 @@ CREATE INDEX idx_downloads_product ON downloads(product_id);
 -- later policy change on the product never retroactively affects an
 -- already-granted entitlement.
 --
--- Deliberately references `purchase_sessions`, never a D1 `products`/
--- `orders` row — `asset_id` is a plain TEXT value matching a
--- `content/products/{slug}.json` `downloadFiles[].assetId`, the same
--- "content is the source of truth, D1 tracks the transaction" pattern
--- already established by `purchase_sessions.product_slug`.
+-- Deliberately references `purchase_sessions`, not a `products` row
+-- directly — `asset_id` is a plain TEXT value matching a
+-- `product_files.asset_id` (Version 2.0 Phase 2 — see migration
+-- 0008_products_module.sql), so a later product edit (even a file
+-- swap) never retroactively affects an already-granted entitlement.
 -- ============================================================
 CREATE TABLE deliveries (
   id                  INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -225,9 +109,11 @@ CREATE INDEX idx_deliveries_status ON deliveries(status);
 -- docs/storage-strategy.md for the signed-URL flow this supports, and
 -- docs/digital-fulfilment.md for how Sprint 2.5 wires it up.
 --
--- Updated Version 1.2 Sprint 2.5: `download_id` (referencing the
--- deprecated `downloads` table above) is replaced by `delivery_id`,
--- referencing `deliveries`.
+-- Updated Version 1.2 Sprint 2.5: `download_id` (referencing an
+-- earlier-planned `downloads` table that was never populated under
+-- the live architecture, and was dropped entirely in migration 0008,
+-- Version 2.0 Phase 2) is replaced by `delivery_id`, referencing
+-- `deliveries`.
 -- ============================================================
 CREATE TABLE download_tokens (
   id          INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -526,3 +412,152 @@ CREATE INDEX idx_media_assets_deleted_at ON media_assets(deleted_at);
 CREATE INDEX idx_media_assets_created_at ON media_assets(created_at);
 
 CREATE INDEX idx_unsubscribe_tokens_subscriber ON unsubscribe_tokens(subscriber_id);
+
+-- ============================================================
+-- PRODUCTS
+-- Added in migration 0008 (Version 2.0 Phase 2, Products Module) — see
+-- docs/v2-products-module-spec.md. The real, live product catalog,
+-- replacing content/products/*.json as the source of truth. Also in
+-- this migration: the never-populated `products`/`customers`/`orders`/
+-- `downloads` cluster from Version 1.2 Sprint 1 planning (formerly
+-- documented just above `payment_transactions` in this file) was
+-- dropped entirely — 0 rows in production, verified with no live code
+-- or foreign key depending on any of the four before removal.
+--
+-- `product_id` (not `id`) is the stable string identifier locked into
+-- Paystack checkout metadata and cross-checked at payment verification
+-- (see backend/services/commerceService.ts) — kept separate from the
+-- surrogate `id` because real purchase_sessions.product_id values
+-- already reference the legacy JSON catalog's "prod-{slug}" strings
+-- and must resolve identically after migration. `slug` can change
+-- later without orphaning purchase history tied to `product_id`.
+--
+-- `status` is a single field covering both the publish lifecycle
+-- (draft -> active -> archived) and the "Inventory"/visibility states
+-- the Phase 2 brief asks for (hidden, unavailable) — extending the
+-- same single-status-field convention the legacy JSON model already
+-- used, rather than a second, overlapping state machine.
+-- ============================================================
+CREATE TABLE products (
+  id                          INTEGER PRIMARY KEY AUTOINCREMENT,
+  product_id                  TEXT NOT NULL UNIQUE,
+  slug                        TEXT NOT NULL UNIQUE,
+  title                       TEXT NOT NULL,
+  subtitle                    TEXT,
+  short_description           TEXT,
+  description                 TEXT,
+
+  topic                       TEXT NOT NULL CHECK (topic IN ('investing', 'personal-finance', 'budgeting', 'business', 'mindset')),
+  product_type                TEXT NOT NULL CHECK (product_type IN ('ebook', 'guide', 'template', 'spreadsheet', 'report', 'checklist', 'course')),
+
+  status                      TEXT NOT NULL DEFAULT 'draft' CHECK (status IN ('draft', 'active', 'coming-soon', 'archived', 'hidden', 'unavailable')),
+
+  price_pesewas                INTEGER CHECK (price_pesewas IS NULL OR price_pesewas >= 0),
+  compare_at_price_pesewas     INTEGER CHECK (compare_at_price_pesewas IS NULL OR compare_at_price_pesewas >= 0),
+  currency                     TEXT NOT NULL DEFAULT 'GHS',
+  pricing_model                TEXT NOT NULL DEFAULT 'one-time' CHECK (pricing_model IN ('one-time')),
+  tax_behavior                 TEXT NOT NULL DEFAULT 'inclusive' CHECK (tax_behavior IN ('inclusive', 'exclusive', 'exempt')),
+
+  sku                          TEXT UNIQUE,
+  version                      TEXT,
+  language                     TEXT NOT NULL DEFAULT 'en',
+  estimated_reading_time       INTEGER,
+  author                       TEXT,
+
+  cover_media_id               INTEGER REFERENCES media_assets(id),
+  thumbnail_media_id           INTEGER REFERENCES media_assets(id),
+  preview_media_id             INTEGER REFERENCES media_assets(id),
+  og_media_id                  INTEGER REFERENCES media_assets(id),
+
+  featured                     INTEGER NOT NULL DEFAULT 0,
+  bestseller                   INTEGER NOT NULL DEFAULT 0,
+  new_release                  INTEGER NOT NULL DEFAULT 0,
+  tags                         TEXT,
+
+  max_downloads                INTEGER,
+  download_expires_days        INTEGER,
+
+  seo_title                    TEXT,
+  seo_description              TEXT,
+  seo_canonical_url            TEXT,
+
+  published_at                 TEXT,
+  created_by                   INTEGER REFERENCES admin_users(id),
+  updated_by                   INTEGER REFERENCES admin_users(id),
+  created_at                   TEXT NOT NULL DEFAULT (datetime('now')),
+  updated_at                   TEXT NOT NULL DEFAULT (datetime('now')),
+  deleted_at                   TEXT
+);
+
+CREATE INDEX idx_products_status ON products(status);
+CREATE INDEX idx_products_topic ON products(topic);
+CREATE INDEX idx_products_product_type ON products(product_type);
+CREATE INDEX idx_products_featured ON products(featured);
+CREATE INDEX idx_products_deleted_at ON products(deleted_at);
+CREATE INDEX idx_products_created_at ON products(created_at);
+
+-- ============================================================
+-- PRODUCT_FILES
+-- One row per downloadable digital asset, replacing content JSON's
+-- `downloadFiles[]` array. `asset_id` is the stable identifier
+-- `deliveries.asset_id` rows reference — preserved exactly for
+-- existing products during data migration so existing deliveries keep
+-- resolving. `media_id` references media_assets(id) directly — the
+-- file's real bytes live in Media Library, never duplicated.
+--
+-- Security: unlike cover/gallery images (meant to be public), a paid
+-- product's downloadable file must never be reachable through Media
+-- Library's public, unauthenticated GET /api/media/file/:key route —
+-- see routes/media.ts, which denies (identical 404) any storage key
+-- that resolves to a product_files row on a product with
+-- price_pesewas > 0, forcing paid files through the existing
+-- entitlement -> download-token flow instead.
+-- ============================================================
+CREATE TABLE product_files (
+  id            INTEGER PRIMARY KEY AUTOINCREMENT,
+  product_id    INTEGER NOT NULL REFERENCES products(id),
+  asset_id      TEXT NOT NULL UNIQUE,
+  media_id      INTEGER NOT NULL REFERENCES media_assets(id),
+  display_name  TEXT NOT NULL,
+  file_type     TEXT NOT NULL,
+  version       TEXT,
+  status        TEXT NOT NULL DEFAULT 'draft' CHECK (status IN ('draft', 'published', 'archived')),
+  sort_order    INTEGER NOT NULL DEFAULT 0,
+  created_at    TEXT NOT NULL DEFAULT (datetime('now')),
+  updated_at    TEXT NOT NULL DEFAULT (datetime('now'))
+);
+
+CREATE INDEX idx_product_files_product ON product_files(product_id);
+CREATE INDEX idx_product_files_media ON product_files(media_id);
+
+-- ============================================================
+-- PRODUCT_GALLERY
+-- Many-to-many: a product's gallery images, each a media_assets
+-- reference with an explicit sort order.
+-- ============================================================
+CREATE TABLE product_gallery (
+  id          INTEGER PRIMARY KEY AUTOINCREMENT,
+  product_id  INTEGER NOT NULL REFERENCES products(id),
+  media_id    INTEGER NOT NULL REFERENCES media_assets(id),
+  sort_order  INTEGER NOT NULL DEFAULT 0,
+  created_at  TEXT NOT NULL DEFAULT (datetime('now'))
+);
+
+CREATE UNIQUE INDEX idx_product_gallery_unique ON product_gallery(product_id, media_id);
+
+-- ============================================================
+-- PRODUCT_RELATIONS
+-- Related products / cross-sells / recommended — one row per directed
+-- edge (product A can relate to B without B relating back to A).
+-- ============================================================
+CREATE TABLE product_relations (
+  id                  INTEGER PRIMARY KEY AUTOINCREMENT,
+  product_id          INTEGER NOT NULL REFERENCES products(id),
+  related_product_id  INTEGER NOT NULL REFERENCES products(id),
+  relation_type       TEXT NOT NULL CHECK (relation_type IN ('related', 'cross_sell', 'recommended')),
+  sort_order          INTEGER NOT NULL DEFAULT 0,
+  created_at          TEXT NOT NULL DEFAULT (datetime('now'))
+);
+
+CREATE UNIQUE INDEX idx_product_relations_unique ON product_relations(product_id, related_product_id, relation_type);
+CREATE INDEX idx_product_relations_product ON product_relations(product_id);

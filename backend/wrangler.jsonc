@@ -31,8 +31,21 @@
   // grants no different access than the same-origin route does — it's
   // one extra reachable URL for the same already-protected API, not a
   // second, weaker one.
+  // Version 2.0 Phase 2 (Products Module): a second Route,
+  // robayerwealthlab.com/books/*, added so this Worker can fully own
+  // and server-render the Books listing + individual product pages
+  // from D1 (backend/routes/books.ts) instead of GitHub Pages' static
+  // files — the mechanism that lets a new product created purely
+  // through the admin UI get a real, working /books/{slug}/ URL with
+  // no code/file changes. Deliberately does NOT fall through to
+  // GitHub Pages for any unmatched case (see routes/books.ts's header
+  // comment on why a Worker-to-own-zone fallback fetch is unsafe here)
+  // — every request under /books/* is fully rendered or 404'd by this
+  // Worker. Every other path on the zone remains untouched, served by
+  // GitHub Pages exactly as before.
   "routes": [
-    { "pattern": "robayerwealthlab.com/api/*", "zone_name": "robayerwealthlab.com" }
+    { "pattern": "robayerwealthlab.com/api/*", "zone_name": "robayerwealthlab.com" },
+    { "pattern": "robayerwealthlab.com/books/*", "zone_name": "robayerwealthlab.com" }
   ],
   "workers_dev": true,
   // No compatibility_flags: this Worker has zero runtime npm dependencies
