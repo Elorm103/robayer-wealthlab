@@ -1,6 +1,6 @@
 # Products Module — Implementation (Version 2.0 Phase 2)
 
-**Status: implemented, adversarially reviewed, pending production deploy.** This doc records what was actually built, which diverges in one important way from the original design docs (`v2-product-management-spec.md`, `product-platform-architecture.md`): those specced a **D1-mirrors-JSON** model where `content/products/*.json` stayed authoritative. During implementation that was replaced with **D1 as the sole source of truth** — a real `products` table (see `backend/database/migrations/0008_products_module.sql`), with `content/products/*.json` migrated into it once (`0009_migrate_json_products.sql`) and then retired as a live data source. The JSON-mirror design assumed a GitHub-API publish pipeline to keep static files in sync with admin edits; going straight to D1 removes that entire synchronization surface (and its failure modes) in favor of the same pattern already proven for the Media Library. The two older spec docs are left in place for their still-relevant workflow/UX thinking but no longer describe the real data flow — treat this doc as authoritative for architecture.
+**Status: implemented, adversarially reviewed twice, deployed to production, accepted.** This doc records what was actually built, which diverges in one important way from the original design docs (`v2-product-management-spec.md`, `product-platform-architecture.md`): those specced a **D1-mirrors-JSON** model where `content/products/*.json` stayed authoritative. During implementation that was replaced with **D1 as the sole source of truth** — a real `products` table (see `backend/database/migrations/0008_products_module.sql`), with `content/products/*.json` migrated into it once (`0009_migrate_json_products.sql`) and then retired as a live data source. The JSON-mirror design assumed a GitHub-API publish pipeline to keep static files in sync with admin edits; going straight to D1 removes that entire synchronization surface (and its failure modes) in favor of the same pattern already proven for the Media Library. The two older spec docs are left in place for their still-relevant workflow/UX thinking but no longer describe the real data flow — treat this doc as authoritative for architecture.
 
 ---
 
@@ -48,3 +48,42 @@ All five were confirmed via live requests against a local `wrangler dev` instanc
 - Homepage featured/coming-soon sections (`product-loader.js`, client-side) render live D1 data correctly in a real browser — no console errors, correct price, correct badges.
 - Media Library, admin product list, admin session/CSRF, and checkout session creation (resolves the D1 product correctly, fails only at the external Paystack call — a known local-sandbox network limitation, not a catalog regression) all still function post-change.
 - Mobile viewport and dark mode both verified visually on the product detail page — no layout regressions.
+
+## Final acceptance audit — second adversarial pass
+
+A second, independent adversarial pass (fresh re-read of every file, not a re-run of the first pass's checklist) was run before accepting this phase as done, per the standing project discipline of not trusting a single review. It found one real, production-live defect and one class of stale documentation, both fixed and redeployed.
+
+### Defect found and fixed: status changes silently dropped on update
+
+`productService.updateProduct()`'s SQL `UPDATE` statement never included `status` in its `SET` clause — a straightforward transcription gap between it and `createProduct()`'s column list (which does set `status`). Effect: the admin edit page's own "Set status" dropdown (`admin/products/edit/index.html`'s `data-pe-status` select, directly above the "Save changes" button — the only status control on that page) had **no effect at all**. An admin selecting "Active" and clicking Save would see a success response, but the database status never changed; the only path that actually worked was the list page's bulk-action bar (`publish`/`unpublish`/`archive`/`unarchive`), which calls `transitionProductStatus()` directly and was unaffected.
+
+Fixed in `backend/services/productService.ts`: `status` added to the `UPDATE` SET clause, preserving the existing status when the caller doesn't send one (matches `ProductInput.status` being optional), re-validating the same "active needs a price" rule `transitionProductStatus` enforces. Verified against both local `wrangler dev` and, after redeploying, against a throwaway test product created and destroyed in production D1 (never touching either of the two real, live products) — confirmed via a fresh `GET` (not just the `PATCH` response) that the status change genuinely persisted.
+
+### Stale documentation found and fixed
+
+Six source comments (`backend/database/migrations/0008_products_module.sql`, `backend/database/schema.sql`, `backend/routes/admin/products.ts`, `backend/services/productCatalogService.ts`, `backend/services/productService.ts`, `backend/worker/index.ts`) pointed at `docs/v2-products-module-spec.md` — a filename that was never actually written. Corrected to point at this document.
+
+### Known limitation (not fixed, judged out of scope)
+
+The list page's bulk "Unarchive"/"Restore" buttons are gated behind the `showDeleted` toggle (soft-deleted view), not behind the "Archived" status filter — an admin filtering the list to `status=archived` (not soft-deleted, just archived) has no *bulk* unarchive action, only the now-fixed per-product edit page. This is a UX completeness gap, not a correctness or security defect — logged here rather than fixed in this pass since it's cosmetic and the underlying capability (unarchiving one product at a time via its edit page) now genuinely works.
+
+## Deployment report
+
+**Production URLs verified 200 post-deploy:** `https://robayerwealthlab.com/` (homepage, live featured/coming-soon data), `https://robayerwealthlab.com/books/` (index), `https://robayerwealthlab.com/books/starting-to-invest-with-gh100/` (active product), `https://robayerwealthlab.com/books/momo-savings-playbook/` (coming-soon product), `https://robayerwealthlab.com/api/health`, `https://robayerwealthlab.com/admin/`.
+
+**D1 migration version:** `0009_migrate_json_products.sql` (latest applied; `wrangler d1 migrations list --remote` reports "No migrations to apply"). Full chain: 0001 → 0009, all applied.
+
+**Production row counts (post-deploy, post-cleanup):** `products`: 2 (0 soft-deleted) · `product_files`: 1 · `product_gallery`: 0 · `product_relations`: 0 · `media_assets`: 9 (7 soft-deleted, 2 active — one is the migrated ebook PDF, one is unrelated pre-existing Media Library content not touched by this phase) · `admin_users`: 1 · `purchase_sessions`: 11 (pre-existing historical rows from earlier commerce-testing phases, untouched by this audit) · `deliveries`: 4 · `download_tokens`: 5.
+
+**Known limitations:**
+1. Bulk "Unarchive" only surfaces under the soft-delete list filter, not the "Archived" status filter (see above) — per-product unarchive via the edit page works.
+2. The `/books/*` detail page's `twitter:description` always mirrors the SEO description — no per-product Twitter-specific copy field exists in the schema (the original static pages had one, hand-authored); judged not worth a schema addition for one cosmetic string.
+3. Checkout against a live product could not be fully exercised end-to-end through Paystack from this environment (network egress to `api.paystack.co` is unavailable in the local sandbox) — verified up to "D1 product resolved correctly, Paystack session request sent" in both local and production; the full payment→webhook→fulfilment path was previously verified in earlier commerce-foundation phases and is architecturally unchanged by this one.
+4. The pre-existing, never-populated `products`/`customers`/`orders`/`downloads` table cluster from Version 1.2 Sprint 1 planning was dropped by migration 0008 (verified 0 rows, no live code references, before dropping) — irreversible without a backup restore if that judgment was ever wrong; documented in the migration's own header comment.
+
+**Rollback procedure:**
+1. **Worker code:** `cd backend && npx wrangler rollback` (reverts to the previous deployed Version ID) or `npx wrangler deploy` against the prior git commit (`60500df` before this audit's fix, `111730d` before Phase 2 entirely).
+2. **Database:** D1 migrations are forward-only by convention in this project (no `.down.sql` files exist for any migration, matching migrations 0001–0007's own precedent) — a schema rollback of 0008/0009 would require a hand-written reverse migration (recreate the dropped `products`/`customers`/`orders`/`downloads` tables, drop the new `products`/`product_files`/`product_gallery`/`product_relations` tables) and is **not** a routine operation; do not attempt it without first confirming no post-migration writes (new products, purchases against them) would be lost, since none of this data exists in the old schema's shape.
+3. **DNS/Routes:** the `/books/*` Workers Route can be removed from `backend/wrangler.jsonc`'s `routes` array and redeployed to fall back to GitHub Pages serving the (untouched, still-present) static `books/` files — a safe, fast, code-only rollback for the public-facing surface specifically, independent of the D1/Worker rollback above.
+
+**Recommended next phase:** Version 2.0 Phase 3 per the existing roadmap (`docs/v2-development-roadmap.md`) — the CMS/rich-content phase, now that Products has proven the D1-as-source-of-truth + admin-CRUD + server-rendered-public-page pattern this phase established. Before starting it, consider a small standalone fix for the bulk-unarchive gap noted above, since it's now the only known rough edge in an otherwise-accepted module.
