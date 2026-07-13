@@ -23,6 +23,41 @@ marking the site as production-ready.
   structured-data association between the site and its social
   profiles.
 
+## [v2.0-phase2-products-complete] — 2026-07-13 — Products Module (D1-backed catalog)
+
+Replaces the static `content/products/*.json` catalog with a D1-backed CMS: admin CRUD, server-rendered public product pages, and full checkout/entitlement integration on the new catalog. Full architecture, migration, and rollback detail in `docs/products-module-implementation.md` and `docs/v2.0-phase2-release-checkpoint.md` (this entry is the summary).
+
+**Added — database**
+- Migration `0008_products_module.sql` — `products`, `product_files`, `product_gallery`, `product_relations` tables (D1 is now the sole source of truth, not a mirror of JSON); drops the empty, never-populated `products`/`customers`/`orders`/`downloads` cluster from Version 1.2 Sprint 1 planning (verified 0 rows, no live references, before dropping).
+- Migration `0009_migrate_json_products.sql` — one-time import of the 2 real products from `content/products/*.json`, preserving `product_id`/`asset_id` strings character-for-character so existing `purchase_sessions`/`deliveries` rows keep resolving.
+
+**Added — backend**
+- `services/productService.ts` — full CRUD, validation, publish lifecycle (draft/active/coming-soon/archived/hidden/unavailable), soft delete/restore, duplicate, bulk actions; every mutation audit-logged.
+- `routes/admin/products.ts` — role-gated (editor/super_admin write, every authenticated role read) admin API.
+- `routes/products.ts` — public, unauthenticated read API (`active`/`coming-soon` only, whitelist not blacklist).
+- `routes/books.ts` — server-rendered `/books/*` HTML (new Workers Route), replacing GitHub Pages static files for this path space; deliberately self-contained (no origin-proxy fallback) to avoid a Workers Route self-interception risk found during design review.
+- `utils/richTextSanitizer.ts` — server-side HTMLRewriter-based sanitizer for the admin's rich-text `description` field (defense in depth alongside client-side sanitization).
+- `productCatalogService.ts` updated to read the D1 tables instead of fetching JSON over HTTP — its external contract unchanged, so `commerceService.ts`/`entitlementService.ts`/`fulfilmentService.ts` needed zero changes.
+
+**Added — admin frontend**
+- `/admin/products/` (list: search/filter/sort/bulk actions/pagination), `/admin/products/new/` and `/admin/products/edit/` (full editor: pricing, SEO, media picker, rich text, files/gallery/relations, publish lifecycle).
+
+**Changed**
+- `js/components/product-loader.js` now reads `/api/products` instead of `content/products/*.json`.
+- `middleware/securityHeaders.ts` — CSP now branches on response Content-Type (HTML pages get a real scoped policy; JSON/binary responses keep the original strict `default-src 'none'`), needed once `/books/*` became a genuine HTML-rendering surface.
+
+**Adversarial findings fixed (two independent passes)**
+- HTMLRewriter "attributes modified during iteration" crash on a multi-attribute XSS payload (live-iterator bug in the sanitizer).
+- Missing `Cache-Control` on `/books/*` HTML (now explicit `no-store` — these pages are now admin-editable).
+- Missing `BreadcrumbList`/`FAQPage` JSON-LD and a stale, truncated meta description on `/books/` vs. the original hand-authored pages.
+- **Status field silently dropped on update** — the admin edit page's own "Set status" dropdown had no effect due to a missing column in an `UPDATE` statement; the only working status-change path was the list page's bulk actions. Found in the second (final acceptance) audit, fixed, verified against production with a disposable test product.
+- Six source comments pointing at a design-doc filename that was never actually written, corrected to the real doc.
+
+**Verified**
+- Every non-public product status (draft/hidden/unavailable/archived) 404s on the public detail page and 409s on checkout; role boundaries (support = read-only) confirmed via live 403s; no test accounts/data/debug code/TODOs remain in production; SEO metadata and JSON-LD diffed byte-for-byte against the original static pages.
+
+**Known limitations** — see `docs/v2.0-phase2-release-checkpoint.md`.
+
 ## [v1.1 Sprint 6] — 2026-07-05 — Ghana Investment Centre
 
 The sixth production feature of Version 1.1, built on the frozen
