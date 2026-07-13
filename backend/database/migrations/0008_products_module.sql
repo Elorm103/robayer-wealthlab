@@ -1,6 +1,6 @@
 -- Robayer WealthLab — D1 Migration 0008 (Version 2.0 Phase 2: Products Module)
 --
--- See docs/v2-products-module-spec.md for the full design.
+-- See docs/products-module-implementation.md for the full design.
 --
 -- Part 1: retire the deprecated, never-populated products/customers/
 -- orders/downloads cluster (backend/database/schema.sql's own header

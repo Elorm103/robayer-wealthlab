@@ -1,6 +1,6 @@
 /**
  * /api/admin/products/* — Version 2.0 Phase 2 (Products Module). See
- * docs/v2-products-module-spec.md and services/productService.ts (all
+ * docs/products-module-implementation.md and services/productService.ts (all
  * real logic lives there; this file is the thin HTTP layer only, per
  * this project's established routes/ convention — see routes/admin/media.ts).
  *

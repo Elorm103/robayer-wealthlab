@@ -416,7 +416,7 @@ CREATE INDEX idx_unsubscribe_tokens_subscriber ON unsubscribe_tokens(subscriber_
 -- ============================================================
 -- PRODUCTS
 -- Added in migration 0008 (Version 2.0 Phase 2, Products Module) — see
--- docs/v2-products-module-spec.md. The real, live product catalog,
+-- docs/products-module-implementation.md. The real, live product catalog,
 -- replacing content/products/*.json as the source of truth. Also in
 -- this migration: the never-populated `products`/`customers`/`orders`/
 -- `downloads` cluster from Version 1.2 Sprint 1 planning (formerly

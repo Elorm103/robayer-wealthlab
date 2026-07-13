@@ -1,6 +1,6 @@
 /**
  * Product Service — Version 2.0 Phase 2 (Products Module). See
- * docs/v2-products-module-spec.md. The only code that writes to
+ * docs/products-module-implementation.md. The only code that writes to
  * `products`/`product_files`/`product_gallery`/`product_relations` —
  * mirrors this codebase's established "one service owns its tables"
  * discipline (e.g. `services/mediaService.ts` for `media_assets`).
@@ -666,10 +666,19 @@ export async function updateProduct(
   if (!existing || existing.deletedAt) return null;
 
   const sanitizedDescription = await sanitizeRichTextHtml(input.description ?? null);
+  // Preserves the existing status when the caller doesn't send one (matches
+  // ProductInput.status being optional) — real bug found in final acceptance
+  // audit: this UPDATE previously omitted `status` from its SET clause
+  // entirely, so the edit page's own "Set status" dropdown silently had no
+  // effect (the only working status-change path was the list page's bulk
+  // actions, which call transitionProductStatus directly). Re-validates the
+  // same "active needs a price" rule transitionProductStatus enforces,
+  // since this path can also move a product into 'active'.
+  const nextStatus = input.status && isValidStatus(input.status) ? input.status : existing.status;
 
   await env.DB.prepare(
     `UPDATE products SET
-       slug = ?, title = ?, subtitle = ?, short_description = ?, description = ?, topic = ?, product_type = ?,
+       slug = ?, title = ?, subtitle = ?, short_description = ?, description = ?, topic = ?, product_type = ?, status = ?,
        price_pesewas = ?, compare_at_price_pesewas = ?, currency = ?, tax_behavior = ?, sku = ?, version = ?,
        language = ?, estimated_reading_time = ?, author = ?, cover_media_id = ?, thumbnail_media_id = ?,
        preview_media_id = ?, og_media_id = ?, featured = ?, bestseller = ?, new_release = ?, tags = ?,
@@ -685,6 +694,7 @@ export async function updateProduct(
       sanitizedDescription,
       input.topic,
       input.productType,
+      nextStatus,
       input.pricePesewas ?? null,
       input.compareAtPricePesewas ?? null,
       input.currency ?? 'GHS',

@@ -6,7 +6,7 @@
  * `products`/`product_files` tables (migration 0008) instead of
  * fetching `content/products/{slug}.json` over HTTP. D1 is now the
  * live, admin-managed source of truth — the JSON catalog it replaces
- * is deprecated as of this phase (see docs/v2-products-module-spec.md's
+ * is deprecated as of this phase (see docs/products-module-implementation.md's
  * migration section). This function's own external contract
  * (`CatalogProduct`/`DigitalAsset`, `fetchCatalogProduct()`'s
  * signature and return shape) is unchanged on purpose, so

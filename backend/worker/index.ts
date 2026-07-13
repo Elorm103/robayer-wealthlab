@@ -155,7 +155,7 @@ const ROUTES: Route[] = [
   // (media/images/books/<uuid>.jpg) — see routes/media.ts.
   { pattern: new URLPattern({ pathname: '/api/media/file/:key(.*)' }), method: 'GET', handler: handleMediaFile },
   // Added Version 2.0 Phase 2 (Products Module) — see
-  // docs/v2-products-module-spec.md. `/api/admin/products/meta` and
+  // docs/products-module-implementation.md. `/api/admin/products/meta` and
   // `/api/admin/products/bulk` are ordered before `/api/admin/products/:id`
   // so their literal path never gets swallowed as an `:id` value by the
   // dynamic route below (first-match-wins array order).
