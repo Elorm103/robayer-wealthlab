@@ -23,6 +23,22 @@ marking the site as production-ready.
   structured-data association between the site and its social
   profiles.
 
+## [Unreleased] — Version 2.1 Phase 1 — Resources CMS — 2026-07-18
+
+First stage of Version 2.1 (Content & Administration Platform, see `docs/v2.1-architecture-plan.md`). Not yet tagged — Version 2.1 is tagged only after all 7 planned phases (Resources, Blog, Identity & Security, User Management, Settings, Newsletter Campaigns, Final Audit) are complete.
+
+**Added**
+- Migration `0011_resources_module.sql` — new `resources` table, D1-direct CMS pattern (mirrors Products, trimmed: no pricing, no files/gallery/relations join tables — at most one file, one cover).
+- `services/resourceService.ts`, `routes/admin/resources.ts` — full CRUD, publish lifecycle (a resource needs a real file before it can publish), soft delete/restore, duplicate, bulk actions. Writes gated to `editor`/`super_admin`; every role reads.
+- `routes/resources.ts` — public `/resources/*` Workers Route, server-rendered, replacing the static page's `data-placeholder-action` download stubs with real downloads for the first time. Hero/FAQ/calculators copy preserved verbatim from the original hand-authored page; the resource grid, featured banner, and "Popular resources" list are now genuinely data-driven.
+- `/admin/resources/`, `/admin/resources/new/`, `/admin/resources/edit/` — list + editor admin pages, mirroring Products' structure (rich text, Media Library pickers, SEO fields, live preview).
+
+**Fixed — real defect found during local verification**
+- The public download route's `Response.redirect()` call threw on every real request (it requires an absolute URL; this app's `filePublicUrl` convention is root-relative) — fixed by constructing the redirect `Response` by hand with a `Location` header.
+
+**Verified**
+- Full local + production adversarial pass (CSRF, SQL injection, IDOR, role-boundary) and a real end-to-end production test (create → publish → public render → real download → counter increment) against disposable data, cleaned up immediately after. See `docs/v2.1-phase1-implementation.md`.
+
 ## [v2.0-phase3-operational-visibility-complete] — 2026-07-18 — Operational Visibility (Consultation/Contact Manager, Orders, Analytics)
 
 Adds the four remaining "empty shell" admin modules real data and workflows: a support-workflow Consultation Manager and Contact Manager, a read-only Orders view over the existing commerce data, and an Analytics dashboard with real period-over-period KPIs, timeseries charts, and Top Products — plus a Dashboard fix and a full acceptance audit. Full stage-by-stage detail, adversarial-test results, and production deployment reports in `docs/v2.0-phase3-implementation.md`; architecture and rationale in `docs/v2.0-phase3-architecture-plan.md`; this entry is the summary.
