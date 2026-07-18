@@ -23,6 +23,23 @@ marking the site as production-ready.
   structured-data association between the site and its social
   profiles.
 
+## [Unreleased] — Version 2.1 Phase 2 — Blog CMS — 2026-07-18
+
+Second stage of Version 2.1 (Content & Administration Platform, see `docs/v2.1-architecture-plan.md`). Not yet tagged.
+
+**Added**
+- Migration `0012_blog_cms.sql` — new `blog_posts` table, D1-direct CMS pattern (mirrors Resources). Two-state lifecycle (draft/published) per the user's own scoped requirement; soft delete already covers "remove from public view."
+- `services/blogService.ts`, `routes/admin/blog.ts` — full CRUD, publish/unpublish lifecycle (a post needs real body content before it can publish), real author attribution via `admin_users` FK, derived reading-time estimate, soft delete/restore, duplicate, bulk actions.
+- `routes/blog.ts` — public `/blog/*` Workers Route, server-rendered, replacing the static `blog/` pages. Session-gated `?preview=1` lets an admin preview a draft; a logged-out visitor always gets an honest 404.
+- `/admin/blog/`, `/admin/blog/new/`, `/admin/blog/edit/` — list + editor admin pages, mirroring Resources' structure (rich text, cover-image picker, author select, SEO fields, live preview, preview link).
+- `richTextSanitizer.ts`'s allowlist (server and client) extended with table tags, so the one real, SEO-indexed legacy article ("What Are Treasury Bills in Ghana?") could be migrated with its comparison table intact. Its pull-quote, alert boxes, "Key takeaways" card, sticky TOC, and per-article FAQ were flattened to plain rich-text per the user's approved reduced-fidelity migration choice.
+
+**Fixed — real defect found during local verification**
+- `.admin-bulk-bar` had unconditional `display: flex` with no `[hidden]` override, so the bulk-action bar rendered visible even with zero rows selected — affects Resources and Products too, not just Blog. Fixed with `.admin-bulk-bar[hidden] { display: none; }`, following this codebase's existing pattern for the same class of bug elsewhere in `admin.css`.
+
+**Verified**
+- Full local adversarial pass (CSRF, SQL injection, XSS, role-boundary/IDOR, publish-without-body, preview-URL gating against a genuinely anonymous request) and a real production verification of the migrated article and admin auth boundary. See `docs/v2.1-phase2-implementation.md`.
+
 ## [Unreleased] — Version 2.1 Phase 1 — Resources CMS — 2026-07-18
 
 First stage of Version 2.1 (Content & Administration Platform, see `docs/v2.1-architecture-plan.md`). Not yet tagged — Version 2.1 is tagged only after all 7 planned phases (Resources, Blog, Identity & Security, User Management, Settings, Newsletter Campaigns, Final Audit) are complete.
