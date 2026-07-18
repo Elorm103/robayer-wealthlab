@@ -1,0 +1,117 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+
+  <title>My Account | Robayer WealthLab Admin</title>
+  <meta name="description" content="Manage your admin account, password, and sessions.">
+  <link rel="canonical" href="https://robayerwealthlab.com/admin/account/">
+  <meta name="robots" content="noindex, nofollow">
+
+  <link rel="icon" type="image/svg+xml" href="/assets/icons/favicon.svg">
+  <link rel="icon" type="image/png" sizes="32x32" href="/assets/icons/favicon-32.png">
+  <link rel="apple-touch-icon" href="/assets/icons/apple-touch-icon.png">
+
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Fraunces:ital,wght@0,500;0,600;1,500&family=Space+Grotesk:wght@500&family=Work+Sans:wght@400;500&family=IBM+Plex+Mono:wght@400;500&display=swap" rel="stylesheet">
+
+  <link rel="stylesheet" href="/css/tokens.css">
+  <link rel="stylesheet" href="/css/base.css">
+  <link rel="stylesheet" href="/css/layout.css">
+  <link rel="stylesheet" href="/css/components.css">
+  <link rel="stylesheet" href="/css/utilities.css">
+  <link rel="stylesheet" href="/css/admin.css">
+</head>
+<body>
+  <a href="#main-content" class="skip-link">Skip to main content</a>
+
+  <div class="admin-shell" data-sidebar-collapsed="false">
+    <div class="admin-include" data-include="/partials/admin-sidebar.html"></div>
+
+    <div class="admin-main">
+      <div class="admin-include" data-include="/partials/admin-topbar.html"></div>
+
+      <main class="admin-content" id="main-content" data-account-root>
+        <p class="alert alert--warning" role="alert" data-account-must-change-banner hidden>
+          You must change your password before you can use the rest of the admin.
+        </p>
+
+        <section class="card mb-4" data-account-profile-card>
+          <h2 class="editor-section-title">Profile</h2>
+          <dl class="account-profile-grid">
+            <div><dt class="text-small text-secondary">Name</dt><dd data-account-name>&nbsp;</dd></div>
+            <div><dt class="text-small text-secondary">Email</dt><dd data-account-email>&nbsp;</dd></div>
+            <div><dt class="text-small text-secondary">Role</dt><dd data-account-role>&nbsp;</dd></div>
+          </dl>
+        </section>
+
+        <section class="card mb-4">
+          <h2 class="editor-section-title">Change password</h2>
+          <p class="alert alert--error" role="alert" data-password-error hidden></p>
+          <p class="alert alert--success" role="status" data-password-success hidden>Password changed. Your other sessions have been signed out.</p>
+
+          <form data-password-form novalidate>
+            <div class="field">
+              <label class="field__label" for="account-current-password">Current password</label>
+              <input class="field__input" type="password" id="account-current-password" name="currentPassword" autocomplete="current-password" required>
+            </div>
+            <div class="field">
+              <label class="field__label" for="account-new-password">New password</label>
+              <input class="field__input" type="password" id="account-new-password" name="newPassword" autocomplete="new-password" required minlength="12">
+              <span class="field__hint">At least 12 characters.</span>
+            </div>
+            <div class="field">
+              <label class="field__label" for="account-new-password-confirm">Confirm new password</label>
+              <input class="field__input" type="password" id="account-new-password-confirm" name="newPasswordConfirm" autocomplete="new-password" required minlength="12">
+            </div>
+            <button type="submit" class="btn btn--primary">Change password</button>
+          </form>
+        </section>
+
+        <section class="card mb-4" data-account-sessions-card>
+          <h2 class="editor-section-title">Active sessions</h2>
+          <p class="text-small text-secondary mb-3">Devices currently signed in to your account.</p>
+          <div class="admin-table-wrap">
+            <table class="table" aria-label="Active sessions">
+              <thead>
+                <tr>
+                  <th scope="col">Device</th>
+                  <th scope="col">IP address</th>
+                  <th scope="col">Last active</th>
+                  <th scope="col"><span class="sr-only">Actions</span></th>
+                </tr>
+              </thead>
+              <tbody data-sessions-table-body></tbody>
+            </table>
+          </div>
+        </section>
+
+        <section class="card" data-account-history-card>
+          <h2 class="editor-section-title">Login history</h2>
+          <p class="text-small text-secondary mb-3">The last 50 sign-in attempts on your account.</p>
+          <div class="admin-table-wrap">
+            <table class="table" aria-label="Login history">
+              <thead>
+                <tr>
+                  <th scope="col">Outcome</th>
+                  <th scope="col">IP address</th>
+                  <th scope="col">When</th>
+                </tr>
+              </thead>
+              <tbody data-history-table-body></tbody>
+            </table>
+          </div>
+        </section>
+      </main>
+    </div>
+  </div>
+
+  <script src="/js/includes.js"></script>
+  <script src="/js/components/theme-toggle.js"></script>
+  <script src="/js/components/admin/admin-auth.js"></script>
+  <script src="/js/components/admin/admin-shell.js"></script>
+  <script src="/js/components/admin/admin-account.js"></script>
+</body>
+</html>

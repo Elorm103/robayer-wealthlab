@@ -27,6 +27,7 @@ import consultationAcknowledgementTemplate from '../emails/templates/consultatio
 import contactAcknowledgementTemplate from '../emails/templates/contact-acknowledgement.html';
 import purchaseReceiptTemplate from '../emails/templates/purchase-receipt.html';
 import secureDownloadTemplate from '../emails/templates/secure-download.html';
+import passwordResetTemplate from '../emails/templates/password-reset.html';
 import type { Env } from '../worker/env';
 import type { Logger } from '../utils/logger';
 
@@ -36,7 +37,8 @@ export type EmailTemplateName =
   | 'consultation-acknowledgement'
   | 'contact-acknowledgement'
   | 'purchase-receipt'
-  | 'secure-download';
+  | 'secure-download'
+  | 'password-reset';
 
 const TEMPLATES: Record<EmailTemplateName, string> = {
   'newsletter-welcome': newsletterWelcomeTemplate,
@@ -45,6 +47,7 @@ const TEMPLATES: Record<EmailTemplateName, string> = {
   'contact-acknowledgement': contactAcknowledgementTemplate,
   'purchase-receipt': purchaseReceiptTemplate,
   'secure-download': secureDownloadTemplate,
+  'password-reset': passwordResetTemplate,
 };
 
 export interface SendEmailOptions {

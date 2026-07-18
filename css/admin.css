@@ -513,6 +513,26 @@
 }
 
 /* ============================================================
+   ACCOUNT PROFILE GRID — admin/account/index.html's read-only
+   name/email/role summary (Version 2.1 Phase 3, Identity & Security).
+   ============================================================ */
+.account-profile-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(160px, 1fr));
+  gap: var(--space-4);
+  margin: 0;
+}
+
+.account-profile-grid dt {
+  margin: 0 0 var(--space-1);
+}
+
+.account-profile-grid dd {
+  margin: 0;
+  font-weight: var(--weight-medium);
+}
+
+/* ============================================================
    BULK ACTION BAR — appears above the table when 1+ rows are
    checkbox-selected (Products list, and any future list module that
    needs bulk actions).

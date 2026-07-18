@@ -48,7 +48,7 @@ export async function createSession(env: Env, adminId: number, context: CreateSe
 }
 
 export type SessionCheckResult =
-  | { ok: true; sessionId: number; adminId: number; role: string; email: string; name: string | null; csrfSecret: string }
+  | { ok: true; sessionId: number; adminId: number; role: string; email: string; name: string | null; csrfSecret: string; mustChangePassword: boolean }
   | { ok: false };
 
 /**
@@ -57,6 +57,11 @@ export type SessionCheckResult =
  * expired, owning admin still active and not soft-deleted) is in one
  * SELECT's WHERE clause, so there is no read-then-decide window where a
  * concurrent revocation/deactivation could be missed.
+ *
+ * `must_change_password` is read here (Version 2.1 Phase 3) because
+ * `requireAuth()` needs it on every request to enforce the
+ * force-password-change gate — a second query just for that flag would
+ * be redundant.
  */
 export async function validateSession(env: Env, tokenInput: unknown): Promise<SessionCheckResult> {
   if (typeof tokenInput !== 'string' || !SESSION_TOKEN_PATTERN.test(tokenInput)) {
@@ -66,14 +71,14 @@ export async function validateSession(env: Env, tokenInput: unknown): Promise<Se
   const now = new Date().toISOString();
   const row = await env.DB.prepare(
     `SELECT s.id AS sessionId, s.admin_id AS adminId, s.csrf_secret AS csrfSecret,
-            u.role AS role, u.email AS email, u.name AS name
+            u.role AS role, u.email AS email, u.name AS name, u.must_change_password AS mustChangePassword
      FROM admin_sessions s
      JOIN admin_users u ON u.id = s.admin_id
      WHERE s.token = ? AND s.revoked_at IS NULL AND s.expires_at > ?
        AND u.is_active = 1 AND u.deleted_at IS NULL`
   )
     .bind(tokenInput, now)
-    .first<{ sessionId: number; adminId: number; csrfSecret: string; role: string; email: string; name: string | null }>();
+    .first<{ sessionId: number; adminId: number; csrfSecret: string; role: string; email: string; name: string | null; mustChangePassword: number }>();
 
   if (!row) return { ok: false };
 
@@ -89,6 +94,7 @@ export async function validateSession(env: Env, tokenInput: unknown): Promise<Se
     email: row.email,
     name: row.name,
     csrfSecret: row.csrfSecret,
+    mustChangePassword: row.mustChangePassword === 1,
   };
 }
 
@@ -117,4 +123,76 @@ export async function revokeSession(env: Env, tokenInput: unknown): Promise<Revo
     .first<{ adminId: number }>();
 
   return row ? { revoked: true, adminId: row.adminId } : { revoked: false };
+}
+
+// ============================================================
+// Sessions list / revoke-by-id — Version 2.1 Phase 3 (Identity &
+// Security). Own-sessions-only by design: a session list is
+// inherently personal, unlike Orders/Consultations, which are
+// legitimately shared operational data even a `super_admin` reviews on
+// another admin's behalf.
+// ============================================================
+
+export interface SessionListItem {
+  id: number;
+  ipCreated: string | null;
+  userAgent: string | null;
+  createdAt: string;
+  lastSeenAt: string;
+  expiresAt: string;
+  isCurrent: boolean;
+}
+
+/** Lists the calling admin's own non-revoked, non-expired sessions — never another admin's. */
+export async function listSessions(env: Env, adminId: number, currentSessionId: number): Promise<SessionListItem[]> {
+  const now = new Date().toISOString();
+  const { results } = await env.DB.prepare(
+    `SELECT id, ip_created AS ipCreated, user_agent AS userAgent, created_at AS createdAt, last_seen_at AS lastSeenAt, expires_at AS expiresAt
+     FROM admin_sessions
+     WHERE admin_id = ? AND revoked_at IS NULL AND expires_at > ?
+     ORDER BY last_seen_at DESC`
+  )
+    .bind(adminId, now)
+    .all<{ id: number; ipCreated: string | null; userAgent: string | null; createdAt: string; lastSeenAt: string; expiresAt: string }>();
+
+  return results.map((row) => ({ ...row, isCurrent: row.id === currentSessionId }));
+}
+
+export type RevokeByIdResult = { ok: true } | { ok: false; reason: 'not_found' };
+
+/**
+ * Revokes one of the calling admin's own sessions by id — verifies the
+ * target session's `admin_id` matches the caller's own id BEFORE
+ * revoking (the IDOR check the architecture review flagged: without
+ * this, any authenticated admin could pass another admin's session id
+ * and sign them out).
+ */
+export async function revokeSessionById(env: Env, adminId: number, sessionId: number): Promise<RevokeByIdResult> {
+  const result = await env.DB.prepare(`UPDATE admin_sessions SET revoked_at = datetime('now') WHERE id = ? AND admin_id = ? AND revoked_at IS NULL`)
+    .bind(sessionId, adminId)
+    .run();
+
+  return result.meta.changes === 1 ? { ok: true } : { ok: false, reason: 'not_found' };
+}
+
+/**
+ * Revokes every active session for an admin EXCEPT one (the session
+ * that just performed the action) — used by change-password: a
+ * password change should invalidate every other session, but not sign
+ * the admin out of the request that just made the change.
+ */
+export async function revokeAllSessionsExcept(env: Env, adminId: number, exceptSessionId: number): Promise<void> {
+  await env.DB.prepare(`UPDATE admin_sessions SET revoked_at = datetime('now') WHERE admin_id = ? AND id != ? AND revoked_at IS NULL`)
+    .bind(adminId, exceptSessionId)
+    .run();
+}
+
+/**
+ * Revokes every active session for an admin, with no exception — used
+ * by reset-password (the admin isn't logged in during that flow, so
+ * there is no "current" session to preserve) and forced logout after a
+ * password reset, per the user's own explicit Phase 3 requirement.
+ */
+export async function revokeAllSessions(env: Env, adminId: number): Promise<void> {
+  await env.DB.prepare(`UPDATE admin_sessions SET revoked_at = datetime('now') WHERE admin_id = ? AND revoked_at IS NULL`).bind(adminId).run();
 }

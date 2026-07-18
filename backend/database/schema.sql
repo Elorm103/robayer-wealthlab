@@ -267,18 +267,25 @@ CREATE INDEX idx_contact_messages_assigned_to ON contact_messages(assigned_to);
 -- `password_hash` stores PBKDF2-SHA256 output as `salt:iterations:hash`,
 -- decided in docs/v2-authentication-design.md's "Password hashing".
 -- ============================================================
+-- `must_change_password`/`failed_login_attempts`/`locked_until`/
+-- `password_updated_at` added in migration 0013 (Version 2.1 Phase 3,
+-- Identity & Security) — see docs/v2.1-phase3-implementation.md.
 CREATE TABLE admin_users (
-  id             INTEGER PRIMARY KEY AUTOINCREMENT,
-  email          TEXT NOT NULL UNIQUE,
-  password_hash  TEXT NOT NULL, -- PBKDF2-SHA256, stored as "salt:iterations:hash"; never plain text
-  role           TEXT NOT NULL DEFAULT 'editor' CHECK (role IN ('super_admin', 'editor', 'support')),
-  is_active      INTEGER NOT NULL DEFAULT 1,
-  last_login_at  TEXT,
-  name           TEXT, -- display name for audit-log readability; nullable
-  totp_secret    TEXT, -- nullable; populated only if/when 2FA is turned on for that user (not built in Phase 0.1)
-  created_at     TEXT NOT NULL DEFAULT (datetime('now')),
-  updated_at     TEXT NOT NULL DEFAULT (datetime('now')),
-  deleted_at     TEXT
+  id                     INTEGER PRIMARY KEY AUTOINCREMENT,
+  email                  TEXT NOT NULL UNIQUE,
+  password_hash          TEXT NOT NULL, -- PBKDF2-SHA256, stored as "salt:iterations:hash"; never plain text
+  role                   TEXT NOT NULL DEFAULT 'editor' CHECK (role IN ('super_admin', 'editor', 'support')),
+  is_active              INTEGER NOT NULL DEFAULT 1,
+  last_login_at          TEXT,
+  name                   TEXT, -- display name for audit-log readability; nullable
+  totp_secret            TEXT, -- nullable; populated only if/when 2FA is turned on for that user (not built in Phase 0.1)
+  must_change_password   INTEGER NOT NULL DEFAULT 0, -- forces a redirect to the change-password form on every request until cleared; set on reset-by-another-admin (Phase 6)
+  failed_login_attempts  INTEGER NOT NULL DEFAULT 0, -- resets to 0 on a successful login
+  locked_until           TEXT, -- set after too many consecutive failures; a time-boxed lockout, not permanent
+  password_updated_at    TEXT,
+  created_at             TEXT NOT NULL DEFAULT (datetime('now')),
+  updated_at             TEXT NOT NULL DEFAULT (datetime('now')),
+  deleted_at             TEXT
 );
 
 -- ============================================================
@@ -306,6 +313,43 @@ CREATE TABLE admin_sessions (
 
 CREATE INDEX idx_admin_sessions_admin ON admin_sessions(admin_id);
 CREATE INDEX idx_admin_sessions_expires ON admin_sessions(expires_at);
+
+-- ============================================================
+-- PASSWORD_RESET_TOKENS
+-- Added in migration 0013 (Version 2.1 Phase 3, Identity & Security).
+-- Single-use, short-lived (30 min) — same generation pattern as
+-- download_tokens/unsubscribe_tokens/admin_sessions.
+-- ============================================================
+CREATE TABLE password_reset_tokens (
+  id           INTEGER PRIMARY KEY AUTOINCREMENT,
+  token        TEXT NOT NULL UNIQUE,
+  admin_id     INTEGER NOT NULL REFERENCES admin_users(id),
+  expires_at   TEXT NOT NULL,
+  used_at      TEXT,
+  created_at   TEXT NOT NULL DEFAULT (datetime('now'))
+);
+
+CREATE INDEX idx_password_reset_tokens_admin ON password_reset_tokens(admin_id);
+
+-- ============================================================
+-- LOGIN_HISTORY
+-- Added in migration 0013 (Version 2.1 Phase 3, Identity & Security).
+-- Written alongside (not instead of) audit_logs' existing admin.login/
+-- admin.login_failed events — a dedicated, purpose-built table so a
+-- "Login History" UI doesn't have to filter the shared, general-purpose
+-- audit_logs stream on every page load. Same reasoning as
+-- consultation_notes/contact_notes being dedicated tables.
+-- ============================================================
+CREATE TABLE login_history (
+  id           INTEGER PRIMARY KEY AUTOINCREMENT,
+  admin_id     INTEGER NOT NULL REFERENCES admin_users(id),
+  outcome      TEXT NOT NULL CHECK (outcome IN ('success', 'failed_password', 'failed_locked', 'failed_inactive')),
+  ip_address   TEXT,
+  user_agent   TEXT,
+  created_at   TEXT NOT NULL DEFAULT (datetime('now'))
+);
+
+CREATE INDEX idx_login_history_admin ON login_history(admin_id);
 
 -- ============================================================
 -- AUDIT_LOGS

@@ -111,6 +111,8 @@ window.AdminAuth = (function () {
     return '/admin/';
   }
 
+  const ACCOUNT_PATH = '/admin/account/';
+
   /**
    * Called by every protected admin page, before any admin content
    * renders. A 401 (missing/expired/invalid session — requireAuth's
@@ -118,22 +120,44 @@ window.AdminAuth = (function () {
    * backend/middleware/requireAuth.ts) redirects to login immediately;
    * this function never resolves in that case, so callers can simply
    * `await` it without an explicit "did it fail" branch.
+   *
+   * Version 2.1 Phase 3 (Identity & Security): a `mustChangePassword`
+   * session also redirects, to the one page that's still reachable
+   * while the flag is set (`requireAuth()` itself enforces this
+   * server-side too — see that file's `MUST_CHANGE_PASSWORD_ALLOWED_PATHS`
+   * — this is the friendlier client-side redirect, not the security
+   * boundary). Skipped when already on that page, so it can render its
+   * own locked-down "change your password to continue" view instead of
+   * redirect-looping.
    */
   async function requireSession() {
+    let session;
     try {
-      return await adminFetch('/api/admin/auth/session');
+      session = await adminFetch('/api/admin/auth/session');
     } catch {
       window.location.replace(loginUrlWithNext());
       return new Promise(() => {}); // never resolves — a redirect is already in flight
     }
+
+    if (session.mustChangePassword && window.location.pathname !== ACCOUNT_PATH) {
+      window.location.replace(ACCOUNT_PATH);
+      return new Promise(() => {});
+    }
+
+    return session;
   }
 
   /** Called only by the login page: if a valid session already exists, skip the form and go straight in. */
   async function redirectIfAuthenticated() {
+    let session;
     try {
-      await adminFetch('/api/admin/auth/session');
+      session = await adminFetch('/api/admin/auth/session');
     } catch {
       return; // not authenticated — show the login form as normal
+    }
+    if (session.mustChangePassword) {
+      window.location.replace(ACCOUNT_PATH);
+      return;
     }
     const params = new URLSearchParams(window.location.search);
     window.location.replace(sanitizeNextPath(params.get('next')));
@@ -158,5 +182,5 @@ window.AdminAuth = (function () {
     window.location.href = LOGIN_PATH;
   }
 
-  return { adminFetch, requireSession, redirectIfAuthenticated, login, logout, getCsrfToken, sanitizeNextPath };
+  return { adminFetch, requireSession, redirectIfAuthenticated, login, logout, getCsrfToken, sanitizeNextPath, ACCOUNT_PATH };
 })();

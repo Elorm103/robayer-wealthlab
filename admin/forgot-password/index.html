@@ -4,10 +4,9 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
 
-  <title>Admin Login | Robayer WealthLab</title>
-  <meta name="description" content="Sign in to the Robayer WealthLab admin.">
-  <link rel="canonical" href="https://robayerwealthlab.com/admin/login/">
-  <!-- Private admin surface — never indexed, never followed. -->
+  <title>Forgot Password | Robayer WealthLab Admin</title>
+  <meta name="description" content="Reset your Robayer WealthLab admin password.">
+  <link rel="canonical" href="https://robayerwealthlab.com/admin/forgot-password/">
   <meta name="robots" content="noindex, nofollow">
 
   <link rel="icon" type="image/svg+xml" href="/assets/icons/favicon.svg">
@@ -26,10 +25,6 @@
   <link rel="stylesheet" href="/css/admin.css">
 
   <style>
-    /* Page-specific layout only (centering the login card) — every
-       visual property still comes from existing tokens/components, no
-       new colors or one-off values, consistent with this project's
-       "no inline hardcoded styles" rule. */
     .admin-login-page {
       min-height: 100vh;
       display: flex;
@@ -38,10 +33,7 @@
       background-color: var(--color-bg-alt);
       padding: var(--space-4);
     }
-    .admin-login-card {
-      width: 100%;
-      max-width: 380px;
-    }
+    .admin-login-card { width: 100%; max-width: 380px; }
     .admin-login-brand {
       display: flex;
       align-items: center;
@@ -57,46 +49,38 @@
   </style>
 </head>
 <body>
-  <a href="#admin-login-heading" class="skip-link">Skip to sign-in form</a>
+  <a href="#admin-forgot-heading" class="skip-link">Skip to form</a>
   <div class="admin-login-page">
-    <div class="admin-login-card" id="admin-login-heading">
+    <div class="admin-login-card" id="admin-forgot-heading">
       <div class="admin-login-brand">
         <img src="/assets/branding/logo/logo-mark.png" alt="" width="415" height="355" loading="eager" decoding="async">
         <span>Robayer WealthLab Admin</span>
       </div>
 
       <div class="card">
-        <h1 class="card__title text-center mb-4">Sign in</h1>
+        <h1 class="card__title mb-2">Reset your password</h1>
+        <p class="text-small text-secondary mb-4">Enter your admin email and we'll send you a link to reset your password.</p>
 
-        <form data-admin-login-form novalidate>
-          <p class="alert alert--error" role="alert" data-admin-login-error hidden></p>
+        <form data-admin-forgot-form novalidate>
+          <p class="alert alert--success" role="status" data-admin-forgot-success hidden>If that email is registered, a reset link is on its way. Check your inbox.</p>
 
-          <div class="field">
-            <label class="field__label" for="admin-login-email">Email</label>
-            <input class="field__input" type="email" id="admin-login-email" name="email" autocomplete="username" required>
+          <div class="field" data-admin-forgot-field-group>
+            <label class="field__label" for="admin-forgot-email">Email</label>
+            <input class="field__input" type="email" id="admin-forgot-email" name="email" autocomplete="username" required>
           </div>
 
-          <div class="field">
-            <label class="field__label" for="admin-login-password">Password</label>
-            <input class="field__input" type="password" id="admin-login-password" name="password" autocomplete="current-password" required>
-          </div>
-
-          <button type="submit" class="btn btn--primary btn--block">Sign in</button>
+          <button type="submit" class="btn btn--primary btn--block" data-admin-forgot-field-group>Send reset link</button>
         </form>
 
         <p class="text-center text-small mt-3">
-          <a href="/admin/forgot-password/">Forgot your password?</a>
+          <a href="/admin/login/">&larr; Back to sign in</a>
         </p>
       </div>
-
-      <p class="text-center text-small text-secondary mt-4">
-        <a href="/">&larr; Back to robayerwealthlab.com</a>
-      </p>
     </div>
   </div>
 
   <script src="/js/components/theme-toggle.js"></script>
   <script src="/js/components/admin/admin-auth.js"></script>
-  <script src="/js/components/admin/admin-login.js"></script>
+  <script src="/js/components/admin/admin-forgot-password.js"></script>
 </body>
 </html>

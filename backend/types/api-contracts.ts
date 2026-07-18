@@ -95,4 +95,8 @@ export type ApiErrorCode =
   | 'SLUG_TAKEN'
   | 'SKU_TAKEN'
   | 'INVALID_MEDIA_REFERENCE'
-  | 'INVALID_STATUS_TRANSITION';
+  | 'INVALID_STATUS_TRANSITION'
+  // /api/admin/auth/* — added Version 2.1 Phase 3 (Identity & Security)
+  | 'MUST_CHANGE_PASSWORD'
+  | 'INCORRECT_PASSWORD'
+  | 'INVALID_TOKEN';

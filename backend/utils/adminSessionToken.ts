@@ -1,9 +1,10 @@
 /**
- * Generates the two random secrets an admin session needs —
+ * Generates the random secrets admin authentication needs —
  * `admin_sessions.token` (the session identifier, carried in the
- * HttpOnly session cookie) and `admin_sessions.csrf_secret` (carried in
+ * HttpOnly session cookie), `admin_sessions.csrf_secret` (carried in
  * a separate, readable cookie, backing the double-submit CSRF pattern —
- * see docs/v2-authentication-design.md's "CSRF").
+ * see docs/v2-authentication-design.md's "CSRF"), and (Version 2.1
+ * Phase 3) `password_reset_tokens.token`.
  *
  * Same shape/pattern as `generateDownloadToken()`/`generateUnsubscribeToken()`
  * deliberately mirrored, per docs/v2-authentication-design.md's login
@@ -29,5 +30,9 @@ export function generateSessionToken(): string {
 }
 
 export function generateCsrfSecret(): string {
+  return randomHex();
+}
+
+export function generatePasswordResetToken(): string {
   return randomHex();
 }

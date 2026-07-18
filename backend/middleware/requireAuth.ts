@@ -33,9 +33,22 @@ export interface AdminAuthContext {
   email: string;
   name: string | null;
   csrfSecret: string;
+  mustChangePassword: boolean;
 }
 
 export type RequireAuthResult = { ok: true; auth: AdminAuthContext } | { ok: false; response: Response };
+
+/**
+ * The only `/api/admin/*` paths reachable while `must_change_password`
+ * is set — Version 2.1 Phase 3 (Identity & Security). Session-check so
+ * the frontend can learn the flag is set at all; change-password so
+ * the admin can actually clear it; logout so a flagged admin isn't
+ * trapped. Every other route is rejected here, centrally, rather than
+ * requiring every existing and future route handler to remember to
+ * check this flag itself — the one piece of this phase that genuinely
+ * touches `requireAuth()`'s own logic, per the architecture plan.
+ */
+const MUST_CHANGE_PASSWORD_ALLOWED_PATHS = new Set(['/api/admin/auth/session', '/api/admin/auth/change-password', '/api/admin/auth/logout']);
 
 /**
  * On failure (missing cookie, unknown token, revoked, expired, or the
@@ -59,6 +72,10 @@ export async function requireAuth(request: Request, env: Env, logger: Logger): P
     return { ok: false, response: jsonError('NOT_AUTHENTICATED', 'Please log in to continue.') };
   }
 
+  if (check.mustChangePassword && !MUST_CHANGE_PASSWORD_ALLOWED_PATHS.has(new URL(request.url).pathname)) {
+    return { ok: false, response: jsonError('MUST_CHANGE_PASSWORD', 'You must change your password before continuing.') };
+  }
+
   return {
     ok: true,
     auth: {
@@ -68,6 +85,7 @@ export async function requireAuth(request: Request, env: Env, logger: Logger): P
       email: check.email,
       name: check.name,
       csrfSecret: check.csrfSecret,
+      mustChangePassword: check.mustChangePassword,
     },
   };
 }

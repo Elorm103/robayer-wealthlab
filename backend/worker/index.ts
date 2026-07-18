@@ -55,7 +55,17 @@ import { handlePaystackWebhook } from '../routes/webhooks';
 import { handleGetPurchaseStatus, handleRequestDownload } from '../routes/purchases';
 import { handleDownload } from '../routes/downloads';
 import { handleUnsubscribeStatus, handleUnsubscribeConfirm } from '../routes/unsubscribe';
-import { handleAdminLogin, handleAdminLogout, handleAdminSession } from '../routes/admin/auth';
+import {
+  handleAdminLogin,
+  handleAdminLogout,
+  handleAdminSession,
+  handleChangePassword,
+  handleForgotPassword,
+  handleResetPassword,
+  handleListSessions,
+  handleRevokeSession,
+  handleLoginHistory,
+} from '../routes/admin/auth';
 import { handleAdminDashboardSummary } from '../routes/admin/dashboard';
 import { handleHealth } from '../routes/health';
 import {
@@ -180,6 +190,15 @@ const ROUTES: Route[] = [
   { pattern: new URLPattern({ pathname: '/api/admin/auth/login' }), method: 'POST', handler: handleAdminLogin },
   { pattern: new URLPattern({ pathname: '/api/admin/auth/logout' }), method: 'POST', handler: handleAdminLogout },
   { pattern: new URLPattern({ pathname: '/api/admin/auth/session' }), method: 'GET', handler: handleAdminSession },
+  // Added Version 2.1 Phase 3 (Identity & Security) — see
+  // docs/v2.1-architecture-plan.md Section 6 and
+  // docs/v2.1-phase3-implementation.md.
+  { pattern: new URLPattern({ pathname: '/api/admin/auth/change-password' }), method: 'POST', handler: handleChangePassword },
+  { pattern: new URLPattern({ pathname: '/api/admin/auth/forgot-password' }), method: 'POST', handler: handleForgotPassword },
+  { pattern: new URLPattern({ pathname: '/api/admin/auth/reset-password' }), method: 'POST', handler: handleResetPassword },
+  { pattern: new URLPattern({ pathname: '/api/admin/auth/sessions' }), method: 'GET', handler: handleListSessions },
+  { pattern: new URLPattern({ pathname: '/api/admin/auth/sessions/:id/revoke' }), method: 'POST', handler: handleRevokeSession },
+  { pattern: new URLPattern({ pathname: '/api/admin/auth/login-history' }), method: 'GET', handler: handleLoginHistory },
   // Added Version 2.0 Phase 0.2 (Admin Shell) — see
   // docs/v2-admin-shell-architecture.md. The dashboard's only real data
   // source; every other admin module route remains out of scope until

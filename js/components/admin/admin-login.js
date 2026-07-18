@@ -36,14 +36,20 @@ function initAdminLogin() {
     const defaultLabel = submitButton.textContent;
     submitButton.textContent = 'Signing in…';
 
+    let result;
     try {
-      await window.AdminAuth.login(email, password);
+      result = await window.AdminAuth.login(email, password);
     } catch (error) {
       showError(error.message);
       submitButton.disabled = false;
       submitButton.textContent = defaultLabel;
       passwordInput.value = '';
       passwordInput.focus();
+      return;
+    }
+
+    if (result.mustChangePassword) {
+      window.location.href = window.AdminAuth.ACCOUNT_PATH;
       return;
     }
 
