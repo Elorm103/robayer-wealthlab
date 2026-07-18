@@ -3,8 +3,9 @@
  * `admin_sessions.token` (the session identifier, carried in the
  * HttpOnly session cookie), `admin_sessions.csrf_secret` (carried in
  * a separate, readable cookie, backing the double-submit CSRF pattern —
- * see docs/v2-authentication-design.md's "CSRF"), and (Version 2.1
- * Phase 3) `password_reset_tokens.token`.
+ * see docs/v2-authentication-design.md's "CSRF"), (Version 2.1 Phase 3)
+ * `password_reset_tokens.token`, and (Version 2.1 Phase 4)
+ * `admin_invites.token`.
  *
  * Same shape/pattern as `generateDownloadToken()`/`generateUnsubscribeToken()`
  * deliberately mirrored, per docs/v2-authentication-design.md's login
@@ -34,5 +35,9 @@ export function generateCsrfSecret(): string {
 }
 
 export function generatePasswordResetToken(): string {
+  return randomHex();
+}
+
+export function generateInviteToken(): string {
   return randomHex();
 }

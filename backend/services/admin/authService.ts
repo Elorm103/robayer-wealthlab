@@ -286,6 +286,30 @@ export async function changePassword(
 
 const PASSWORD_RESET_TOKEN_TTL_MINUTES = 30;
 
+/**
+ * Creates a `password_reset_tokens` row and sends the email — the part
+ * genuinely shared between self-service `forgotPassword()` and the
+ * admin-triggered `adminUserService.forcePasswordReset()` (Version 2.1
+ * Phase 4). Deliberately does NOT write the audit event itself: the two
+ * callers use different, meaningfully distinct actions/actors (a
+ * self-request vs. another admin acting on this account), so each
+ * writes its own `audit_logs` row after calling this.
+ */
+export async function issuePasswordResetToken(env: Env, logger: Logger, adminId: number, email: string, siteBaseUrl: string): Promise<void> {
+  const token = generatePasswordResetToken();
+  const expiresAt = new Date(Date.now() + PASSWORD_RESET_TOKEN_TTL_MINUTES * 60_000).toISOString();
+
+  await env.DB.prepare(`INSERT INTO password_reset_tokens (token, admin_id, expires_at) VALUES (?, ?, ?)`).bind(token, adminId, expiresAt).run();
+
+  await sendEmail(env, logger, {
+    template: 'password-reset',
+    to: email,
+    data: { email, resetUrl: `${siteBaseUrl}/admin/reset-password/?token=${token}` },
+    entityType: 'admin_user',
+    entityId: adminId,
+  });
+}
+
 export async function forgotPassword(env: Env, logger: Logger, emailInput: unknown, siteBaseUrl: string): Promise<void> {
   if (typeof emailInput !== 'string' || emailInput.length === 0 || emailInput.length > MAX_EMAIL_LENGTH) return;
   const email = emailInput.trim().toLowerCase();
@@ -297,18 +321,7 @@ export async function forgotPassword(env: Env, logger: Logger, emailInput: unkno
     return;
   }
 
-  const token = generatePasswordResetToken();
-  const expiresAt = new Date(Date.now() + PASSWORD_RESET_TOKEN_TTL_MINUTES * 60_000).toISOString();
-
-  await env.DB.prepare(`INSERT INTO password_reset_tokens (token, admin_id, expires_at) VALUES (?, ?, ?)`).bind(token, row.id, expiresAt).run();
-
-  await sendEmail(env, logger, {
-    template: 'password-reset',
-    to: email,
-    data: { email, resetUrl: `${siteBaseUrl}/admin/reset-password/?token=${token}` },
-    entityType: 'admin_user',
-    entityId: row.id,
-  });
+  await issuePasswordResetToken(env, logger, row.id, email, siteBaseUrl);
 
   await auditService.record(env, logger, { actorType: 'admin', actorId: row.id, action: 'admin.password_reset_requested', entityType: 'admin_user', entityId: row.id });
 }
@@ -355,6 +368,115 @@ export async function resetPassword(env: Env, logger: Logger, tokenInput: unknow
 
   await auditService.record(env, logger, { actorType: 'admin', actorId: tokenRow.adminId, action: 'admin.password_reset_completed', entityType: 'admin_user', entityId: tokenRow.adminId });
   logger.info('admin.password_reset_completed', { adminId: tokenRow.adminId });
+
+  return { ok: true };
+}
+
+// ============================================================
+// Invite accept — Version 2.1 Phase 4 (User Management). Public,
+// unauthenticated (the invitee has no session yet) — grouped here
+// alongside forgot/reset-password rather than in adminUserService.ts,
+// since every OTHER function in this file is the public-facing half of
+// an admin-auth flow. Issuing/revoking invites (the super_admin-only
+// half) lives in adminUserService.ts.
+// ============================================================
+
+export interface InviteValidationInfo {
+  email: string;
+  name: string | null;
+  role: string;
+}
+
+interface InviteRow {
+  id: number;
+  email: string;
+  name: string | null;
+  role: string;
+}
+
+async function findValidInvite(env: Env, tokenInput: unknown): Promise<InviteRow | null> {
+  if (typeof tokenInput !== 'string' || tokenInput.length === 0) return null;
+  const now = new Date().toISOString();
+  const row = await env.DB.prepare(
+    `SELECT id, email, name, role FROM admin_invites WHERE token = ? AND accepted_at IS NULL AND revoked_at IS NULL AND expires_at > ?`
+  )
+    .bind(tokenInput, now)
+    .first<InviteRow>();
+  return row ?? null;
+}
+
+/** Used by the accept-invite page to decide whether to show the form or an error, before the invitee has typed anything. */
+export async function validateInviteToken(env: Env, tokenInput: unknown): Promise<InviteValidationInfo | null> {
+  const invite = await findValidInvite(env, tokenInput);
+  return invite ? { email: invite.email, name: invite.name, role: invite.role } : null;
+}
+
+export type AcceptInviteResult =
+  | { ok: true }
+  | { ok: false; reason: 'invalid_or_expired_token' }
+  | { ok: false; reason: 'email_taken' }
+  | { ok: false; reason: 'validation'; errors: PasswordValidationError[] };
+
+/**
+ * Creates the real `admin_users` row — the one and only place a new
+ * admin account is ever created. The `admin_users` INSERT happens
+ * BEFORE the invite is marked accepted (not after): the `email UNIQUE`
+ * constraint is the actual serialization point for a race between two
+ * concurrent accept requests for the same token, or a race against
+ * some other path creating the same email in the meantime — whichever
+ * INSERT loses gets a clean, ordinary constraint failure, converted
+ * below into `email_taken`, before it ever touches the invite row.
+ */
+export async function acceptInvite(env: Env, logger: Logger, tokenInput: unknown, newPasswordInput: unknown): Promise<AcceptInviteResult> {
+  const invite = await findValidInvite(env, tokenInput);
+  if (!invite) return { ok: false, reason: 'invalid_or_expired_token' };
+
+  const strengthErrors = validatePasswordStrength(newPasswordInput, { email: invite.email });
+  if (strengthErrors.length > 0) return { ok: false, reason: 'validation', errors: strengthErrors };
+
+  const passwordHashValue = await hashPassword(newPasswordInput as string);
+
+  let newAdminId: number;
+  try {
+    const inviterRow = await env.DB.prepare(`SELECT invited_by FROM admin_invites WHERE id = ?`).bind(invite.id).first<{ invited_by: number }>();
+    const insert = await env.DB.prepare(
+      `INSERT INTO admin_users (email, password_hash, role, name, created_by, must_change_password, password_updated_at)
+       VALUES (?, ?, ?, ?, ?, 0, datetime('now'))`
+    )
+      .bind(invite.email, passwordHashValue, invite.role, invite.name, inviterRow?.invited_by ?? null)
+      .run();
+    newAdminId = Number(insert.meta.last_row_id);
+  } catch {
+    // UNIQUE(email) violation — this exact email became a real admin
+    // through some other path between the invite being issued and
+    // accepted. A real, if rare, constraint failure — not swallowed as
+    // a generic 500 (errorHandler.ts would otherwise catch it), so the
+    // invitee gets an honest, specific reason.
+    return { ok: false, reason: 'email_taken' };
+  }
+
+  const claimed = await env.DB.prepare(`UPDATE admin_invites SET accepted_at = datetime('now'), admin_id = ? WHERE id = ? AND accepted_at IS NULL`)
+    .bind(newAdminId, invite.id)
+    .run();
+  // A lost race here (someone else already accepted this exact token
+  // between findValidInvite() and now) would mean two admin_users rows
+  // exist for one invite — structurally impossible in practice, since
+  // the email UNIQUE constraint above already serializes any real
+  // concurrent attempt on the same email; this is defense-in-depth for
+  // the token-reuse case, matching resetPassword()'s identical
+  // used_at-gated UPDATE pattern.
+  void claimed;
+
+  await auditService.record(env, logger, {
+    actorType: 'admin',
+    actorId: newAdminId,
+    action: 'admin_user.invite_accepted',
+    entityType: 'admin_user',
+    entityId: newAdminId,
+    metadata: { email: invite.email, role: invite.role, inviteId: invite.id },
+  });
+
+  logger.info('admin_user.invite_accepted', { adminId: newAdminId });
 
   return { ok: true };
 }

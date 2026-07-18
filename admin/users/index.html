@@ -5,7 +5,7 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
 
   <title>Users | Robayer WealthLab Admin</title>
-  <meta name="description" content="Manage admin accounts and permissions. This module arrives in a later phase.">
+  <meta name="description" content="Manage admin accounts and permissions.">
   <link rel="canonical" href="https://robayerwealthlab.com/admin/users/">
   <meta name="robots" content="noindex, nofollow">
 
@@ -33,15 +33,123 @@
     <div class="admin-main">
       <div class="admin-include" data-include="/partials/admin-topbar.html"></div>
 
-      <main class="admin-content" id="main-content">
-        <div class="card">
-          <div class="empty-state">
-            <svg class="icon empty-state__icon" viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="10"/><path d="M12 8v4M12 16h.01"/></svg>
-            <p class="empty-state__title">Coming soon</p>
-            <p class="empty-state__body">Manage admin accounts and permissions. This module arrives in a later phase.</p>
+      <main class="admin-content" id="main-content" data-users-root>
+        <p class="alert alert--error" role="alert" data-users-load-error hidden></p>
+        <p class="alert alert--success" role="status" data-users-success hidden></p>
+
+        <div class="toolbar">
+          <div class="toolbar__group">
+            <span class="text-small text-secondary" data-users-result-count></span>
+          </div>
+          <div class="toolbar__group">
+            <button type="button" class="btn btn--primary" data-users-invite-open>Invite administrator</button>
           </div>
         </div>
+
+        <div class="media-filters" role="group" aria-label="Filters" data-users-status-filters>
+          <button type="button" class="media-filter-chip" aria-pressed="true" data-users-status-filter="">Active team</button>
+          <button type="button" class="media-filter-chip" aria-pressed="false" data-users-status-filter="deleted">Deleted</button>
+        </div>
+
+        <section class="card mb-4" data-users-invites-card>
+          <h2 class="editor-section-title">Pending invitations</h2>
+          <div class="admin-table-wrap">
+            <table class="table" aria-label="Pending invitations">
+              <thead>
+                <tr>
+                  <th scope="col">Email</th>
+                  <th scope="col">Role</th>
+                  <th scope="col">Invited by</th>
+                  <th scope="col">Expires</th>
+                  <th scope="col"><span class="sr-only">Actions</span></th>
+                </tr>
+              </thead>
+              <tbody data-invites-table-body></tbody>
+            </table>
+          </div>
+        </section>
+
+        <div class="empty-state" data-users-empty hidden>
+          <svg class="icon empty-state__icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/></svg>
+          <p class="empty-state__title">No administrators yet</p>
+          <p class="empty-state__body">Invite your first team member to get started.</p>
+        </div>
+
+        <div class="admin-table-wrap" data-users-table-wrap hidden>
+          <table class="table" aria-label="Administrators">
+            <thead>
+              <tr>
+                <th scope="col">Administrator</th>
+                <th scope="col">Role</th>
+                <th scope="col">Status</th>
+                <th scope="col">Security</th>
+                <th scope="col">Last login</th>
+                <th scope="col">Sessions</th>
+                <th scope="col">Created by</th>
+                <th scope="col"><span class="sr-only">Actions</span></th>
+              </tr>
+            </thead>
+            <tbody data-users-table-body></tbody>
+          </table>
+        </div>
       </main>
+    </div>
+  </div>
+
+  <!-- Invite modal -->
+  <div class="modal-overlay" data-invite-modal hidden>
+    <div class="modal" role="dialog" aria-modal="true" aria-labelledby="invite-modal-title">
+      <div class="modal__header">
+        <h2 class="modal__title" id="invite-modal-title">Invite administrator</h2>
+        <button type="button" class="modal__close" data-modal-close aria-label="Close">
+          <svg class="icon" width="18" height="18" viewBox="0 0 24 24" aria-hidden="true"><path d="M18 6 6 18M6 6l12 12"/></svg>
+        </button>
+      </div>
+      <form data-invite-form novalidate>
+        <div class="modal__body">
+          <p class="alert alert--error" role="alert" data-invite-error hidden></p>
+          <p class="text-small text-secondary mb-3">They'll receive an email with a link to set their own password. No password is ever generated or sent by this system.</p>
+          <div class="field">
+            <label class="field__label" for="invite-email">Email</label>
+            <input class="field__input" type="email" id="invite-email" name="email" required>
+          </div>
+          <div class="field">
+            <label class="field__label" for="invite-name">Name <span class="text-secondary">(optional)</span></label>
+            <input class="field__input" type="text" id="invite-name" name="name">
+          </div>
+          <div class="field">
+            <label class="field__label" for="invite-role">Role</label>
+            <select class="field__select" id="invite-role" name="role" required>
+              <option value="support">Support</option>
+              <option value="editor">Editor</option>
+              <option value="super_admin">Super Admin</option>
+            </select>
+          </div>
+        </div>
+        <div class="modal__footer">
+          <button type="button" class="btn btn--secondary" data-modal-close>Cancel</button>
+          <button type="submit" class="btn btn--primary">Send invitation</button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <!-- Confirmation modal (disable / reactivate / delete / cancel invite) -->
+  <div class="modal-overlay" data-confirm-modal hidden>
+    <div class="modal" role="dialog" aria-modal="true" aria-labelledby="confirm-modal-title">
+      <div class="modal__header">
+        <h2 class="modal__title" id="confirm-modal-title" data-confirm-title>Are you sure?</h2>
+        <button type="button" class="modal__close" data-modal-close aria-label="Close">
+          <svg class="icon" width="18" height="18" viewBox="0 0 24 24" aria-hidden="true"><path d="M18 6 6 18M6 6l12 12"/></svg>
+        </button>
+      </div>
+      <div class="modal__body">
+        <p data-confirm-body></p>
+      </div>
+      <div class="modal__footer">
+        <button type="button" class="btn btn--secondary" data-modal-close>Cancel</button>
+        <button type="button" class="btn btn--accent" data-confirm-action>Confirm</button>
+      </div>
     </div>
   </div>
 
@@ -49,5 +157,6 @@
   <script src="/js/components/theme-toggle.js"></script>
   <script src="/js/components/admin/admin-auth.js"></script>
   <script src="/js/components/admin/admin-shell.js"></script>
+  <script src="/js/components/admin/admin-users.js"></script>
 </body>
 </html>

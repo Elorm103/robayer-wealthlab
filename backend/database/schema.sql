@@ -270,6 +270,9 @@ CREATE INDEX idx_contact_messages_assigned_to ON contact_messages(assigned_to);
 -- `must_change_password`/`failed_login_attempts`/`locked_until`/
 -- `password_updated_at` added in migration 0013 (Version 2.1 Phase 3,
 -- Identity & Security) — see docs/v2.1-phase3-implementation.md.
+-- `created_by` added in migration 0014 (Version 2.1 Phase 4, User
+-- Management) — NULL for every admin that predates this migration
+-- (an honest "unknown/pre-existing," not a fabricated value).
 CREATE TABLE admin_users (
   id                     INTEGER PRIMARY KEY AUTOINCREMENT,
   email                  TEXT NOT NULL UNIQUE,
@@ -279,10 +282,11 @@ CREATE TABLE admin_users (
   last_login_at          TEXT,
   name                   TEXT, -- display name for audit-log readability; nullable
   totp_secret            TEXT, -- nullable; populated only if/when 2FA is turned on for that user (not built in Phase 0.1)
-  must_change_password   INTEGER NOT NULL DEFAULT 0, -- forces a redirect to the change-password form on every request until cleared; set on reset-by-another-admin (Phase 6)
+  must_change_password   INTEGER NOT NULL DEFAULT 0, -- forces a redirect to the change-password form on every request until cleared; set on reset-by-another-admin
   failed_login_attempts  INTEGER NOT NULL DEFAULT 0, -- resets to 0 on a successful login
   locked_until           TEXT, -- set after too many consecutive failures; a time-boxed lockout, not permanent
   password_updated_at    TEXT,
+  created_by             INTEGER REFERENCES admin_users(id),
   created_at             TEXT NOT NULL DEFAULT (datetime('now')),
   updated_at             TEXT NOT NULL DEFAULT (datetime('now')),
   deleted_at             TEXT
@@ -350,6 +354,32 @@ CREATE TABLE login_history (
 );
 
 CREATE INDEX idx_login_history_admin ON login_history(admin_id);
+
+-- ============================================================
+-- ADMIN_INVITES
+-- Added in migration 0014 (Version 2.1 Phase 4, User Management).
+-- Every new admin sets their own first password via this single-use,
+-- emailed link — never a system-generated temporary password. Same
+-- proven shape as password_reset_tokens, with a longer TTL (7 days,
+-- not 30 minutes) — a genuinely different threat model: an invitation
+-- isn't a bearer credential to an already-real account.
+-- ============================================================
+CREATE TABLE admin_invites (
+  id           INTEGER PRIMARY KEY AUTOINCREMENT,
+  token        TEXT NOT NULL UNIQUE,
+  email        TEXT NOT NULL,
+  name         TEXT,
+  role         TEXT NOT NULL CHECK (role IN ('super_admin', 'editor', 'support')),
+  invited_by   INTEGER NOT NULL REFERENCES admin_users(id),
+  expires_at   TEXT NOT NULL,
+  accepted_at  TEXT,
+  admin_id     INTEGER REFERENCES admin_users(id),
+  revoked_at   TEXT,
+  created_at   TEXT NOT NULL DEFAULT (datetime('now'))
+);
+
+CREATE INDEX idx_admin_invites_email ON admin_invites(email);
+CREATE INDEX idx_admin_invites_token ON admin_invites(token);
 
 -- ============================================================
 -- AUDIT_LOGS

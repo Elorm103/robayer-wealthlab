@@ -1,0 +1,137 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+
+  <title>Manage Administrator | Robayer WealthLab Admin</title>
+  <meta name="description" content="Manage an administrator's role, status, and security.">
+  <link rel="canonical" href="https://robayerwealthlab.com/admin/users/detail/">
+  <meta name="robots" content="noindex, nofollow">
+
+  <link rel="icon" type="image/svg+xml" href="/assets/icons/favicon.svg">
+  <link rel="icon" type="image/png" sizes="32x32" href="/assets/icons/favicon-32.png">
+  <link rel="apple-touch-icon" href="/assets/icons/apple-touch-icon.png">
+
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Fraunces:ital,wght@0,500;0,600;1,500&family=Space+Grotesk:wght@500&family=Work+Sans:wght@400;500&family=IBM+Plex+Mono:wght@400;500&display=swap" rel="stylesheet">
+
+  <link rel="stylesheet" href="/css/tokens.css">
+  <link rel="stylesheet" href="/css/base.css">
+  <link rel="stylesheet" href="/css/layout.css">
+  <link rel="stylesheet" href="/css/components.css">
+  <link rel="stylesheet" href="/css/utilities.css">
+  <link rel="stylesheet" href="/css/admin.css">
+</head>
+<body>
+  <a href="#main-content" class="skip-link">Skip to main content</a>
+
+  <div class="admin-shell" data-sidebar-collapsed="false">
+    <div class="admin-include" data-include="/partials/admin-sidebar.html"></div>
+
+    <div class="admin-main">
+      <div class="admin-include" data-include="/partials/admin-topbar.html"></div>
+
+      <main class="admin-content" id="main-content" data-user-detail-root>
+        <p class="alert alert--error" role="alert" data-detail-load-error hidden></p>
+        <p class="alert alert--success" role="status" data-detail-success hidden></p>
+
+        <p class="mb-4"><a href="/admin/users/">&larr; Back to Users</a></p>
+
+        <div class="editor-layout">
+          <div class="editor-main">
+            <section class="card mb-4">
+              <h2 class="editor-section-title">Profile</h2>
+              <dl class="account-profile-grid mb-4">
+                <div><dt class="text-small text-secondary">Name</dt><dd data-detail-name>&nbsp;</dd></div>
+                <div><dt class="text-small text-secondary">Email</dt><dd data-detail-email>&nbsp;</dd></div>
+                <div><dt class="text-small text-secondary">Created by</dt><dd data-detail-created-by>&nbsp;</dd></div>
+                <div><dt class="text-small text-secondary">Created</dt><dd data-detail-created-at>&nbsp;</dd></div>
+              </dl>
+
+              <div class="field">
+                <label class="field__label" for="detail-role">Role</label>
+                <select class="field__select" id="detail-role"></select>
+              </div>
+              <button type="button" class="btn btn--primary" data-detail-save-role>Save role</button>
+            </section>
+
+            <section class="card mb-4" data-detail-sessions-card>
+              <h2 class="editor-section-title">Active sessions</h2>
+              <div class="admin-table-wrap">
+                <table class="table" aria-label="Active sessions">
+                  <thead><tr><th scope="col">Device</th><th scope="col">IP address</th><th scope="col">Last active</th></tr></thead>
+                  <tbody data-detail-sessions-body></tbody>
+                </table>
+              </div>
+            </section>
+
+            <section class="card" data-detail-history-card>
+              <h2 class="editor-section-title">Login history</h2>
+              <div class="admin-table-wrap">
+                <table class="table" aria-label="Login history">
+                  <thead><tr><th scope="col">Outcome</th><th scope="col">IP address</th><th scope="col">When</th></tr></thead>
+                  <tbody data-detail-history-body></tbody>
+                </table>
+              </div>
+            </section>
+          </div>
+
+          <div class="editor-sidebar">
+            <section class="card mb-4">
+              <h2 class="editor-section-title">Status</h2>
+              <p><span class="badge" data-detail-status-badge>&nbsp;</span></p>
+              <p><span class="badge" data-detail-security-badge>&nbsp;</span></p>
+              <p class="text-small text-secondary" data-detail-sessions-count></p>
+              <p class="text-small text-secondary" data-detail-failed-attempts></p>
+              <p class="text-small text-secondary" data-detail-last-login></p>
+              <p class="text-small text-secondary" data-detail-last-activity></p>
+            </section>
+
+            <section class="card mb-4" data-detail-actions-card>
+              <h2 class="editor-section-title">Security actions</h2>
+              <button type="button" class="btn btn--secondary" style="width:100%; margin-bottom: var(--space-2);" data-detail-force-password-reset>Force password reset</button>
+              <button type="button" class="btn btn--secondary" style="width:100%; margin-bottom: var(--space-2);" data-detail-force-password-change>Force password change on next login</button>
+              <button type="button" class="btn btn--secondary" style="width:100%; margin-bottom: var(--space-2);" data-detail-force-logout>Force logout everywhere</button>
+              <button type="button" class="btn btn--secondary" style="width:100%;" data-detail-unlock hidden>Unlock account</button>
+            </section>
+
+            <section class="card" data-detail-danger-zone>
+              <h2 class="editor-section-title">Danger zone</h2>
+              <button type="button" class="btn btn--secondary" style="width:100%; margin-bottom: var(--space-2);" data-detail-disable>Disable account</button>
+              <button type="button" class="btn btn--secondary" style="width:100%; margin-bottom: var(--space-2);" data-detail-reactivate hidden>Reactivate account</button>
+              <button type="button" class="btn btn--accent" style="width:100%;" data-detail-delete>Delete account</button>
+            </section>
+          </div>
+        </div>
+      </main>
+    </div>
+  </div>
+
+  <!-- Confirmation modal (shared by every destructive/security action here) -->
+  <div class="modal-overlay" data-confirm-modal hidden>
+    <div class="modal" role="dialog" aria-modal="true" aria-labelledby="confirm-modal-title">
+      <div class="modal__header">
+        <h2 class="modal__title" id="confirm-modal-title" data-confirm-title>Are you sure?</h2>
+        <button type="button" class="modal__close" data-modal-close aria-label="Close">
+          <svg class="icon" width="18" height="18" viewBox="0 0 24 24" aria-hidden="true"><path d="M18 6 6 18M6 6l12 12"/></svg>
+        </button>
+      </div>
+      <div class="modal__body">
+        <p data-confirm-body></p>
+      </div>
+      <div class="modal__footer">
+        <button type="button" class="btn btn--secondary" data-modal-close>Cancel</button>
+        <button type="button" class="btn btn--accent" data-confirm-action>Confirm</button>
+      </div>
+    </div>
+  </div>
+
+  <script src="/js/includes.js"></script>
+  <script src="/js/components/theme-toggle.js"></script>
+  <script src="/js/components/admin/admin-auth.js"></script>
+  <script src="/js/components/admin/admin-shell.js"></script>
+  <script src="/js/components/admin/admin-user-detail.js"></script>
+</body>
+</html>

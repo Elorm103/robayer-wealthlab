@@ -66,6 +66,23 @@ import {
   handleRevokeSession,
   handleLoginHistory,
 } from '../routes/admin/auth';
+import {
+  handleListAdmins,
+  handleGetAdmin,
+  handleInviteAdmin,
+  handleResendInvite,
+  handleCancelInvite,
+  handleEditAdmin,
+  handleDisableAdmin,
+  handleReactivateAdmin,
+  handleDeleteAdmin,
+  handleForcePasswordReset,
+  handleForcePasswordChange,
+  handleForceLogout,
+  handleUnlockAdmin,
+  handleValidateInvite,
+  handleAcceptInvite,
+} from '../routes/admin/users';
 import { handleAdminDashboardSummary } from '../routes/admin/dashboard';
 import { handleHealth } from '../routes/health';
 import {
@@ -199,6 +216,13 @@ const ROUTES: Route[] = [
   { pattern: new URLPattern({ pathname: '/api/admin/auth/sessions' }), method: 'GET', handler: handleListSessions },
   { pattern: new URLPattern({ pathname: '/api/admin/auth/sessions/:id/revoke' }), method: 'POST', handler: handleRevokeSession },
   { pattern: new URLPattern({ pathname: '/api/admin/auth/login-history' }), method: 'GET', handler: handleLoginHistory },
+  // Public, unauthenticated — Version 2.1 Phase 4 (User Management).
+  // Grouped with the other public admin-auth flows (forgot/reset-
+  // password) since an invitee has no session yet; handlers live in
+  // routes/admin/users.ts to keep every user-management concern in one
+  // file. See docs/v2.1-phase4-design.md.
+  { pattern: new URLPattern({ pathname: '/api/admin/auth/accept-invite' }), method: 'GET', handler: handleValidateInvite },
+  { pattern: new URLPattern({ pathname: '/api/admin/auth/accept-invite' }), method: 'POST', handler: handleAcceptInvite },
   // Added Version 2.0 Phase 0.2 (Admin Shell) — see
   // docs/v2-admin-shell-architecture.md. The dashboard's only real data
   // source; every other admin module route remains out of scope until
@@ -307,6 +331,24 @@ const ROUTES: Route[] = [
   { pattern: new URLPattern({ pathname: '/api/admin/blog/:id/restore' }), method: 'POST', handler: handleBlogRestore },
   { pattern: new URLPattern({ pathname: '/api/admin/blog/:id/duplicate' }), method: 'POST', handler: handleBlogDuplicate },
   { pattern: new URLPattern({ pathname: '/api/admin/blog/:id/status' }), method: 'POST', handler: handleBlogStatusTransition },
+  // Added Version 2.1 Phase 4 (User Management) — see
+  // docs/v2.1-phase4-design.md. super_admin-only (enforced inside each
+  // handler, not by this table). Static paths (`/invite`,
+  // `/invites/:id/...`) ordered before the `/:id` wildcard so `invite`
+  // and `invites` are never mistaken for an admin id.
+  { pattern: new URLPattern({ pathname: '/api/admin/users' }), method: 'GET', handler: handleListAdmins },
+  { pattern: new URLPattern({ pathname: '/api/admin/users/invite' }), method: 'POST', handler: handleInviteAdmin },
+  { pattern: new URLPattern({ pathname: '/api/admin/users/invites/:id/resend' }), method: 'POST', handler: handleResendInvite },
+  { pattern: new URLPattern({ pathname: '/api/admin/users/invites/:id' }), method: 'DELETE', handler: handleCancelInvite },
+  { pattern: new URLPattern({ pathname: '/api/admin/users/:id' }), method: 'GET', handler: handleGetAdmin },
+  { pattern: new URLPattern({ pathname: '/api/admin/users/:id' }), method: 'PATCH', handler: handleEditAdmin },
+  { pattern: new URLPattern({ pathname: '/api/admin/users/:id' }), method: 'DELETE', handler: handleDeleteAdmin },
+  { pattern: new URLPattern({ pathname: '/api/admin/users/:id/disable' }), method: 'POST', handler: handleDisableAdmin },
+  { pattern: new URLPattern({ pathname: '/api/admin/users/:id/reactivate' }), method: 'POST', handler: handleReactivateAdmin },
+  { pattern: new URLPattern({ pathname: '/api/admin/users/:id/force-password-reset' }), method: 'POST', handler: handleForcePasswordReset },
+  { pattern: new URLPattern({ pathname: '/api/admin/users/:id/force-password-change' }), method: 'POST', handler: handleForcePasswordChange },
+  { pattern: new URLPattern({ pathname: '/api/admin/users/:id/force-logout' }), method: 'POST', handler: handleForceLogout },
+  { pattern: new URLPattern({ pathname: '/api/admin/users/:id/unlock' }), method: 'POST', handler: handleUnlockAdmin },
   // Added Version 2.0 Phase 2 (Products Module) — public site
   // integration. This Worker fully owns `/books/*` via a new Workers
   // Route (wrangler.jsonc) — see routes/books.ts's header comment for

@@ -99,4 +99,9 @@ export type ApiErrorCode =
   // /api/admin/auth/* — added Version 2.1 Phase 3 (Identity & Security)
   | 'MUST_CHANGE_PASSWORD'
   | 'INCORRECT_PASSWORD'
-  | 'INVALID_TOKEN';
+  | 'INVALID_TOKEN'
+  // /api/admin/users/* — added Version 2.1 Phase 4 (User Management)
+  | 'SELF_TARGETED'
+  | 'LAST_SUPER_ADMIN'
+  | 'INVALID_ROLE'
+  | 'EMAIL_TAKEN';
