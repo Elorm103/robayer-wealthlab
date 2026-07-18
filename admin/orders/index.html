@@ -5,7 +5,7 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
 
   <title>Orders | Robayer WealthLab Admin</title>
-  <meta name="description" content="View and manage customer purchases. This module arrives in a later phase.">
+  <meta name="description" content="View customer purchases, payment and delivery status, and resend order emails.">
   <link rel="canonical" href="https://robayerwealthlab.com/admin/orders/">
   <meta name="robots" content="noindex, nofollow">
 
@@ -33,15 +33,116 @@
     <div class="admin-main">
       <div class="admin-include" data-include="/partials/admin-topbar.html"></div>
 
-      <main class="admin-content" id="main-content">
-        <div class="card">
-          <div class="empty-state">
-            <svg class="icon empty-state__icon" viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="10"/><path d="M12 8v4M12 16h.01"/></svg>
-            <p class="empty-state__title">Coming soon</p>
-            <p class="empty-state__body">View and manage customer purchases. This module arrives in a later phase.</p>
+      <main class="admin-content" id="main-content" data-orders-root>
+        <p class="alert alert--error" role="alert" data-orders-load-error hidden></p>
+
+        <div class="toolbar">
+          <div class="toolbar__group">
+            <div class="search-bar">
+              <svg class="icon search-bar__icon" viewBox="0 0 24 24" aria-hidden="true"><circle cx="11" cy="11" r="7"/><path d="m21 21-4.3-4.3"/></svg>
+              <input type="search" class="field__input search-bar__input" placeholder="Search by reference or email&hellip;" aria-label="Search orders" data-orders-search>
+            </div>
+            <input type="date" class="field__input" aria-label="From date" data-orders-date-from>
+            <input type="date" class="field__input" aria-label="To date" data-orders-date-to>
+          </div>
+          <div class="toolbar__group">
+            <span class="text-small text-secondary" data-orders-result-count></span>
+          </div>
+        </div>
+
+        <div class="media-filters" role="group" aria-label="Status filters" data-orders-status-filters>
+          <button type="button" class="media-filter-chip" aria-pressed="true" data-orders-status-filter="">All</button>
+          <button type="button" class="media-filter-chip" aria-pressed="false" data-orders-status-filter="pending">Pending</button>
+          <button type="button" class="media-filter-chip" aria-pressed="false" data-orders-status-filter="verified">Verified</button>
+          <button type="button" class="media-filter-chip" aria-pressed="false" data-orders-status-filter="failed">Failed</button>
+          <button type="button" class="media-filter-chip" aria-pressed="false" data-orders-status-filter="expired">Expired</button>
+          <button type="button" class="media-filter-chip" aria-pressed="false" data-orders-status-filter="cancelled">Cancelled</button>
+          <button type="button" class="media-filter-chip" aria-pressed="false" data-orders-status-filter="refunded">Refunded</button>
+        </div>
+
+        <div class="empty-state" data-orders-empty hidden>
+          <svg class="icon empty-state__icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M6 2 3 6v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2V6l-3-4z"/><path d="M3 6h18M16 10a4 4 0 0 1-8 0"/></svg>
+          <p class="empty-state__title" data-orders-empty-title>No orders yet</p>
+          <p class="empty-state__body" data-orders-empty-body>Purchases made through the site will appear here.</p>
+        </div>
+
+        <div class="admin-table-wrap" data-orders-table-wrap hidden>
+          <table class="table" aria-label="Orders">
+            <thead>
+              <tr>
+                <th scope="col">Reference</th>
+                <th scope="col">Product</th>
+                <th scope="col">Customer email</th>
+                <th scope="col">Amount</th>
+                <th scope="col">Status</th>
+                <th scope="col">Date</th>
+              </tr>
+            </thead>
+            <tbody data-orders-table-body></tbody>
+          </table>
+        </div>
+
+        <div class="pagination" data-orders-pagination>
+          <span data-orders-pagination-label></span>
+          <div class="pagination__controls">
+            <button type="button" class="pagination__button" data-orders-pagination-prev aria-label="Previous page">
+              <svg class="icon" width="16" height="16" viewBox="0 0 24 24" aria-hidden="true"><path d="M15 18l-6-6 6-6"/></svg>
+            </button>
+            <button type="button" class="pagination__button" data-orders-pagination-next aria-label="Next page">
+              <svg class="icon" width="16" height="16" viewBox="0 0 24 24" aria-hidden="true"><path d="M9 6l6 6-6 6"/></svg>
+            </button>
           </div>
         </div>
       </main>
+    </div>
+  </div>
+
+  <!-- Detail drawer -->
+  <div class="drawer-overlay" data-order-drawer hidden>
+    <div class="drawer" role="dialog" aria-modal="true" aria-labelledby="order-drawer-title">
+      <div class="drawer__header">
+        <div>
+          <h2 class="drawer__title" id="order-drawer-title" data-order-drawer-reference>&nbsp;</h2>
+          <p class="drawer__subtitle" data-order-drawer-meta>&nbsp;</p>
+        </div>
+        <button type="button" class="drawer__close" data-drawer-close aria-label="Close">
+          <svg class="icon" width="18" height="18" viewBox="0 0 24 24" aria-hidden="true"><path d="M18 6 6 18M6 6l12 12"/></svg>
+        </button>
+      </div>
+      <div class="drawer__body">
+        <p class="alert alert--error" role="alert" data-order-drawer-error hidden></p>
+        <p class="alert alert--warning" role="status" data-order-drawer-test-flag hidden>This order's customer email matches the known synthetic QA test pattern — not a real sale.</p>
+
+        <div class="drawer__section">
+          <p class="drawer__section-title">Order details</p>
+          <p><strong>Product:</strong> <span data-order-drawer-product></span></p>
+          <p><strong>Customer:</strong> <span data-order-drawer-email></span></p>
+          <p><strong>Amount:</strong> <span data-order-drawer-amount></span></p>
+          <p><strong>Status:</strong> <span class="badge" data-order-drawer-status-badge></span></p>
+        </div>
+
+        <div class="drawer__section">
+          <p class="drawer__section-title">Payment transactions</p>
+          <div data-order-drawer-transactions></div>
+          <p class="text-small text-secondary" data-order-drawer-transactions-empty hidden>No payment transactions recorded.</p>
+        </div>
+
+        <div class="drawer__section">
+          <p class="drawer__section-title">Deliveries</p>
+          <div data-order-drawer-deliveries></div>
+          <p class="text-small text-secondary" data-order-drawer-deliveries-empty hidden>No deliveries recorded.</p>
+        </div>
+
+        <div class="drawer__section">
+          <p class="drawer__section-title">Email history</p>
+          <div data-order-drawer-emails></div>
+          <p class="text-small text-secondary" data-order-drawer-emails-empty hidden>No emails sent for this order.</p>
+        </div>
+      </div>
+      <div class="drawer__footer" data-order-drawer-actions hidden>
+        <button type="button" class="btn btn--secondary" data-order-drawer-resend-receipt>Resend receipt</button>
+        <button type="button" class="btn btn--secondary" data-order-drawer-resend-download>Resend download email</button>
+      </div>
     </div>
   </div>
 
@@ -49,5 +150,6 @@
   <script src="/js/components/theme-toggle.js"></script>
   <script src="/js/components/admin/admin-auth.js"></script>
   <script src="/js/components/admin/admin-shell.js"></script>
+  <script src="/js/components/admin/admin-orders.js"></script>
 </body>
 </html>

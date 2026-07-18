@@ -815,7 +815,7 @@
   margin-bottom: var(--space-1);
 }
 
-.drawer__footer {
+.drawer__footer:not([hidden]) {
   display: flex;
   justify-content: flex-end;
   gap: var(--space-2);

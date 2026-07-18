@@ -99,6 +99,13 @@ import {
   handleContactUpdate,
   handleContactAddNote,
 } from '../routes/admin/contacts';
+import {
+  handleOrdersMeta,
+  handleOrdersList,
+  handleOrderGet,
+  handleOrderResendReceipt,
+  handleOrderResendDownload,
+} from '../routes/admin/orders';
 
 export type { Env };
 
@@ -211,6 +218,13 @@ const ROUTES: Route[] = [
   { pattern: new URLPattern({ pathname: '/api/admin/contacts/:id' }), method: 'GET', handler: handleContactGet },
   { pattern: new URLPattern({ pathname: '/api/admin/contacts/:id' }), method: 'PATCH', handler: handleContactUpdate },
   { pattern: new URLPattern({ pathname: '/api/admin/contacts/:id/notes' }), method: 'POST', handler: handleContactAddNote },
+  // Orders (Phase 3 Stage 3) — `/meta` ordered before `/:reference`,
+  // same reasoning as consultations/contacts above.
+  { pattern: new URLPattern({ pathname: '/api/admin/orders/meta' }), method: 'GET', handler: handleOrdersMeta },
+  { pattern: new URLPattern({ pathname: '/api/admin/orders' }), method: 'GET', handler: handleOrdersList },
+  { pattern: new URLPattern({ pathname: '/api/admin/orders/:reference' }), method: 'GET', handler: handleOrderGet },
+  { pattern: new URLPattern({ pathname: '/api/admin/orders/:reference/resend-receipt' }), method: 'POST', handler: handleOrderResendReceipt },
+  { pattern: new URLPattern({ pathname: '/api/admin/orders/:reference/resend-download' }), method: 'POST', handler: handleOrderResendDownload },
   // Added Version 2.0 Phase 2 (Products Module) — public site
   // integration. This Worker fully owns `/books/*` via a new Workers
   // Route (wrangler.jsonc) — see routes/books.ts's header comment for
