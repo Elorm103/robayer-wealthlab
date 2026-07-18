@@ -23,6 +23,24 @@ marking the site as production-ready.
   structured-data association between the site and its social
   profiles.
 
+## [Unreleased] — Version 2.1 Phase 6 — Newsletter Campaigns — 2026-07-18
+
+Sixth stage of Version 2.1 (Content & Administration Platform, see `docs/v2.1-architecture-plan.md`). Not yet tagged. Design reviewed and approved before implementation — see `docs/v2.1-phase6-design.md`.
+
+**Added**
+- Migration `0016_newsletter_campaigns.sql` — `newsletter_campaigns` (draft content + Draft/Sending/Sent/Failed lifecycle, full created/sent-by-and-at attribution) and `newsletter_campaign_recipients` (a durable, per-recipient roster, `UNIQUE(campaign_id, subscriber_id)`, snapshotted once at Draft→Sending and never re-derived).
+- `services/campaignService.ts` — campaign drafting, a mandatory test-send-before-Send safeguard (only unlocks once a test genuinely reaches Resend, not merely on attempt), and sending to all currently-subscribed recipients. Sends run inside `ctx.waitUntil()` against the durable roster — this gives duplicate-send prevention (an atomic conditional `UPDATE` on both the campaign and each recipient row) and safe mid-send recovery (Resume reclaims orphaned rows and continues without ever re-sending a completed recipient) without introducing Cloudflare Queues, Cron Triggers, or Durable Objects, none of which exist in this project.
+- Reuses the existing email infrastructure exactly — `sendEmail()`, `email_log`, the Phase 5 per-template kill switch, the rich-text sanitizer — via one small, targeted extension (`rawBody`/`subjectOverride` on `sendEmail()`, since a campaign's admin-authored subject/body must not be HTML-escaped the way every other template's plain-string placeholders are) rather than a second pipeline.
+- A configurable recipient safety cap (`site_settings.campaign_recipient_cap`, default 300) rather than a hardcoded limit, per explicit request — adjustable without a code deploy, with a clear error naming the real subscriber count and the configured cap if exceeded.
+- `routes/admin/newsletterCampaigns.ts` — draft/edit/delete/test open to `editor`/`super_admin`; Send and Resume `super_admin`-only, given the blast radius of reaching real subscribers.
+- `/admin/newsletter/` (rebuilt from its empty shell) — campaign history with live delivery-summary counts, a shared create/edit/detail editor, and full observability (created/sent by and at, recipient/sent/failed/skipped counts, current status) for every campaign.
+
+**Fixed — real defect found during local verification**
+- The Save button did nothing on first click: the send-confirmation modal's fields were queried via `root.querySelector()`, but (like every other admin editor's confirmation modal) the modal lives outside `<main>` in the page, so the query silently returned `null` and threw inside setup before the Save button's listener was ever attached. Fixed by querying those elements from `document` instead.
+
+**Verified**
+- Full local lifecycle proven directly in D1: a real send transitioned Draft→Sending→Sent with all recipient rows reaching a terminal state; duplicate-send/edit/delete/resume-on-wrong-state all correctly rejected; a seeded partially-completed campaign's Resume left already-`sent` rows genuinely untouched and only processed the real `pending` ones; the test-required gate correctly stayed locked after an all-failed test and only unlocked once a test call included at least one real success. Production verification used disposable admin accounts and a real Resend test-send (confirmed via a genuine `provider_id`), role/CSRF/cap rejection — deliberately never triggering an actual send to production's real subscribers, since that would be a genuine, irreversible action on real people rather than a safe check. See `docs/v2.1-phase6-implementation.md`.
+
 ## [Unreleased] — Version 2.1 Phase 5 — Settings — 2026-07-18
 
 Fifth stage of Version 2.1 (Content & Administration Platform, see `docs/v2.1-architecture-plan.md`). Not yet tagged. Design reviewed and approved before implementation — see `docs/v2.1-phase5-design.md`.
