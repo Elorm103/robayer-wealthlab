@@ -124,6 +124,19 @@ import {
   handleResourcesBulkAction,
 } from '../routes/admin/resources';
 import { handleResourcesIndex, handleResourceDownloadRoute } from '../routes/resources';
+import {
+  handleBlogMeta,
+  handleBlogList,
+  handleBlogGet,
+  handleBlogCreate,
+  handleBlogUpdate,
+  handleBlogStatusTransition,
+  handleBlogDuplicate,
+  handleBlogDelete,
+  handleBlogRestore,
+  handleBlogBulkAction,
+} from '../routes/admin/blog';
+import { handleBlogIndex, handleBlogDetail, handleBlogRedirect } from '../routes/blog';
 
 export type { Env };
 
@@ -262,6 +275,19 @@ const ROUTES: Route[] = [
   { pattern: new URLPattern({ pathname: '/api/admin/resources/:id/restore' }), method: 'POST', handler: handleResourceRestore },
   { pattern: new URLPattern({ pathname: '/api/admin/resources/:id/duplicate' }), method: 'POST', handler: handleResourceDuplicate },
   { pattern: new URLPattern({ pathname: '/api/admin/resources/:id/status' }), method: 'POST', handler: handleResourceStatusTransition },
+  // Added Version 2.1 Phase 2 (Blog CMS) — see
+  // docs/v2.1-architecture-plan.md Section 4. Same admin route shape
+  // as Resources; `/meta` and `/bulk` ordered before `/:id`.
+  { pattern: new URLPattern({ pathname: '/api/admin/blog/meta' }), method: 'GET', handler: handleBlogMeta },
+  { pattern: new URLPattern({ pathname: '/api/admin/blog/bulk' }), method: 'POST', handler: handleBlogBulkAction },
+  { pattern: new URLPattern({ pathname: '/api/admin/blog' }), method: 'GET', handler: handleBlogList },
+  { pattern: new URLPattern({ pathname: '/api/admin/blog' }), method: 'POST', handler: handleBlogCreate },
+  { pattern: new URLPattern({ pathname: '/api/admin/blog/:id' }), method: 'GET', handler: handleBlogGet },
+  { pattern: new URLPattern({ pathname: '/api/admin/blog/:id' }), method: 'PATCH', handler: handleBlogUpdate },
+  { pattern: new URLPattern({ pathname: '/api/admin/blog/:id' }), method: 'DELETE', handler: handleBlogDelete },
+  { pattern: new URLPattern({ pathname: '/api/admin/blog/:id/restore' }), method: 'POST', handler: handleBlogRestore },
+  { pattern: new URLPattern({ pathname: '/api/admin/blog/:id/duplicate' }), method: 'POST', handler: handleBlogDuplicate },
+  { pattern: new URLPattern({ pathname: '/api/admin/blog/:id/status' }), method: 'POST', handler: handleBlogStatusTransition },
   // Added Version 2.0 Phase 2 (Products Module) — public site
   // integration. This Worker fully owns `/books/*` via a new Workers
   // Route (wrangler.jsonc) — see routes/books.ts's header comment for
@@ -278,6 +304,13 @@ const ROUTES: Route[] = [
   // action, matching this content type's simpler, single-file shape.
   { pattern: new URLPattern({ pathname: '/resources/' }), method: 'GET', handler: handleResourcesIndex },
   { pattern: new URLPattern({ pathname: '/resources/:slug/download' }), method: 'GET', handler: handleResourceDownloadRoute },
+  // Added Version 2.1 Phase 2 (Blog CMS) — public site integration,
+  // identical `/books/*`/`/resources/*` Workers Route pattern. Has a
+  // real per-post detail page (unlike Resources) — mirrors `/books/*`'s
+  // shape exactly.
+  { pattern: new URLPattern({ pathname: '/blog/' }), method: 'GET', handler: handleBlogIndex },
+  { pattern: new URLPattern({ pathname: '/blog/:slug/' }), method: 'GET', handler: handleBlogDetail },
+  { pattern: new URLPattern({ pathname: '/blog/:slug' }), method: 'GET', handler: handleBlogRedirect },
 ];
 
 export default {

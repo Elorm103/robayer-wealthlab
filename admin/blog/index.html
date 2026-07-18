@@ -5,7 +5,7 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
 
   <title>Blog | Robayer WealthLab Admin</title>
-  <meta name="description" content="Write and publish blog posts. This module arrives in a later phase.">
+  <meta name="description" content="Write and publish blog posts.">
   <link rel="canonical" href="https://robayerwealthlab.com/admin/blog/">
   <meta name="robots" content="noindex, nofollow">
 
@@ -33,15 +33,103 @@
     <div class="admin-main">
       <div class="admin-include" data-include="/partials/admin-topbar.html"></div>
 
-      <main class="admin-content" id="main-content">
-        <div class="card">
-          <div class="empty-state">
-            <svg class="icon empty-state__icon" viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="10"/><path d="M12 8v4M12 16h.01"/></svg>
-            <p class="empty-state__title">Coming soon</p>
-            <p class="empty-state__body">Write and publish blog posts. This module arrives in a later phase.</p>
+      <main class="admin-content" id="main-content" data-blog-root>
+        <p class="alert alert--error" role="alert" data-blog-load-error hidden></p>
+
+        <div class="toolbar">
+          <div class="toolbar__group">
+            <div class="search-bar">
+              <svg class="icon search-bar__icon" viewBox="0 0 24 24" aria-hidden="true"><circle cx="11" cy="11" r="7"/><path d="m21 21-4.3-4.3"/></svg>
+              <input type="search" class="field__input search-bar__input" placeholder="Search by title, slug, or tags&hellip;" aria-label="Search posts" data-blog-search>
+            </div>
+            <select class="field__select" aria-label="Filter by category" data-blog-category>
+              <option value="">All categories</option>
+            </select>
+            <select class="field__select" aria-label="Sort by" data-blog-sort>
+              <option value="newest">Newest</option>
+              <option value="oldest">Oldest</option>
+              <option value="title-az">Title A&ndash;Z</option>
+              <option value="title-za">Title Z&ndash;A</option>
+            </select>
+          </div>
+          <div class="toolbar__group">
+            <span class="text-small text-secondary" data-blog-result-count></span>
+            <a href="/admin/blog/new/" class="btn btn--primary">New post</a>
+          </div>
+        </div>
+
+        <div class="media-filters" role="group" aria-label="Status filters" data-blog-status-filters>
+          <button type="button" class="media-filter-chip" aria-pressed="true" data-blog-status-filter="">All</button>
+          <button type="button" class="media-filter-chip" aria-pressed="false" data-blog-status-filter="draft">Draft</button>
+          <button type="button" class="media-filter-chip" aria-pressed="false" data-blog-status-filter="published">Published</button>
+          <button type="button" class="media-filter-chip" aria-pressed="false" data-blog-featured-filter="">Featured</button>
+          <button type="button" class="media-filter-chip" aria-pressed="false" data-blog-deleted-filter="">Deleted</button>
+        </div>
+
+        <div class="admin-bulk-bar" data-blog-bulk-bar hidden>
+          <span data-blog-bulk-count></span>
+          <div class="admin-bulk-bar__actions">
+            <button type="button" class="btn btn--secondary" data-blog-bulk-action="publish">Publish</button>
+            <button type="button" class="btn btn--secondary" data-blog-bulk-action="unpublish">Unpublish</button>
+            <button type="button" class="btn btn--secondary" data-blog-bulk-action="restore" data-blog-bulk-restore-action hidden>Restore</button>
+            <button type="button" class="btn btn--accent" data-blog-bulk-action="delete" data-blog-bulk-delete-action>Delete</button>
+          </div>
+        </div>
+
+        <div class="empty-state" data-blog-empty hidden>
+          <svg class="icon empty-state__icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20"/><path d="M6.5 2H20v20H6.5A2.5 2.5 0 0 1 4 19.5v-15A2.5 2.5 0 0 1 6.5 2z"/></svg>
+          <p class="empty-state__title">No posts yet</p>
+          <p class="empty-state__body">Write your first article — it starts as a draft until you publish it.</p>
+        </div>
+
+        <div class="admin-table-wrap" data-blog-table-wrap hidden>
+          <table class="table" aria-label="Blog posts">
+            <thead>
+              <tr>
+                <th scope="col"><input type="checkbox" aria-label="Select all posts" data-blog-select-all></th>
+                <th scope="col">Post</th>
+                <th scope="col">Status</th>
+                <th scope="col">Category</th>
+                <th scope="col">Author</th>
+                <th scope="col">Updated</th>
+                <th scope="col"><span class="sr-only">Actions</span></th>
+              </tr>
+            </thead>
+            <tbody data-blog-table-body></tbody>
+          </table>
+        </div>
+
+        <div class="pagination" data-blog-pagination>
+          <span data-blog-pagination-label></span>
+          <div class="pagination__controls">
+            <button type="button" class="pagination__button" data-blog-pagination-prev aria-label="Previous page">
+              <svg class="icon" width="16" height="16" viewBox="0 0 24 24" aria-hidden="true"><path d="M15 18l-6-6 6-6"/></svg>
+            </button>
+            <button type="button" class="pagination__button" data-blog-pagination-next aria-label="Next page">
+              <svg class="icon" width="16" height="16" viewBox="0 0 24 24" aria-hidden="true"><path d="M9 6l6 6-6 6"/></svg>
+            </button>
           </div>
         </div>
       </main>
+    </div>
+  </div>
+
+  <!-- Delete confirmation modal -->
+  <div class="modal-overlay" data-blog-delete-modal hidden>
+    <div class="modal" role="dialog" aria-modal="true" aria-labelledby="blog-delete-title">
+      <div class="modal__header">
+        <h2 class="modal__title" id="blog-delete-title" data-blog-delete-title>Delete this post?</h2>
+        <button type="button" class="modal__close" data-modal-close aria-label="Close">
+          <svg class="icon" width="18" height="18" viewBox="0 0 24 24" aria-hidden="true"><path d="M18 6 6 18M6 6l12 12"/></svg>
+        </button>
+      </div>
+      <div class="modal__body">
+        <p>It will be hidden from the blog. It can be restored later — nothing is permanently deleted.</p>
+      </div>
+      <div class="modal__footer">
+        <button type="button" class="btn btn--secondary" data-modal-close>Cancel</button>
+        <button type="button" class="btn btn--accent" data-blog-delete-confirm>Delete</button>
+      </div>
     </div>
   </div>
 
@@ -49,5 +137,6 @@
   <script src="/js/components/theme-toggle.js"></script>
   <script src="/js/components/admin/admin-auth.js"></script>
   <script src="/js/components/admin/admin-shell.js"></script>
+  <script src="/js/components/admin/admin-blog.js"></script>
 </body>
 </html>

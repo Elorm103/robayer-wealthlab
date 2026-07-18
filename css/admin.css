@@ -531,6 +531,13 @@
   font-size: var(--text-small);
 }
 
+/* The [hidden] attribute alone loses to the display:flex rule above
+   (author class selector beats the UA [hidden] rule at equal
+   specificity) — same fix as .empty-state[hidden] below. */
+.admin-bulk-bar[hidden] {
+  display: none;
+}
+
 .admin-bulk-bar__actions {
   display: flex;
   flex-wrap: wrap;

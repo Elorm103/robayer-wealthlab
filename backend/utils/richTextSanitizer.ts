@@ -21,7 +21,22 @@
  * library.
  */
 
-const ALLOWED_TAGS = new Set(['p', 'h2', 'h3', 'strong', 'b', 'em', 'i', 'ul', 'ol', 'li', 'blockquote', 'code', 'a', 'img', 'br', 'div']);
+/**
+ * `table`/`thead`/`tbody`/`tr`/`th`/`td` added in Version 2.1 Phase 2
+ * (Blog CMS) — a real, low-risk allowlist extension (comparison
+ * tables are common, legitimate personal-finance content, not a new
+ * mechanism: the same attribute-stripping rule below already applies
+ * to them, no new attribute needs to survive on any of these tags).
+ * No admin-editor toolbar button inserts a table (contenteditable has
+ * no native `insertTable` command) — this only allows a table to
+ * survive sanitization if it's already present in stored HTML (e.g.
+ * this phase's own one-time content migration), not a promise of a
+ * full table-authoring UI.
+ */
+const ALLOWED_TAGS = new Set([
+  'p', 'h2', 'h3', 'strong', 'b', 'em', 'i', 'ul', 'ol', 'li', 'blockquote', 'code', 'a', 'img', 'br', 'div',
+  'table', 'thead', 'tbody', 'tr', 'th', 'td',
+]);
 
 function isSafeUrl(value: string | null): boolean {
   if (!value) return false;

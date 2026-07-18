@@ -647,3 +647,48 @@ CREATE INDEX idx_resources_status ON resources(status);
 CREATE INDEX idx_resources_category ON resources(category);
 CREATE INDEX idx_resources_deleted_at ON resources(deleted_at);
 CREATE INDEX idx_resources_created_at ON resources(created_at);
+
+-- ============================================================
+-- BLOG_POSTS
+-- Added in migration 0012 (Version 2.1 Phase 2, Blog CMS). Mirrors
+-- the Resources Module's D1-direct, server-rendered-public-page
+-- pattern. Two states only (draft/published) — soft delete
+-- (deleted_at) already covers "remove from public view" the same way
+-- draft does, so no third 'archived' status. Real category vocabulary
+-- ('saving', 'investing', 'budgeting') confirmed against the live
+-- static blog pages before choosing the CHECK constraint — no other
+-- value has ever been used.
+-- ============================================================
+CREATE TABLE blog_posts (
+  id                  INTEGER PRIMARY KEY AUTOINCREMENT,
+  post_id             TEXT NOT NULL UNIQUE,
+  slug                TEXT NOT NULL UNIQUE,
+  title               TEXT NOT NULL,
+  excerpt             TEXT,
+  body                TEXT,
+
+  category            TEXT NOT NULL CHECK (category IN ('saving', 'investing', 'budgeting')),
+  tags                TEXT,
+
+  status              TEXT NOT NULL DEFAULT 'draft' CHECK (status IN ('draft', 'published')),
+  featured            INTEGER NOT NULL DEFAULT 0,
+
+  cover_media_id      INTEGER REFERENCES media_assets(id),
+  author_id           INTEGER REFERENCES admin_users(id),
+
+  seo_title           TEXT,
+  seo_description     TEXT,
+  seo_canonical_url   TEXT,
+
+  published_at        TEXT,
+  created_by           INTEGER REFERENCES admin_users(id),
+  updated_by           INTEGER REFERENCES admin_users(id),
+  created_at           TEXT NOT NULL DEFAULT (datetime('now')),
+  updated_at           TEXT NOT NULL DEFAULT (datetime('now')),
+  deleted_at           TEXT
+);
+
+CREATE INDEX idx_blog_posts_status ON blog_posts(status);
+CREATE INDEX idx_blog_posts_category ON blog_posts(category);
+CREATE INDEX idx_blog_posts_deleted_at ON blog_posts(deleted_at);
+CREATE INDEX idx_blog_posts_created_at ON blog_posts(created_at);
