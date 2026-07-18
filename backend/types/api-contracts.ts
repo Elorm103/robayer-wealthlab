@@ -104,4 +104,11 @@ export type ApiErrorCode =
   | 'SELF_TARGETED'
   | 'LAST_SUPER_ADMIN'
   | 'INVALID_ROLE'
-  | 'EMAIL_TAKEN';
+  | 'EMAIL_TAKEN'
+  // /api/admin/newsletter/campaigns/* — added Version 2.1 Phase 6 (Newsletter Campaigns)
+  | 'CAMPAIGN_NOT_DRAFT'
+  | 'CAMPAIGN_ALREADY_SENDING'
+  | 'CAMPAIGN_NOT_SENDING'
+  | 'TEST_REQUIRED'
+  | 'NO_RECIPIENTS'
+  | 'RECIPIENT_CAP_EXCEEDED';

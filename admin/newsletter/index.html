@@ -5,7 +5,7 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
 
   <title>Newsletter | Robayer WealthLab Admin</title>
-  <meta name="description" content="Manage subscribers and send campaigns. This module arrives in a later phase.">
+  <meta name="description" content="Draft, test, and send newsletter campaigns.">
   <link rel="canonical" href="https://robayerwealthlab.com/admin/newsletter/">
   <meta name="robots" content="noindex, nofollow">
 
@@ -33,13 +33,41 @@
     <div class="admin-main">
       <div class="admin-include" data-include="/partials/admin-topbar.html"></div>
 
-      <main class="admin-content" id="main-content">
-        <div class="card">
-          <div class="empty-state">
-            <svg class="icon empty-state__icon" viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="10"/><path d="M12 8v4M12 16h.01"/></svg>
-            <p class="empty-state__title">Coming soon</p>
-            <p class="empty-state__body">Manage subscribers and send campaigns. This module arrives in a later phase.</p>
+      <main class="admin-content" id="main-content" data-campaigns-root>
+        <p class="alert alert--error" role="alert" data-campaigns-load-error hidden></p>
+
+        <div class="toolbar">
+          <div class="toolbar__group">
+            <span class="text-small text-secondary" data-campaigns-subscribed-count></span>
           </div>
+          <div class="toolbar__group">
+            <a href="/admin/newsletter/new/" class="btn btn--primary">New campaign</a>
+          </div>
+        </div>
+
+        <div class="empty-state" data-campaigns-empty hidden>
+          <svg class="icon empty-state__icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M4 4h16v16H4z"/><path d="m4 6 8 7 8-7"/></svg>
+          <p class="empty-state__title">No campaigns yet</p>
+          <p class="empty-state__body">Draft your first newsletter campaign — it stays a draft, and reaches no one, until you explicitly send it.</p>
+        </div>
+
+        <div class="admin-table-wrap" data-campaigns-table-wrap hidden>
+          <table class="table" aria-label="Newsletter campaigns">
+            <thead>
+              <tr>
+                <th scope="col">Subject</th>
+                <th scope="col">Status</th>
+                <th scope="col">Created by</th>
+                <th scope="col">Sent by</th>
+                <th scope="col">Created</th>
+                <th scope="col">Sent</th>
+                <th scope="col">Recipients</th>
+                <th scope="col">Delivery</th>
+                <th scope="col"><span class="sr-only">Actions</span></th>
+              </tr>
+            </thead>
+            <tbody data-campaigns-table-body></tbody>
+          </table>
         </div>
       </main>
     </div>
@@ -49,5 +77,6 @@
   <script src="/js/components/theme-toggle.js"></script>
   <script src="/js/components/admin/admin-auth.js"></script>
   <script src="/js/components/admin/admin-shell.js"></script>
+  <script src="/js/components/admin/admin-newsletter.js"></script>
 </body>
 </html>

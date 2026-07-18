@@ -1,0 +1,144 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+
+  <title>New Campaign | Robayer WealthLab Admin</title>
+  <meta name="description" content="Draft a new newsletter campaign.">
+  <link rel="canonical" href="https://robayerwealthlab.com/admin/newsletter/new/">
+  <meta name="robots" content="noindex, nofollow">
+
+  <link rel="icon" type="image/svg+xml" href="/assets/icons/favicon.svg">
+  <link rel="icon" type="image/png" sizes="32x32" href="/assets/icons/favicon-32.png">
+  <link rel="apple-touch-icon" href="/assets/icons/apple-touch-icon.png">
+
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Fraunces:ital,wght@0,500;0,600;1,500&family=Space+Grotesk:wght@500&family=Work+Sans:wght@400;500&family=IBM+Plex+Mono:wght@400;500&display=swap" rel="stylesheet">
+
+  <link rel="stylesheet" href="/css/tokens.css">
+  <link rel="stylesheet" href="/css/base.css">
+  <link rel="stylesheet" href="/css/layout.css">
+  <link rel="stylesheet" href="/css/components.css">
+  <link rel="stylesheet" href="/css/utilities.css">
+  <link rel="stylesheet" href="/css/admin.css">
+</head>
+<body>
+  <a href="#main-content" class="skip-link">Skip to main content</a>
+
+  <div class="admin-shell" data-sidebar-collapsed="false">
+    <div class="admin-include" data-include="/partials/admin-sidebar.html"></div>
+
+    <div class="admin-main">
+      <div class="admin-include" data-include="/partials/admin-topbar.html"></div>
+
+      <main class="admin-content" id="main-content" data-campaign-editor-root>
+        <p class="alert alert--error" role="alert" data-ce-load-error hidden></p>
+        <p class="alert alert--success" role="status" data-ce-success hidden></p>
+
+        <div class="mb-4">
+          <a href="/admin/newsletter/" class="btn btn--secondary">&larr; Back to campaigns</a>
+          <span class="badge" data-ce-status-badge hidden></span>
+        </div>
+
+        <section class="card mb-4" data-ce-observability hidden>
+          <h2 class="editor-section-title">Campaign details</h2>
+          <dl>
+            <div class="settings-diagnostic-row"><dt>Created by</dt><dd data-ce-created-by></dd></div>
+            <div class="settings-diagnostic-row"><dt>Created</dt><dd data-ce-created-at></dd></div>
+            <div class="settings-diagnostic-row"><dt>Sent by</dt><dd data-ce-sent-by></dd></div>
+            <div class="settings-diagnostic-row"><dt>Sent</dt><dd data-ce-sent-at></dd></div>
+            <div class="settings-diagnostic-row"><dt>Recipients</dt><dd data-ce-recipient-count></dd></div>
+          </dl>
+        </section>
+
+        <section class="card mb-4" data-ce-delivery-summary hidden>
+          <h2 class="editor-section-title">Delivery summary</h2>
+          <dl>
+            <div class="settings-diagnostic-row"><dt>Sent</dt><dd data-ce-delivery-sent></dd></div>
+            <div class="settings-diagnostic-row"><dt>Failed</dt><dd data-ce-delivery-failed></dd></div>
+            <div class="settings-diagnostic-row"><dt>Skipped</dt><dd data-ce-delivery-skipped></dd></div>
+            <div class="settings-diagnostic-row"><dt>Still pending</dt><dd data-ce-delivery-pending></dd></div>
+          </dl>
+          <button type="button" class="btn btn--primary" data-ce-resume hidden>Resume sending</button>
+        </section>
+
+        <section class="card mb-4">
+          <h2 class="editor-section-title">Content</h2>
+          <div class="field">
+            <label class="field__label" for="ce-subject">Subject</label>
+            <input class="field__input" type="text" id="ce-subject" maxlength="200" data-ce-subject>
+            <span class="field__error" data-ce-error-field="subject" hidden></span>
+          </div>
+          <div class="field">
+            <label class="field__label" id="ce-body-label">Body</label>
+            <div class="richtext-toolbar" role="toolbar" aria-label="Formatting" data-rt-toolbar>
+              <button type="button" class="richtext-toolbar__button" data-rt-cmd="bold" aria-label="Bold"><strong>B</strong></button>
+              <button type="button" class="richtext-toolbar__button" data-rt-cmd="italic" aria-label="Italic"><em>I</em></button>
+              <span class="richtext-toolbar__divider" aria-hidden="true"></span>
+              <button type="button" class="richtext-toolbar__button" data-rt-cmd="formatBlock" data-rt-value="H2" aria-label="Heading 2">H2</button>
+              <button type="button" class="richtext-toolbar__button" data-rt-cmd="formatBlock" data-rt-value="H3" aria-label="Heading 3">H3</button>
+              <button type="button" class="richtext-toolbar__button" data-rt-cmd="formatBlock" data-rt-value="P" aria-label="Paragraph">&para;</button>
+              <span class="richtext-toolbar__divider" aria-hidden="true"></span>
+              <button type="button" class="richtext-toolbar__button" data-rt-cmd="insertUnorderedList" aria-label="Bulleted list">&bull;</button>
+              <button type="button" class="richtext-toolbar__button" data-rt-cmd="insertOrderedList" aria-label="Numbered list">1.</button>
+              <button type="button" class="richtext-toolbar__button" data-rt-cmd="formatBlock" data-rt-value="BLOCKQUOTE" aria-label="Quote">&rdquo;</button>
+              <span class="richtext-toolbar__divider" aria-hidden="true"></span>
+              <button type="button" class="richtext-toolbar__button" data-rt-cmd="link" aria-label="Insert link">&#128279;</button>
+            </div>
+            <div class="richtext-editor" contenteditable="true" role="textbox" aria-multiline="true" aria-labelledby="ce-body-label" data-rt-editor></div>
+            <span class="field__error" data-ce-error-field="body" hidden></span>
+          </div>
+          <button type="button" class="btn btn--primary" data-ce-save>Save draft</button>
+          <button type="button" class="btn btn--accent" data-ce-delete hidden>Delete draft</button>
+        </section>
+
+        <section class="card mb-4" data-ce-test-section>
+          <h2 class="editor-section-title">Test email</h2>
+          <p class="text-small text-secondary mb-3">A test send is required before Send becomes available — this confirms you've actually seen the rendered content.</p>
+          <div class="field">
+            <label class="field__label" for="ce-test-emails">Test recipient(s)</label>
+            <input class="field__input" type="text" id="ce-test-emails" placeholder="you@example.com, colleague@example.com" data-ce-test-emails>
+            <span class="field__hint">Comma-separated for more than one address.</span>
+          </div>
+          <button type="button" class="btn btn--secondary" data-ce-send-test>Send test</button>
+          <p class="text-small" data-ce-test-status></p>
+        </section>
+
+        <section class="card" data-ce-send-section hidden>
+          <h2 class="editor-section-title">Send to subscribers</h2>
+          <p class="text-small text-secondary mb-3" data-ce-send-hint></p>
+          <button type="button" class="btn btn--primary" data-ce-open-send-modal disabled>Send campaign</button>
+        </section>
+      </main>
+    </div>
+  </div>
+
+  <!-- Send confirmation modal -->
+  <div class="modal-overlay" data-ce-send-modal hidden>
+    <div class="modal" role="dialog" aria-modal="true" aria-labelledby="ce-send-modal-title">
+      <div class="modal__header">
+        <h2 class="modal__title" id="ce-send-modal-title">Send this campaign?</h2>
+        <button type="button" class="modal__close" data-modal-close aria-label="Close">
+          <svg class="icon" width="18" height="18" viewBox="0 0 24 24" aria-hidden="true"><path d="M18 6 6 18M6 6l12 12"/></svg>
+        </button>
+      </div>
+      <div class="modal__body">
+        <p>This will send to <strong data-ce-modal-recipient-count>0</strong> currently subscribed recipients. This cannot be undone once started.</p>
+        <p class="text-small text-secondary" data-ce-modal-error hidden></p>
+      </div>
+      <div class="modal__footer">
+        <button type="button" class="btn btn--secondary" data-modal-close>Cancel</button>
+        <button type="button" class="btn btn--accent" data-ce-confirm-send>Send now</button>
+      </div>
+    </div>
+  </div>
+
+  <script src="/js/includes.js"></script>
+  <script src="/js/components/theme-toggle.js"></script>
+  <script src="/js/components/admin/admin-auth.js"></script>
+  <script src="/js/components/admin/admin-shell.js"></script>
+  <script src="/js/components/admin/admin-newsletter-editor.js"></script>
+</body>
+</html>

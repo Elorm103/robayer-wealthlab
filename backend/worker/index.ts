@@ -85,6 +85,17 @@ import {
   handleAcceptInvite,
 } from '../routes/admin/users';
 import { handleGetSettings, handleUpdateSettings, handleSettingsStatus } from '../routes/admin/settings';
+import {
+  handleListCampaigns,
+  handleGetCampaign,
+  handleSubscribedCount,
+  handleCreateCampaign,
+  handleUpdateCampaign,
+  handleDeleteCampaign,
+  handleTestCampaign,
+  handleSendCampaign,
+  handleResumeCampaign,
+} from '../routes/admin/newsletterCampaigns';
 import { handleAdminDashboardSummary } from '../routes/admin/dashboard';
 import { handleHealth } from '../routes/health';
 import {
@@ -171,7 +182,14 @@ export type { Env };
 
 export type RouteParams = Record<string, string | undefined>;
 
-type RouteHandler = (request: Request, env: Env, logger: Logger, params: RouteParams) => Promise<Response>;
+// `ctx` (5th param) added in Version 2.1 Phase 6 (Newsletter
+// Campaigns) — the campaign send/resume handlers need
+// `ctx.waitUntil()` to run their recipient loop past the point the
+// HTTP response is returned (see docs/v2.1-phase6-design.md's §4).
+// Every pre-existing handler, declared with 4 params, still satisfies
+// this wider type unchanged — the same "fewer params than the type
+// expects" allowance already used when `params` itself was added.
+type RouteHandler = (request: Request, env: Env, logger: Logger, params: RouteParams, ctx: ExecutionContext) => Promise<Response>;
 
 interface Route {
   pattern: URLPattern;
@@ -357,6 +375,21 @@ const ROUTES: Route[] = [
   { pattern: new URLPattern({ pathname: '/api/admin/settings' }), method: 'GET', handler: handleGetSettings },
   { pattern: new URLPattern({ pathname: '/api/admin/settings' }), method: 'PATCH', handler: handleUpdateSettings },
   { pattern: new URLPattern({ pathname: '/api/admin/settings/status' }), method: 'GET', handler: handleSettingsStatus },
+  // Added Version 2.1 Phase 6 (Newsletter Campaigns) — see
+  // docs/v2.1-phase6-design.md. `subscribed-count` is a static path
+  // and must be ordered before the `:id` wildcard patterns below, the
+  // same lesson already learned in Phase 4's invite routes. Draft/edit/
+  // delete/test are editor+super_admin; send/resume are super_admin
+  // only (enforced inside each handler, not by this table).
+  { pattern: new URLPattern({ pathname: '/api/admin/newsletter/campaigns' }), method: 'GET', handler: handleListCampaigns },
+  { pattern: new URLPattern({ pathname: '/api/admin/newsletter/campaigns' }), method: 'POST', handler: handleCreateCampaign },
+  { pattern: new URLPattern({ pathname: '/api/admin/newsletter/campaigns/subscribed-count' }), method: 'GET', handler: handleSubscribedCount },
+  { pattern: new URLPattern({ pathname: '/api/admin/newsletter/campaigns/:id' }), method: 'GET', handler: handleGetCampaign },
+  { pattern: new URLPattern({ pathname: '/api/admin/newsletter/campaigns/:id' }), method: 'PATCH', handler: handleUpdateCampaign },
+  { pattern: new URLPattern({ pathname: '/api/admin/newsletter/campaigns/:id' }), method: 'DELETE', handler: handleDeleteCampaign },
+  { pattern: new URLPattern({ pathname: '/api/admin/newsletter/campaigns/:id/test' }), method: 'POST', handler: handleTestCampaign },
+  { pattern: new URLPattern({ pathname: '/api/admin/newsletter/campaigns/:id/send' }), method: 'POST', handler: handleSendCampaign },
+  { pattern: new URLPattern({ pathname: '/api/admin/newsletter/campaigns/:id/resume' }), method: 'POST', handler: handleResumeCampaign },
   // Added Version 2.0 Phase 2 (Products Module) — public site
   // integration. This Worker fully owns `/books/*` via a new Workers
   // Route (wrangler.jsonc) — see routes/books.ts's header comment for
@@ -383,7 +416,7 @@ const ROUTES: Route[] = [
 ];
 
 export default {
-  async fetch(request: Request, env: Env): Promise<Response> {
+  async fetch(request: Request, env: Env, ctx: ExecutionContext): Promise<Response> {
     const requestId = generateRequestId();
     const url = new URL(request.url);
 
@@ -408,7 +441,7 @@ export default {
     const logger = createLogger(requestId, `${request.method} ${url.pathname}`);
 
     const response = matchedRoute
-      ? await withErrorHandling(() => matchedRoute.handler(request, env, logger, params), logger, requestId)
+      ? await withErrorHandling(() => matchedRoute.handler(request, env, logger, params, ctx), logger, requestId)
       : jsonError('NOT_FOUND', 'Not found.');
 
     return withSecurityHeaders(response, env);

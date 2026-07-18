@@ -71,6 +71,7 @@ function initAdminSettings() {
     root.querySelector('#setting-default-expires-days').value = settings.defaultDownloadExpiresDays.value ?? '';
     root.querySelector('#setting-sender-name').value = settings.emailSenderName.value;
     root.querySelector('#setting-reply-to').value = settings.emailReplyTo.value ?? '';
+    root.querySelector('#setting-campaign-cap').value = settings.campaignRecipientCap.value;
 
     els.templateToggles.innerHTML = '';
     Object.entries(settings.emailTemplateEnabled.value).forEach(([template, enabled]) => {
@@ -109,6 +110,7 @@ function initAdminSettings() {
       emailSenderName: root.querySelector('#setting-sender-name').value.trim(),
       emailReplyTo: replyToRaw === '' ? null : replyToRaw,
       emailTemplateEnabled: templateEnabled,
+      campaignRecipientCap: Number(root.querySelector('#setting-campaign-cap').value),
     };
 
     try {

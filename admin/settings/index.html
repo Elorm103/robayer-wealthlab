@@ -76,6 +76,18 @@
               <input class="field__input" type="number" min="1" max="3650" id="setting-default-expires-days" data-setting="defaultDownloadExpiresDays" placeholder="Lifetime">
             </div>
           </div>
+
+          <div class="settings-field">
+            <div>
+              <p class="settings-field__label">Newsletter campaign safety cap</p>
+              <p class="text-small text-secondary">Maximum recipients a single campaign send can attempt. This project sends campaigns synchronously (no queue infrastructure) — raising this well beyond its default is an architectural decision, not just a bigger number. See docs/v2.1-phase6-design.md.</p>
+            </div>
+            <span class="settings-source-tag" data-source="site_settings">site_settings</span>
+          </div>
+          <div class="field">
+            <label class="field__label" for="setting-campaign-cap">Max recipients per send</label>
+            <input class="field__input" type="number" min="1" max="1000" id="setting-campaign-cap" data-setting="campaignRecipientCap">
+          </div>
         </section>
 
         <section class="card mb-4">

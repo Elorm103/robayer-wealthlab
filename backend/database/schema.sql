@@ -470,6 +470,61 @@ CREATE TABLE unsubscribe_tokens (
 );
 
 -- ============================================================
+-- NEWSLETTER_CAMPAIGNS / NEWSLETTER_CAMPAIGN_RECIPIENTS
+-- Added in migration 0016 (Version 2.1 Phase 6, Newsletter Campaigns)
+-- — see docs/v2.1-phase6-design.md. `newsletter_campaign_recipients`
+-- is a durable, per-recipient roster snapshotted once at the
+-- Draft→Sending transition and never re-derived — this, plus a
+-- `ctx.waitUntil()` send loop, is what gives duplicate-send
+-- prevention and mid-send recovery without any queue/cron
+-- infrastructure (none exists in this project).
+--
+-- `test_sent_at` enforces "a test email is required before Send
+-- becomes available" server-side, not just in the UI — cleared on any
+-- subject/body edit so a stale test can never authorize sending
+-- since-changed content.
+-- ============================================================
+CREATE TABLE newsletter_campaigns (
+  id                        INTEGER PRIMARY KEY AUTOINCREMENT,
+  subject                   TEXT NOT NULL,
+  body                      TEXT NOT NULL, -- rich text, sanitizeRichTextHtml() at write time, same as blog_posts.body / products.description
+  status                    TEXT NOT NULL DEFAULT 'draft' CHECK (status IN ('draft', 'sending', 'sent', 'failed')),
+
+  intended_recipient_count  INTEGER, -- snapshotted at Draft→Sending; NULL while still Draft
+  test_sent_at              TEXT, -- set on a successful test send; cleared on any subject/body edit
+
+  created_by                INTEGER NOT NULL REFERENCES admin_users(id),
+  created_at                TEXT NOT NULL DEFAULT (datetime('now')),
+  updated_at                TEXT NOT NULL DEFAULT (datetime('now')),
+
+  sent_by                   INTEGER REFERENCES admin_users(id), -- the admin who triggered the send, not necessarily who drafted it
+  sending_started_at        TEXT,
+  sent_at                   TEXT, -- set once every recipient row reaches a terminal state
+
+  deleted_at                TEXT -- soft delete, matching every other CMS module's convention
+);
+
+CREATE INDEX idx_newsletter_campaigns_status ON newsletter_campaigns(status);
+
+-- Roster is frozen the moment a campaign leaves Draft, per the user's
+-- explicit "immutable roster once sending begins" recommendation — a
+-- subscriber who joins afterward is never added to an in-progress or
+-- completed campaign; one who unsubscribes mid-send is still
+-- attempted (best-effort, matching the count shown before confirmation).
+CREATE TABLE newsletter_campaign_recipients (
+  id             INTEGER PRIMARY KEY AUTOINCREMENT,
+  campaign_id    INTEGER NOT NULL REFERENCES newsletter_campaigns(id),
+  subscriber_id  INTEGER NOT NULL REFERENCES newsletter_subscribers(id),
+  status         TEXT NOT NULL DEFAULT 'pending' CHECK (status IN ('pending', 'sending', 'sent', 'failed', 'skipped')),
+  email_log_id   INTEGER REFERENCES email_log(id), -- set once a real send attempt is recorded; the audit-grade detail lives there
+  attempted_at   TEXT,
+
+  UNIQUE(campaign_id, subscriber_id) -- database-enforced duplicate-send guarantee, not merely an application-level check
+);
+
+CREATE INDEX idx_campaign_recipients_campaign_status ON newsletter_campaign_recipients(campaign_id, status);
+
+-- ============================================================
 -- MEDIA_ASSETS
 -- Added in migration 0007 (Version 2.0 Phase 1, Media Library) — see
 -- docs/v2-media-library-spec.md. The Media Library's own index over R2

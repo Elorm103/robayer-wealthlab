@@ -29,6 +29,7 @@ import purchaseReceiptTemplate from '../emails/templates/purchase-receipt.html';
 import secureDownloadTemplate from '../emails/templates/secure-download.html';
 import passwordResetTemplate from '../emails/templates/password-reset.html';
 import adminInviteTemplate from '../emails/templates/admin-invite.html';
+import newsletterCampaignTemplate from '../emails/templates/newsletter-campaign.html';
 import type { Env } from '../worker/env';
 import type { Logger } from '../utils/logger';
 import { getEmailSendSettings } from './admin/settingsService';
@@ -41,7 +42,8 @@ export type EmailTemplateName =
   | 'purchase-receipt'
   | 'secure-download'
   | 'password-reset'
-  | 'admin-invite';
+  | 'admin-invite'
+  | 'newsletter-campaign';
 
 const TEMPLATES: Record<EmailTemplateName, string> = {
   'newsletter-welcome': newsletterWelcomeTemplate,
@@ -52,6 +54,7 @@ const TEMPLATES: Record<EmailTemplateName, string> = {
   'secure-download': secureDownloadTemplate,
   'password-reset': passwordResetTemplate,
   'admin-invite': adminInviteTemplate,
+  'newsletter-campaign': newsletterCampaignTemplate,
 };
 
 export interface SendEmailOptions {
@@ -74,12 +77,44 @@ export interface SendEmailOptions {
    * aren't a recurring list a person "unsubscribes" from.
    */
   listUnsubscribeUrl?: string;
+  /**
+   * Version 2.1 Phase 6 (Newsletter Campaigns) — the campaign body is
+   * admin-authored rich HTML, already passed through
+   * `sanitizeRichTextHtml()` before it ever reaches this function, and
+   * must be inserted as HTML, not escaped into visible tag text like
+   * every other (plain-string) placeholder. Set only by the campaign
+   * send path; every other template ignores this entirely.
+   */
+  rawBody?: string;
+  /**
+   * Version 2.1 Phase 6 — a campaign's Subject: header is
+   * admin-authored, per-campaign text. The normal `{{SUBJECT}}` meta
+   * mechanism always HTML-escapes its value (correct for text
+   * rendered inside the HTML body, wrong for an RFC822 header, which
+   * is plain text) — so the campaign path supplies the real subject
+   * here instead, bypassing that escaping entirely. Ignored by every
+   * other template, which keeps using its own bundled SUBJECT comment.
+   */
+  subjectOverride?: string;
 }
 
 export interface SendEmailResult {
   sent: boolean;
   permanentFailure: boolean;
   errorMessage?: string;
+  /**
+   * Version 2.1 Phase 6 (Newsletter Campaigns) — the exact status this
+   * attempt was recorded under in `email_log`, and that row's id (or
+   * `null` if the log write itself failed, which never blocks the
+   * caller — see `recordEmailLog`'s own comment). `campaignService.ts`
+   * needs both: the id to link `newsletter_campaign_recipients.email_log_id`,
+   * and the precise status to distinguish a real send failure from the
+   * per-template kill switch skipping the attempt entirely — `sent`/
+   * `permanentFailure` alone can't tell those two apart. Every
+   * pre-Phase-6 caller ignores these two fields, unaffected.
+   */
+  status: 'sent' | 'failed' | 'permanently_failed' | 'skipped';
+  emailLogId: number | null;
 }
 
 function escapeHtml(value: string): string {
@@ -115,13 +150,25 @@ function bodyWithoutMeta(template: string): string {
     .trim();
 }
 
-function renderTemplate(templateName: EmailTemplateName, data: Record<string, string>): { subject: string; html: string } {
+function renderTemplate(
+  templateName: EmailTemplateName,
+  data: Record<string, string>,
+  rawBody?: string,
+  subjectOverride?: string
+): { subject: string; html: string } {
   const raw = TEMPLATES[templateName];
 
-  const subject = substitute(extractMeta(raw, 'SUBJECT'), data);
+  const subject = subjectOverride ?? substitute(extractMeta(raw, 'SUBJECT'), data);
   const preheader = substitute(extractMeta(raw, 'PREHEADER'), data);
   const footerExtra = substitute(extractFooterExtra(raw), data);
-  const bodyContent = substitute(bodyWithoutMeta(raw), data);
+  // `%%BODY_CONTENT_RAW%%` — deliberately not `{{...}}` syntax, since
+  // `substitute()`'s regex below would otherwise match and consume
+  // the inner `{{BODY_CONTENT_RAW}}` of a naively-chosen
+  // `{{{BODY_CONTENT_RAW}}}` token first (found during implementation,
+  // before it could ship as a real bug), escaping/blanking it before
+  // this raw substitution ever ran. This token is inserted verbatim,
+  // never HTML-escaped — see SendEmailOptions.rawBody's comment for why.
+  const bodyContent = substitute(bodyWithoutMeta(raw), data).replace(/%%BODY_CONTENT_RAW%%/g, rawBody ?? '');
 
   const html = baseLayout
     .replace(/\{\{SUBJECT\}\}/g, subject)
@@ -207,9 +254,9 @@ async function recordEmailLog(
   logger: Logger,
   options: SendEmailOptions,
   details: EmailLogDetails
-): Promise<void> {
+): Promise<number | null> {
   try {
-    await env.DB.prepare(
+    const result = await env.DB.prepare(
       `INSERT INTO email_log (template, recipient, entity_type, entity_id, status, attempt_count, last_error, provider_id, sent_at)
        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`
     )
@@ -225,6 +272,7 @@ async function recordEmailLog(
         details.status === 'sent' ? new Date().toISOString() : null
       )
       .run();
+    return Number(result.meta.last_row_id);
   } catch (err) {
     // A failure to log a failure must never throw back into the caller —
     // the business action (newsletter/contact/consultation) has already
@@ -232,6 +280,7 @@ async function recordEmailLog(
     logger.error('Failed to write email_log row', {
       error: err instanceof Error ? err.message : String(err),
     });
+    return null;
   }
 }
 
@@ -251,11 +300,11 @@ export async function sendEmail(
   const sendSettings = await getEmailSendSettings(env);
   if (sendSettings.templateEnabled[options.template] === false) {
     logger.info('Email skipped (template disabled)', { template: options.template, to: options.to });
-    await recordEmailLog(env, logger, options, { status: 'skipped', attemptCount: 0 });
-    return { sent: false, permanentFailure: false };
+    const emailLogId = await recordEmailLog(env, logger, options, { status: 'skipped', attemptCount: 0 });
+    return { sent: false, permanentFailure: false, status: 'skipped', emailLogId };
   }
 
-  const { subject, html } = renderTemplate(options.template, options.data);
+  const { subject, html } = renderTemplate(options.template, options.data, options.rawBody, options.subjectOverride);
 
   let attempt = 0;
   let lastStatus = 0;
@@ -269,8 +318,8 @@ export async function sendEmail(
       if (result.ok) {
         const providerId = parseProviderId(result.body);
         logger.info('Email sent', { template: options.template, to: options.to, attempt });
-        await recordEmailLog(env, logger, options, { status: 'sent', attemptCount: attempt, providerId });
-        return { sent: true, permanentFailure: false };
+        const emailLogId = await recordEmailLog(env, logger, options, { status: 'sent', attemptCount: attempt, providerId });
+        return { sent: true, permanentFailure: false, status: 'sent', emailLogId };
       }
 
       lastStatus = result.status;
@@ -296,12 +345,13 @@ export async function sendEmail(
   });
 
   const permanentFailure = lastStatus >= 400 && lastStatus < 500 && lastStatus !== 429;
+  const failureStatus = permanentFailure ? 'permanently_failed' : 'failed';
 
-  await recordEmailLog(env, logger, options, {
-    status: permanentFailure ? 'permanently_failed' : 'failed',
+  const emailLogId = await recordEmailLog(env, logger, options, {
+    status: failureStatus,
     attemptCount: attempt,
     lastError,
   });
 
-  return { sent: false, permanentFailure, errorMessage: lastError };
+  return { sent: false, permanentFailure, errorMessage: lastError, status: failureStatus, emailLogId };
 }

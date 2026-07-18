@@ -72,6 +72,13 @@ const DEFAULTS = {
   email_sender_name: 'Robayer WealthLab',
   email_reply_to: null as string | null,
   email_template_enabled: Object.fromEntries(EMAIL_TEMPLATE_NAMES.map((t) => [t, true])) as Record<EmailTemplateName, boolean>,
+  // Version 2.1 Phase 6 (Newsletter Campaigns) — the architectural
+  // boundary of "synchronous Workers execution, no queue" is fixed;
+  // only the exact number is configurable, per explicit request, so
+  // it can be tuned without a code deploy as real subscriber counts
+  // change. Not a promise that raising this indefinitely stays safe —
+  // see docs/v2.1-phase6-design.md's §4.
+  campaign_recipient_cap: 300 as number,
 };
 
 type SettingsKey = keyof typeof DEFAULTS;
@@ -109,6 +116,7 @@ export interface EditableSettingsView {
   emailSenderName: SettingsField<string>;
   emailReplyTo: SettingsField<string | null>;
   emailTemplateEnabled: SettingsField<Record<string, boolean>>;
+  campaignRecipientCap: SettingsField<number>;
   settingsSchemaVersion: SettingsField<{ stored: number; expected: number; matches: boolean }>;
 }
 
@@ -125,12 +133,19 @@ export async function getEditableSettings(env: Env): Promise<EditableSettingsVie
     emailSenderName: field(resolve(raw, 'email_sender_name'), 'site_settings', true),
     emailReplyTo: field(resolve(raw, 'email_reply_to'), 'site_settings', true),
     emailTemplateEnabled: field(resolve(raw, 'email_template_enabled'), 'site_settings', true),
+    campaignRecipientCap: field(resolve(raw, 'campaign_recipient_cap'), 'site_settings', true),
     settingsSchemaVersion: field(
       { stored: storedVersion, expected: EXPECTED_SETTINGS_SCHEMA_VERSION, matches: storedVersion === EXPECTED_SETTINGS_SCHEMA_VERSION },
       'site_settings',
       false
     ),
   };
+}
+
+/** Resolves just the configured campaign recipient safety cap — `campaignService.ts` needs this at send time. */
+export async function getCampaignRecipientCap(env: Env): Promise<number> {
+  const raw = await readRawSettings(env);
+  return resolve(raw, 'campaign_recipient_cap');
 }
 
 /**
@@ -224,6 +239,16 @@ function validateReplyTo(value: unknown, errors: SettingsValidationError[]): str
   return value;
 }
 
+const MAX_CAMPAIGN_RECIPIENT_CAP = 1000; // above this, the architectural note in docs/v2.1-phase6-design.md's §4 applies — a queue, not a bigger number here, is the correct next step
+
+function validateCampaignRecipientCap(value: unknown, errors: SettingsValidationError[]): number | undefined {
+  if (typeof value !== 'number' || !Number.isInteger(value) || value < 1 || value > MAX_CAMPAIGN_RECIPIENT_CAP) {
+    errors.push({ field: 'campaignRecipientCap', message: `campaignRecipientCap must be a whole number between 1 and ${MAX_CAMPAIGN_RECIPIENT_CAP}.` });
+    return undefined;
+  }
+  return value;
+}
+
 function validateTemplateEnabled(value: unknown, errors: SettingsValidationError[]): Record<string, boolean> | undefined {
   if (typeof value !== 'object' || value === null) {
     errors.push({ field: 'emailTemplateEnabled', message: 'emailTemplateEnabled must be an object.' });
@@ -264,6 +289,7 @@ const PATCH_KEY_MAP: Record<string, SettingsKey> = {
   emailSenderName: 'email_sender_name',
   emailReplyTo: 'email_reply_to',
   emailTemplateEnabled: 'email_template_enabled',
+  campaignRecipientCap: 'campaign_recipient_cap',
 };
 
 export async function updateSettings(env: Env, logger: Logger, actorId: number, patch: Record<string, unknown>, context: ActionContext): Promise<UpdateSettingsResult> {
@@ -293,6 +319,9 @@ export async function updateSettings(env: Env, logger: Logger, actorId: number, 
         break;
       case 'email_template_enabled':
         value = validateTemplateEnabled(rawValue, errors);
+        break;
+      case 'campaign_recipient_cap':
+        value = validateCampaignRecipientCap(rawValue, errors);
         break;
     }
 
