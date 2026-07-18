@@ -23,6 +23,22 @@ marking the site as production-ready.
   structured-data association between the site and its social
   profiles.
 
+## [Unreleased] — Version 2.1 Phase 5 — Settings — 2026-07-18
+
+Fifth stage of Version 2.1 (Content & Administration Platform, see `docs/v2.1-architecture-plan.md`). Not yet tagged. Design reviewed and approved before implementation — see `docs/v2.1-phase5-design.md`.
+
+**Added**
+- Migration `0015_site_settings.sql` — new `site_settings` key-value table for runtime operational configuration; widened `email_log.status`'s CHECK constraint to add `'skipped'` (recreate-copy-swap, all pre-existing rows preserved).
+- `services/admin/settingsService.ts` — six editable settings (maintenance mode, download defaults, email sender/reply-to, per-template send toggles), each tagged with its authoritative configuration source (`site_settings`, a `wrangler.jsonc` var, a Cloudflare Secret, or a derived value) — a field is only ever `editable` when `site_settings` genuinely owns it. Read-only diagnostics for payments, email delivery, and system/deployment info, computed live from existing tables — nothing duplicated.
+- `middleware/maintenanceMode.ts` — a Super Admin-controlled maintenance switch gating exactly `/api/*`, `/books/*`, `/resources/*`, `/blog/*` (the only paths this Worker serves — the rest of the site is static GitHub Pages, outside this Worker's reach). `/api/admin/*` and `/api/webhooks/*` stay reachable so an admin can always turn it back off and a Paystack webhook mid-window is never dropped.
+- Per-template email kill switch, implemented once in the shared `sendEmail()` — a disabled template's send is recorded as `email_log.status = 'skipped'`, a genuine third state distinct from `sent`/`failed`.
+- Download defaults apply only at product-creation time for a genuinely blank field — never retroactively, and never to a duplicated product (which always carries its source's real values verbatim).
+- `routes/admin/settings.ts` — `super_admin`-only for reads and writes alike, matching Phase 4's Users-module posture.
+- `/admin/settings/` — Platform, Email, Payments, and System Information cards, with every field's configuration source visibly badged and a settings-schema-version-mismatch banner.
+
+**Verified**
+- Full local adversarial pass (maintenance-mode gating and all exemptions against the real Worker, per-template skip vs. real-send-attempt, download-defaults-new-product-only including the duplicate-carries-source-verbatim case, an 8-case validation-rejection battery, `support`-role `FORBIDDEN`, CSRF rejection, schema-version-mismatch detection) and a real production verification (a real audited settings change with the real `CF-Connecting-IP` captured, `editor`-role `FORBIDDEN`, `deployedCommit`/`deployedAt` correctly reflecting the real deploy — the real production admin account was never touched, confirmed unchanged after cleanup). Maintenance mode was deliberately not flipped on in production during verification, given the real-user-facing risk of a live 503; the exact same code was already verified against the real Worker runtime locally. See `docs/v2.1-phase5-implementation.md`.
+
 ## [Unreleased] — Version 2.1 Phase 4 — User Management — 2026-07-18
 
 Fourth stage of Version 2.1 (Content & Administration Platform, see `docs/v2.1-architecture-plan.md`). Not yet tagged. Design reviewed and approved before implementation — see `docs/v2.1-phase4-design.md`.
