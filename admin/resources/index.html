@@ -5,7 +5,7 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
 
   <title>Resources | Robayer WealthLab Admin</title>
-  <meta name="description" content="Manage the free resources visitors can download. This module arrives in a later phase.">
+  <meta name="description" content="Manage the free resource library.">
   <link rel="canonical" href="https://robayerwealthlab.com/admin/resources/">
   <meta name="robots" content="noindex, nofollow">
 
@@ -33,15 +33,110 @@
     <div class="admin-main">
       <div class="admin-include" data-include="/partials/admin-topbar.html"></div>
 
-      <main class="admin-content" id="main-content">
-        <div class="card">
-          <div class="empty-state">
-            <svg class="icon empty-state__icon" viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="10"/><path d="M12 8v4M12 16h.01"/></svg>
-            <p class="empty-state__title">Coming soon</p>
-            <p class="empty-state__body">Manage the free resources visitors can download. This module arrives in a later phase.</p>
+      <main class="admin-content" id="main-content" data-resources-root>
+        <p class="alert alert--error" role="alert" data-resources-load-error hidden></p>
+
+        <div class="toolbar">
+          <div class="toolbar__group">
+            <div class="search-bar">
+              <svg class="icon search-bar__icon" viewBox="0 0 24 24" aria-hidden="true"><circle cx="11" cy="11" r="7"/><path d="m21 21-4.3-4.3"/></svg>
+              <input type="search" class="field__input search-bar__input" placeholder="Search by title, slug, or tags&hellip;" aria-label="Search resources" data-resources-search>
+            </div>
+            <select class="field__select" aria-label="Filter by category" data-resources-category>
+              <option value="">All categories</option>
+            </select>
+            <select class="field__select" aria-label="Filter by format" data-resources-format>
+              <option value="">All formats</option>
+            </select>
+            <select class="field__select" aria-label="Sort by" data-resources-sort>
+              <option value="newest">Newest</option>
+              <option value="oldest">Oldest</option>
+              <option value="title-az">Title A&ndash;Z</option>
+              <option value="title-za">Title Z&ndash;A</option>
+            </select>
+          </div>
+          <div class="toolbar__group">
+            <span class="text-small text-secondary" data-resources-result-count></span>
+            <a href="/admin/resources/new/" class="btn btn--primary">New resource</a>
+          </div>
+        </div>
+
+        <div class="media-filters" role="group" aria-label="Status filters" data-resources-status-filters>
+          <button type="button" class="media-filter-chip" aria-pressed="true" data-resources-status-filter="">All</button>
+          <button type="button" class="media-filter-chip" aria-pressed="false" data-resources-status-filter="draft">Draft</button>
+          <button type="button" class="media-filter-chip" aria-pressed="false" data-resources-status-filter="published">Published</button>
+          <button type="button" class="media-filter-chip" aria-pressed="false" data-resources-status-filter="archived">Archived</button>
+          <button type="button" class="media-filter-chip" aria-pressed="false" data-resources-featured-filter="">Featured</button>
+          <button type="button" class="media-filter-chip" aria-pressed="false" data-resources-deleted-filter="">Deleted</button>
+        </div>
+
+        <div class="admin-bulk-bar" data-resources-bulk-bar hidden>
+          <span data-resources-bulk-count></span>
+          <div class="admin-bulk-bar__actions">
+            <button type="button" class="btn btn--secondary" data-resources-bulk-action="publish">Publish</button>
+            <button type="button" class="btn btn--secondary" data-resources-bulk-action="unpublish">Unpublish</button>
+            <button type="button" class="btn btn--secondary" data-resources-bulk-action="archive">Archive</button>
+            <button type="button" class="btn btn--secondary" data-resources-bulk-action="unarchive" data-resources-bulk-restore-status hidden>Unarchive</button>
+            <button type="button" class="btn btn--secondary" data-resources-bulk-action="restore" data-resources-bulk-restore-action hidden>Restore</button>
+            <button type="button" class="btn btn--accent" data-resources-bulk-action="delete" data-resources-bulk-delete-action>Delete</button>
+          </div>
+        </div>
+
+        <div class="empty-state" data-resources-empty hidden>
+          <svg class="icon empty-state__icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><path d="M14 2v6h6"/></svg>
+          <p class="empty-state__title">No resources yet</p>
+          <p class="empty-state__body">Create your first free resource — templates, checklists, worksheets, and trackers all live here.</p>
+        </div>
+
+        <div class="admin-table-wrap" data-resources-table-wrap hidden>
+          <table class="table" aria-label="Resources">
+            <thead>
+              <tr>
+                <th scope="col"><input type="checkbox" aria-label="Select all resources" data-resources-select-all></th>
+                <th scope="col">Resource</th>
+                <th scope="col">Status</th>
+                <th scope="col">Category</th>
+                <th scope="col">Format</th>
+                <th scope="col" class="numeric">Downloads</th>
+                <th scope="col">Updated</th>
+                <th scope="col"><span class="sr-only">Actions</span></th>
+              </tr>
+            </thead>
+            <tbody data-resources-table-body></tbody>
+          </table>
+        </div>
+
+        <div class="pagination" data-resources-pagination>
+          <span data-resources-pagination-label></span>
+          <div class="pagination__controls">
+            <button type="button" class="pagination__button" data-resources-pagination-prev aria-label="Previous page">
+              <svg class="icon" width="16" height="16" viewBox="0 0 24 24" aria-hidden="true"><path d="M15 18l-6-6 6-6"/></svg>
+            </button>
+            <button type="button" class="pagination__button" data-resources-pagination-next aria-label="Next page">
+              <svg class="icon" width="16" height="16" viewBox="0 0 24 24" aria-hidden="true"><path d="M9 6l6 6-6 6"/></svg>
+            </button>
           </div>
         </div>
       </main>
+    </div>
+  </div>
+
+  <!-- Delete confirmation modal -->
+  <div class="modal-overlay" data-resources-delete-modal hidden>
+    <div class="modal" role="dialog" aria-modal="true" aria-labelledby="resources-delete-title">
+      <div class="modal__header">
+        <h2 class="modal__title" id="resources-delete-title" data-resources-delete-title>Delete this resource?</h2>
+        <button type="button" class="modal__close" data-modal-close aria-label="Close">
+          <svg class="icon" width="18" height="18" viewBox="0 0 24 24" aria-hidden="true"><path d="M18 6 6 18M6 6l12 12"/></svg>
+        </button>
+      </div>
+      <div class="modal__body">
+        <p>It will be hidden from the resource library. It can be restored later — nothing is permanently deleted.</p>
+      </div>
+      <div class="modal__footer">
+        <button type="button" class="btn btn--secondary" data-modal-close>Cancel</button>
+        <button type="button" class="btn btn--accent" data-resources-delete-confirm>Delete</button>
+      </div>
     </div>
   </div>
 
@@ -49,5 +144,6 @@
   <script src="/js/components/theme-toggle.js"></script>
   <script src="/js/components/admin/admin-auth.js"></script>
   <script src="/js/components/admin/admin-shell.js"></script>
+  <script src="/js/components/admin/admin-resources.js"></script>
 </body>
 </html>

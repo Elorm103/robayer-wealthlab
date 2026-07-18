@@ -594,3 +594,56 @@ CREATE TABLE contact_notes (
 );
 
 CREATE INDEX idx_contact_notes_message ON contact_notes(contact_message_id);
+
+-- ============================================================
+-- RESOURCES
+-- Added in migration 0011 (Version 2.1 Phase 1, Resources CMS).
+-- Mirrors the Products Module's proven "D1 is the sole source of
+-- truth, server-rendered public page" pattern (routes/resources.ts),
+-- replacing the hand-authored .resource-card markup in
+-- resources/index.html (whose "Download" buttons were placeholder
+-- stubs — no resource has ever been really downloadable through that
+-- page). Deliberately simpler than products: no pricing, no
+-- files/gallery/relations join tables — every resource is free and
+-- has at most one file and one cover image, matching this content
+-- type's real, established shape (never a multi-file digital product,
+-- never a gallery), so the join-table generality Products needed
+-- would be premature complexity here.
+-- ============================================================
+CREATE TABLE resources (
+  id                  INTEGER PRIMARY KEY AUTOINCREMENT,
+  resource_id         TEXT NOT NULL UNIQUE,
+  slug                TEXT NOT NULL UNIQUE,
+  title               TEXT NOT NULL,
+  short_description   TEXT,
+  description         TEXT,
+
+  category            TEXT NOT NULL CHECK (category IN ('budgeting', 'saving', 'debt', 'investing', 'planning')),
+  format               TEXT NOT NULL CHECK (format IN ('template', 'checklist', 'tracker', 'worksheet', 'guide')),
+
+  status              TEXT NOT NULL DEFAULT 'draft' CHECK (status IN ('draft', 'published', 'archived')),
+  tags                TEXT,
+
+  file_media_id       INTEGER REFERENCES media_assets(id),
+  cover_media_id      INTEGER REFERENCES media_assets(id),
+  thumbnail_media_id  INTEGER REFERENCES media_assets(id),
+
+  seo_title           TEXT,
+  seo_description     TEXT,
+  seo_canonical_url   TEXT,
+
+  featured            INTEGER NOT NULL DEFAULT 0,
+  download_count      INTEGER NOT NULL DEFAULT 0,
+
+  published_at        TEXT,
+  created_by           INTEGER REFERENCES admin_users(id),
+  updated_by           INTEGER REFERENCES admin_users(id),
+  created_at           TEXT NOT NULL DEFAULT (datetime('now')),
+  updated_at           TEXT NOT NULL DEFAULT (datetime('now')),
+  deleted_at           TEXT
+);
+
+CREATE INDEX idx_resources_status ON resources(status);
+CREATE INDEX idx_resources_category ON resources(category);
+CREATE INDEX idx_resources_deleted_at ON resources(deleted_at);
+CREATE INDEX idx_resources_created_at ON resources(created_at);

@@ -111,6 +111,19 @@ import {
   handleAnalyticsTimeseries,
   handleAnalyticsTopProducts,
 } from '../routes/admin/analytics';
+import {
+  handleResourcesMeta,
+  handleResourcesList,
+  handleResourceGet,
+  handleResourceCreate,
+  handleResourceUpdate,
+  handleResourceStatusTransition,
+  handleResourceDuplicate,
+  handleResourceDelete,
+  handleResourceRestore,
+  handleResourcesBulkAction,
+} from '../routes/admin/resources';
+import { handleResourcesIndex, handleResourceDownloadRoute } from '../routes/resources';
 
 export type { Env };
 
@@ -234,6 +247,21 @@ const ROUTES: Route[] = [
   { pattern: new URLPattern({ pathname: '/api/admin/analytics/summary' }), method: 'GET', handler: handleAnalyticsSummary },
   { pattern: new URLPattern({ pathname: '/api/admin/analytics/timeseries' }), method: 'GET', handler: handleAnalyticsTimeseries },
   { pattern: new URLPattern({ pathname: '/api/admin/analytics/top-products' }), method: 'GET', handler: handleAnalyticsTopProducts },
+  // Added Version 2.1 Phase 1 (Resources CMS) — see
+  // docs/v2.1-architecture-plan.md Section 3. Mirrors Products' exact
+  // admin route shape (editor/super_admin writes, every role reads);
+  // `/meta` and `/bulk` ordered before `/:id`, same discipline as
+  // Products/Orders/Consultations above.
+  { pattern: new URLPattern({ pathname: '/api/admin/resources/meta' }), method: 'GET', handler: handleResourcesMeta },
+  { pattern: new URLPattern({ pathname: '/api/admin/resources/bulk' }), method: 'POST', handler: handleResourcesBulkAction },
+  { pattern: new URLPattern({ pathname: '/api/admin/resources' }), method: 'GET', handler: handleResourcesList },
+  { pattern: new URLPattern({ pathname: '/api/admin/resources' }), method: 'POST', handler: handleResourceCreate },
+  { pattern: new URLPattern({ pathname: '/api/admin/resources/:id' }), method: 'GET', handler: handleResourceGet },
+  { pattern: new URLPattern({ pathname: '/api/admin/resources/:id' }), method: 'PATCH', handler: handleResourceUpdate },
+  { pattern: new URLPattern({ pathname: '/api/admin/resources/:id' }), method: 'DELETE', handler: handleResourceDelete },
+  { pattern: new URLPattern({ pathname: '/api/admin/resources/:id/restore' }), method: 'POST', handler: handleResourceRestore },
+  { pattern: new URLPattern({ pathname: '/api/admin/resources/:id/duplicate' }), method: 'POST', handler: handleResourceDuplicate },
+  { pattern: new URLPattern({ pathname: '/api/admin/resources/:id/status' }), method: 'POST', handler: handleResourceStatusTransition },
   // Added Version 2.0 Phase 2 (Products Module) — public site
   // integration. This Worker fully owns `/books/*` via a new Workers
   // Route (wrangler.jsonc) — see routes/books.ts's header comment for
@@ -243,6 +271,13 @@ const ROUTES: Route[] = [
   { pattern: new URLPattern({ pathname: '/books/' }), method: 'GET', handler: handleBooksIndex },
   { pattern: new URLPattern({ pathname: '/books/:slug/' }), method: 'GET', handler: handleBookDetail },
   { pattern: new URLPattern({ pathname: '/books/:slug' }), method: 'GET', handler: handleBookRedirect },
+  // Added Version 2.1 Phase 1 (Resources CMS) — public site
+  // integration, identical `/books/*` Workers Route pattern. `/download`
+  // ordered before the (nonexistent) detail pattern since Resources has
+  // no per-resource detail page — only the index and a real download
+  // action, matching this content type's simpler, single-file shape.
+  { pattern: new URLPattern({ pathname: '/resources/' }), method: 'GET', handler: handleResourcesIndex },
+  { pattern: new URLPattern({ pathname: '/resources/:slug/download' }), method: 'GET', handler: handleResourceDownloadRoute },
 ];
 
 export default {

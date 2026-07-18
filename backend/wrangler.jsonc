@@ -45,7 +45,8 @@
   // GitHub Pages exactly as before.
   "routes": [
     { "pattern": "robayerwealthlab.com/api/*", "zone_name": "robayerwealthlab.com" },
-    { "pattern": "robayerwealthlab.com/books/*", "zone_name": "robayerwealthlab.com" }
+    { "pattern": "robayerwealthlab.com/books/*", "zone_name": "robayerwealthlab.com" },
+    { "pattern": "robayerwealthlab.com/resources/*", "zone_name": "robayerwealthlab.com" }
   ],
   "workers_dev": true,
   // No compatibility_flags: this Worker has zero runtime npm dependencies
