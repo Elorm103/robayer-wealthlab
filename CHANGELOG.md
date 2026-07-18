@@ -23,6 +23,24 @@ marking the site as production-ready.
   structured-data association between the site and its social
   profiles.
 
+## [Unreleased] — Version 2.1 Phase 3 — Identity & Security — 2026-07-18
+
+Third stage of Version 2.1 (Content & Administration Platform, see `docs/v2.1-architecture-plan.md`). Not yet tagged.
+
+**Added**
+- Migration `0013_identity_security.sql` — `admin_users` gains `must_change_password`/`failed_login_attempts`/`locked_until`/`password_updated_at`; new `password_reset_tokens` (single-use, 30-minute TTL) and `login_history` (dedicated, alongside the existing `audit_logs` events) tables.
+- Change password (`services/admin/authService.ts`'s `changePassword()`) — requires current-password re-entry, shared `passwordPolicy.ts` strength validation, revokes every other active session on success.
+- Forgot/reset password — same no-user-enumeration discipline the login endpoint already established; reset-password forces logout of every session on the account, per explicit requirement. New `password-reset.html` email template.
+- Account lockout — 5 consecutive failed logins locks the account for 15 minutes (time-boxed, not permanent), timing-indistinguishable from an ordinary wrong-password attempt. `login_history` distinguishes `failed_locked` from `failed_password`.
+- Forced password-change gate — `must_change_password` is enforced centrally in `requireAuth()` (every `/api/admin/*` route rejected except session-check/change-password/logout), not by any individual route.
+- `/admin/account/` — new Account & Security page: profile summary, change password, active sessions (view/revoke, IDOR-checked), login history. `/admin/forgot-password/`, `/admin/reset-password/` — standalone pages matching `admin/login/`'s pattern. "My Account" added to the admin topbar user menu.
+
+**Fixed — real defect found during local verification**
+- `admin_sessions.last_seen_at` is written in two different timestamp formats depending on the code path (SQL `datetime('now')` at creation vs. `Date.toISOString()` on every subsequent validated request) — the Account page's date formatter assumed only the first, producing "Invalid Date" for the current session's own row. Fixed by normalizing both formats before parsing.
+
+**Verified**
+- Full local adversarial pass (lockout threshold/timing, reset-token single-use, IDOR on session revocation, CSRF, SQL injection, the must-change-password gate blocking an unrelated module route) and a real production verification (login, change-password, forgot/reset-password including a real Resend send, all against disposable data — the real production admin account was never touched, confirmed unchanged after cleanup). See `docs/v2.1-phase3-implementation.md`.
+
 ## [Unreleased] — Version 2.1 Phase 2 — Blog CMS — 2026-07-18
 
 Second stage of Version 2.1 (Content & Administration Platform, see `docs/v2.1-architecture-plan.md`). Not yet tagged.
