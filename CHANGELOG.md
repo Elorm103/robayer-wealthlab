@@ -23,6 +23,22 @@ marking the site as production-ready.
   structured-data association between the site and its social
   profiles.
 
+## [Unreleased] — Version 2.1 Phase 4 — User Management — 2026-07-18
+
+Fourth stage of Version 2.1 (Content & Administration Platform, see `docs/v2.1-architecture-plan.md`). Not yet tagged. Design reviewed and approved before implementation — see `docs/v2.1-phase4-design.md`.
+
+**Added**
+- Migration `0014_user_management.sql` — `admin_users.created_by`; new `admin_invites` table (single-use, 7-day-expiry emailed invitations — the same proven shape as `password_reset_tokens`).
+- `services/admin/adminUserService.ts` — administrator lifecycle: invite/resend/cancel, edit (name/role), disable/reactivate, soft delete, and four security actions (force password reset, force password change, force logout, unlock). Every new account is created only by the invitee setting their own first password via the emailed link — no temporary password is ever generated, displayed, or transmitted.
+- `routes/admin/users.ts` — every endpoint `super_admin`-only for reads and writes alike (unlike Products/Resources/Blog's open-read pattern) — other admins' security data isn't general content.
+- `/admin/users/`, `/admin/users/detail/?id=`, `/admin/accept-invite/` — roster + pending invitations, per-admin management page, public invite-acceptance page.
+- Two safety rules enforced server-side, independent of the UI: no action can ever target the acting admin's own account (8 distinct actions verified blocked); the last active Super Administrator can never be disabled, deleted, or demoted (verified: demoting a *second* Super Admin while two exist is correctly allowed). Privilege escalation is structurally impossible, not just checked — only `super_admin` can reach this module, and `super_admin` is already the ceiling of the 3-role hierarchy.
+- Session safety: a role change or a disable explicitly revokes the target's active sessions (verified at the session-row level).
+- Full audit trail per action: actor, target, timestamp, IP, user agent, and before/after values.
+
+**Verified**
+- Full local adversarial pass (self-targeting on all 8 applicable actions, privilege-escalation probe from a real `editor` account, session revocation on role-change/disable verified at the D1 row level, invite-supersede-on-reinvite, invite token reuse rejection, CSRF, audit log completeness) and a real production verification (real Resend invite send, real token accept-invite, disposable Super Admin account throughout — the real production admin account was never touched, confirmed unchanged after cleanup). See `docs/v2.1-phase4-implementation.md`.
+
 ## [Unreleased] — Version 2.1 Phase 3 — Identity & Security — 2026-07-18
 
 Third stage of Version 2.1 (Content & Administration Platform, see `docs/v2.1-architecture-plan.md`). Not yet tagged.
