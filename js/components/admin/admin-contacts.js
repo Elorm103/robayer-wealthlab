@@ -271,7 +271,7 @@ function initAdminContacts() {
     drawerEls.message.textContent = detail.message;
     drawerEls.status.value = detail.status;
     drawerEls.assignee.value = detail.assignedTo ? String(detail.assignedTo) : '';
-    drawerEls.mailto.href = `mailto:${detail.email}?subject=${encodeURIComponent('Re: your message — Robayer WealthLab')}`;
+    drawerEls.mailto.href = `mailto:${encodeURIComponent(detail.email)}?subject=${encodeURIComponent('Re: your message — Robayer WealthLab')}`;
     renderNotes(detail.notes);
   }
 

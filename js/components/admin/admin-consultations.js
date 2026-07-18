@@ -298,7 +298,7 @@ function initAdminConsultations() {
     drawerEls.description.textContent = detail.description;
     drawerEls.status.value = detail.status;
     drawerEls.assignee.value = detail.assignedTo ? String(detail.assignedTo) : '';
-    drawerEls.mailto.href = `mailto:${detail.email}?subject=${encodeURIComponent('Re: your consultation request — Robayer WealthLab')}`;
+    drawerEls.mailto.href = `mailto:${encodeURIComponent(detail.email)}?subject=${encodeURIComponent('Re: your consultation request — Robayer WealthLab')}`;
     renderNotes(detail.notes);
   }
 

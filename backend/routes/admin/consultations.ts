@@ -85,6 +85,10 @@ export async function handleConsultationGet(request: Request, env: Env, logger: 
   const auth = await requireAuth(request, env, logger);
   if (!auth.ok) return auth.response;
 
+  if (await isRateLimited(request, env, READ_RATE_LIMIT)) {
+    return jsonError('RATE_LIMITED', 'Too many requests. Please try again shortly.');
+  }
+
   const id = parseId(params);
   if (id === null) return jsonError('NOT_FOUND', 'This consultation request could not be found.');
 

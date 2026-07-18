@@ -48,7 +48,7 @@ function isHtmlResponse(response: Response): boolean {
 }
 
 function securityHeaders(response: Response): Record<string, string> {
-  return {
+  const headers: Record<string, string> = {
     // Every legitimate non-HTML response is a JSON envelope or a
     // binary file download (GET /api/download/:token) and gets the
     // original, maximally strict policy — there is no route among
@@ -101,6 +101,25 @@ function securityHeaders(response: Response): Record<string, string> {
     // something this Worker should default into.
     'Strict-Transport-Security': 'max-age=31536000; includeSubDomains',
   };
+
+  // Every JSON/binary response on this API is either sensitive (admin
+  // PII, order/financial data, a signed download) or simply not meant
+  // to be cached anywhere — this project has never had a caching layer
+  // for any live D1 query (see docs/v2-analytics-spec.md's "Refresh &
+  // caching"). Found as a real gap during the Phase 3 Stage 5
+  // acceptance audit: only `routes/admin/dashboard.ts`'s own
+  // hand-rolled wrapper set this, leaving every other admin endpoint
+  // (Orders, Consultations, Contacts, Analytics, Products, Media
+  // Library) with no `Cache-Control` at all. That local wrapper has
+  // since been removed in favor of this global rule. HTML pages
+  // (routes/books.ts) are deliberately excluded — a public product page
+  // has no reason to forbid caching.
+  if (!isHtmlResponse(response)) {
+    headers['Cache-Control'] = 'no-store, no-cache, must-revalidate';
+    headers['Pragma'] = 'no-cache';
+  }
+
+  return headers;
 }
 
 /** Adds baseline security headers to an already-built response, without altering its body or status. */

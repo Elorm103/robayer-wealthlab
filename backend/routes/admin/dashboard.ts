@@ -17,17 +17,10 @@ import { jsonSuccess } from '../../utils/responses';
 import { requireAuth } from '../../middleware/requireAuth';
 import { getDashboardSummary } from '../../services/admin/dashboardService';
 
-function withNoStore(response: Response): Response {
-  const headers = new Headers(response.headers);
-  headers.set('Cache-Control', 'no-store, no-cache, must-revalidate');
-  headers.set('Pragma', 'no-cache');
-  return new Response(response.body, { status: response.status, headers });
-}
-
 export async function handleAdminDashboardSummary(request: Request, env: Env, logger: Logger): Promise<Response> {
   const auth = await requireAuth(request, env, logger);
-  if (!auth.ok) return withNoStore(auth.response);
+  if (!auth.ok) return auth.response;
 
   const summary = await getDashboardSummary(env);
-  return withNoStore(jsonSuccess(summary));
+  return jsonSuccess(summary);
 }
