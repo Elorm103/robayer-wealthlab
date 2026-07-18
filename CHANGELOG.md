@@ -23,6 +23,43 @@ marking the site as production-ready.
   structured-data association between the site and its social
   profiles.
 
+## [v2.0-phase3-operational-visibility-complete] — 2026-07-18 — Operational Visibility (Consultation/Contact Manager, Orders, Analytics)
+
+Adds the four remaining "empty shell" admin modules real data and workflows: a support-workflow Consultation Manager and Contact Manager, a read-only Orders view over the existing commerce data, and an Analytics dashboard with real period-over-period KPIs, timeseries charts, and Top Products — plus a Dashboard fix and a full acceptance audit. Full stage-by-stage detail, adversarial-test results, and production deployment reports in `docs/v2.0-phase3-implementation.md`; architecture and rationale in `docs/v2.0-phase3-architecture-plan.md`; this entry is the summary.
+
+**Added — database**
+- Migration `0010_operational_visibility.sql` — `consultation_notes`, `contact_notes` tables; `assigned_to` columns (with indexes) on `consultation_requests`/`contact_messages`. Purely additive.
+
+**Added — backend**
+- `services/admin/consultationService.ts` + `routes/admin/consultations.ts`, `services/admin/contactService.ts` + `routes/admin/contacts.ts` — list/detail/update/add-note, open to all three roles including writes (a deliberate divergence from Products' editor-gated pattern — these are support workflows, not a CMS).
+- `services/admin/orderService.ts` + `routes/admin/orders.ts` — read-only order list/detail plus two `super_admin`/`editor`-gated actions (resend receipt, resend download email).
+- `services/admin/analyticsService.ts` + `routes/admin/analytics.ts` — real D1-aggregate KPI summary (period-over-period, with `deltaPercent: null` rendered "New" rather than a fake `0%`), zero-filled daily timeseries, Top Products ranking joined to live product titles.
+- `utils/dateRange.ts` — shared, tested date-range math (`exclusiveEndDate`, `previousPeriod`, `deltaPercent`, `everyDateInRange`).
+
+**Added — admin frontend**
+- `/admin/consultations/`, `/admin/contacts/` — filterable/searchable tables with a slide-out drawer (new `.drawer*` CSS in `css/admin.css`) for detail, status, assignment, and notes.
+- `/admin/orders/` — table with search/status/date-range filters and a drawer showing payment transactions, deliveries, and email history; resend actions hidden entirely (not just disabled) for the `support` role.
+- `/admin/analytics/` — date-range picker, 6 KPI cards with delta badges, 2 dependency-free inline-SVG charts (`js/components/admin/timeseries-chart.js`), Top Products table, and an honest link-out card to Cloudflare Web Analytics for Visitors/Sessions/Traffic Sources (which have no API and are never faked).
+
+**Fixed — real defects found and fixed during implementation**
+- Orders' `dateTo` filter used an inclusive bare-date upper bound (`created_at <= '2026-07-18'`) against a full timestamp column — under SQLite's lexicographic TEXT comparison this silently excluded nearly every row from the end date. Fixed with an exclusive-upper-bound pattern, extracted into `utils/dateRange.ts` so Analytics' own date math reuses the corrected logic.
+- Dashboard's `productsCount` had been hard-coded to `null` since before the Products Module existed — never wired up when Phase 2 added a real `products` table. Fixed with the same fault-tolerant `try/catch → null` pattern every other Dashboard field uses.
+- A CSS specificity bug (`.drawer__footer { display: flex }` unconditionally overriding the browser's default `[hidden]` rule) meant a `support`-role admin could visually see Orders' resend buttons even though the server correctly rejected the action — never an actual security hole (server-side check was always correct), but a confusing UI bug. Fixed with `.drawer__footer:not([hidden])`.
+
+**Fixed — Stage 5 acceptance-audit findings**
+- `Cache-Control: no-store` was previously set only on the Dashboard endpoint (via its own local wrapper); every other admin endpoint (Orders, Analytics, Consultations, Contacts, Products, Media Library) sent no caching header at all despite returning sensitive data. Moved into `middleware/securityHeaders.ts`'s shared `securityHeaders()` function, now applied globally to every non-HTML response.
+- `handleConsultationGet`/`handleContactGet` were missing the rate limiting every other Phase 3 read endpoint has.
+- Unescaped customer email in `mailto:` href construction (both Consultation and Contact drawers) — a mailto-injection-adjacent gap given this codebase's permissive email regex — fixed with `encodeURIComponent()`.
+- Stale "Getting started" Dashboard copy claiming Products/Media Library "arrive in later phases" — both had shipped phases earlier.
+
+**Verified**
+- All 7 admin modules (Dashboard, Orders, Analytics, Consultations, Contacts, Media Library, Products) exercised together in a real browser against real production-shaped data, zero console errors.
+- Full adversarial battery — CSRF (missing/garbage token → 403), SQL injection (parameterized queries return empty safely, tables intact), IDOR (clean 404s, no leak), a live XSS probe via the public consultation form (rendered as literal escaped text everywhere, confirmed via `innerHTML` inspection — no injection), authorization (`support` role blocked server-side from every editor-only write, confirmed via live 403s), authentication (`HttpOnly; Secure; SameSite=Lax` session cookie, generic invalid-credentials message with no user-enumeration signal), cache behavior (before/after `curl` header comparison in production).
+- Every real email send in Stage 3 verified against the site owner's own inbox with real Resend provider IDs recorded; every KPI in Stage 4 independently hand-computed via direct SQL before comparing to the API response.
+- No test accounts, debug code, or leftover rows created by this phase remain in production; every stage's own disposable test data was created, exercised, and deleted within that same stage, verified via exact before/after row-count matches.
+
+**Known limitation** — a returning admin's browser may serve a stale cached copy of a changed static JS/CSS file for up to its 4-hour `Cache-Control: max-age=14400` lifetime (a pre-existing, site-wide GitHub Pages/Cloudflare default, not introduced by this phase); a hard refresh or the natural cache expiry resolves it. Site-wide cache-busting was judged out of scope for this phase.
+
 ## [v2.0-phase2-products-complete] — 2026-07-13 — Products Module (D1-backed catalog)
 
 Replaces the static `content/products/*.json` catalog with a D1-backed CMS: admin CRUD, server-rendered public product pages, and full checkout/entitlement integration on the new catalog. Full architecture, migration, and rollback detail in `docs/products-module-implementation.md` and `docs/v2.0-phase2-release-checkpoint.md` (this entry is the summary).
