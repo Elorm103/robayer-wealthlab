@@ -106,6 +106,11 @@ import {
   handleOrderResendReceipt,
   handleOrderResendDownload,
 } from '../routes/admin/orders';
+import {
+  handleAnalyticsSummary,
+  handleAnalyticsTimeseries,
+  handleAnalyticsTopProducts,
+} from '../routes/admin/analytics';
 
 export type { Env };
 
@@ -225,6 +230,10 @@ const ROUTES: Route[] = [
   { pattern: new URLPattern({ pathname: '/api/admin/orders/:reference' }), method: 'GET', handler: handleOrderGet },
   { pattern: new URLPattern({ pathname: '/api/admin/orders/:reference/resend-receipt' }), method: 'POST', handler: handleOrderResendReceipt },
   { pattern: new URLPattern({ pathname: '/api/admin/orders/:reference/resend-download' }), method: 'POST', handler: handleOrderResendDownload },
+  // Analytics (Phase 3 Stage 4) — read-only, no role gate beyond auth.
+  { pattern: new URLPattern({ pathname: '/api/admin/analytics/summary' }), method: 'GET', handler: handleAnalyticsSummary },
+  { pattern: new URLPattern({ pathname: '/api/admin/analytics/timeseries' }), method: 'GET', handler: handleAnalyticsTimeseries },
+  { pattern: new URLPattern({ pathname: '/api/admin/analytics/top-products' }), method: 'GET', handler: handleAnalyticsTopProducts },
   // Added Version 2.0 Phase 2 (Products Module) — public site
   // integration. This Worker fully owns `/books/*` via a new Workers
   // Route (wrangler.jsonc) — see routes/books.ts's header comment for

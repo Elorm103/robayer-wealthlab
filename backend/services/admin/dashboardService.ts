@@ -7,11 +7,16 @@
  * nothing estimated. Per the Phase 0.2 brief's explicit "no fake data"
  * rule: a metric this service cannot honestly compute yet is returned
  * as `null`, and the frontend renders "No data yet" for it rather than
- * a placeholder number. `productsCount` is the one metric in this
- * shape that is always `null` today — the product catalog lives in
- * `content/products/*.json` on the static site, not in D1 (see
- * `docs/v2-platform-audit.md`), and wiring that read is Product
- * Management's job (a later phase), not the Admin Shell's.
+ * a placeholder number.
+ *
+ * `productsCount` was `null` unconditionally through Phase 0.2 — at
+ * that point the product catalog still lived in `content/products/*.json`
+ * on the static site, not in D1. Version 2.0 Phase 2 (Products Module)
+ * migrated the catalog into a real `products` D1 table, but this field
+ * was never wired to it — found and fixed in Phase 3 Stage 4 (see
+ * docs/v2.0-phase3-architecture-plan.md, Section 4/5). Same
+ * fault-tolerant "degrade to null on error, never fake a number"
+ * pattern as every other field here.
  */
 
 import type { Env } from '../../worker/env';
@@ -21,7 +26,7 @@ export interface DashboardSummary {
   subscribers: { count: number } | null;
   consultations: { count: number; newCount: number } | null;
   contacts: { count: number; newCount: number } | null;
-  productsCount: null; // always null this phase — see file header comment
+  productsCount: number | null;
   recentActivity: RecentActivityItem[];
 }
 
@@ -39,15 +44,25 @@ export interface RecentActivityItem {
  * posture (e.g. `emailService.ts`'s send-failure handling).
  */
 export async function getDashboardSummary(env: Env): Promise<DashboardSummary> {
-  const [orders, subscribers, consultations, contacts, recentActivity] = await Promise.all([
+  const [orders, subscribers, consultations, contacts, productsCount, recentActivity] = await Promise.all([
     getOrdersSummary(env),
     getSubscribersSummary(env),
     getConsultationsSummary(env),
     getContactsSummary(env),
+    getProductsCount(env),
     getRecentActivity(env),
   ]);
 
-  return { orders, subscribers, consultations, contacts, productsCount: null, recentActivity };
+  return { orders, subscribers, consultations, contacts, productsCount, recentActivity };
+}
+
+async function getProductsCount(env: Env): Promise<DashboardSummary['productsCount']> {
+  try {
+    const row = await env.DB.prepare(`SELECT COUNT(*) AS count FROM products WHERE deleted_at IS NULL`).first<{ count: number }>();
+    return row ? row.count : null;
+  } catch {
+    return null;
+  }
 }
 
 async function getOrdersSummary(env: Env): Promise<DashboardSummary['orders']> {

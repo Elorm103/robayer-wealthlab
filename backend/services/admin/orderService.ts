@@ -19,6 +19,7 @@
 import type { Env } from '../../worker/env';
 import type { Logger } from '../../utils/logger';
 import { sendEmail } from '../emailService';
+import { exclusiveEndDate } from '../../utils/dateRange';
 import * as auditService from './auditService';
 
 export const ORDER_STATUSES = ['pending', 'verified', 'failed', 'expired', 'cancelled', 'refunded'] as const;
@@ -116,8 +117,13 @@ export async function listOrders(env: Env, query: ListOrdersQuery): Promise<List
     bindings.push(query.dateFrom);
   }
   if (query.dateTo) {
-    conditions.push('created_at <= ?');
-    bindings.push(query.dateTo);
+    // Exclusive upper bound, not `<=`: `created_at` always carries a time
+    // component ('YYYY-MM-DD HH:MM:SS'), so `created_at <= '2026-07-18'`
+    // would lexicographically exclude every row from that day except an
+    // impossible exact-midnight match — a real bug found during Stage 4's
+    // date-range work and fixed here rather than copied forward.
+    conditions.push('created_at < ?');
+    bindings.push(exclusiveEndDate(query.dateTo));
   }
   if (query.search) {
     conditions.push("(purchase_reference LIKE ? ESCAPE '\\' OR customer_email LIKE ? ESCAPE '\\')");

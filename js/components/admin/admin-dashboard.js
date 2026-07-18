@@ -36,6 +36,7 @@ function initAdminDashboard() {
     renderSubscribers(summary.subscribers);
     renderConsultations(summary.consultations);
     renderContacts(summary.contacts);
+    renderProducts(summary.productsCount);
     renderRecentActivity(summary.recentActivity);
   }
 
@@ -77,6 +78,15 @@ function initAdminDashboard() {
     if (!contacts) return showNoData(valueEl, metaEl);
     valueEl.textContent = String(contacts.count);
     metaEl.textContent = contacts.newCount + ' awaiting review';
+  }
+
+  function renderProducts(productsCount) {
+    const valueEl = root.querySelector('[data-stat-products-value]');
+    const metaEl = root.querySelector('[data-stat-products-meta]');
+    if (productsCount === null || productsCount === undefined) return showNoData(valueEl, metaEl);
+    valueEl.textContent = String(productsCount);
+    valueEl.classList.remove('stat-card__value--muted');
+    metaEl.textContent = productsCount === 1 ? '1 product in catalog' : productsCount + ' products in catalog';
   }
 
   function showNoData(valueEl, metaEl) {
