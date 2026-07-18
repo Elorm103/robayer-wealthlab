@@ -5,7 +5,7 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
 
   <title>Settings | Robayer WealthLab Admin</title>
-  <meta name="description" content="Manage site-wide configuration. This module arrives in a later phase.">
+  <meta name="description" content="Operational configuration for the Worker/D1 platform.">
   <link rel="canonical" href="https://robayerwealthlab.com/admin/settings/">
   <meta name="robots" content="noindex, nofollow">
 
@@ -33,14 +33,101 @@
     <div class="admin-main">
       <div class="admin-include" data-include="/partials/admin-topbar.html"></div>
 
-      <main class="admin-content" id="main-content">
-        <div class="card">
-          <div class="empty-state">
-            <svg class="icon empty-state__icon" viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="10"/><path d="M12 8v4M12 16h.01"/></svg>
-            <p class="empty-state__title">Coming soon</p>
-            <p class="empty-state__body">Manage site-wide configuration. This module arrives in a later phase.</p>
+      <main class="admin-content" id="main-content" data-settings-root>
+        <p class="alert alert--error" role="alert" data-settings-load-error hidden></p>
+        <p class="alert alert--success" role="status" data-settings-success hidden></p>
+        <p class="alert alert--warning" role="alert" data-settings-version-mismatch hidden>
+          The stored settings schema version doesn't match what this deployment expects. See System Information below, and check the implementation report before changing settings.
+        </p>
+
+        <section class="card mb-4">
+          <h2 class="editor-section-title">Platform</h2>
+
+          <div class="settings-field">
+            <div>
+              <p class="settings-field__label">Maintenance mode</p>
+              <p class="text-small text-secondary">Returns 503 for <code>/api/*</code>, <code>/books/*</code>, <code>/resources/*</code>, <code>/blog/*</code>. Admin login and Paystack webhooks always stay reachable. The rest of the site (GitHub Pages) is unaffected.</p>
+            </div>
+            <span class="settings-source-tag" data-source="site_settings">site_settings</span>
           </div>
-        </div>
+          <div class="field field--checkbox">
+            <input type="checkbox" id="setting-maintenance-enabled" data-setting="maintenanceMode.enabled">
+            <label class="field__label" for="setting-maintenance-enabled">Enabled</label>
+          </div>
+          <div class="field">
+            <label class="field__label" for="setting-maintenance-message">Maintenance message</label>
+            <textarea class="field__textarea" id="setting-maintenance-message" data-setting="maintenanceMode.message" maxlength="500" placeholder="This service is temporarily unavailable for maintenance. Please check back soon."></textarea>
+          </div>
+
+          <div class="settings-field">
+            <div>
+              <p class="settings-field__label">Default download limits</p>
+              <p class="text-small text-secondary">Applied only to a brand-new product's blank fields — never changes an already-created product.</p>
+            </div>
+            <span class="settings-source-tag" data-source="site_settings">site_settings</span>
+          </div>
+          <div class="editor-field-row">
+            <div class="field">
+              <label class="field__label" for="setting-default-max-downloads">Default max downloads</label>
+              <input class="field__input" type="number" min="1" max="1000" id="setting-default-max-downloads" data-setting="defaultMaxDownloads" placeholder="Unlimited">
+            </div>
+            <div class="field">
+              <label class="field__label" for="setting-default-expires-days">Default download expiry (days)</label>
+              <input class="field__input" type="number" min="1" max="3650" id="setting-default-expires-days" data-setting="defaultDownloadExpiresDays" placeholder="Lifetime">
+            </div>
+          </div>
+        </section>
+
+        <section class="card mb-4">
+          <h2 class="editor-section-title">Email</h2>
+
+          <div class="settings-field">
+            <p class="settings-field__label">Sender identity</p>
+            <span class="settings-source-tag" data-source="site_settings">site_settings</span>
+          </div>
+          <div class="editor-field-row">
+            <div class="field">
+              <label class="field__label" for="setting-sender-name">Sender name</label>
+              <input class="field__input" type="text" id="setting-sender-name" data-setting="emailSenderName" maxlength="100">
+              <span class="field__hint">Sends from hello@robayerwealthlab.com regardless — only the display name is configurable here.</span>
+            </div>
+            <div class="field">
+              <label class="field__label" for="setting-reply-to">Reply-to address</label>
+              <input class="field__input" type="email" id="setting-reply-to" data-setting="emailReplyTo" placeholder="None">
+            </div>
+          </div>
+
+          <div class="settings-field">
+            <p class="settings-field__label">Per-template sending</p>
+            <span class="settings-source-tag" data-source="site_settings">site_settings</span>
+          </div>
+          <div data-template-toggles></div>
+
+          <div class="settings-field" style="border-top: 2px solid var(--color-border); margin-top: var(--space-3); padding-top: var(--space-3);">
+            <p class="settings-field__label">Delivery diagnostics (last 30 days)</p>
+            <span class="settings-source-tag" data-source="derived">derived</span>
+          </div>
+          <div class="admin-table-wrap">
+            <table class="table" aria-label="Email delivery diagnostics">
+              <thead><tr><th scope="col">Template</th><th scope="col">Last sent</th><th scope="col">Sent</th><th scope="col">Failed</th><th scope="col">Skipped</th></tr></thead>
+              <tbody data-email-diagnostics-body></tbody>
+            </table>
+          </div>
+        </section>
+
+        <button type="button" class="btn btn--primary mb-4" data-settings-save>Save changes</button>
+
+        <section class="card mb-4">
+          <h2 class="editor-section-title">Payments</h2>
+          <p class="text-small text-secondary mb-3">Operational visibility only — no API secret is ever displayed or editable here. Cloudflare Secrets remain the only source of truth.</p>
+          <dl data-payment-diagnostics></dl>
+        </section>
+
+        <section class="card">
+          <h2 class="editor-section-title">System Information</h2>
+          <p class="text-small text-secondary mb-3">For troubleshooting and operational awareness — not configuration.</p>
+          <dl data-system-diagnostics></dl>
+        </section>
       </main>
     </div>
   </div>
@@ -49,5 +136,6 @@
   <script src="/js/components/theme-toggle.js"></script>
   <script src="/js/components/admin/admin-auth.js"></script>
   <script src="/js/components/admin/admin-shell.js"></script>
+  <script src="/js/components/admin/admin-settings.js"></script>
 </body>
 </html>

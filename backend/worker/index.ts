@@ -47,6 +47,7 @@ import { createLogger, type Logger } from '../utils/logger';
 import { jsonError } from '../utils/responses';
 import { withSecurityHeaders } from '../middleware/securityHeaders';
 import { withErrorHandling } from '../middleware/errorHandler';
+import { checkMaintenanceMode } from '../middleware/maintenanceMode';
 import { handleNewsletter } from '../routes/newsletter';
 import { handleContact } from '../routes/contact';
 import { handleConsultation } from '../routes/consultation';
@@ -83,6 +84,7 @@ import {
   handleValidateInvite,
   handleAcceptInvite,
 } from '../routes/admin/users';
+import { handleGetSettings, handleUpdateSettings, handleSettingsStatus } from '../routes/admin/settings';
 import { handleAdminDashboardSummary } from '../routes/admin/dashboard';
 import { handleHealth } from '../routes/health';
 import {
@@ -349,6 +351,12 @@ const ROUTES: Route[] = [
   { pattern: new URLPattern({ pathname: '/api/admin/users/:id/force-password-change' }), method: 'POST', handler: handleForcePasswordChange },
   { pattern: new URLPattern({ pathname: '/api/admin/users/:id/force-logout' }), method: 'POST', handler: handleForceLogout },
   { pattern: new URLPattern({ pathname: '/api/admin/users/:id/unlock' }), method: 'POST', handler: handleUnlockAdmin },
+  // Added Version 2.1 Phase 5 (Settings) — see
+  // docs/v2.1-phase5-design.md. super_admin-only for reads and writes
+  // alike (enforced inside each handler, not by this table).
+  { pattern: new URLPattern({ pathname: '/api/admin/settings' }), method: 'GET', handler: handleGetSettings },
+  { pattern: new URLPattern({ pathname: '/api/admin/settings' }), method: 'PATCH', handler: handleUpdateSettings },
+  { pattern: new URLPattern({ pathname: '/api/admin/settings/status' }), method: 'GET', handler: handleSettingsStatus },
   // Added Version 2.0 Phase 2 (Products Module) — public site
   // integration. This Worker fully owns `/books/*` via a new Workers
   // Route (wrangler.jsonc) — see routes/books.ts's header comment for
@@ -378,6 +386,12 @@ export default {
   async fetch(request: Request, env: Env): Promise<Response> {
     const requestId = generateRequestId();
     const url = new URL(request.url);
+
+    // Checked before route matching — see middleware/maintenanceMode.ts's
+    // header comment for exactly which paths this gates and why
+    // /api/admin/*, /api/webhooks/*, and /api/health are exempt.
+    const maintenanceResponse = await checkMaintenanceMode(request, env);
+    if (maintenanceResponse) return withSecurityHeaders(maintenanceResponse, env);
 
     let matchedRoute: Route | undefined;
     let params: RouteParams = {};

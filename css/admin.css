@@ -1662,3 +1662,65 @@
 .editor-preview__body {
   padding: var(--space-4);
 }
+
+/* ============================================================
+   SETTINGS — ownership tags + diagnostic rows (Version 2.1 Phase 5).
+   Every value on the Settings page is labeled with where it actually
+   lives, per the explicit "settings ownership" requirement — an
+   editable site_settings field looks visibly different from a
+   read-only Secret/wrangler var/derived value.
+   ============================================================ */
+.settings-field {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: var(--space-3);
+  padding: var(--space-3) 0;
+  border-bottom: 1px solid var(--color-border);
+}
+
+.settings-field:last-child {
+  border-bottom: none;
+}
+
+.settings-field__label {
+  font-weight: var(--weight-medium);
+}
+
+.settings-source-tag {
+  display: inline-block;
+  padding: 2px var(--space-2);
+  border-radius: var(--radius-sm);
+  font-size: 0.7rem;
+  font-family: var(--font-mono, monospace);
+  text-transform: uppercase;
+  letter-spacing: 0.03em;
+  color: var(--color-text-secondary);
+  background-color: var(--color-bg-alt);
+  border: 1px solid var(--color-border);
+  white-space: nowrap;
+}
+
+.settings-source-tag[data-source="site_settings"] {
+  color: var(--color-success, #1f5c4a);
+  border-color: currentColor;
+}
+
+.settings-diagnostic-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-3);
+  padding: var(--space-2) 0;
+  font-size: var(--text-small);
+}
+
+.settings-diagnostic-row dt {
+  color: var(--color-text-secondary);
+}
+
+.settings-diagnostic-row dd {
+  margin: 0;
+  font-weight: var(--weight-medium);
+  text-align: right;
+}

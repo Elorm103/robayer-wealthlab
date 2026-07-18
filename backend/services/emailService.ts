@@ -31,6 +31,7 @@ import passwordResetTemplate from '../emails/templates/password-reset.html';
 import adminInviteTemplate from '../emails/templates/admin-invite.html';
 import type { Env } from '../worker/env';
 import type { Logger } from '../utils/logger';
+import { getEmailSendSettings } from './admin/settingsService';
 
 export type EmailTemplateName =
   | 'newsletter-welcome'
@@ -136,10 +137,17 @@ async function callResend(
   to: string,
   subject: string,
   html: string,
+  senderName: string,
+  replyTo: string | null,
   listUnsubscribeUrl?: string
 ): Promise<{ ok: boolean; status: number; body: string }> {
   const payload: Record<string, unknown> = {
-    from: 'Robayer WealthLab <hello@robayerwealthlab.com>',
+    // Only the display name is settings-driven (Version 2.1 Phase 5) —
+    // the sending address itself stays the real, domain-verified
+    // hello@robayerwealthlab.com; changing that would mean re-verifying
+    // a different address/domain with Resend, well beyond this phase's
+    // "operational configuration only" scope.
+    from: `${senderName} <hello@robayerwealthlab.com>`,
     to: [to],
     subject,
     html,
@@ -157,6 +165,13 @@ async function callResend(
       'List-Unsubscribe': `<${listUnsubscribeUrl}>`,
       'List-Unsubscribe-Post': 'List-Unsubscribe=One-Click',
     };
+  }
+
+  // `reply_to` — Resend's documented field name for a reply-to
+  // address; same "not independently confirmed against a live Resend
+  // account" caveat as List-Unsubscribe above. Version 2.1 Phase 5.
+  if (replyTo) {
+    payload.reply_to = replyTo;
   }
 
   const response = await fetch('https://api.resend.com/emails', {
@@ -181,7 +196,7 @@ function parseProviderId(body: string): string | undefined {
 }
 
 interface EmailLogDetails {
-  status: 'sent' | 'failed' | 'permanently_failed';
+  status: 'sent' | 'failed' | 'permanently_failed' | 'skipped';
   attemptCount: number;
   providerId?: string;
   lastError?: string;
@@ -225,6 +240,21 @@ export async function sendEmail(
   logger: Logger,
   options: SendEmailOptions
 ): Promise<SendEmailResult> {
+  // Version 2.1 Phase 5 (Settings) — a per-template kill switch,
+  // checked before anything else (before even rendering the
+  // template): every one of this function's 8 existing callers
+  // (newsletter, consultation, contact, purchase receipt, secure
+  // download, password reset, admin invite) is covered automatically,
+  // with zero changes to any of those call sites. Defaults to enabled
+  // for every template when `site_settings` has never been touched —
+  // see settingsService.ts's DEFAULTS.
+  const sendSettings = await getEmailSendSettings(env);
+  if (sendSettings.templateEnabled[options.template] === false) {
+    logger.info('Email skipped (template disabled)', { template: options.template, to: options.to });
+    await recordEmailLog(env, logger, options, { status: 'skipped', attemptCount: 0 });
+    return { sent: false, permanentFailure: false };
+  }
+
   const { subject, html } = renderTemplate(options.template, options.data);
 
   let attempt = 0;
@@ -234,7 +264,7 @@ export async function sendEmail(
   while (attempt < 2) {
     attempt += 1;
     try {
-      const result = await callResend(env, options.to, subject, html, options.listUnsubscribeUrl);
+      const result = await callResend(env, options.to, subject, html, sendSettings.senderName, sendSettings.replyTo, options.listUnsubscribeUrl);
 
       if (result.ok) {
         const providerId = parseProviderId(result.body);

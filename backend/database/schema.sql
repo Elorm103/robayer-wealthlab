@@ -401,6 +401,26 @@ CREATE INDEX idx_audit_logs_entity ON audit_logs(entity_type, entity_id);
 CREATE INDEX idx_audit_logs_created_at ON audit_logs(created_at);
 
 -- ============================================================
+-- SITE_SETTINGS
+-- Added in migration 0015 (Version 2.1 Phase 5, Settings). One
+-- generic key-value table for runtime operational configuration that
+-- should change without a code deploy — a future setting is a new
+-- row with a service-layer default, not a new migration. See
+-- docs/v2.1-phase5-implementation.md.
+--
+-- `settings_schema_version` is seeded here and compared at read time
+-- against the service layer's own expected-version constant — a
+-- lightweight way to identify which settings structure a given
+-- deployment expects.
+-- ============================================================
+CREATE TABLE site_settings (
+  key          TEXT PRIMARY KEY,
+  value        TEXT NOT NULL,
+  updated_by   INTEGER REFERENCES admin_users(id),
+  updated_at   TEXT NOT NULL DEFAULT (datetime('now'))
+);
+
+-- ============================================================
 -- EMAIL_LOG
 -- Added alongside docs/email-architecture.md. Tracks every outbound
 -- email attempt so a failed send can be retried by a scheduled Worker
@@ -410,13 +430,16 @@ CREATE INDEX idx_audit_logs_created_at ON audit_logs(created_at);
 -- since one send can relate to an order, a consultation request, a
 -- newsletter subscriber, or (future) an admin user.
 -- ============================================================
+-- `skipped` status added in migration 0015 (Version 2.1 Phase 5,
+-- Settings) — a send this phase's per-template kill switch
+-- intentionally never attempted, distinct from `sent`/`failed`.
 CREATE TABLE email_log (
   id             INTEGER PRIMARY KEY AUTOINCREMENT,
   template       TEXT NOT NULL, -- e.g. 'purchase-receipt', matching backend/emails/templates/{name}.html
   recipient      TEXT NOT NULL,
   entity_type    TEXT, -- e.g. 'order', 'consultation_request', 'newsletter_subscriber'
   entity_id      INTEGER,
-  status         TEXT NOT NULL DEFAULT 'queued' CHECK (status IN ('queued', 'sent', 'failed', 'permanently_failed')),
+  status         TEXT NOT NULL DEFAULT 'queued' CHECK (status IN ('queued', 'sent', 'failed', 'permanently_failed', 'skipped')),
   attempt_count  INTEGER NOT NULL DEFAULT 0,
   last_error     TEXT,
   provider_id    TEXT, -- Resend's own message ID, once sent — for cross-referencing a bounce/complaint webhook back to this row

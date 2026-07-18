@@ -44,4 +44,17 @@ export interface Env {
   // would exist — see docs/payment-verification.md's "Known
   // limitations" for the confidence caveat (unverified against a live
   // Paystack account).
+
+  // Added in Version 2.1 Phase 5 (Settings) — see
+  // docs/v2.1-phase5-design.md Section 6. Cloudflare Workers has no
+  // built-in way to introspect its own deployed git commit or deploy
+  // time at runtime, so these are passed as ad-hoc, non-secret var
+  // overrides at deploy time (`wrangler deploy --var DEPLOYED_COMMIT:...
+  // --var DEPLOYED_AT:...`), not stored in wrangler.jsonc (they'd be
+  // stale the moment they were committed). Optional: a deploy that
+  // omits these flags leaves them undefined, and the Settings page
+  // reports "Not available" honestly rather than a stale or
+  // fabricated value.
+  DEPLOYED_COMMIT?: string;
+  DEPLOYED_AT?: string;
 }

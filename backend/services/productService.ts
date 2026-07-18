@@ -14,6 +14,7 @@ import type { Env } from '../worker/env';
 import type { Logger } from '../utils/logger';
 import * as auditService from './admin/auditService';
 import { sanitizeRichTextHtml } from '../utils/richTextSanitizer';
+import { getDownloadDefaults } from './admin/settingsService';
 
 export const TOPICS = ['investing', 'personal-finance', 'budgeting', 'business', 'mindset'] as const;
 export type Topic = (typeof TOPICS)[number];
@@ -584,8 +585,17 @@ export async function createProduct(
   env: Env,
   logger: Logger,
   actorId: number,
-  input: ProductInput
+  input: ProductInput,
+  // `applyDownloadDefaults: false` is used by `duplicateProduct()` below
+  // — a duplicate is explicitly carrying over the source's real,
+  // already-decided download policy (even if that value is `null`,
+  // i.e. the source was genuinely unlimited), not "an admin leaving a
+  // new product's field blank." Every other caller (the real New
+  // Product form) gets the default applied, matching the approved
+  // design.
+  options: { applyDownloadDefaults?: boolean } = {}
 ): Promise<CreateProductResult> {
+  const applyDownloadDefaults = options.applyDownloadDefaults ?? true;
   const productId = slugToProductId(input.slug);
   const status = input.status && isValidStatus(input.status) ? input.status : 'draft';
   // Server-side sanitization, independent of the client editor's own
@@ -593,6 +603,20 @@ export async function createProduct(
   // trusting the client alone isn't enough for a value later rendered
   // as raw HTML on a public page (routes/books.ts).
   const sanitizedDescription = await sanitizeRichTextHtml(input.description ?? null);
+
+  // Version 2.1 Phase 5 (Settings) — site-wide download defaults,
+  // applied only here, at creation, never on update. The real admin
+  // editor always sends `null` (not an omitted key) for a blank
+  // field — see admin-product-editor.js's serialization — so `== null`
+  // (matching both `null` and `undefined`) is the actual "left blank"
+  // signal this substitution triggers on. A brand-new product that
+  // should be genuinely unlimited despite a configured site default
+  // can simply be edited immediately after creation: updateProduct()
+  // is untouched by this phase and always respects an explicit `null`
+  // exactly as typed, with no default substitution.
+  const downloadDefaults = applyDownloadDefaults ? await getDownloadDefaults(env) : { maxDownloads: null, downloadExpiresDays: null };
+  const resolvedMaxDownloads = applyDownloadDefaults && input.maxDownloads == null ? downloadDefaults.maxDownloads : input.maxDownloads ?? null;
+  const resolvedDownloadExpiresDays = applyDownloadDefaults && input.downloadExpiresDays == null ? downloadDefaults.downloadExpiresDays : input.downloadExpiresDays ?? null;
 
   const insert = await env.DB.prepare(
     `INSERT INTO products (
@@ -630,8 +654,8 @@ export async function createProduct(
       input.bestseller ? 1 : 0,
       input.newRelease ? 1 : 0,
       input.tags ?? null,
-      input.maxDownloads ?? null,
-      input.downloadExpiresDays ?? null,
+      resolvedMaxDownloads,
+      resolvedDownloadExpiresDays,
       input.seoTitle ?? null,
       input.seoDescription ?? null,
       input.seoCanonicalUrl ?? null,
@@ -802,7 +826,11 @@ export async function duplicateProduct(env: Env, logger: Logger, actorId: number
   if (!source || source.deletedAt) return null;
 
   const newSlug = await generateCopySlug(env, source.slug);
-  const created = await createProduct(env, logger, actorId, {
+  const created = await createProduct(
+    env,
+    logger,
+    actorId,
+    {
     slug: newSlug,
     title: `${source.title} (Copy)`,
     subtitle: source.subtitle,
@@ -833,7 +861,14 @@ export async function duplicateProduct(env: Env, logger: Logger, actorId: number
     seoTitle: null, // SEO canonical/title are page-identity fields — never copied verbatim onto a new URL
     seoDescription: source.seoDescription,
     seoCanonicalUrl: null,
-  });
+    },
+    // A duplicate carries over the source's real max_downloads/
+    // download_expires_days verbatim (even if `null`, i.e. genuinely
+    // unlimited) — never the site-wide default, which is only for a
+    // brand-new product's blank field. See createProduct()'s own
+    // comment on this parameter.
+    { applyDownloadDefaults: false }
+  );
 
   // Gallery references duplicate cleanly (same media, new product) —
   // downloadable files deliberately do NOT duplicate onto the copy,
