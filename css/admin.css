@@ -685,6 +685,146 @@
 }
 
 /* ============================================================
+   DRAWER — Version 2.0 Phase 3 (Operational Visibility). The one
+   genuinely new UI primitive this phase needs (no existing admin page
+   used one yet — Products/Blog editing uses a full page, per
+   docs/v2-architecture.md's navigation hierarchy; Media Library's
+   detail view uses a centered .modal). Orders/Consultation/Contact
+   Manager are quick-review workflows, not deep-editing workflows — a
+   drawer keeps the list visible behind it, matching how a support
+   inbox typically behaves. Built from the same overlay/shadow/z-index
+   tokens .modal-overlay already uses, anchored to the right edge with
+   a slide-in transform instead of centered.
+   ============================================================ */
+.drawer-overlay {
+  position: fixed;
+  inset: 0;
+  z-index: var(--z-overlay);
+  background-color: rgba(22, 35, 61, 0.55);
+}
+
+.drawer-overlay[hidden] {
+  display: none;
+}
+
+.drawer {
+  position: fixed;
+  top: 0;
+  right: 0;
+  bottom: 0;
+  width: 100%;
+  max-width: 520px;
+  display: flex;
+  flex-direction: column;
+  background-color: var(--color-surface);
+  box-shadow: var(--shadow-3);
+  transform: translateX(0);
+  transition: transform var(--duration-base) ease;
+}
+
+.drawer-overlay[hidden] .drawer {
+  transform: translateX(100%);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .drawer {
+    transition: none;
+  }
+}
+
+.drawer__header {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: var(--space-3);
+  padding: var(--space-4) var(--space-5);
+  border-bottom: 1px solid var(--color-border);
+  flex-shrink: 0;
+}
+
+.drawer__title {
+  font-size: var(--text-h4);
+}
+
+.drawer__subtitle {
+  color: var(--color-text-secondary);
+  font-size: var(--text-small);
+  margin-top: var(--space-1);
+}
+
+.drawer__close {
+  width: 32px;
+  height: 32px;
+  flex-shrink: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: var(--radius-sm);
+  color: var(--color-text-secondary);
+}
+
+.drawer__close:hover {
+  background-color: var(--color-bg-alt);
+  color: var(--color-text-heading);
+}
+
+.drawer__body {
+  flex: 1;
+  overflow-y: auto;
+  padding: var(--space-5);
+}
+
+.drawer__section {
+  margin-bottom: var(--space-5);
+}
+
+.drawer__section-title {
+  font-size: var(--text-small);
+  font-weight: var(--weight-semibold);
+  color: var(--color-text-secondary);
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  margin-bottom: var(--space-2);
+}
+
+.drawer__field-row {
+  display: flex;
+  gap: var(--space-3);
+  margin-bottom: var(--space-3);
+}
+
+.drawer__field-row .field {
+  flex: 1;
+}
+
+.drawer__notes {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-3);
+}
+
+.drawer__note {
+  padding: var(--space-3);
+  background-color: var(--color-bg-alt);
+  border-radius: var(--radius-md);
+}
+
+.drawer__note-meta {
+  font-size: var(--text-small);
+  color: var(--color-text-secondary);
+  margin-bottom: var(--space-1);
+}
+
+.drawer__footer {
+  display: flex;
+  justify-content: flex-end;
+  gap: var(--space-2);
+  padding: var(--space-4) var(--space-5);
+  border-top: 1px solid var(--color-border);
+  flex-shrink: 0;
+}
+
+/* ============================================================
    LOADING SPINNER
    ============================================================ */
 .spinner {

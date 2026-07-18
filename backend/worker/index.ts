@@ -85,6 +85,13 @@ import {
 } from '../routes/admin/products';
 import { handlePublicProductsList, handlePublicProductGet } from '../routes/products';
 import { handleBooksIndex, handleBookDetail, handleBookRedirect } from '../routes/books';
+import {
+  handleConsultationsMeta,
+  handleConsultationsList,
+  handleConsultationGet,
+  handleConsultationUpdate,
+  handleConsultationAddNote,
+} from '../routes/admin/consultations';
 
 export type { Env };
 
@@ -177,6 +184,20 @@ const ROUTES: Route[] = [
   // path prefixes are disjoint (`/api/admin/products` vs `/api/products`).
   { pattern: new URLPattern({ pathname: '/api/products' }), method: 'GET', handler: handlePublicProductsList },
   { pattern: new URLPattern({ pathname: '/api/products/:slug' }), method: 'GET', handler: handlePublicProductGet },
+  // Added Version 2.0 Phase 3 (Operational Visibility — Consultation
+  // Manager) — see docs/v2.0-phase3-architecture-plan.md. Every route
+  // here is open to all three authenticated roles (including `support`)
+  // for both reads and writes — see routes/admin/consultations.ts's
+  // header comment for why this deliberately differs from Products'
+  // editor-only-writes convention.
+  // /meta ordered before /:id so the literal path never gets swallowed
+  // as an :id value by the dynamic route below (first-match-wins array
+  // order) — same discipline as Products' own /meta and /bulk routes.
+  { pattern: new URLPattern({ pathname: '/api/admin/consultations/meta' }), method: 'GET', handler: handleConsultationsMeta },
+  { pattern: new URLPattern({ pathname: '/api/admin/consultations' }), method: 'GET', handler: handleConsultationsList },
+  { pattern: new URLPattern({ pathname: '/api/admin/consultations/:id' }), method: 'GET', handler: handleConsultationGet },
+  { pattern: new URLPattern({ pathname: '/api/admin/consultations/:id' }), method: 'PATCH', handler: handleConsultationUpdate },
+  { pattern: new URLPattern({ pathname: '/api/admin/consultations/:id/notes' }), method: 'POST', handler: handleConsultationAddNote },
   // Added Version 2.0 Phase 2 (Products Module) — public site
   // integration. This Worker fully owns `/books/*` via a new Workers
   // Route (wrangler.jsonc) — see routes/books.ts's header comment for

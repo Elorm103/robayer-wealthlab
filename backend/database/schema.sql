@@ -222,6 +222,7 @@ CREATE TABLE consultation_requests (
   preferred_contact_method  TEXT NOT NULL CHECK (preferred_contact_method IN ('email', 'phone')),
   consent_given             INTEGER NOT NULL DEFAULT 0,
   status                    TEXT NOT NULL DEFAULT 'new' CHECK (status IN ('new', 'reviewed', 'responded', 'closed')),
+  assigned_to               INTEGER REFERENCES admin_users(id), -- added in migration 0010 (Version 2.0 Phase 3) — single assignee, not a join table, see consultation_notes' own comment
   created_at                TEXT NOT NULL DEFAULT (datetime('now')),
   updated_at                TEXT NOT NULL DEFAULT (datetime('now')),
   deleted_at                TEXT
@@ -229,6 +230,7 @@ CREATE TABLE consultation_requests (
 
 CREATE INDEX idx_consultation_requests_status ON consultation_requests(status);
 CREATE INDEX idx_consultation_requests_email ON consultation_requests(email);
+CREATE INDEX idx_consultation_requests_assigned_to ON consultation_requests(assigned_to);
 
 -- ============================================================
 -- CONTACT_MESSAGES
@@ -248,6 +250,7 @@ CREATE TABLE contact_messages (
   phone       TEXT,
   message     TEXT NOT NULL,
   status      TEXT NOT NULL DEFAULT 'new' CHECK (status IN ('new', 'reviewed', 'responded', 'closed')),
+  assigned_to INTEGER REFERENCES admin_users(id), -- added in migration 0010 (Version 2.0 Phase 3)
   created_at  TEXT NOT NULL DEFAULT (datetime('now')),
   updated_at  TEXT NOT NULL DEFAULT (datetime('now')),
   deleted_at  TEXT
@@ -255,6 +258,7 @@ CREATE TABLE contact_messages (
 
 CREATE INDEX idx_contact_messages_status ON contact_messages(status);
 CREATE INDEX idx_contact_messages_email ON contact_messages(email);
+CREATE INDEX idx_contact_messages_assigned_to ON contact_messages(assigned_to);
 
 -- ============================================================
 -- ADMIN_USERS
@@ -561,3 +565,32 @@ CREATE TABLE product_relations (
 
 CREATE UNIQUE INDEX idx_product_relations_unique ON product_relations(product_id, related_product_id, relation_type);
 CREATE INDEX idx_product_relations_product ON product_relations(product_id);
+
+-- ============================================================
+-- CONSULTATION_NOTES / CONTACT_NOTES
+-- Added in migration 0010 (Version 2.0 Phase 3: Operational Visibility).
+-- Internal, admin-authored notes — append-only by design (no
+-- UPDATE/DELETE code path exists), mirroring audit_logs' own "don't
+-- rewrite history" philosophy. Two distinct tables, not one polymorphic
+-- "notes" table, for the same reason consultation_requests and
+-- contact_messages are already two distinct tables, not one.
+-- ============================================================
+CREATE TABLE consultation_notes (
+  id                      INTEGER PRIMARY KEY AUTOINCREMENT,
+  consultation_request_id INTEGER NOT NULL REFERENCES consultation_requests(id),
+  author_id               INTEGER REFERENCES admin_users(id),
+  note                    TEXT NOT NULL,
+  created_at              TEXT NOT NULL DEFAULT (datetime('now'))
+);
+
+CREATE INDEX idx_consultation_notes_request ON consultation_notes(consultation_request_id);
+
+CREATE TABLE contact_notes (
+  id                 INTEGER PRIMARY KEY AUTOINCREMENT,
+  contact_message_id INTEGER NOT NULL REFERENCES contact_messages(id),
+  author_id          INTEGER REFERENCES admin_users(id),
+  note               TEXT NOT NULL,
+  created_at         TEXT NOT NULL DEFAULT (datetime('now'))
+);
+
+CREATE INDEX idx_contact_notes_message ON contact_notes(contact_message_id);
