@@ -5,7 +5,7 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
 
   <title>Contacts | Robayer WealthLab Admin</title>
-  <meta name="description" content="Review and respond to contact form messages. This module arrives in a later phase.">
+  <meta name="description" content="Review, assign, and respond to contact form messages.">
   <link rel="canonical" href="https://robayerwealthlab.com/admin/contacts/">
   <meta name="robots" content="noindex, nofollow">
 
@@ -33,15 +33,125 @@
     <div class="admin-main">
       <div class="admin-include" data-include="/partials/admin-topbar.html"></div>
 
-      <main class="admin-content" id="main-content">
-        <div class="card">
-          <div class="empty-state">
-            <svg class="icon empty-state__icon" viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="10"/><path d="M12 8v4M12 16h.01"/></svg>
-            <p class="empty-state__title">Coming soon</p>
-            <p class="empty-state__body">Review and respond to contact form messages. This module arrives in a later phase.</p>
+      <main class="admin-content" id="main-content" data-contacts-root>
+        <p class="alert alert--error" role="alert" data-contacts-load-error hidden></p>
+
+        <div class="toolbar">
+          <div class="toolbar__group">
+            <div class="search-bar">
+              <svg class="icon search-bar__icon" viewBox="0 0 24 24" aria-hidden="true"><circle cx="11" cy="11" r="7"/><path d="m21 21-4.3-4.3"/></svg>
+              <input type="search" class="field__input search-bar__input" placeholder="Search by name, email, or message&hellip;" aria-label="Search contacts" data-contacts-search>
+            </div>
+            <select class="field__select" aria-label="Filter by assignee" data-contacts-assignee>
+              <option value="">All assignees</option>
+              <option value="unassigned">Unassigned</option>
+            </select>
+          </div>
+          <div class="toolbar__group">
+            <span class="text-small text-secondary" data-contacts-result-count></span>
+          </div>
+        </div>
+
+        <div class="media-filters" role="group" aria-label="Status filters" data-contacts-status-filters>
+          <button type="button" class="media-filter-chip" aria-pressed="true" data-contacts-status-filter="">All</button>
+          <button type="button" class="media-filter-chip" aria-pressed="false" data-contacts-status-filter="new">New</button>
+          <button type="button" class="media-filter-chip" aria-pressed="false" data-contacts-status-filter="reviewed">Reviewed</button>
+          <button type="button" class="media-filter-chip" aria-pressed="false" data-contacts-status-filter="responded">Responded</button>
+          <button type="button" class="media-filter-chip" aria-pressed="false" data-contacts-status-filter="closed">Closed</button>
+        </div>
+
+        <div class="empty-state" data-contacts-empty hidden>
+          <svg class="icon empty-state__icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg>
+          <p class="empty-state__title" data-contacts-empty-title>No contact messages yet</p>
+          <p class="empty-state__body" data-contacts-empty-body>New messages submitted through the public contact form will appear here.</p>
+        </div>
+
+        <div class="admin-table-wrap" data-contacts-table-wrap hidden>
+          <table class="table" aria-label="Contact messages">
+            <thead>
+              <tr>
+                <th scope="col">Name</th>
+                <th scope="col">Status</th>
+                <th scope="col">Assigned to</th>
+                <th scope="col">Received</th>
+              </tr>
+            </thead>
+            <tbody data-contacts-table-body></tbody>
+          </table>
+        </div>
+
+        <div class="pagination" data-contacts-pagination>
+          <span data-contacts-pagination-label></span>
+          <div class="pagination__controls">
+            <button type="button" class="pagination__button" data-contacts-pagination-prev aria-label="Previous page">
+              <svg class="icon" width="16" height="16" viewBox="0 0 24 24" aria-hidden="true"><path d="M15 18l-6-6 6-6"/></svg>
+            </button>
+            <button type="button" class="pagination__button" data-contacts-pagination-next aria-label="Next page">
+              <svg class="icon" width="16" height="16" viewBox="0 0 24 24" aria-hidden="true"><path d="M9 6l6 6-6 6"/></svg>
+            </button>
           </div>
         </div>
       </main>
+    </div>
+  </div>
+
+  <!-- Detail drawer -->
+  <div class="drawer-overlay" data-contacts-drawer hidden>
+    <div class="drawer" role="dialog" aria-modal="true" aria-labelledby="contact-drawer-title">
+      <div class="drawer__header">
+        <div>
+          <h2 class="drawer__title" id="contact-drawer-title" data-contact-drawer-name>&nbsp;</h2>
+          <p class="drawer__subtitle" data-contact-drawer-meta>&nbsp;</p>
+        </div>
+        <button type="button" class="drawer__close" data-drawer-close aria-label="Close">
+          <svg class="icon" width="18" height="18" viewBox="0 0 24 24" aria-hidden="true"><path d="M18 6 6 18M6 6l12 12"/></svg>
+        </button>
+      </div>
+      <div class="drawer__body">
+        <p class="alert alert--error" role="alert" data-contact-drawer-error hidden></p>
+
+        <div class="drawer__section">
+          <p class="drawer__section-title">Message details</p>
+          <p><strong>Email:</strong> <span data-contact-drawer-email></span></p>
+          <p data-contact-drawer-phone-row><strong>Phone:</strong> <span data-contact-drawer-phone></span></p>
+          <p data-contact-drawer-message></p>
+        </div>
+
+        <div class="drawer__section">
+          <p class="drawer__section-title">Status &amp; assignment</p>
+          <div class="drawer__field-row">
+            <div class="field">
+              <label class="field__label" for="contact-drawer-status">Status</label>
+              <select class="field__select" id="contact-drawer-status" data-contact-drawer-status>
+                <option value="new">New</option>
+                <option value="reviewed">Reviewed</option>
+                <option value="responded">Responded</option>
+                <option value="closed">Closed</option>
+              </select>
+            </div>
+            <div class="field">
+              <label class="field__label" for="contact-drawer-assignee">Assigned to</label>
+              <select class="field__select" id="contact-drawer-assignee" data-contact-drawer-assignee>
+                <option value="">Unassigned</option>
+              </select>
+            </div>
+          </div>
+        </div>
+
+        <div class="drawer__section">
+          <p class="drawer__section-title">Internal notes</p>
+          <div class="drawer__notes" data-contact-drawer-notes></div>
+          <p class="text-small text-secondary" data-contact-drawer-notes-empty hidden>No notes yet.</p>
+          <div class="field" style="margin-top: var(--space-3)">
+            <label class="field__label sr-only" for="contact-drawer-note-input">Add a note</label>
+            <textarea class="field__input" id="contact-drawer-note-input" rows="3" maxlength="2000" placeholder="Add an internal note&hellip;" data-contact-drawer-note-input></textarea>
+          </div>
+          <button type="button" class="btn btn--secondary" data-contact-drawer-add-note>Add note</button>
+        </div>
+      </div>
+      <div class="drawer__footer">
+        <a href="#" class="btn btn--secondary" data-contact-drawer-mailto target="_blank" rel="noopener">Email reply</a>
+      </div>
     </div>
   </div>
 
@@ -49,5 +159,6 @@
   <script src="/js/components/theme-toggle.js"></script>
   <script src="/js/components/admin/admin-auth.js"></script>
   <script src="/js/components/admin/admin-shell.js"></script>
+  <script src="/js/components/admin/admin-contacts.js"></script>
 </body>
 </html>

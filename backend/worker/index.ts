@@ -92,6 +92,13 @@ import {
   handleConsultationUpdate,
   handleConsultationAddNote,
 } from '../routes/admin/consultations';
+import {
+  handleContactsMeta,
+  handleContactsList,
+  handleContactGet,
+  handleContactUpdate,
+  handleContactAddNote,
+} from '../routes/admin/contacts';
 
 export type { Env };
 
@@ -198,6 +205,12 @@ const ROUTES: Route[] = [
   { pattern: new URLPattern({ pathname: '/api/admin/consultations/:id' }), method: 'GET', handler: handleConsultationGet },
   { pattern: new URLPattern({ pathname: '/api/admin/consultations/:id' }), method: 'PATCH', handler: handleConsultationUpdate },
   { pattern: new URLPattern({ pathname: '/api/admin/consultations/:id/notes' }), method: 'POST', handler: handleConsultationAddNote },
+
+  { pattern: new URLPattern({ pathname: '/api/admin/contacts/meta' }), method: 'GET', handler: handleContactsMeta },
+  { pattern: new URLPattern({ pathname: '/api/admin/contacts' }), method: 'GET', handler: handleContactsList },
+  { pattern: new URLPattern({ pathname: '/api/admin/contacts/:id' }), method: 'GET', handler: handleContactGet },
+  { pattern: new URLPattern({ pathname: '/api/admin/contacts/:id' }), method: 'PATCH', handler: handleContactUpdate },
+  { pattern: new URLPattern({ pathname: '/api/admin/contacts/:id/notes' }), method: 'POST', handler: handleContactAddNote },
   // Added Version 2.0 Phase 2 (Products Module) — public site
   // integration. This Worker fully owns `/books/*` via a new Workers
   // Route (wrangler.jsonc) — see routes/books.ts's header comment for
