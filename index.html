@@ -88,6 +88,13 @@
         <span class="hero__shape hero__shape--1" aria-hidden="true"></span>
         <span class="hero__shape hero__shape--2" aria-hidden="true"></span>
         <span class="hero__shape hero__shape--3" aria-hidden="true"></span>
+        <!-- Kente ribbon — flowing corner accent, frames the hero rather than
+             competing with it. See docs/design/ghanaian-design-language.md. -->
+        <svg class="kente-ribbon" viewBox="0 0 300 300" aria-hidden="true" focusable="false">
+          <path class="kente-ribbon__stripe kente-ribbon__stripe--gold" d="M300,30 C225,8 165,68 195,135 C225,203 135,240 30,225" />
+          <path class="kente-ribbon__stripe kente-ribbon__stripe--green" d="M300,52 C229,32 173,89 201,154 C229,219 143,259 41,244" />
+          <path class="kente-ribbon__stripe kente-ribbon__stripe--red" d="M300,75 C234,56 182,111 207,174 C234,234 156,278 52,264" />
+        </svg>
         <div class="hero__content" data-reveal>
           <span class="eyebrow hero__eyebrow">Financial education for Ghana</span>
           <h1 class="hero__title">Financial education built for everyday Ghanaians.</h1>
@@ -124,12 +131,30 @@
          today, not an aspiration or a fabricated stat. No customer
          counts, success rates, or claims that can't be verified.
          ============================================================ -->
-    <section class="section" aria-labelledby="trust-heading">
+    <section class="section section--spacious section--motif" aria-labelledby="trust-heading" data-reveal>
+      <!-- Gye Nyame watermark — supremacy/providence, fits a section
+           establishing the platform's trustworthiness. Whisper-quiet:
+           6% opacity, background only. Canonical source:
+           assets/design/adinkra/gye-nyame.svg (CC0, Wikimedia Commons —
+           see that file's header for attribution/license detail). See
+           docs/design/ghanaian-design-language.md. -->
+      <svg class="adinkra-motif adinkra-motif--top-right" viewBox="-37.654 -4.726 510 510" fill="currentColor" fill-rule="evenodd" clip-rule="evenodd" aria-hidden="true" focusable="false">
+        <path class="adinkra-motif__glyph" d="M180.475,11.245c11.609,15.968,7.794,46.741,26.767,55.644
+          c26.062-0.674,25.307-27.081,40.147-38.522c37.423-25.598,80.812-4.661,84.757,21.401c8.344,55.104-94.203,80.456-84.757,136.968
+          c9.536,33.494,46.84-40.814,80.296-4.281c29.544,65.467-102.894,51.963-95.405,99.257c8.479,69.408,83.598-43.18,99.866,7.75
+          c7.444,61.115-90.009,39.543-71.376,85.605c31.053,43.338,93.146-42.834,84.878-31.873c43.16-57.209,85.813-159.123,29.777-256.006
+          c99.626,91.095,71.729,313.357-69.21,350.594c14.787,9.459,18.504,36.646,8.087,48.568c-10.346,11.842-36.933,22.807-57.991,4.281
+          c-10.31-14.361,2.403-39.824-26.765-47.08c-18.745-4.664-32.433,39.398-55.647,52.135c-15.555,8.533-43.473,1.455-59.915-15.34
+          c-14.078-14.379-14.788-47.295,0.466-56.301c26.519-15.656,80.032-33.082,83.868-87.5c-5.471-40.646-59.689,35.025-84.756,8.559
+          c-34.083-68.123,83.784-46.83,89.217-102.725c-0.074-36.338-67.55,32.542-89.217-8.562c-38.333-69.896,114.667-36.896,93.68-94.165
+          c-24.013-47.731-112.56,5.376-147.334,72.364c-19.86,38.258-46.917,121.406-34.647,187.93
+          C-22.375,289.606-9.89,111.731,125.831,70.548c-16.777-6.39-21.382-28.988-8.3-51.689C125.911,4.318,159.07-11.08,180.475,11.245z" />
+      </svg>
       <div class="container text-center">
         <span class="eyebrow">Why trust us</span>
         <h2 id="trust-heading" class="mt-2 mb-5">Why people choose Robayer WealthLab</h2>
 
-        <ul class="grid grid--4 text-left">
+        <ul class="grid grid--4 gap-5 text-left">
           <li>
             <svg class="icon icon--lg mb-2" viewBox="0 0 24 24" aria-hidden="true"><path d="M12 3l2.6 5.6 6.1.6-4.6 4.1 1.3 6-5.4-3.2-5.4 3.2 1.3-6-4.6-4.1 6.1-.6z"/></svg>
             <h3 class="mb-2 font-body font-medium text-body-lg">Independent, always</h3>
@@ -163,7 +188,7 @@
          Links to /free-guide/ — the new lead-magnet landing page.
          Placed before Services/eBook as the lowest-friction first ask.
          ============================================================ -->
-    <section class="section bg-navy" aria-labelledby="free-guide-heading">
+    <section class="section section--spacious bg-navy" aria-labelledby="free-guide-heading" data-reveal>
       <div class="container feature-banner">
         <div class="book-card__cover book-card__cover--compact book-card__cover--green" aria-hidden="true"></div>
         <div>
@@ -181,12 +206,12 @@
     <!-- ============================================================
          SERVICES
          ============================================================ -->
-    <section class="section bg-sand" aria-labelledby="services-heading" data-reveal>
+    <section class="section section--spacious bg-sand" aria-labelledby="services-heading" data-reveal>
       <div class="container">
         <span class="eyebrow text-center">What we offer</span>
         <h2 id="services-heading" class="mb-5 mt-2 text-center">Built around how you actually make money decisions</h2>
 
-        <div class="grid grid--3">
+        <div class="grid grid--3 gap-5">
           <a href="/services/financial-education/" class="resource-card">
             <svg class="resource-card__icon icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M12 3l9 4.5-9 4.5-9-4.5 9-4.5z"/><path d="M3 7.5v9L12 21l9-4.5v-9"/></svg>
             <p class="resource-card__title">Financial Education</p>
@@ -233,7 +258,7 @@
          Cover placeholder: a professionally designed eBook mockup is
          pending (see README TODOs) — Sika Gold block stands in for now.
          ============================================================ -->
-    <section class="section bg-navy" aria-labelledby="featured-book-heading" data-feature-banner>
+    <section class="section section--spacious bg-navy" aria-labelledby="featured-book-heading" data-feature-banner data-reveal>
       <div class="container feature-banner">
         <div class="book-card__cover book-card__cover--compact" aria-hidden="true"></div>
         <div>
@@ -252,7 +277,7 @@
          currently teased, rather than showing an empty section (see
          docs/product-discovery-architecture.md's "Empty states").
          ============================================================ -->
-    <section class="section bg-sand" aria-labelledby="coming-soon-heading">
+    <section class="section section--spacious bg-sand" aria-labelledby="coming-soon-heading" data-reveal>
       <div class="container">
         <span class="eyebrow">Coming soon</span>
         <h2 id="coming-soon-heading" class="mt-2 mb-4">More guides on the way</h2>
@@ -265,12 +290,12 @@
     <!-- ============================================================
          RESOURCES PREVIEW
          ============================================================ -->
-    <section class="section" aria-labelledby="resources-heading">
+    <section class="section section--spacious" aria-labelledby="resources-heading" data-reveal>
       <div class="container">
         <span class="eyebrow">Free resources</span>
         <h2 id="resources-heading" class="mb-5 mt-2">Start without spending anything</h2>
 
-        <div class="grid grid--3">
+        <div class="grid grid--3 gap-5">
           <a href="/resources/" class="resource-card">
             <svg class="resource-card__icon icon" viewBox="0 0 24 24" aria-hidden="true"><rect x="3" y="4" width="18" height="16" rx="2"/><path d="M3 9h18"/></svg>
             <span class="badge badge--info resource-card__format">Template</span>
@@ -299,7 +324,16 @@
          supporting element (half-width, lazy-loaded, this far down
          the page) rather than the section's focal point.
          ============================================================ -->
-    <section class="section" aria-labelledby="about-heading" data-reveal>
+    <section class="section section--spacious section--motif" aria-labelledby="about-heading" data-reveal>
+      <!-- Sankofa watermark — "go back and get it," learning from the
+           past to move forward: fits a section about a founder's own
+           history informing present guidance. Canonical source:
+           assets/design/adinkra/sankofa.svg (CC0, Wikimedia Commons —
+           see that file's header for attribution/license detail). See
+           docs/design/ghanaian-design-language.md. -->
+      <svg class="adinkra-motif adinkra-motif--bottom-left" viewBox="0 0 1513 2048" fill="currentColor" aria-hidden="true" focusable="false">
+        <path class="adinkra-motif__glyph" d="m 1085.922,2027.4191 c -8.2429,-8.2429 -5.8741,-41.2455 5.9754,-83.249 4.6887,-16.6203 4.1262,-32.1599 -2.0621,-56.9651 -23.1451,-92.7752 -116.8061,-251.4391 -176.46868,-298.942 -4.39681,-3.5007 -11.3692,-7.981 -15.4942,-9.9561 -6.94914,-3.3274 -8.12431,-3.5785 -16,-3.418 -4.675,0.095 -14.35,0.6945 -21.5,1.3318 -7.15,0.6372 -36.01072,1.4021 -64.13494,1.6999 -53.25025,0.5637 -87.69748,-0.3956 -122.86506,-3.4217 -28.6754,-2.4674 -31.54818,-2.3329 -40.5,1.8962 -12.78537,6.04 -24.34421,15.17 -44.08389,34.8206 -20.67702,20.5837 -33.3248,35.35 -54.38968,63.5 -52.68647,70.4075 -92.58434,147.2497 -97.76919,188.3007 -1.32672,10.5043 -0.21201,23.301 5.331,61.1993 5.46491,37.3643 5.02631,50.9292 -1.70133,52.6177 -4.53746,1.1389 -10.65968,-3.0405 -25.83824,-17.6385 -15.82818,-15.2229 -25.33896,-21.7725 -37.85476,-26.0689 -33.91291,-11.6416 -71.00685,-0.4207 -108.3675,32.7811 -20.30387,18.0438 -30.79214,21.374 -37.73648,11.982 -1.78326,-2.4117 -2.0884,-4.2459 -2.07948,-12.5 0.0117,-10.8171 1.34557,-15.8585 7.48979,-28.3075 5.09046,-10.3139 10.10379,-17.4901 20.50939,-29.3575 10.15949,-11.5867 11.90228,-14.0329 11.01755,-15.4644 -1.07046,-1.7321 -14.04454,-1.1878 -36.63181,1.5368 -23.34959,2.8164 -41.24584,3.0331 -44.25502,0.5357 -3.15952,-2.6222 -1.96212,-6.0098 4.28488,-12.1225 10.04921,-9.8331 38.72074,-29.146 53.66969,-36.1514 16.06597,-7.5289 30.10823,-8.986 62.12327,-6.4464 24.99772,1.9829 29.36259,1.9942 36.65435,0.095 14.80809,-3.857 18.7475,-9.1309 51.16123,-68.4912 25.33896,-46.4041 46.42217,-84.4956 72.78376,-131.5 36.42549,-64.949 41.68247,-76.0812 41.68247,-88.2675 0,-6.4454 -2.91319,-12.3404 -7.91912,-16.0249 -5.73868,-4.2238 -18.41381,-9.9198 -40.58088,-18.2366 -60.01127,-22.5152 -104.21977,-44.6056 -148.95255,-74.4295 C 159.40223,1341.405 58.321093,1177.957 28.447193,985.19084 18.371973,920.17886 16.660343,851.02049 23.448433,783.21576 c 12.81857,-128.0419 56.9829,-256.0304 127.076707,-368.26908 77.94495,-124.81043 191.57233,-234.17739 311.84728,-300.1547 97.1256,-53.278638 204.46184,-84.717904 316,-92.557819 19.09758,-1.342351 71.11479,-1.351951 89.72624,-0.01656 51.61949,3.703756 98.01189,12.446329 141.27374,26.622813 101.3515,33.21187 177.1933,93.084316 216.8666,171.202916 12.7869,25.17794 18.6648,41.80615 27.1657,76.85061 10.4159,42.93844 19.2296,70.40412 37.5212,116.92475 25.642,65.21512 31.8215,93.59591 22.3204,102.51327 -2.0833,1.95536 -3.5583,2.37199 -8.2069,2.31808 -11.5141,-0.13353 -27.3981,-9.21007 -63.5162,-36.29503 -42.7687,-32.07218 -52.2576,-38.49388 -69.9376,-47.33101 -20.3044,-10.14885 -35.7222,-14.4708 -90.2132,-25.2889 -85.30734,-16.93604 -100.19892,-24.32986 -159.8715,-79.37785 -8.72934,-8.05282 -19.97934,-17.94149 -25,-21.97482 -93.56618,-75.16602 -221.12385,-81.94789 -343.1571,-18.24467 -64.95755,33.90883 -123.42178,85.6676 -165.28939,146.33176 -39.22543,56.83578 -63.42422,120.47559 -69.1083,181.74624 -1.35579,14.61448 -1.3817,46.67636 -0.0486,60.14405 6.16279,62.26039 30.62357,121.78242 71.03575,172.85595 10.76747,13.6081 39.40924,42.22335 53.43918,53.38971 60.05234,47.79535 138.61657,79.31749 225.56577,90.50319 29.72936,3.8246 43.63225,4.6087 80.43423,4.5362 38.35543,-0.075 55.55521,-1.2286 89.5,-6.0005 124.67279,-17.52632 244.29116,-68.76706 340.36036,-145.79964 33.7898,-27.09418 61.6247,-54.44822 92.5234,-90.925 21.3983,-25.26125 32.8047,-35.72295 45.6162,-41.83836 10.3669,-4.94852 19.7979,-3.44506 24.828,3.95801 12.071,17.76553 9.4469,59.82481 -7.8767,126.2499 -2.0904,8.01543 -3.5112,15.32793 -3.1574,16.25 3.091,8.055 29.7078,-15.35771 52.5059,-46.18529 3.023,-4.08777 8.8208,-12.87864 12.8839,-19.53526 11.0118,-18.04063 16.7529,-22.67267 23.8854,-19.27138 10.1776,4.85335 16.414,28.46787 16.425,62.19465 0.01,27.89337 -2.5588,43.89122 -11.4668,71.43576 -5.446,16.83961 -7.5554,27.28455 -5.7374,28.40819 4.413,2.72737 47.1836,-59.2377 59.2452,-85.83306 4.8992,-10.80251 6.9608,-12.40583 10.5646,-8.21613 2.5672,2.98456 4.8482,12.15653 6.4943,26.11391 1.5729,13.33747 0.6215,61.81453 -1.5616,79.5651 -8.0351,65.33284 -26.4629,125.94944 -56.5648,186.06464 -70.3258,140.4449 -192.9052,262.8274 -362.9676,362.3845 -56.6779,33.1801 -64.219,42.1327 -56.0616,66.5552 3.4701,10.3893 7.52,18.3469 31.0425,60.9956 19.114,34.6556 54.6085,100.2094 82.0306,151.5 40.8166,76.3437 47.9479,85.5991 70.5747,91.5952 7.0905,1.8789 12.1272,2.1847 48.4138,2.9386 44.0914,0.9161 50.4265,1.6177 61.4094,6.8016 8.7439,4.127 16.3284,10.1986 32.309,25.8643 13.7041,13.4342 20.2816,21.2015 20.2816,23.9503 0,1.9278 -3.7658,1.6725 -10.5934,-0.718 -3.2487,-1.1375 -12.6566,-3.798 -20.9066,-5.9123 -40.2879,-10.3252 -68.7361,-7.0496 -65.0859,7.4941 0.4228,1.6845 6.3466,8.593 14.9118,17.3905 21.4647,22.0468 31.6741,39.3597 31.6741,53.7121 0,11.3544 -6.5319,15.9589 -18.2935,12.8954 -7.9093,-2.0601 -13.3563,-5.0095 -26.5147,-14.3569 -34.2656,-24.3414 -61.8198,-33.6109 -92.0357,-30.9616 -24.9705,2.1894 -46.7554,15.5123 -63.4544,38.8067 -9.5937,13.3827 -12.8821,17.1417 -17.6475,20.1725 -5.5665,3.5403 -7.4898,3.5457 -11.0046,0.031 z" />
+      </svg>
       <div class="container grid grid--2 gap-5">
         <img
           class="rounded-lg aspect-4-5 img-cover portrait-frame"
@@ -325,7 +359,7 @@
          Progressive enhancement via js/components/newsletter-form.js.
          Real submission wiring pending a form-backend decision (README).
          ============================================================ -->
-    <section class="section section--tight">
+    <section class="section section--tight" data-reveal>
       <div class="container">
         <div class="newsletter-band">
           <div>

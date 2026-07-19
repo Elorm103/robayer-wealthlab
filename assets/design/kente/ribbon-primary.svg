@@ -1,0 +1,21 @@
+<!--
+  Kente ribbon (primary) — a flowing corner accent, three interwoven
+  strokes in Growth Green, Sika Gold, and Kente Red. Original design
+  for this project, inspired by Kente cloth's flowing/interwoven
+  quality — not a literal traditional pattern reproduction. Approved
+  for hero-corner framing use only — see
+  docs/design/ghanaian-design-language.md's "Kente Usage": never a
+  full-width or background pattern.
+
+  Canonical source for this asset. This project has no build step, so
+  when embedding on a page, copy this markup inline (matching every
+  other SVG in this codebase — see css/components.css's .kente-ribbon
+  rules for the required opacity/color/animation classes) rather than
+  referencing via <img src>, since currentColor theming requires the
+  SVG to be inline in the DOM.
+-->
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 300 300">
+  <path class="kente-ribbon__stripe kente-ribbon__stripe--gold" d="M300,30 C225,8 165,68 195,135 C225,203 135,240 30,225" />
+  <path class="kente-ribbon__stripe kente-ribbon__stripe--green" d="M300,52 C229,32 173,89 201,154 C229,219 143,259 41,244" />
+  <path class="kente-ribbon__stripe kente-ribbon__stripe--red" d="M300,75 C234,56 182,111 207,174 C234,234 156,278 52,264" />
+</svg>

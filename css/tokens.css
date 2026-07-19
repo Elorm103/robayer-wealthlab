@@ -46,8 +46,15 @@
   --color-sika-gold-dark:    #BF8F14; /* sika gold, ~8% darker */
 
   /* ---------- Color: Role mapping (use these in components, not raw colors) ---------- */
-  --color-bg:              var(--color-warm-paper);
-  --color-bg-alt:          var(--color-light-sand);
+  /* Ghanaian Identity redesign (docs/homepage-ghanaian-redesign-plan.md,
+     approved): --color-bg becomes the site's white default, and
+     --color-bg-alt takes over warm-paper's former role as the
+     occasional alternating-section tone. No new colors introduced —
+     both values already existed in the palette; only their role
+     mapping changes, so every page using .bg-paper/.bg-sand/.section
+     brightens automatically without any markup changes. */
+  --color-bg:              var(--color-white);
+  --color-bg-alt:          var(--color-warm-paper);
   --color-bg-inverse:      var(--color-ink-navy);
   --color-surface:         var(--color-white);
   --color-text-primary:    var(--color-charcoal-ink);

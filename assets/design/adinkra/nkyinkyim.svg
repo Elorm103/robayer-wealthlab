@@ -1,0 +1,21 @@
+<!--
+  Nkyinkyim — "twisting": life's twists and turns, initiative,
+  dynamism, versatility. Optional per docs/design/ghanaian-design-
+  language.md — hold in reserve; the hero is the only currently
+  approved placement if this symbol is used.
+
+  Source: Wikimedia Commons, "Nkyinkyim.svg" by Pablo Busatto (2020)
+  https://commons.wikimedia.org/wiki/File:Nkyinkyim.svg
+  License: CC BY-SA 4.0 (Attribution-ShareAlike). Attribution: Pablo
+  Busatto. This adapted file is a derivative work and is itself
+  licensed CC BY-SA 4.0 — https://creativecommons.org/licenses/by-sa/4.0/
+
+  Adapted from the original: fill hardcoded to currentColor so callers
+  control color via CSS (matching this project's existing icon
+  convention); original polygon geometry and viewBox preserved
+  unchanged for accuracy.
+-->
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 360 360" fill="currentColor">
+  <title>Nkyinkyim</title>
+  <polygon points="360 51.429 360 0 0 0 0 51.429 0 64.286 0 115.714 308.571 115.714 308.571 128.571 0 128.571 0 180 0 192.857 0 244.286 308.571 244.286 308.571 257.143 0 257.143 0 308.571 0 360 51.429 360 51.429 308.571 102.857 308.571 102.857 360 154.286 360 154.286 308.571 205.714 308.571 205.714 360 257.143 360 257.143 308.571 308.571 308.571 308.571 360 360 360 360 308.571 360 257.143 360 244.286 360 192.857 51.429 192.857 51.429 180 360 180 360 128.571 360 115.714 360 64.286 51.429 64.286 51.429 51.429 360 51.429"/>
+</svg>

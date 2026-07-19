@@ -46,6 +46,26 @@
   }
 }
 
+/* Spacious modifier — one step up the existing scale (not a new value),
+   per the Ghanaian Identity redesign's "increase whitespace" direction
+   (docs/homepage-ghanaian-redesign-plan.md). Applied where a section
+   should read as more generous/luxurious than the default rhythm. */
+.section--spacious {
+  padding-block: var(--space-8); /* 96px desktop */
+}
+
+@media (max-width: 1199px) {
+  .section--spacious {
+    padding-block: var(--space-7); /* 64px tablet */
+  }
+}
+
+@media (max-width: 767px) {
+  .section--spacious {
+    padding-block: var(--space-6); /* 48px mobile */
+  }
+}
+
 /* ---------- Grid system ---------- */
 .grid {
   display: grid;

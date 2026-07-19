@@ -1,0 +1,21 @@
+<!--
+  Kente ribbon (secondary) — a single thin flowing stroke, for a
+  section-divider accent rather than a corner frame. Original design
+  for this project, matching ribbon-primary.svg's construction
+  (Growth Green / Sika Gold / Kente Red at low opacity) but reduced to
+  one interwoven line for a subtler, horizontal placement. Not
+  currently placed on any live page — available for future use per
+  docs/design/ghanaian-design-language.md's "at most once or twice per
+  page" guidance. Reuse ribbon-primary.svg's .kente-ribbon__stripe
+  classes/animation (css/components.css) when embedding this.
+
+  Canonical source for this asset. This project has no build step —
+  copy this markup inline when using it, matching every other SVG in
+  this codebase, since currentColor/class-based theming requires the
+  SVG to be inline in the DOM (see ribbon-primary.svg's header for why).
+-->
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 600 60" preserveAspectRatio="none">
+  <path class="kente-ribbon__stripe kente-ribbon__stripe--gold" d="M0,20 C120,4 180,44 300,26 C420,8 480,40 600,22" />
+  <path class="kente-ribbon__stripe kente-ribbon__stripe--green" d="M0,30 C120,14 180,54 300,36 C420,18 480,50 600,32" />
+  <path class="kente-ribbon__stripe kente-ribbon__stripe--red" d="M0,40 C120,24 180,64 300,46 C420,28 480,60 600,42" />
+</svg>
