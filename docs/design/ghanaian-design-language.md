@@ -57,29 +57,38 @@ Reuse the existing, already-approved token system (`css/tokens.css`) — do not 
 - More than one ribbon treatment per page — it's a signature accent, not a repeating background texture.
 - Literal, high-fidelity woven-pattern rendering — an elegant, simplified vector interpretation (flowing curve + thin stripes) is correct; anything resembling actual cloth photography or a busy geometric weave is not.
 
-**Technical form:** inline SVG (matching the site's existing icon convention), `aria-hidden="true"`, `pointer-events:none`, positioned `absolute` within a `position:relative` container so it never affects document flow or layout. Canonical source: `assets/design/kente/ribbon-primary.svg` (the corner-framing form, currently live in the homepage hero) and `ribbon-secondary.svg` (a thinner single-line variant for a future section-divider placement — not yet used anywhere). Both are original designs for this project — Kente cloth's flowing, interwoven quality as inspiration, not a literal traditional pattern reproduction, so no external reference/licensing applies to these two files the way it does to the Adinkra symbols below.
+**Technical form:** inline SVG (matching the site's existing icon convention), `aria-hidden="true"`, `pointer-events:none`, positioned `absolute` within a `position:relative` container so it never affects document flow or layout. As of the hero refinement pass, the ribbon is built from wide (`stroke-width: 20`) rounded strokes with a two-stop `linearGradient` per band (each colour into its own darker tone) plus a blurred "fold shadow" duplicate band beneath — not the original thin `stroke-dasharray` outline — so it reads as flowing fabric rather than an SVG line. Canonical source: `assets/design/kente/ribbon-primary.svg` (the corner-framing form; the live hero markup in `index.html` extends this base geometry with the gradient/shadow treatment) and `ribbon-secondary.svg` (a thinner single-line variant for a future section-divider placement — not yet used anywhere). Both are original designs for this project — Kente cloth's flowing, interwoven quality as inspiration, not a literal traditional pattern reproduction, so no external reference/licensing applies to these two files the way it does to the Adinkra symbols below.
 
 ## Approved Adinkra Symbols
 
 Three symbols only, each chosen for a specific thematic fit — not a general-purpose decorative set. Adding a fourth symbol to a future page should be a deliberate decision, not a default.
 
-| Symbol | Meaning | Where it belongs |
-|---|---|---|
-| **Gye Nyame** | Supremacy and omnipresence — commonly read as a symbol of trust and providence | Trust/credibility sections, sections establishing the platform's reliability |
-| **Sankofa** | "Go back and get it" — learning from the past to move forward | Founder/about/story sections, anywhere personal history informs present guidance |
-| **Nkyinkyim** (optional) | Dynamism, versatility, growth through life's twists | Hero sections, general growth/progress framing |
+**Two tiers, introduced during the hero refinement pass** — a symbol is either an "anchor" (one deliberate, large, focal-point use per site) or a "watermark" (small, flat, low-opacity background texture, reusable across relevant sections). Mixing the two treatments on the same symbol, or promoting a watermark symbol to anchor scale elsewhere, would dilute the distinction — keep each symbol in its assigned tier.
 
-**Visual treatment — always:**
+| Symbol | Meaning | Tier | Where it belongs |
+|---|---|---|---|
+| **Gye Nyame** | Supremacy and omnipresence — commonly read as a symbol of trust and providence | Watermark | Trust/credibility sections, sections establishing the platform's reliability |
+| **Sankofa** | "Go back and get it" — learning from the past to move forward | Watermark | Founder/about/story sections, anywhere personal history informs present guidance |
+| **Nkyinkyim** | Dynamism, versatility, growth through life's twists | Anchor | The homepage hero, as the large focal illustration — its one approved placement; do not also use it as a small watermark elsewhere |
+
+**Watermark tier — visual treatment (Gye Nyame, Sankofa):**
 - **Accurate, filled traditional silhouettes** — sourced from verified references (see Asset Library above), not hand-drawn approximations. This is a deliberate departure from the site's stroke-only UI icon convention: a traditional Adinkra symbol is authentically a solid stamped/carved form, not a line drawing, and getting the actual symbol right matters more here than matching the icon system's line-art style. `fill:currentColor` (each canonical file sets this), no stroke.
-- **Very low opacity** (5–8%), used as a background watermark, never a foreground graphic — the low opacity is what keeps a filled shape from reading as a "festival poster" graphic despite being solid rather than outlined.
+- **Low opacity — 9%** (`.adinkra-motif`'s current live value; raised from an initial 6% during the hero refinement pass, within the document's approved 8–10% starting range), used as a background watermark, never a foreground graphic — the low opacity is what keeps a filled shape from reading as a "festival poster" graphic despite being solid rather than outlined.
 - Large scale (150–260px) but positioned in section corners/margins, `aria-hidden="true"`, `pointer-events:none`, `z-index` beneath the content, never overlapping a heading or paragraph.
 - "Discovered rather than shouted" — a visitor scrolling normally should register it as texture/atmosphere, not consciously notice a symbol until they look closely.
+
+**Anchor tier — visual treatment (Nkyinkyim, hero only):**
+- **Soft, editorial-illustration treatment, never a logo or badge.** A two-stop gradient fill (`--color-sika-gold` → `--color-sika-gold-dark`, both existing tokens — see `docs/design/brand-assets.md`'s Approved Colours), a blurred shadow duplicate of the same geometry (`feGaussianBlur`) for gentle depth, and opacity below full (0.9) so it never reads as a hard-edged sticker. No stroke outline, no glossy/metallic highlight, no heavy 3D treatment — think premium editorial illustration, not gold badge.
+- Large scale relative to its column (up to ~400px), positioned as the hero's deliberate right-column focal point, not a corner watermark.
+- A very low-opacity, deliberately unnoticed Ghanaian financial-context illustration (a growth curve with connected nodes) sits behind it, plus a scatter of small abstract accent marks (never a duplicated Adinkra symbol) — see "Illustration Style" below for the abstract-accents principle this follows.
+- Barely-perceptible ambient float (`hero-nkyinkyim-float`, 22s) — see Motion Principles below.
 
 **Do not:**
 - Recreate a symbol from memory or approximation, ever — always start from the canonical file in `assets/design/adinkra/`. If a symbol isn't in that folder yet, source an accurately-licensed reference (Wikimedia Commons' CC0/CC-BY-SA Adinkra collections are a good starting point) before adding it, following the same verification this document's own three symbols went through.
 - Use a symbol decoratively without regard to its meaning — each placement should make thematic sense per the table above.
 - Introduce additional Adinkra symbols beyond these three without a specific, considered reason (this document should be updated deliberately, not casually extended).
-- Render symbols at high opacity or with drop shadows — that tips into "festival poster" territory, which this brand explicitly avoids, even though the underlying form is filled rather than outlined.
+- Render a **watermark-tier** symbol (Gye Nyame, Sankofa) at high opacity or with a drop shadow — that tips into "festival poster" territory, which this brand explicitly avoids, even though the underlying form is filled rather than outlined. The anchor-tier treatment (Nkyinkyim, hero only, above) is the one deliberate exception to this rule — it is not a precedent for raising any other symbol's opacity.
+- Promote a watermark-tier symbol to anchor scale, or add a second anchor-tier symbol anywhere on the site, without a full design review equivalent to the one that produced the current hero.
 - Use Adinkra symbols as functional icons (nav, buttons, status indicators) — they are atmospheric, not UI elements. UI iconography stays in the existing Feather/Lucide-style line-icon system (see Iconography Rules below); the filled/traditional treatment above is exclusive to Adinkra motifs and should never bleed into the functional icon set.
 
 **A note for Version 3 and beyond:** the founder has expressed interest in eventually commissioning or creating a fully custom illustration set — accurate to authentic Adinkra forms, but with a stroke weight, spacing, corner radii, and animation language unique to Robayer WealthLab (the way Stripe, Notion, and Linear each have an instantly-recognizable illustration system). The three files in this library are the accurate reference baseline that any future custom system should still be checked against for symbolic correctness, even once the surrounding visual style becomes fully bespoke.
@@ -106,11 +115,14 @@ Generosity signals confidence. A cramped layout undermines the "premium" read fa
 
 ## Illustration Style
 
-No custom illustration exists sitewide today — every "cover" placeholder is a flat CSS colour block, and this is a legitimate, working style choice, not a placeholder to be embarrassed about. If custom illustration is ever introduced:
+The homepage hero's Nkyinkyim anchor illustration and its supporting financial-context accent (a faint growth curve with connected nodes, plus a scatter of abstract accent marks) are the first custom illustration work on the site — everywhere else, every "cover" placeholder remains a flat CSS colour block, which is still a legitimate, working style choice, not a placeholder to be embarrassed about. If further custom illustration is introduced beyond the hero:
 
 - Flat, geometric, minimal — consistent with the line-icon system's restraint, not painterly or textured.
 - Any Ghanaian visual reference within an illustration (map outline, geometric pattern inspired by Kente's structure rather than its literal weave) should follow the same restraint rules as Kente/Adinkra above: subtle, low-opacity, never the dominant element.
-- Avoid literal tourism iconography (drums, masks, sunsets, wildlife) — this brand's Ghanaian identity is about the content and the person delivering it (real financial context: treasury bills, mobile money, the GSE), not visual signifiers borrowed from tourism marketing.
+- Avoid literal tourism iconography (drums, masks, sunsets, wildlife) — this brand's Ghanaian identity is about the content and the person delivering it (real financial context: treasury bills, mobile money, the GSE), not visual signifiers borrowed from tourism marketing. The hero's financial-context accent follows this rule directly: a growth curve and connected nodes read as "finance," not as a borrowed cultural signifier.
+- A financial (not cultural) supporting illustration, kept very low-opacity and static (no motion), is the approved way to reinforce "Ghanaian financial education" rather than "Ghana" alone — see the hero's `.hero__context` treatment as the reference implementation.
+
+**The homepage hero is now considered visually finished.** Per the hero refinement pass, no further visual elements should be added to the homepage hero or the homepage generally — future design/illustration effort should go toward calculators, books, articles, courses, and other product surfaces, not additional homepage polishing. Any future homepage change should be a deliberate, scoped exception, not a continuation of this design arc.
 
 ## Photography Style
 

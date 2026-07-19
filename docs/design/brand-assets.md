@@ -8,15 +8,15 @@
 |---|---|---|---|---|
 | Gye Nyame | `assets/design/adinkra/gye-nyame.svg` | Supremacy/omnipresence — trust, providence | Hero, Trust/credibility sections | Decorative only. Background watermark, never a foreground graphic. Never as a functional icon. |
 | Sankofa | `assets/design/adinkra/sankofa.svg` | "Go back and get it" — learning from the past | Founder/about/story sections, education contexts | Decorative only. Background watermark, never a foreground graphic. Never as a functional icon. |
-| Nkyinkyim | `assets/design/adinkra/nkyinkyim.svg` | Life's twists and turns, adaptability, dynamism | Optional accent — hero or general growth/progress framing | Decorative only. Not currently placed on any live page. Requires attribution (CC BY-SA 4.0, © Pablo Busatto — see file header) if used. |
+| Nkyinkyim | `assets/design/adinkra/nkyinkyim.svg` | Life's twists and turns, adaptability, dynamism | **Hero anchor illustration** (homepage) — this is now its one approved placement | Decorative only. This is the sole "anchor tier" use of a named Adinkra symbol; do not duplicate it elsewhere. Requires attribution (CC BY-SA 4.0, © Pablo Busatto — see file header). |
 | Kente Ribbon (Primary) | `assets/design/kente/ribbon-primary.svg` | Hero framing — a flowing corner accent | Edge/corner framing of a hero section only | Never as a full-page or full-width background. Never more than one ribbon treatment per page. |
 | Kente Ribbon (Secondary) | `assets/design/kente/ribbon-secondary.svg` | Thin section-divider accent | Occasional section transitions (at most once or twice per page) | Never behind body text or inside a content/card area. Not currently placed on any live page. |
 
-**Current live usage** (as of the homepage redesign): Gye Nyame in the Trust section, Sankofa in the Meet the Founder section, Kente Ribbon Primary in the hero's top-right corner. Nkyinkyim and Kente Ribbon Secondary are built and available but not yet placed anywhere — see each file's own header comment for guidance on when they'd be appropriate.
+**Current live usage** (as of the hero refinement pass): Gye Nyame in the Trust section, Sankofa in the Meet the Founder section (both "watermark tier" — see Approved Opacity Ranges below), Nkyinkyim as the hero's large "anchor tier" illustration (homepage, right column), Kente Ribbon Primary in the hero's top-right corner, rebuilt as filled gradient bands rather than thin dashed lines. Kente Ribbon Secondary is built and available but not yet placed anywhere — see its file header for guidance on when it'd be appropriate.
 
 **Provenance summary** (full detail in each file's header comment): Gye Nyame and Sankofa are sourced from Wikimedia Commons under CC0 1.0 (public domain, no attribution required). Nkyinkyim is sourced from Wikimedia Commons under CC BY-SA 4.0 (attribution required, and this project's adapted copy is itself CC BY-SA 4.0 as a derivative work). Both Kente ribbons are original designs for this project — inspired by Kente cloth's flowing, interwoven quality, not a reproduction of a specific traditional pattern, so no external license applies to them.
 
-**How to use these assets:** this project has no build step, so every SVG (these included) must be embedded inline in a page's HTML — copy the markup directly from the canonical file, do not reference it via `<img src>`, since `currentColor` theming only works when the SVG is actually in the DOM. Apply the existing shared CSS classes (`.adinkra-motif`, `.kente-ribbon`, and their modifiers — defined in `css/components.css`) rather than writing new per-page styles.
+**How to use these assets:** this project has no build step, so every SVG (these included) must be embedded inline in a page's HTML — copy the markup directly from the canonical file, do not reference it via `<img src>`, since `currentColor`/gradient theming only works when the SVG is actually in the DOM. Apply the existing shared CSS classes (`.adinkra-motif`, `.kente-ribbon`, `.hero__nkyinkyim`, and their modifiers — defined in `css/components.css`) rather than writing new per-page styles. The hero's Nkyinkyim anchor illustration is a special case: it composites the same canonical polygon geometry twice (a blurred shadow duplicate plus a gradient-filled main shape) inside a larger `<svg>`, using an explicit `fill` on each nested `<svg>` rather than `currentColor` — see `index.html`'s hero markup for the reference pattern before reusing this symbol anywhere else.
 
 ## Approved Colours
 
@@ -24,30 +24,40 @@ Every asset uses colours already in the approved brand palette (`css/tokens.css`
 
 | Token | Value | Used by |
 |---|---|---|
-| `--color-growth-green` | `#1F5C4E` | Kente ribbons (green stripe) |
-| `--color-sika-gold` | `#D4A017` | Kente ribbons (gold stripe) |
-| `--color-kente-red` | `#B33A3A` | Kente ribbons (red stripe) |
-| `--color-ink-navy` | `#16233D` | Adinkra motifs (Gye Nyame, Sankofa, Nkyinkyim) |
+| `--color-growth-green` | `#1F5C4E` | Kente ribbon (green band), hero financial-context curve |
+| `--color-growth-green-dark` | `#1A4F43` | Kente ribbon green band gradient (fold shadow) |
+| `--color-sika-gold` | `#D4A017` | Kente ribbon (gold band), Nkyinkyim gradient (light stop) |
+| `--color-sika-gold-dark` | `#BF8F14` | Kente ribbon gold band gradient, Nkyinkyim gradient (dark stop) |
+| `--color-kente-red` | `#B33A3A` | Kente ribbon (red band) |
+| `--color-ink-navy` | `#16233D` | Adinkra motifs (Gye Nyame, Sankofa), Nkyinkyim shadow duplicate, hero abstract accents |
 
-Do not introduce a new colour for a future asset unless no existing token — including an `rgba()`/`color-mix()` derivation of one — can express the need. See `docs/design/ghanaian-design-language.md`'s "Colour Usage" for the full reasoning.
+The Kente ribbon's red band gradient uses `color-mix(in srgb, var(--color-kente-red) 78%, black)` for its darker stop, since no `--color-kente-red-dark` token exists — a derivation of an existing token, not a new colour. Do not introduce a genuinely new colour for a future asset unless no existing token (including an `rgba()`/`color-mix()` derivation of one) can express the need. See `docs/design/ghanaian-design-language.md`'s "Colour Usage" for the full reasoning.
 
 ## Approved Opacity Ranges
 
-| Asset type | Opacity | Why |
-|---|---|---|
-| Adinkra motifs (background watermarks) | **6%** (`opacity: 0.06`) | "Discovered rather than shouted" — registers as atmosphere on a casual scroll, not a conscious graphic. Acceptable range: 5–8%, per the design language document; 6% is what's currently live. |
-| Kente ribbon stripes | **14–22%** (`0.14`–`0.22` per stripe, varied slightly so the three interwoven colours read as distinct rather than blending into one tone) | A framing accent needs to be visible enough to register as an intentional design element, but must stay clearly secondary to the hero's actual content. |
+Two tiers, per `docs/design/ghanaian-design-language.md`'s anchor/watermark distinction:
 
-Never raise either range for a "more visible" effect — if an asset isn't reading as intended, the fix is size or placement, not opacity. Never use full (100%) opacity for either asset type; that is reserved for functional UI icons, which these are not.
+| Asset | Tier | Opacity | Why |
+|---|---|---|---|
+| Gye Nyame, Sankofa (background watermarks) | Watermark | **9%** (`opacity: 0.09`) | Raised from the original 6% during the hero refinement pass, per direct guidance: begin around 8–10%, only go higher if a symbol disappears on very large displays. Still "noticed after a second glance," never "visible before reading the headline." |
+| Nkyinkyim (hero anchor illustration) | Anchor | **90%** main shape (`opacity: 0.9`), **16%** blurred shadow duplicate | This is the hero's deliberate focal point, not a watermark — an editorial illustration, not a badge, so it reads as a soft, large shape rather than flat 100% opaque colour. |
+| Hero financial-context curve + accent dots | Watermark (hero-only) | **9%** (curve/nodes), **12%** (abstract accent marks) | "The visitor should not consciously notice it" — deliberately static (no motion) to stay pure background texture. |
+| Kente ribbon bands | Framing accent | **55%** gold / **40%** green / **32%** red (gradient-filled, `stroke-width: 20`) | Rebuilt from the original thin dashed outline (14–22%) into wider filled fabric-like bands during the hero refinement pass — a wider, softer-edged shape reads correctly richer at this range without overpowering the hero content. |
+| Kente ribbon fold shadow | Framing accent | **10%**, blurred | A soft duplicate band beneath the three stripes, giving the ribbon a gentle sense of depth/fold rather than a flat outline. |
+
+Never raise the watermark-tier ranges further without confirming a real legibility problem on a large display first — if an asset isn't reading as intended, the fix is usually size or placement, not opacity. The Kente ribbon and Nkyinkyim anchor ranges above already reflect a deliberate, one-time redesign (not an incremental "make it more visible" nudge) — do not incrementally raise them again without an equivalent design review.
 
 ## Approved Animation Behaviour
 
 | Asset | Animation | Duration | Character |
 |---|---|---|---|
-| Kente ribbons | `stroke-dashoffset` flow along each stripe path | 22s, linear, infinite | A slow, continuous "flowing" motion — no easing curve, since a flow shouldn't visibly speed up or slow down |
-| Adinkra motifs | Small-amplitude vertical drift (`translateY`, ±6px) | 24s, `ease-in-out`, infinite | Barely perceptible ambient movement — "alive" without being distracting |
+| Kente ribbon bands | Ambient `translate` drift (small amplitude) | 26s, matches `--ease-standard`, infinite | Replaces the original `stroke-dashoffset` flow now that the ribbon is filled bands, not dashed lines — a gentle sway rather than a directional flow |
+| Kente ribbon fold shadow | None (static) | — | The blurred shadow band stays still; only the coloured bands above it drift, so the "fold" reads as fixed depth rather than motion |
+| Adinkra motifs (Gye Nyame, Sankofa) | Small-amplitude vertical drift (`translateY`, ±6px) | 24s, `ease-in-out`, infinite | Barely perceptible ambient movement — "alive" without being distracting |
+| Nkyinkyim (hero anchor) | Small-amplitude vertical float (`translateY`, ±8px), shadow duplicate moves with it | 22s, matches `--ease-standard`, infinite | The anchor illustration's only motion — deliberately slow so it never feels like a spinner or a loading state |
+| Hero financial-context curve + accent dots | None (static) | — | Must stay unnoticed background texture; any motion would draw the eye and defeat the purpose |
 
-Both durations sit in the same slow register as the pre-existing hero shape drift (`hero-shape-drift`, 12s baseline) that predates this asset system — new ambient motion should always err slower rather than faster, never below ~12s for a decorative loop. Hover/entrance motion (unrelated to these specific assets) follows separate rules in `docs/design/ghanaian-design-language.md`'s "Motion Principles."
+All decorative motion sits in the same slow register as the site's pre-existing shape-drift precedent — new ambient motion should always err slower rather than faster, never below ~12s for a decorative loop. Hover/entrance motion (unrelated to these specific assets) follows separate rules in `docs/design/ghanaian-design-language.md`'s "Motion Principles."
 
 **Reduced motion:** every animation listed above is automatically disabled by the site's existing global `@media (prefers-reduced-motion: reduce)` rule in `css/base.css`, which zeroes all animation/transition durations sitewide via `!important` on the universal selector. No asset-specific reduced-motion code exists or is needed — this is a structural guarantee, not a per-component opt-in.
 
