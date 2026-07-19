@@ -8,7 +8,7 @@
   <meta name="description" content="Access your Robayer WealthLab purchase.">
   <link rel="canonical" href="https://robayerwealthlab.com/checkout/callback/">
   <!-- noindex: this is a private, per-purchase confirmation page, not
-       content meant to appear in search results — every visit is
+       content meant to appear in search results. Every visit is
        unique (?ref=) and the page has nothing to offer a search
        visitor who didn't just complete a purchase. -->
   <meta name="robots" content="noindex, nofollow">
@@ -38,12 +38,12 @@
          FULFILMENT STATE
          Sprint 2.5 (Digital Fulfilment Platform): js/components/
          fulfilment-status.js drives everything below via
-         [data-fulfilment-*] hooks — this markup is the honest,
+         [data-fulfilment-*] hooks; this markup is the honest,
          no-JS/loading fallback ("Confirming your purchase…"), matching
          this site's established progressive-enhancement pattern. No
          internal identifiers (purchase_sessions ids, delivery ids,
          raw status enum values) ever appear here or in the JS that
-         populates it — see docs/digital-fulfilment.md's "Security."
+         populates it: see docs/digital-fulfilment.md's "Security."
          ============================================================ -->
     <section class="section" aria-labelledby="fulfilment-heading" data-fulfilment-root>
 
@@ -55,7 +55,7 @@
           <h1 id="fulfilment-heading" class="mt-2 mb-4">Confirming your purchase&hellip;</h1>
           <p class="text-secondary">
             This usually takes a few seconds. This page will update
-            automatically — no need to refresh.
+            automatically, so there's no need to refresh.
           </p>
         </div>
 
@@ -88,7 +88,7 @@
           </p>
           <p class="text-secondary">
             If you completed a payment, check your email for your
-            receipt and download link — it can take a few minutes to
+            receipt and download link, which can take a few minutes to
             arrive. Still stuck? See "Need help?" below.
           </p>
         </div>
@@ -98,7 +98,7 @@
 
     <!-- ============================================================
          NEXT STEPS + SUPPORT
-         Static — shown regardless of fulfilment state, since a
+         Static: shown regardless of fulfilment state, since a
          visitor who's stuck (unavailable state) needs support contact
          information at least as much as a visitor who succeeded.
          ============================================================ -->
@@ -112,11 +112,11 @@
           </li>
           <li class="check-item">
             <svg class="icon check-item__icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M5 12l4 4 10-10"/></svg>
-            <span class="check-item__text">You can also download directly from this page — bookmark it if you'd like to come back.</span>
+            <span class="check-item__text">You can also download directly from this page, so bookmark it if you'd like to come back.</span>
           </li>
           <li class="check-item">
             <svg class="icon check-item__icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M5 12l4 4 10-10"/></svg>
-            <span class="check-item__text">Keep your purchase reference — quote it if you ever contact support about this order.</span>
+            <span class="check-item__text">Keep your purchase reference and quote it if you ever contact support about this order.</span>
           </li>
         </ul>
       </div>
@@ -127,7 +127,7 @@
         <h2 id="support-heading" class="mb-2">Need help?</h2>
         <p class="text-secondary">
           Email <a href="mailto:hello@robayerwealthlab.com">hello@robayerwealthlab.com</a>
-          and mention your purchase reference — we read every message.
+          and mention your purchase reference. We read every message.
         </p>
       </div>
     </section>

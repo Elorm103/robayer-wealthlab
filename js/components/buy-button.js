@@ -1,19 +1,19 @@
 /**
- * Robayer WealthLab — Buy Button Component (Version 1.2 Sprint 2.3,
+ * Robayer WealthLab: Buy Button Component (Version 1.2 Sprint 2.3,
  * Commerce Foundation)
  *
  * Progressive enhancement for any link/button marked [data-buy-button]
  * with a [data-product-slug]. On click: disables the button, shows a
  * loading state, POSTs only `{ productId }` to the Cloudflare Worker's
- * checkout endpoint (never price/currency/title — the Worker loads
+ * checkout endpoint (never price/currency/title; the Worker loads
  * those itself from the Product Platform, see
  * docs/commerce-foundation.md), then redirects the visitor to the
  * checkout URL the Worker returns. This is the one place on the site
- * that actually starts a purchase — see docs/commerce-foundation.md's
+ * that actually starts a purchase; see docs/commerce-foundation.md's
  * "Frontend" section.
  *
  * The Worker never verifies payment or grants anything from this
- * request — it only prepares a checkout session and hands back a URL
+ * request; it only prepares a checkout session and hands back a URL
  * to redirect to (Sprint 2.4 handles what happens after the visitor
  * pays). Same progressive-enhancement, honest-failure pattern as
  * newsletter-form.js: a network failure, an unavailable product, or a
@@ -21,7 +21,7 @@
  * never a dead link or a silent no-op.
  */
 
-// Relative — see js/components/newsletter-form.js's equivalent constant.
+// Relative: see js/components/newsletter-form.js's equivalent constant.
 const CHECKOUT_API_URL = '/api/checkout/sessions';
 
 function initBuyButtons() {
@@ -35,7 +35,7 @@ function initBuyButtons() {
       event.preventDefault();
 
       // The real Buy CTA is an <a class="btn">, matching every other
-      // CTA on this site — <a> has no native `disabled` property (it's
+      // CTA on this site; <a> has no native `disabled` property (it's
       // silently a no-op), so "disabled" is the `.btn--disabled` class
       // (already defined in css/components.css: pointer-events: none)
       // plus this explicit guard, which also covers keyboard Enter-key
@@ -43,7 +43,7 @@ function initBuyButtons() {
       if (button.classList.contains('btn--disabled')) return;
 
       const productSlug = button.getAttribute('data-product-slug');
-      if (!productSlug) return; // Misconfigured markup — nothing to do, fail silently rather than send a request with no product.
+      if (!productSlug) return; // Misconfigured markup: nothing to do, fail silently rather than send a request with no product.
 
       clearError(button);
       setLoading(button, true, defaultLabel);
@@ -60,12 +60,12 @@ function initBuyButtons() {
           throw new Error((result && result.error && result.error.message) || 'Something went wrong. Please try again.');
         }
 
-        // Deliberately left disabled/loading through the redirect —
+        // Deliberately left disabled/loading through the redirect;
         // re-enabling here would let a visitor double-click Buy while
         // navigation is already underway.
         window.location.href = result.data.checkoutUrl;
       } catch (error) {
-        // fetch() itself throws a TypeError on a network/CORS failure —
+        // fetch() itself throws a TypeError on a network/CORS failure;
         // its message ("Failed to fetch") is a browser-internal string,
         // never shown directly. Any other error here was already given
         // a visitor-safe message by the Worker (see

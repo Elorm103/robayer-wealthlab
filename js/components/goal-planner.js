@@ -132,7 +132,7 @@ function initGoalPlanner() {
       .catch(function () {
         questionsContainer.innerHTML = '';
         questionsHeading.textContent = 'Something went wrong';
-        questionsDescription.textContent = "This goal's questions couldn't be loaded right now — please try again, or choose a different goal.";
+        questionsDescription.textContent = "This goal's questions couldn't be loaded right now. Please try again, or choose a different goal.";
       });
   }
 
@@ -234,7 +234,7 @@ function initGoalPlanner() {
 
     if (!(years > 0)) {
       questionsError.textContent = currentConfig.yearsErrorMessage
-        || 'Please check your numbers — the timeframe must be greater than zero.';
+        || 'Please check your numbers: the timeframe must be greater than zero.';
       questionsError.hidden = false;
       if (!questionsError.hasAttribute('tabindex')) questionsError.setAttribute('tabindex', '-1');
       questionsError.focus();

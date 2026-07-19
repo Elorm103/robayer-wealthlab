@@ -1,14 +1,14 @@
 <!--
-  Robayer WealthLab — Product Detail Page Reference Template (Sprint 2.1)
+  Robayer WealthLab: Product Detail Page Reference Template (Sprint 2.1)
 
   STATUS: documentation / starting point only. This file is not wired
   to any route, is not fetched by any script, and contains no working
-  logic — {{double-brace}} tokens are plain-text placeholders for a
+  logic; {{double-brace}} tokens are plain-text placeholders for a
   future page author to fill in by hand, not a live templating engine
   (this project has no build step; see docs/product-platform-architecture.md).
 
   This generalizes the structure already proven live at
-  books/starting-to-invest-with-gh100/index.html — every section below
+  books/starting-to-invest-with-gh100/index.html: every section below
   exists on that real page today. Building a NEW real product page
   means copying that existing page (it's more complete/battle-tested
   than this file) and adapting its content, OR starting from this file
@@ -19,7 +19,7 @@
   Explicitly NOT included, per Sprint 2.1's scope: no Paystack, no
   working checkout. The Buy button below uses the same honest
   data-placeholder-action pattern the real book page already uses for
-  the same reason — see js/components/placeholder-action.js.
+  the same reason; see js/components/placeholder-action.js.
 -->
 <!DOCTYPE html>
 <html lang="en">
@@ -57,7 +57,7 @@
   <link rel="stylesheet" href="/css/components.css">
   <link rel="stylesheet" href="/css/utilities.css">
 
-  <!-- Organization JSON-LD — identical block on every page, copy as-is -->
+  <!-- Organization JSON-LD: identical block on every page, copy as-is -->
   <script type="application/ld+json">
   {
     "@context": "https://schema.org",
@@ -65,7 +65,7 @@
     "name": "Robayer WealthLab",
     "url": "https://robayerwealthlab.com",
     "logo": "https://robayerwealthlab.com/assets/branding/logo/logo.png",
-    "description": "Financial education for ordinary Ghanaians — practical, honest guidance on saving, investing, and building wealth.",
+    "description": "Financial education for ordinary Ghanaians: practical, honest guidance on saving, investing, and building wealth.",
     "telephone": "+233 53 780 6352",
     "address": { "@type": "PostalAddress", "addressLocality": "Accra", "addressCountry": "GH" },
     "founder": { "@type": "Person", "name": "Robert Loh Kobla" },
@@ -80,7 +80,7 @@
   }
   </script>
 
-  <!-- Breadcrumb JSON-LD — from slug/title -->
+  <!-- Breadcrumb JSON-LD: from slug/title -->
   <script type="application/ld+json">
   {
     "@context": "https://schema.org",
@@ -93,7 +93,7 @@
   }
   </script>
 
-  <!-- Product JSON-LD — from Product.price/currency/status. Use "Product" (schema.org),
+  <!-- Product JSON-LD: from Product.price/currency/status. Use "Product" (schema.org),
        not "Book", unless productType is literally "ebook" and a book-specific
        schema is genuinely warranted. -->
   <script type="application/ld+json">
@@ -113,7 +113,7 @@
   }
   </script>
 
-  <!-- FAQPage JSON-LD — must match the visible FAQ section below exactly -->
+  <!-- FAQPage JSON-LD: must match the visible FAQ section below exactly -->
   <script type="application/ld+json">
   {
     "@context": "https://schema.org",
@@ -136,7 +136,7 @@
   <main id="main-content">
 
     <!-- ============================================================
-         HERO — cover, title, subtitle, PRICE, BUY BUTTON placeholder
+         HERO: cover, title, subtitle, PRICE, BUY BUTTON placeholder
          Reuses .hero--split + .book-card__cover, proven live on
          books/starting-to-invest-with-gh100/index.html.
          ============================================================ -->
@@ -151,25 +151,25 @@
             <!-- PRICE placeholder -->
             <p class="book-card__price text-body-lg mb-3">{{currency symbol}}{{price}}</p>
 
-            <!-- BUY BUTTON placeholder — honest, not wired to Paystack.
+            <!-- BUY BUTTON placeholder: honest, not wired to Paystack.
                  See js/components/placeholder-action.js. Replace the
                  data-placeholder-action attributes with a real Paystack
                  trigger only once Sprint 2.2 (or later) actually builds
-                 checkout — do not fake a working button before then. -->
+                 checkout; do not fake a working button before then. -->
             <div class="hero__actions">
-              <a href="#" class="btn btn--accent" data-placeholder-action data-message="Checkout is launching soon — &lt;a href='/newsletter/'&gt;subscribe&lt;/a&gt; to know the moment it opens.">Buy — {{currency symbol}}{{price}}</a>
+              <a href="#" class="btn btn--accent" data-placeholder-action data-message="Checkout is launching soon. &lt;a href='/newsletter/'&gt;subscribe&lt;/a&gt; to know the moment it opens.">Buy ({{currency symbol}}{{price}})</a>
             </div>
             <p class="text-secondary text-small mt-3">Instant digital access &bull; Read on any device &bull; Secure checkout coming soon</p>
           </div>
-          <!-- coverImage — real image once one exists, CSS placeholder block until then -->
+          <!-- coverImage: real image once one exists, CSS placeholder block until then -->
           <div class="book-card__cover" aria-hidden="true"></div>
         </div>
       </div>
     </section>
 
     <!-- ============================================================
-         FEATURES placeholder — "What you'll get / learn"
-         From a future Product.features array (not yet a schema field —
+         FEATURES placeholder: "What you'll get / learn"
+         From a future Product.features array (not yet a schema field;
          add one, array of strings, when the first real product needs it;
          the book page's live equivalent hardcodes 4 check-items).
          ============================================================ -->
@@ -190,7 +190,7 @@
     <!-- ============================================================
          DOWNLOADS placeholder
          From Product.downloadFiles (array). Shown here as informational
-         only pre-purchase (format/size), never a live link — the real
+         only pre-purchase (format/size), never a live link; the real
          file only becomes reachable through a future signed-URL
          download flow (docs/download-security.md), never this page
          directly.
@@ -211,23 +211,23 @@
 
     <!-- ============================================================
          REVIEWS placeholder
-         No review system exists (out of Sprint 2.1's scope entirely —
+         No review system exists (out of Sprint 2.1's scope entirely;
          a future sprint, not "architecture now"). Show an honest empty
          state, matching the exact pattern already used for the free
-         guide's testimonials section (free-guide/index.html) — never
+         guide's testimonials section (free-guide/index.html); never
          fabricated quotes.
          ============================================================ -->
     <section class="section" aria-labelledby="reviews-heading">
       <div class="container text-center content-column">
         <span class="eyebrow">Reviews</span>
         <h2 id="reviews-heading" class="mt-2 mb-4">What readers say</h2>
-        <p class="text-secondary">Reviews aren't collected yet for this product — once real ones exist, they'll appear here instead of this note.</p>
+        <p class="text-secondary">Reviews aren't collected yet for this product. Once real ones exist, they'll appear here instead of this note.</p>
       </div>
     </section>
 
     <!-- ============================================================
          RELATED PRODUCTS placeholder
-         From Product.relatedProducts (slug array) — render each via
+         From Product.relatedProducts (slug array): render each via
          RobayerProducts.renderCard() once product-loader.js is wired
          to a live page. Until then, this section has nothing to render
          (matches product-loader.js's honest-empty-state behavior).
@@ -243,7 +243,7 @@
     </section>
 
     <!-- ============================================================
-         FAQ — must match the FAQPage JSON-LD above exactly
+         FAQ: must match the FAQPage JSON-LD above exactly
          ============================================================ -->
     <section class="section" aria-labelledby="faq-heading">
       <div class="container content-column">
@@ -259,16 +259,16 @@
     </section>
 
     <!-- ============================================================
-         DISCLAIMER — required on every product page, verbatim
+         DISCLAIMER: required on every product page, verbatim
          ============================================================ -->
     <section class="section--tight">
       <div class="container content-column">
-        <p class="alert alert--warning">Robayer WealthLab provides financial education, not licensed financial advice. This {{productType}} is for informational purposes only — always do your own research and consider your personal circumstances before making financial decisions.</p>
+        <p class="alert alert--warning">Robayer WealthLab provides financial education, not licensed financial advice. This {{productType}} is for informational purposes only. Always do your own research and consider your personal circumstances before making financial decisions.</p>
       </div>
     </section>
 
     <!-- ============================================================
-         NEWSLETTER SIGNUP — identical block on every page
+         NEWSLETTER SIGNUP: identical block on every page
          ============================================================ -->
     <section class="section section--tight">
       <div class="container">
@@ -298,7 +298,7 @@
   <script src="/js/components/newsletter-form.js"></script>
   <script src="/js/components/placeholder-action.js"></script>
   <!-- Add js/components/product-loader.js here once the Related Products
-       section above should actually render — omitted for now since
+       section above should actually render; omitted for now since
        including it on a page with zero real products would be dead
        weight, matching this project's "no script with zero consumers" rule. -->
   <script src="/js/main.js"></script>

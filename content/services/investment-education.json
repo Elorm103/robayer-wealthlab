@@ -1,9 +1,9 @@
 {
   "slug": "investment-education",
   "title": "Investment Education",
-  "summary": "Understand the investment options available to Ghanaians — treasury bills, the GSE, and mobile-money savings — explained plainly, so you can decide for yourself.",
+  "summary": "Understand the investment options available to Ghanaians (treasury bills, the GSE, and mobile-money savings), explained plainly, so you can decide for yourself.",
   "audience": "First-time investors, and anyone who has saved something and isn't sure what the next step is.",
-  "overview": "Investment Education walks you through the investment vehicles actually available to Ghanaians — treasury bills, the Ghana Stock Exchange, mobile-money-based savings products, and how they compare — in plain language, with no jargon and no pressure. The goal is understanding, not a recommendation: you leave able to make your own informed decision, or with a clearer sense of what to ask a licensed investment professional if you choose to go further.",
+  "overview": "Investment Education walks you through the investment vehicles actually available to Ghanaians (treasury bills, the Ghana Stock Exchange, mobile-money-based savings products, and how they compare) in plain language, with no jargon and no pressure. The goal is understanding, not a recommendation: you leave able to make your own informed decision, or with a clearer sense of what to ask a licensed investment professional if you choose to go further.",
   "whoItsFor": [
     "You've saved something and don't know what a sensible next step looks like",
     "You've never bought a treasury bill or touched the GSE before",
@@ -19,15 +19,15 @@
   "process": [
     { "step": 1, "title": "Discuss your starting point", "description": "Your current savings and what you're hoping to achieve with them." },
     { "step": 2, "title": "Walk through relevant options", "description": "We cover the investment vehicles that are actually relevant to your situation, not a generic list." },
-    { "step": 3, "title": "Leave with clear understanding", "description": "You leave understanding your options — not with a specific product recommendation." },
+    { "step": 3, "title": "Leave with clear understanding", "description": "You leave understanding your options, not with a specific product recommendation." },
     { "step": 4, "title": "Optional follow-up", "description": "Available as your thinking develops or new questions come up." }
   ],
   "faq": [
     { "question": "Is this regulated investment advice?", "answer": "No. Robayer WealthLab is an educational and coaching platform, not a licensed investment advisor. This service helps you understand your options so you can decide for yourself, or consult a licensed professional for specific recommendations." },
-    { "question": "What if I've never bought a treasury bill before?", "answer": "That's exactly who this service is built for — no prior experience assumed." },
-    { "question": "Do you recommend specific stocks or products?", "answer": "No. We explain how things work and what to consider — the decision of what, if anything, to buy is always yours." },
-    { "question": "Is mobile money savings a legitimate way to build wealth?", "answer": "It can be a useful savings habit-builder — this session covers honestly where it fits alongside other options, including its limits." },
-    { "question": "Can businesses use this service too?", "answer": "Yes — the fundamentals covered apply whether you're investing personal savings or a business's surplus, though for business-specific planning, see Business Financial Advisory." },
+    { "question": "What if I've never bought a treasury bill before?", "answer": "That's exactly who this service is built for; no prior experience assumed." },
+    { "question": "Do you recommend specific stocks or products?", "answer": "No. We explain how things work and what to consider. The decision of what, if anything, to buy is always yours." },
+    { "question": "Is mobile money savings a legitimate way to build wealth?", "answer": "It can be a useful savings habit-builder. This session covers honestly where it fits alongside other options, including its limits." },
+    { "question": "Can businesses use this service too?", "answer": "Yes. The fundamentals covered apply whether you're investing personal savings or a business's surplus, though for business-specific planning, see Business Financial Advisory." },
     { "question": "What happens if I want to go further after this?", "answer": "You're welcome to book a follow-up, or move on to Personal Financial Coaching for ongoing support as your investing habits develop." }
   ],
   "relatedServices": ["financial-education", "personal-financial-coaching"],

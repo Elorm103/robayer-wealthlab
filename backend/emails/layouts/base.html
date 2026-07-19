@@ -1,16 +1,16 @@
 <!--
-  Robayer WealthLab — shared email shell.
+  Robayer WealthLab: shared email shell.
   Colors hardcoded from css/tokens.css (email clients don't support CSS
   custom properties): --color-ink-navy #16233D, --color-light-sand
   #E8E4DC, --color-warm-paper #FAF6EF, --color-charcoal-ink #22252B,
-  --color-slate #6B675E. Kept in sync by convention, not a build step —
+  --color-slate #6B675E. Kept in sync by convention, not a build step;
   see docs/email-architecture.md's "Branding strategy."
 
   Placeholders substituted by services/emailService.ts:
-    {{SUBJECT}}      — also used as the <title>
-    {{PREHEADER}}    — hidden preview text shown by inbox lists
-    {{BODY_CONTENT}} — the template-specific content
-    {{FOOTER_EXTRA}} — empty for transactional emails; an unsubscribe
+    {{SUBJECT}}      : also used as the <title>
+    {{PREHEADER}}    : hidden preview text shown by inbox lists
+    {{BODY_CONTENT}} : the template-specific content
+    {{FOOTER_EXTRA}} : empty for transactional emails; an unsubscribe
                        line for the one marketing-style email (newsletter welcome)
 -->
 <!DOCTYPE html>

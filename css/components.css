@@ -1148,6 +1148,45 @@
 /* Color variants for multi-book displays (Books page, style guide) */
 .book-card__cover--green { background-color: var(--color-growth-green); }
 
+/* Typographic placeholder — renders the product's own real title/subtitle
+   inside .book-card__cover when no real cover image has been uploaded
+   yet (see docs/flagship-cover-design-brief.md), so the hero reads as
+   "cover art pending" rather than a blank, broken-looking box. Never
+   fabricated artwork — plain text over the existing gold placeholder. */
+.book-card__cover-placeholder-text {
+  position: relative;
+  height: 100%;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  align-items: center;
+  text-align: center;
+  padding: var(--space-4);
+  gap: var(--space-2);
+}
+
+.book-card__cover-placeholder-eyebrow {
+  font-family: var(--font-mono, monospace);
+  font-size: 0.75rem;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: rgba(22, 35, 61, 0.65);
+}
+
+.book-card__cover-placeholder-title {
+  font-family: var(--font-display);
+  font-size: clamp(1.5rem, 4vw, 2.25rem);
+  font-weight: 600;
+  color: var(--color-navy, #16233d);
+  line-height: 1.15;
+}
+
+.book-card__cover-placeholder-subtitle {
+  font-size: 0.9rem;
+  color: rgba(22, 35, 61, 0.75);
+  max-width: 26ch;
+}
+
 .book-card__title {
   font-family: var(--font-display);
   font-size: var(--text-h4);

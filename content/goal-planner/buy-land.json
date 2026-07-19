@@ -1,7 +1,7 @@
 {
   "slug": "buy-land",
   "title": "Buy Land",
-  "goalDescription": "Setting aside money toward a land purchase — often the first step before building.",
+  "goalDescription": "Setting aside money toward a land purchase, often the first step before building.",
   "resultIntro": "Here's a starting point for saving toward your land purchase, based on what you entered.",
   "questions": [
     { "id": "targetAmount", "label": "Estimated cost of the land", "type": "number", "unit": "GH₵", "min": 1, "step": 1, "default": 40000, "help": "Include documentation and registration costs if you can, not just the asking price." },

@@ -1,11 +1,11 @@
 {
   "slug": "real-estate-investing",
   "title": "Real Estate Investing",
-  "summary": "Investing in land or property for rental income or long-term appreciation — a capital-intensive option with its own legal and practical considerations in Ghana.",
+  "summary": "Investing in land or property for rental income or long-term appreciation: a capital-intensive option with its own legal and practical considerations in Ghana.",
   "category": "property",
   "difficulty": "advanced",
-  "overview": "Real estate investing means putting money into land or property with the goal of rental income, future resale value, or both. In Ghana, this involves specific considerations around land documentation, leasehold versus freehold arrangements, and registration — making due diligence especially important before committing funds.",
-  "whyItMatters": "Property is one of the most familiar forms of investing in Ghana, but also one of the most capital-intensive and least liquid. Understanding the real commitments — money, time, legal diligence — helps set realistic expectations before pursuing it.",
+  "overview": "Real estate investing means putting money into land or property with the goal of rental income, future resale value, or both. In Ghana, this involves specific considerations around land documentation, leasehold versus freehold arrangements, and registration, making due diligence especially important before committing funds.",
+  "whyItMatters": "Property is one of the most familiar forms of investing in Ghana, but also one of the most capital-intensive and least liquid. Understanding the real commitments (money, time, legal diligence) helps set realistic expectations before pursuing it.",
   "benefits": [
     "Potential for both rental income and long-term capital appreciation",
     "A tangible asset that can also serve a personal use (living in it, running a business from it)",
@@ -14,7 +14,7 @@
   ],
   "risks": [
     "Requires significant upfront capital compared to most other investments on this site",
-    "Illiquid — selling property can take considerably longer than other asset types",
+    "Illiquid: selling property can take considerably longer than other asset types",
     "Land title and documentation disputes are a genuine, well-known risk in the Ghanaian property market",
     "Ongoing costs (maintenance, taxes, management) reduce net returns and require planning"
   ],
@@ -25,10 +25,10 @@
     "Investors looking to diversify beyond financial instruments into a tangible asset"
   ],
   "faq": [
-    { "question": "What should I check before buying land in Ghana?", "answer": "Title documentation, registration status, and any competing claims are essential to verify — engaging a qualified lawyer or licensed surveyor for due diligence is strongly recommended." },
-    { "question": "Is real estate more or less risky than the Ghana Stock Exchange?", "answer": "The risks are different in nature — real estate carries legal/title and liquidity risk, while listed shares carry market price risk. Neither is inherently 'safer' in every respect." },
-    { "question": "Do I need a lawyer to buy property in Ghana?", "answer": "It's strongly recommended — land and property transactions involve legal steps this page doesn't cover, and a qualified lawyer can help verify title and protect your interests." },
-    { "question": "Can I start small in real estate?", "answer": "Entry points vary widely, from smaller plots of land to larger developed property — capital requirements are still typically higher than other options on this site." },
+    { "question": "What should I check before buying land in Ghana?", "answer": "Title documentation, registration status, and any competing claims are essential to verify. Engaging a qualified lawyer or licensed surveyor for due diligence is strongly recommended." },
+    { "question": "Is real estate more or less risky than the Ghana Stock Exchange?", "answer": "The risks are different in nature: real estate carries legal/title and liquidity risk, while listed shares carry market price risk. Neither is inherently 'safer' in every respect." },
+    { "question": "Do I need a lawyer to buy property in Ghana?", "answer": "It's strongly recommended. Land and property transactions involve legal steps this page doesn't cover, and a qualified lawyer can help verify title and protect your interests." },
+    { "question": "Can I start small in real estate?", "answer": "Entry points vary widely, from smaller plots of land to larger developed property, but capital requirements are still typically higher than other options on this site." },
     { "question": "What ongoing costs should I expect?", "answer": "Property taxes, maintenance, security, and management costs (if renting out) all reduce net returns and should be budgeted for from the start." },
     { "question": "Is this financial or legal advice?", "answer": "No. This page is educational only and does not cover the legal process of buying property. Consult a qualified lawyer and licensed professionals for your specific transaction." }
   ],
@@ -42,7 +42,7 @@
     "metaDescription": "Learn how real estate investing works in Ghana, its benefits and risks, and who it typically suits. Educational guidance on land and property investing.",
     "canonical": "https://robayerwealthlab.com/investment-centre/real-estate-investing/"
   },
-  "complianceNote": "This page is educational. It does not constitute financial, legal, or tax advice, and does not cover the legal process of property transactions — consult a qualified lawyer and licensed professionals before buying land or property.",
+  "complianceNote": "This page is educational. It does not constitute financial, legal, or tax advice, and does not cover the legal process of property transactions. Consult a qualified lawyer and licensed professionals before buying land or property.",
   "ctaLabel": "Request a Consultation",
   "ctaHref": "/consultation/"
 }

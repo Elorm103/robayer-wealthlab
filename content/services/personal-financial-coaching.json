@@ -1,9 +1,9 @@
 {
   "slug": "personal-financial-coaching",
   "title": "Personal Financial Coaching",
-  "summary": "An ongoing coaching relationship for building better financial habits over time — budgeting, saving consistency, debt payoff, and goal tracking.",
+  "summary": "An ongoing coaching relationship for building better financial habits over time: budgeting, saving consistency, debt payoff, and goal tracking.",
   "audience": "Anyone who wants accountability and structure over time, not just a single conversation.",
-  "overview": "Personal Financial Coaching is an ongoing relationship, not a one-off session — built for readers who know what they want to improve but find it hard to stay consistent alone. Together, we build a personalized plan and check in regularly as your situation and habits evolve, with honest adjustments along the way rather than a rigid plan that ignores real life.",
+  "overview": "Personal Financial Coaching is an ongoing relationship, not a one-off session. It's built for readers who know what they want to improve but find it hard to stay consistent alone. Together, we build a personalized plan and check in regularly as your situation and habits evolve, with honest adjustments along the way rather than a rigid plan that ignores real life.",
   "whoItsFor": [
     "You know roughly what you need to change but struggle to stay consistent",
     "You want regular check-ins and accountability, not just one conversation",
@@ -18,18 +18,18 @@
   ],
   "process": [
     { "step": 1, "title": "Initial consultation", "description": "Understand your situation, habits, and goals in depth." },
-    { "step": 2, "title": "A personalized plan", "description": "Built around your real income, expenses, and priorities — not a generic template." },
+    { "step": 2, "title": "A personalized plan", "description": "Built around your real income, expenses, and priorities, not a generic template." },
     { "step": 3, "title": "Regular coaching check-ins", "description": "A cadence agreed together, to keep progress honest and consistent." },
     { "step": 4, "title": "Ongoing adjustment", "description": "As your life changes, the plan changes with it." }
   ],
   "faq": [
-    { "question": "How long does coaching typically last?", "answer": "It varies by goal and pace — some readers coach for a focused few months, others prefer an ongoing relationship. This is agreed together, not fixed in advance." },
-    { "question": "Is this financial therapy or counseling?", "answer": "No — this is financial coaching specifically: practical planning, habits, and accountability, not mental-health support." },
-    { "question": "What if my situation is complicated — debt, irregular income, multiple goals?", "answer": "That's a common and expected starting point, not a barrier — the initial consultation is built to work with exactly that kind of complexity." },
-    { "question": "Can coaching help with a specific goal, like saving for a house?", "answer": "Yes — a specific goal is often the clearest starting point for a coaching plan." },
+    { "question": "How long does coaching typically last?", "answer": "It varies by goal and pace: some readers coach for a focused few months, others prefer an ongoing relationship. This is agreed together, not fixed in advance." },
+    { "question": "Is this financial therapy or counseling?", "answer": "No, this is financial coaching specifically: practical planning, habits, and accountability, not mental-health support." },
+    { "question": "What if my situation is complicated (debt, irregular income, multiple goals)?", "answer": "That's a common and expected starting point, not a barrier. The initial consultation is built to work with exactly that kind of complexity." },
+    { "question": "Can coaching help with a specific goal, like saving for a house?", "answer": "Yes, a specific goal is often the clearest starting point for a coaching plan." },
     { "question": "Is there a minimum commitment?", "answer": "This is discussed and agreed with you directly, not fixed as a blanket policy." },
     { "question": "How is this different from a one-off Financial Education session?", "answer": "Financial Education is a single focused session on fundamentals. Coaching is an ongoing relationship with regular check-ins and an evolving plan." },
-    { "question": "Do you provide licensed financial advice as part of coaching?", "answer": "No — coaching is educational and accountability-focused, not licensed financial, investment, or tax advice." }
+    { "question": "Do you provide licensed financial advice as part of coaching?", "answer": "No, coaching is educational and accountability-focused, not licensed financial, investment, or tax advice." }
   ],
   "relatedServices": ["financial-education", "retirement-planning-guidance"],
   "relatedCalculators": ["savings-goal"],

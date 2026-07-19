@@ -1,5 +1,5 @@
 /**
- * Robayer WealthLab — Consultation Request Form
+ * Robayer WealthLab: Consultation Request Form
  *
  * Progressive enhancement for [data-consultation-form]. Validates Name,
  * Email, Country, Category, Description, Preferred Contact Method, and
@@ -10,7 +10,7 @@
  * error alert instead of the confirmation, leaving the form in place.
  */
 
-// Relative — see js/components/newsletter-form.js's equivalent constant.
+// Relative: see js/components/newsletter-form.js's equivalent constant.
 const CONSULTATION_API_URL = '/api/consultation';
 
 function initConsultationForms() {
@@ -20,7 +20,7 @@ function initConsultationForms() {
     form.setAttribute('data-bound', 'true');
 
     // Pre-select the category when arriving with ?category=<slug> (e.g. from
-    // the Goal Planner's recommendation) — a contextual convenience, not a
+    // the Goal Planner's recommendation): a contextual convenience, not a
     // form of pre-filling personal data, so it's safe to read from the URL.
     const category = form.querySelector('[name="category"]');
     const requestedCategory = new URLSearchParams(window.location.search).get('category');
@@ -93,7 +93,7 @@ function initConsultationForms() {
 
         showConfirmation(form);
       } catch (error) {
-        // fetch() itself throws a TypeError on a network/CORS failure —
+        // fetch() itself throws a TypeError on a network/CORS failure;
         // its message ("Failed to fetch") is a browser-internal string,
         // not something to show a visitor. Any other error here was
         // deliberately thrown above with a message the server or this
@@ -121,7 +121,7 @@ function initConsultationForms() {
   function getFallbackEmail() {
     // Reuse the general-enquiries email already on the page (populated
     // by js/content-inject.js from assets/config/site.json), matching
-    // the exact pattern established in js/components/contact-form.js —
+    // the exact pattern established in js/components/contact-form.js:
     // one source of truth, not a second hardcoded copy.
     const emailEl = document.querySelector('[data-content-href="contact.emails.general.href"]');
     return {
@@ -136,8 +136,8 @@ function initConsultationForms() {
     confirmation.className = 'alert alert--success';
     confirmation.setAttribute('role', 'status');
     confirmation.innerHTML =
-      '<p><strong>Thank you — your consultation request has been received.</strong></p>' +
-      '<p class="mt-2">This isn\'t an automatic booking: Robert reviews every request personally, and there is no live calendar or scheduling system yet. We\'ll get back to you using your preferred contact method within 2–3 business days to confirm details and arrange next steps.</p>' +
+      '<p><strong>Thank you. Your consultation request has been received.</strong></p>' +
+      '<p class="mt-2">This isn\'t an automatic booking. Robert reviews every request personally, and there is no live calendar or scheduling system yet. We\'ll get back to you using your preferred contact method within 2–3 business days to confirm details and arrange next steps.</p>' +
       '<p class="mt-2">Need to reach us sooner? Email <a href="' + href + '">' + text + '</a> directly.</p>';
     form.replaceWith(confirmation);
   }

@@ -5,7 +5,7 @@
   "category": "pension",
   "difficulty": "beginner",
   "overview": "The Social Security and National Insurance Trust (SSNIT) administers Ghana's basic mandatory pension scheme, which forms Tier 1 of the country's three-tier pension system. Formal-sector employees and their employers contribute a portion of salary throughout a working career, and SSNIT pays a monthly pension based on contribution history upon retirement. Tier 2 is a mandatory, privately managed occupational scheme, and Tier 3 is a voluntary provident fund or personal pension for additional saving.",
-  "whyItMatters": "Many people only think seriously about retirement once it's close — but understanding how SSNIT and the wider pension system work early makes it easier to judge whether personal savings and investing need to fill a gap, and by how much.",
+  "whyItMatters": "Many people only think seriously about retirement once it's close, but understanding how SSNIT and the wider pension system work early makes it easier to judge whether personal savings and investing need to fill a gap, and by how much.",
   "benefits": [
     "Provides a foundational, mandatory layer of retirement income for formal-sector workers",
     "Contributions are automatic through payroll, requiring no active management",
@@ -27,9 +27,9 @@
   "faq": [
     { "question": "Is SSNIT the same as a pension fund?", "answer": "SSNIT administers Tier 1, the mandatory basic national pension scheme. Tier 2 and Tier 3 are managed by separate, licensed pension fund trustees." },
     { "question": "Do self-employed people have to contribute to SSNIT?", "answer": "SSNIT contributions are mandatory for formal-sector employment; self-employed and informal-sector workers can register voluntarily and are encouraged to plan for retirement independently." },
-    { "question": "Will SSNIT alone be enough to retire on?", "answer": "For most people, Tier 1 provides a foundation rather than full income replacement — Tier 2, Tier 3, and personal savings typically play an important role too." },
+    { "question": "Will SSNIT alone be enough to retire on?", "answer": "For most people, Tier 1 provides a foundation rather than full income replacement. Tier 2, Tier 3, and personal savings typically play an important role too." },
     { "question": "What's the difference between Tier 2 and Tier 3?", "answer": "Tier 2 is a mandatory occupational pension scheme managed by licensed trustees; Tier 3 is voluntary and can include employer-sponsored or personal provident funds." },
-    { "question": "Can I check my SSNIT contribution history?", "answer": "Yes — SSNIT provides channels for contributors to check their contribution records; contact SSNIT directly for current access methods." },
+    { "question": "Can I check my SSNIT contribution history?", "answer": "Yes. SSNIT provides channels for contributors to check their contribution records; contact SSNIT directly for current access methods." },
     { "question": "Is this financial or pension advice?", "answer": "No. This page is educational only. For guidance on your specific pension situation, consult SSNIT directly or a licensed pension professional, or consider a consultation with us for general planning conversations." }
   ],
   "relatedCalculators": ["compound-interest", "investment-growth"],
@@ -42,7 +42,7 @@
     "metaDescription": "Understand how SSNIT and Ghana's three-tier pension system work, and why it matters for retirement planning. Educational guidance, not pension advice.",
     "canonical": "https://robayerwealthlab.com/investment-centre/ssnit-and-pension-basics/"
   },
-  "complianceNote": "This page is educational. It does not constitute financial, pension, legal, or tax advice, and pension rules and contribution details change over time — confirm current details with SSNIT or a licensed pension professional.",
+  "complianceNote": "This page is educational. It does not constitute financial, pension, legal, or tax advice, and pension rules and contribution details change over time. Confirm current details with SSNIT or a licensed pension professional.",
   "ctaLabel": "Request a Consultation",
   "ctaHref": "/consultation/"
 }

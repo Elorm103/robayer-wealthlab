@@ -4,7 +4,7 @@
   "title": "The MoMo Savings Playbook",
   "subtitle": "Turn mobile money into a real savings habit.",
   "shortDescription": "Turn mobile money into a real savings habit.",
-  "description": "Turn mobile money into a real savings habit. Full description to follow once the guide is written — teased ahead of release, matching the existing 'Coming soon' placement on /books/.",
+  "description": "Turn mobile money into a real savings habit. Full description to follow once the guide is written; it's teased ahead of release, matching the existing 'Coming soon' placement on /books/.",
   "topic": "personal-finance",
   "productType": "guide",
   "status": "coming-soon",
@@ -31,7 +31,7 @@
   "tags": ["guide", "saving", "momo"],
   "seo": {
     "title": "The MoMo Savings Playbook | Robayer WealthLab",
-    "metaDescription": "Turn mobile money into a real savings habit — coming soon from Robayer WealthLab.",
+    "metaDescription": "Turn mobile money into a real savings habit, coming soon from Robayer WealthLab.",
     "canonical": "https://robayerwealthlab.com/books/momo-savings-playbook/"
   },
   "paystack": {

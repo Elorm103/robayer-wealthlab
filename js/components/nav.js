@@ -1,5 +1,5 @@
 /**
- * Robayer WealthLab — Navigation Component
+ * Robayer WealthLab: Navigation Component
  *
  * Handles the mobile menu toggle and marks the current page's nav link
  * as active. Runs after the header partial has been injected into the
@@ -53,7 +53,7 @@ function initNav() {
   });
 
   // Reset to desktop state on resize past the mobile breakpoint
-  // (must match the @media breakpoint in .nav__toggle, components.css —
+  // (must match the @media breakpoint in .nav__toggle, components.css;
   // widened to 1199px in Version 1.1 Sprint 5 to fit 8 nav items + CTA)
   window.addEventListener('resize', () => {
     if (window.innerWidth > 1199) {

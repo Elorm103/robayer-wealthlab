@@ -2,7 +2,7 @@
   "company": {
     "name": "Robayer WealthLab",
     "tagline": "Helping individuals and businesses build wealth through informed financial decisions.",
-    "seoDescription": "Financial education for ordinary Ghanaians — practical, honest guidance on saving, investing, and building wealth.",
+    "seoDescription": "Financial education for ordinary Ghanaians: practical, honest guidance on saving, investing, and building wealth.",
     "disclaimer": "Financial education, not licensed financial advice.",
     "url": "https://robayerwealthlab.com",
     "urlDisplay": "robayerwealthlab.com"
@@ -39,7 +39,7 @@
     "tiktok": "https://www.tiktok.com/@robayerwealthlab"
   },
   "branding": {
-    "_comment": "Reference-only. These paths are duplicated as static <link>/<meta>/JSON-LD tags in every page's <head> — see assets/branding/README.md before changing any of them. logo/ogImage are the real production assets as of Phase 17; favicon* remain coded placeholders pending a future phase.",
+    "_comment": "Reference-only. These paths are duplicated as static <link>/<meta>/JSON-LD tags in every page's <head>; see assets/branding/README.md before changing any of them. logo/ogImage are the real production assets as of Phase 17; favicon* remain coded placeholders pending a future phase.",
     "logo": "/assets/branding/logo/logo.png",
     "faviconSvg": "/assets/icons/favicon.svg",
     "favicon32": "/assets/icons/favicon-32.png",

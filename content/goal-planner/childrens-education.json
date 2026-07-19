@@ -1,7 +1,7 @@
 {
   "slug": "childrens-education",
   "title": "Children's Education",
-  "goalDescription": "Setting aside money ahead of school fees — for a specific school year or a full programme.",
+  "goalDescription": "Setting aside money ahead of school fees, for a specific school year or a full programme.",
   "resultIntro": "Here's a starting point for saving toward your child's education, based on what you entered.",
   "questions": [
     { "id": "targetAmount", "label": "Estimated total cost", "type": "number", "unit": "GH₵", "min": 1, "step": 1, "default": 20000, "help": "Fees, uniforms, books, and boarding costs if relevant." },

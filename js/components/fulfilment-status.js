@@ -1,31 +1,31 @@
 /**
- * Robayer WealthLab — Fulfilment Status Component (Version 1.2 Sprint
+ * Robayer WealthLab: Fulfilment Status Component (Version 1.2 Sprint
  * 2.5, Digital Fulfilment Platform)
  *
- * Drives checkout/callback/index.html — the page a visitor lands on
+ * Drives checkout/callback/index.html, the page a visitor lands on
  * after Paystack redirects them back. Reads `?ref=` from the URL,
  * polls the Worker's fulfilment-status endpoint (payment verification
- * is webhook-driven and asynchronous — this page cannot assume the
+ * is webhook-driven and asynchronous, so this page cannot assume the
  * purchase is already verified the instant it loads, only that it
  * will be within a few seconds in the normal case), and renders one
  * of three states: processing, ready (with Download buttons), or
  * unavailable.
  *
  * Never renders anything from `purchase_sessions`'s internal status
- * vocabulary or any database id — only the safe, already-mapped
+ * vocabulary or any database id: only the safe, already-mapped
  * fields the API returns (see docs/digital-fulfilment.md's
  * "Security"). Clicking Download re-requests a *fresh* single-use
  * link at that exact moment (never a link embedded ahead of time),
  * matching docs/storage-strategy.md's "the email never contains a
- * permanent link, only a link to request one" — this page follows the
+ * permanent link, only a link to request one"; this page follows the
  * identical rule for the same reason.
  */
 
-// Relative — see js/components/newsletter-form.js's equivalent constant.
+// Relative: see js/components/newsletter-form.js's equivalent constant.
 const FULFILMENT_API_BASE = '';
 
 const POLL_INTERVAL_MS = 3000;
-const MAX_POLL_ATTEMPTS = 10; // ~30 seconds — long enough for normal webhook latency, short enough not to spin forever
+const MAX_POLL_ATTEMPTS = 10; // ~30 seconds: long enough for normal webhook latency, short enough not to spin forever
 
 function initFulfilmentStatus() {
   const root = document.querySelector('[data-fulfilment-root]');
@@ -54,7 +54,7 @@ function initFulfilmentStatus() {
     try {
       result = await fetchStatus(reference);
     } catch {
-      // Network/CORS failure — retry the same way a "processing" state
+      // Network/CORS failure: retry the same way a "processing" state
       // would, rather than immediately giving up on a transient blip.
       scheduleNextPoll(attempt);
       return;
@@ -82,7 +82,7 @@ function initFulfilmentStatus() {
   function scheduleNextPoll(attempt) {
     if (attempt >= MAX_POLL_ATTEMPTS) {
       showUnavailable(
-        "This is taking longer than usual. Your payment may still be processing — check your email for your receipt, or contact support with your purchase reference."
+        "This is taking longer than usual. Your payment may still be processing. Check your email for your receipt, or contact support with your purchase reference."
       );
       return;
     }
@@ -104,7 +104,7 @@ function initFulfilmentStatus() {
     unavailableEl.hidden = true;
     readyEl.hidden = false;
 
-    productEl.textContent = `${status.productTitle} — ${status.amountDisplay}`;
+    productEl.textContent = `${status.productTitle} (${status.amountDisplay})`;
     referenceEl.textContent = status.purchaseReference;
 
     downloadsEl.innerHTML = '';
@@ -120,7 +120,7 @@ function initFulfilmentStatus() {
     if (status.assets.length === 0) {
       const notice = document.createElement('p');
       notice.className = 'text-secondary';
-      notice.textContent = 'Your download is being prepared — check back shortly or contact support.';
+      notice.textContent = 'Your download is being prepared. Check back shortly or contact support.';
       downloadsEl.appendChild(notice);
     }
   }
@@ -152,7 +152,7 @@ function initFulfilmentStatus() {
 
       // A direct navigation, not fetch+blob: GET /api/download/:token's
       // successful response *is* the file (Content-Disposition:
-      // attachment) — the browser handles the actual file save.
+      // attachment); the browser handles the actual file save.
       window.location.href = `${FULFILMENT_API_BASE}${body.data.downloadUrl}`;
       button.textContent = defaultLabel;
       button.disabled = false;

@@ -1,11 +1,11 @@
 {
   "slug": "emergency-funds",
   "title": "Emergency Funds",
-  "summary": "The cash cushion that comes before investing — why it matters, and how it changes the way you can approach every other topic on this page.",
+  "summary": "The cash cushion that comes before investing: why it matters, and how it changes the way you can approach every other topic on this page.",
   "category": "foundations",
   "difficulty": "beginner",
-  "overview": "An emergency fund is money set aside specifically for unexpected expenses — job loss, medical bills, urgent repairs — kept somewhere safe and easy to access rather than invested for growth. It's usually built before, or alongside, other investing, since it's what stops an unexpected expense from forcing you to sell longer-term investments at the wrong time.",
-  "whyItMatters": "Every other topic on this page — Treasury Bills, funds, the GSE, property, gold — works best when it isn't the money you'd need to touch in a crisis. An emergency fund is what lets your longer-term investments actually stay invested through ups and downs, instead of being cashed out early to cover a surprise bill.",
+  "overview": "An emergency fund is money set aside specifically for unexpected expenses (job loss, medical bills, urgent repairs), kept somewhere safe and easy to access rather than invested for growth. It's usually built before, or alongside, other investing, since it's what stops an unexpected expense from forcing you to sell longer-term investments at the wrong time.",
+  "whyItMatters": "Every other topic on this page (Treasury Bills, funds, the GSE, property, gold) works best when it isn't the money you'd need to touch in a crisis. An emergency fund is what lets your longer-term investments actually stay invested through ups and downs, instead of being cashed out early to cover a surprise bill.",
   "benefits": [
     "Reduces the chance of needing to sell other investments at a bad time",
     "Provides genuine peace of mind against income shocks or emergencies",
@@ -19,17 +19,17 @@
     "Keeping it too small defeats the purpose if a real emergency arrives"
   ],
   "whoItSuits": [
-    "Anyone who doesn't yet have a dedicated cash cushion — this usually comes before other investing",
+    "Anyone who doesn't yet have a dedicated cash cushion, since this usually comes before other investing",
     "People with irregular or uncertain income who face more unpredictable cash-flow risk",
     "Those about to start investing in less liquid options, like fixed deposits or property",
     "Anyone who has experienced (or wants to avoid) needing to sell an investment early to cover a surprise cost"
   ],
   "faq": [
-    { "question": "How much should an emergency fund hold?", "answer": "This depends on your expenses and how stable your income is — the Goal Planner's Emergency Fund tool can help you work out a starting figure based on your own numbers." },
-    { "question": "Where should an emergency fund be kept?", "answer": "Somewhere safe and quickly accessible — a savings account or a short-term, low-risk instrument like a Treasury Bill are common choices, rather than the stock market or property." },
+    { "question": "How much should an emergency fund hold?", "answer": "This depends on your expenses and how stable your income is. The Goal Planner's Emergency Fund tool can help you work out a starting figure based on your own numbers." },
+    { "question": "Where should an emergency fund be kept?", "answer": "Somewhere safe and quickly accessible. A savings account or a short-term, low-risk instrument like a Treasury Bill are common choices, rather than the stock market or property." },
     { "question": "Should I build an emergency fund before investing elsewhere?", "answer": "Many people build at least a partial cushion first, since it reduces the risk of needing to sell other investments early if something unexpected happens." },
-    { "question": "Can my emergency fund also earn a return?", "answer": "Some low-risk, liquid options like Treasury Bills or money market funds can earn a modest return while still being reasonably accessible — see those topics for details." },
-    { "question": "Is an emergency fund the same as general savings?", "answer": "It's a specific, earmarked pool for emergencies only — mixing it with everyday spending money makes it easy to accidentally spend down." },
+    { "question": "Can my emergency fund also earn a return?", "answer": "Some low-risk, liquid options like Treasury Bills or money market funds can earn a modest return while still being reasonably accessible. See those topics for details." },
+    { "question": "Is an emergency fund the same as general savings?", "answer": "It's a specific, earmarked pool for emergencies only. Mixing it with everyday spending money makes it easy to accidentally spend down." },
     { "question": "Is this financial advice?", "answer": "No. This page is educational only. Try the Goal Planner for a personalized starting figure, or request a consultation for a fuller conversation." }
   ],
   "relatedCalculators": ["savings-goal"],
@@ -42,7 +42,7 @@
     "metaDescription": "Understand why an emergency fund matters before investing, how much to consider setting aside, and where to keep it. Educational guidance, not advice.",
     "canonical": "https://robayerwealthlab.com/investment-centre/emergency-funds/"
   },
-  "complianceNote": "This page is educational. It does not constitute financial advice — the right emergency fund size and vehicle depends on your personal circumstances.",
+  "complianceNote": "This page is educational. It does not constitute financial advice, and the right emergency fund size and vehicle depends on your personal circumstances.",
   "ctaLabel": "Request a Consultation",
   "ctaHref": "/consultation/"
 }

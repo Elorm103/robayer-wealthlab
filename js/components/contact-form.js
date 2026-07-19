@@ -1,5 +1,5 @@
 /**
- * Robayer WealthLab — Contact Form Component
+ * Robayer WealthLab: Contact Form Component
  *
  * Progressive enhancement for [data-contact-form]. Validates Name, Email,
  * and Message client-side (Phone is optional), then POSTs to the
@@ -9,7 +9,7 @@
  * in place so the visitor can try again or email us directly.
  */
 
-// Relative — see js/components/newsletter-form.js's equivalent constant.
+// Relative: see js/components/newsletter-form.js's equivalent constant.
 const CONTACT_API_URL = '/api/contact';
 
 function initContactForms() {
@@ -63,7 +63,7 @@ function initContactForms() {
 
         showConfirmation(form);
       } catch (error) {
-        // fetch() itself throws a TypeError on a network/CORS failure —
+        // fetch() itself throws a TypeError on a network/CORS failure;
         // its message ("Failed to fetch") is a browser-internal string,
         // not something to show a visitor. Any other error here was
         // deliberately thrown above with a message the server or this
@@ -91,7 +91,7 @@ function initContactForms() {
   function getFallbackEmail() {
     // Reuse the general-enquiries email already on the page (populated by
     // js/content-inject.js from assets/config/site.json) instead of a
-    // second hardcoded copy — falls back to the known-correct default if
+    // second hardcoded copy; falls back to the known-correct default if
     // that element isn't found for any reason.
     const emailEl = document.querySelector('[data-content-href="contact.emails.general.href"]');
     return {

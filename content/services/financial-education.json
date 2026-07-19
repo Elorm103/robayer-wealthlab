@@ -1,14 +1,14 @@
 {
   "slug": "financial-education",
   "title": "Financial Education",
-  "summary": "Practical, one-on-one grounding in the personal-finance fundamentals — budgeting, saving, debt, and goal-setting.",
+  "summary": "Practical, one-on-one grounding in the personal-finance fundamentals: budgeting, saving, debt, and goal-setting.",
   "audience": "Students, young professionals, and anyone starting from zero.",
-  "overview": "Financial Education is a focused, one-on-one session built for anyone who wants a solid grounding in personal-finance fundamentals — not a course, not a lecture, a conversation built around your actual situation. It covers the basics that everything else builds on: how to budget in a way that survives real life, the difference between saving and investing, how debt actually works, and how to set financial goals you'll actually keep.",
+  "overview": "Financial Education is a focused, one-on-one session built for anyone who wants a solid grounding in personal-finance fundamentals. It's not a course or a lecture, but a conversation built around your actual situation. It covers the basics that everything else builds on: how to budget in a way that survives real life, the difference between saving and investing, how debt actually works, and how to set financial goals you'll actually keep.",
   "whoItsFor": [
     "You're new to managing your own money and want a clear starting point",
     "You've tried budgeting before but it never stuck",
     "You want plain answers to questions you've felt embarrassed to ask",
-    "You're not looking for investment recommendations yet — just the fundamentals"
+    "You're not looking for investment recommendations yet, just the fundamentals"
   ],
   "whatYoullLearn": [
     "How to build a budget that survives real life, not just a spreadsheet",
@@ -20,16 +20,16 @@
     { "step": 1, "title": "Share your starting point", "description": "A short intake so the session is built around your actual situation, not a generic script." },
     { "step": 2, "title": "A focused session on the fundamentals", "description": "We work through the concepts most relevant to where you are right now." },
     { "step": 3, "title": "A simple written summary", "description": "You leave with clear, plain-language notes and next steps you can keep and revisit." },
-    { "step": 4, "title": "Optional follow-up", "description": "Questions come up after the fact — you're welcome to reach out as they do." }
+    { "step": 4, "title": "Optional follow-up", "description": "Questions come up after the fact, and you're welcome to reach out as they do." }
   ],
   "faq": [
-    { "question": "Is this the same as reading the free articles on this site?", "answer": "No. The free articles and resources are a great place to start on your own — this service is a conversation built around your specific situation and questions." },
+    { "question": "Is this the same as reading the free articles on this site?", "answer": "No. The free articles and resources are a great place to start on your own, but this service is a conversation built around your specific situation and questions." },
     { "question": "Do I need to already have savings or income to start?", "answer": "No. This is designed for exactly the \"starting from zero\" stage, including students and anyone with irregular income." },
     { "question": "Will you tell me exactly what to invest in?", "answer": "No. This session covers financial fundamentals, not investment recommendations. If you want to explore investment options specifically, see Investment Education." },
-    { "question": "How long does a session take?", "answer": "Sessions are kept focused and practical — the exact length is confirmed with you when you book." },
+    { "question": "How long does a session take?", "answer": "Sessions are kept focused and practical; the exact length is confirmed with you when you book." },
     { "question": "What happens after the session?", "answer": "You keep a written summary of what was covered and agreed next steps. Follow-up is available if new questions come up." },
     { "question": "Is this only for individuals?", "answer": "It's built around individual sessions, though the concepts apply whether you're managing your own money or helping a family member with theirs." },
-    { "question": "What if I don't know exactly what I need help with yet?", "answer": "That's a completely normal starting point — the intake step is designed to help figure that out together." }
+    { "question": "What if I don't know exactly what I need help with yet?", "answer": "That's a completely normal starting point; the intake step is designed to help figure that out together." }
   ],
   "relatedServices": ["personal-financial-coaching", "investment-education"],
   "relatedCalculators": ["compound-interest", "savings-goal"],

@@ -31,7 +31,7 @@ function initUnsubscribeStatus() {
 
   const token = new URLSearchParams(window.location.search).get('token');
   if (!token) {
-    showInvalid("This unsubscribe link is missing its token — it may have been copied incorrectly.");
+    showInvalid("This unsubscribe link is missing its token. It may have been copied incorrectly.");
     return;
   }
 

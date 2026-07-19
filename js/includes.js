@@ -1,5 +1,5 @@
 /**
- * Robayer WealthLab — Partial Include System
+ * Robayer WealthLab: Partial Include System
  *
  * Loads shared HTML partials (header, footer) into any element carrying
  * a [data-include] attribute, e.g.:
@@ -9,7 +9,7 @@
  * future page stays in sync automatically when either partial changes.
  *
  * Note: this relies on fetch(), which requires the site to be served over
- * http(s) — it will not work when opening an HTML file directly from disk
+ * http(s); it will not work when opening an HTML file directly from disk
  * (file://). Run a local static server during development (see README),
  * and it works natively once deployed to GitHub Pages.
  *

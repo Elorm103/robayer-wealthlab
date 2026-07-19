@@ -1,10 +1,10 @@
 {
   "slug": "fixed-deposits",
   "title": "Fixed Deposits",
-  "summary": "A bank savings product where money is locked for a set term at a fixed interest rate — simple, predictable, and widely available.",
+  "summary": "A bank savings product where money is locked for a set term at a fixed interest rate: simple, predictable, and widely available.",
   "category": "fixed-income",
   "difficulty": "beginner",
-  "overview": "A fixed deposit is an agreement with a bank or financial institution to leave a lump sum untouched for a set period — commonly a few months to a few years — in exchange for a fixed interest rate. At the end of the term, you receive your original deposit plus the agreed interest.",
+  "overview": "A fixed deposit is an agreement with a bank or financial institution to leave a lump sum untouched for a set period (commonly a few months to a few years) in exchange for a fixed interest rate. At the end of the term, you receive your original deposit plus the agreed interest.",
   "whyItMatters": "Fixed deposits are one of the simplest, most familiar ways to earn more than a regular savings account, without the complexity of market-based instruments. They're a common building block for people who want predictability over flexibility for a defined period.",
   "benefits": [
     "Fixed, known interest rate agreed upfront for the full term",
@@ -14,7 +14,7 @@
   ],
   "risks": [
     "Withdrawing early usually triggers a penalty or reduced interest",
-    "Your money is illiquid for the agreed term — it can't respond to a better opportunity elsewhere",
+    "Your money is illiquid for the agreed term; it can't respond to a better opportunity elsewhere",
     "Fixed rates may fall behind inflation over the deposit's term",
     "Returns are generally lower than higher-risk investments like equities"
   ],
@@ -25,11 +25,11 @@
     "Those diversifying part of their savings into a fixed-term, low-risk holding"
   ],
   "faq": [
-    { "question": "What happens if I need my money before the term ends?", "answer": "Most banks allow early withdrawal but apply a penalty or reduced interest rate — check the specific terms before committing." },
-    { "question": "Is a fixed deposit the same as a Treasury Bill?", "answer": "No — a fixed deposit is an agreement with a bank; a T-bill is a loan to the government. Both are low-risk, but they're issued by different types of institutions." },
-    { "question": "How is the interest rate decided?", "answer": "Rates are set by the bank at the time you open the deposit and are usually fixed for the full term — they vary between banks and terms." },
-    { "question": "Are fixed deposits insured in Ghana?", "answer": "Deposit protection arrangements vary by institution — confirm directly with your bank what protections apply to your deposit." },
-    { "question": "Can I open multiple fixed deposits with different terms?", "answer": "Yes — many savers stagger, or 'ladder', deposits across different maturity dates so some money becomes available periodically." },
+    { "question": "What happens if I need my money before the term ends?", "answer": "Most banks allow early withdrawal but apply a penalty or reduced interest rate; check the specific terms before committing." },
+    { "question": "Is a fixed deposit the same as a Treasury Bill?", "answer": "No. A fixed deposit is an agreement with a bank; a T-bill is a loan to the government. Both are low-risk, but they're issued by different types of institutions." },
+    { "question": "How is the interest rate decided?", "answer": "Rates are set by the bank at the time you open the deposit and are usually fixed for the full term, though they vary between banks and terms." },
+    { "question": "Are fixed deposits insured in Ghana?", "answer": "Deposit protection arrangements vary by institution; confirm directly with your bank what protections apply to your deposit." },
+    { "question": "Can I open multiple fixed deposits with different terms?", "answer": "Yes, many savers stagger, or 'ladder', deposits across different maturity dates so some money becomes available periodically." },
     { "question": "Is this financial advice?", "answer": "No. This page is educational only. A consultation can help you decide how a fixed deposit might fit alongside other savings." }
   ],
   "relatedCalculators": ["savings-goal"],
@@ -42,7 +42,7 @@
     "metaDescription": "Learn how fixed deposits work in Ghana, their benefits and risks, and who they typically suit for predictable, short-to-medium-term savings. Educational only.",
     "canonical": "https://robayerwealthlab.com/investment-centre/fixed-deposits/"
   },
-  "complianceNote": "This page is educational. It does not constitute financial, investment, legal, or tax advice, and fixed deposit rates and terms vary by institution and change over time — confirm current details with your bank before committing funds.",
+  "complianceNote": "This page is educational. It does not constitute financial, investment, legal, or tax advice, and fixed deposit rates and terms vary by institution and change over time. Confirm current details with your bank before committing funds.",
   "ctaLabel": "Request a Consultation",
   "ctaHref": "/consultation/"
 }

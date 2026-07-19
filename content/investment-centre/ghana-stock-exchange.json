@@ -1,10 +1,10 @@
 {
   "slug": "ghana-stock-exchange",
   "title": "Ghana Stock Exchange (GSE)",
-  "summary": "Ghana's stock exchange, where shares of publicly listed companies trade — a higher-risk, higher-potential-reward way to invest in the country's businesses.",
+  "summary": "Ghana's stock exchange, where shares of publicly listed companies trade: a higher-risk, higher-potential-reward way to invest in the country's businesses.",
   "category": "equities",
   "difficulty": "intermediate",
-  "overview": "The Ghana Stock Exchange (GSE) is where shares of publicly listed Ghanaian companies are bought and sold. Buying a share makes you a part-owner of that company — your return comes from the share price changing over time and, for some companies, dividend payments. Trading happens through a licensed stockbroker or dealing member.",
+  "overview": "The Ghana Stock Exchange (GSE) is where shares of publicly listed Ghanaian companies are bought and sold. Buying a share makes you a part-owner of that company: your return comes from the share price changing over time and, for some companies, dividend payments. Trading happens through a licensed stockbroker or dealing member.",
   "whyItMatters": "The GSE is how ordinary Ghanaians can own a stake in the country's listed businesses, rather than only lending money to the government or a bank. It introduces a different, higher-risk, higher-potential-reward layer to an investment strategy, best understood before diving in.",
   "benefits": [
     "Potential for capital growth if a company's share price rises over time",
@@ -13,9 +13,9 @@
     "A wide range of sectors listed, allowing some diversification across industries"
   ],
   "risks": [
-    "Share prices can fall as well as rise — including the possibility of losing some or all of your capital",
+    "Share prices can fall as well as rise (including the possibility of losing some or all of your capital)",
     "Individual company performance can be unpredictable, even in a growing economy",
-    "Less liquid than government instruments for some listed stocks — buyers aren't always readily available",
+    "Less liquid than government instruments for some listed stocks; buyers aren't always readily available",
     "Requires more research and ongoing attention than fixed-income instruments"
   ],
   "whoItSuits": [
@@ -25,11 +25,11 @@
     "Investors comfortable with the possibility of loss in exchange for growth potential"
   ],
   "faq": [
-    { "question": "Do I need a broker to buy shares on the GSE?", "answer": "Yes — trading happens through a licensed stockbroker or dealing member of the Ghana Stock Exchange." },
-    { "question": "How much money do I need to start?", "answer": "This depends on the share price of the company you're interested in and your broker's minimum requirements — check directly with a licensed broker." },
+    { "question": "Do I need a broker to buy shares on the GSE?", "answer": "Yes. Trading happens through a licensed stockbroker or dealing member of the Ghana Stock Exchange." },
+    { "question": "How much money do I need to start?", "answer": "This depends on the share price of the company you're interested in and your broker's minimum requirements; check directly with a licensed broker." },
     { "question": "Can I lose all my money on the GSE?", "answer": "It's possible for an individual company's share price to fall significantly, which is why diversification and research matter. This is a genuine risk, not a remote one." },
     { "question": "What's the difference between buying shares directly and a mutual fund?", "answer": "Buying shares directly means picking individual companies yourself; a mutual fund spreads your money across many holdings chosen by a professional manager." },
-    { "question": "Do all listed companies pay dividends?", "answer": "No — dividend policies vary by company and by year; some reinvest profits instead of paying dividends." },
+    { "question": "Do all listed companies pay dividends?", "answer": "No. Dividend policies vary by company and by year; some reinvest profits instead of paying dividends." },
     { "question": "Is this financial advice?", "answer": "No. This page is educational only and doesn't recommend any specific company or stock. A consultation or a licensed broker can help with your specific situation." }
   ],
   "relatedCalculators": ["investment-growth", "compound-interest"],
@@ -42,7 +42,7 @@
     "metaDescription": "Learn how the Ghana Stock Exchange works, the benefits and risks of buying shares, and who it typically suits. Educational guidance, not investment advice.",
     "canonical": "https://robayerwealthlab.com/investment-centre/ghana-stock-exchange/"
   },
-  "complianceNote": "This page is educational. It does not constitute financial, investment, legal, or tax advice, and does not recommend any specific stock or company. Share prices and company performance change constantly — consult a licensed stockbroker before investing.",
+  "complianceNote": "This page is educational. It does not constitute financial, investment, legal, or tax advice, and does not recommend any specific stock or company. Share prices and company performance change constantly. Consult a licensed stockbroker before investing.",
   "ctaLabel": "Request a Consultation",
   "ctaHref": "/consultation/"
 }

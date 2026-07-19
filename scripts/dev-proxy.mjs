@@ -85,8 +85,17 @@ function serveStatic(req, res) {
   });
 }
 
+// `/books/*` is entirely Worker-owned in production too (backend/routes/books.ts's
+// own header comment — no origin fetch, rendered straight from D1) — proxying it
+// here as well as `/api/*` closes a real local-dev gap found during Version 3.0
+// Founder Edition Step 2 verification: without this, this proxy silently served
+// a stale static HTML file left over from before the Products migration instead
+// of the real server-rendered page, making an admin edit look like it hadn't
+// taken effect when it actually had.
+const WORKER_OWNED_PREFIXES = ['/api/', '/books/'];
+
 const server = http.createServer((req, res) => {
-  if (req.url.startsWith('/api/')) {
+  if (WORKER_OWNED_PREFIXES.some((prefix) => req.url.startsWith(prefix))) {
     proxyToApi(req, res);
   } else {
     serveStatic(req, res);

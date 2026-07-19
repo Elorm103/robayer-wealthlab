@@ -1,5 +1,5 @@
 /**
- * Robayer WealthLab — Scroll Reveal Component
+ * Robayer WealthLab: Scroll Reveal Component
  *
  * Fades/slides [data-reveal] elements into place the first time they
  * enter the viewport. No-ops (shows content immediately) when the user

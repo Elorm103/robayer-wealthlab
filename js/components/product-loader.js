@@ -232,7 +232,7 @@
   // other than 'active' is handled explicitly, never silently broken.
   function getProductPageState(product) {
     if (!product) {
-      return { state: 'not-found', message: "We couldn't find that product — it may have been moved or the link may be incorrect." };
+      return { state: 'not-found', message: "We couldn't find that product. It may have been moved or the link may be incorrect." };
     }
     if (product.status === 'archived') {
       return { state: 'archived', message: 'This product is no longer available.' };
@@ -241,7 +241,7 @@
       return { state: 'unavailable', message: "This product isn't available yet." };
     }
     if (product.status === 'coming-soon') {
-      return { state: 'coming-soon', message: 'This product is coming soon — check back or subscribe to the newsletter to know the moment it launches.' };
+      return { state: 'coming-soon', message: 'This product is coming soon. Check back, or subscribe to the newsletter to know the moment it launches.' };
     }
     return { state: 'active', message: null };
   }
@@ -412,7 +412,7 @@
         if (ctaEl) {
           ctaEl.setAttribute('href', '/books/' + featured.slug + '/');
           const priceLabel = featured.price === 0 ? 'Free' : formatCurrency(featured.price, featured.currency);
-          ctaEl.textContent = 'Get the guide — ' + priceLabel;
+          ctaEl.textContent = 'Get the guide: ' + priceLabel;
         }
       });
     });

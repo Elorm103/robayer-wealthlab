@@ -7,7 +7,7 @@
   {
     "slug": "personal-finance",
     "label": "Personal Finance",
-    "description": "The everyday fundamentals — spending, saving habits, debt, and financial decision-making."
+    "description": "The everyday fundamentals: spending, saving habits, debt, and financial decision-making."
   },
   {
     "slug": "budgeting",
@@ -17,11 +17,11 @@
   {
     "slug": "business",
     "label": "Business",
-    "description": "Financial guidance for small business owners and entrepreneurs — cash flow, pricing, and growth."
+    "description": "Financial guidance for small business owners and entrepreneurs: cash flow, pricing, and growth."
   },
   {
     "slug": "mindset",
     "label": "Mindset",
-    "description": "The behavioural and psychological side of money — habits, discipline, and decision-making under pressure."
+    "description": "The behavioural and psychological side of money: habits, discipline, and decision-making under pressure."
   }
 ]

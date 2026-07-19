@@ -1,5 +1,5 @@
 /**
- * Robayer WealthLab — Theme Toggle Component
+ * Robayer WealthLab: Theme Toggle Component
  *
  * Applies data-theme="dark"/"light" to <html> and remembers the choice
  * in localStorage. The toggle button lives in partials/header.html, so
@@ -7,7 +7,7 @@
  *
  * Known limitation: since there's no shared <head> partial, this runs
  * after the page's own scripts rather than as a head-blocking inline
- * script — a returning dark-mode visitor may see a brief light-mode
+ * script, so a returning dark-mode visitor may see a brief light-mode
  * flash on navigation before this applies the stored preference.
  */
 

@@ -1,9 +1,9 @@
 {
   "slug": "business-financial-advisory",
   "title": "Business Financial Advisory",
-  "summary": "Practical guidance for small business owners and entrepreneurs — cash flow, separating personal and business finances, and planning for growth.",
+  "summary": "Practical guidance for small business owners and entrepreneurs: cash flow, separating personal and business finances, and planning for growth.",
   "audience": "Small business owners, entrepreneurs, and early-stage founders.",
-  "overview": "Business Financial Advisory is practical, educational guidance for people running a small business or early-stage venture — help understanding cash flow, separating personal and business money, and building simple habits that support growth. It's a complement to formal accounting, tax, and audit services, not a replacement for them.",
+  "overview": "Business Financial Advisory is practical, educational guidance for people running a small business or early-stage venture: help understanding cash flow, separating personal and business money, and building simple habits that support growth. It's a complement to formal accounting, tax, and audit services, not a replacement for them.",
   "whoItsFor": [
     "You're running a small business and personal and business money are mixed together",
     "You're not sure how to read your own cash flow",
@@ -23,13 +23,13 @@
     { "step": 4, "title": "Follow-up as the business evolves", "description": "Available as your situation changes." }
   ],
   "faq": [
-    { "question": "Is this the same as hiring an accountant?", "answer": "No — this is complementary financial education and advisory, not a replacement for licensed accounting, tax, or audit services. Many readers use both." },
-    { "question": "Can you help with a business plan?", "answer": "The financial side of a business plan — cash flow, basic projections, financial habits — is within scope; broader business strategy is not the focus of this service." },
-    { "question": "Do you work with registered and unregistered businesses?", "answer": "Yes — the fundamentals covered apply at any stage, including very early or informal ventures." },
-    { "question": "Is this only for businesses based in Accra?", "answer": "No — sessions can be arranged remotely; location isn't a barrier." },
+    { "question": "Is this the same as hiring an accountant?", "answer": "Not quite. This is complementary financial education and advisory, not a replacement for licensed accounting, tax, or audit services. Many readers use both." },
+    { "question": "Can you help with a business plan?", "answer": "The financial side of a business plan (cash flow, basic projections, financial habits) is within scope; broader business strategy is not the focus of this service." },
+    { "question": "Do you work with registered and unregistered businesses?", "answer": "Yes, the fundamentals covered apply at any stage, including very early or informal ventures." },
+    { "question": "Is this only for businesses based in Accra?", "answer": "Not at all. Sessions can be arranged remotely, so location isn't a barrier." },
     { "question": "What if my business has irregular income?", "answer": "That's a common reality for small businesses in Ghana, and it's factored directly into the guidance rather than treated as an edge case." },
-    { "question": "How technical do I need to be?", "answer": "Not technical at all — this is explained in plain language, with no assumption of accounting or finance background." },
-    { "question": "Do you provide legal or tax advice?", "answer": "No — this service is financial education and advisory only. For legal or tax matters, we'd point you toward a licensed professional." }
+    { "question": "How technical do I need to be?", "answer": "Not technical at all. This is explained in plain language, with no assumption of accounting or finance background." },
+    { "question": "Do you provide legal or tax advice?", "answer": "No, this service is financial education and advisory only. For legal or tax matters, we'd point you toward a licensed professional." }
   ],
   "relatedServices": ["personal-financial-coaching", "financial-literacy-workshops"],
   "relatedCalculators": ["compound-interest"],

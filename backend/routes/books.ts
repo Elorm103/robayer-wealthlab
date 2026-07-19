@@ -104,7 +104,7 @@ const ORGANIZATION_JSON_LD = `
     "name": "Robayer WealthLab",
     "url": "${SITE_ORIGIN}",
     "logo": "${SITE_ORIGIN}/assets/branding/logo/logo.png",
-    "description": "Financial education for ordinary Ghanaians — practical, honest guidance on saving, investing, and building wealth.",
+    "description": "Financial education for ordinary Ghanaians: practical, honest guidance on saving, investing, and building wealth.",
     "telephone": "+233 53 780 6352",
     "address": { "@type": "PostalAddress", "addressLocality": "Accra", "addressCountry": "GH" },
     "founder": { "@type": "Person", "name": "Robert Loh Kobla" },
@@ -267,7 +267,7 @@ async function renderBooksIndex(env: Env): Promise<Response> {
           <span class="eyebrow feature-banner__eyebrow">Featured eBook</span>
           <h2 id="featured-book-heading" class="mt-2 mb-2 feature-banner__title">${escapeHtml(featured.title)}</h2>
           <p class="mb-4 feature-banner__copy">${escapeHtml(featured.shortDescription ?? featured.subtitle ?? '')}</p>
-          <a href="/books/${escapeHtml(featured.slug)}/" class="btn btn--accent">Get the guide${featured.pricePesewas !== null ? ` — ${formatGHS(featured.pricePesewas / 100)}` : ''}</a>
+          <a href="/books/${escapeHtml(featured.slug)}/" class="btn btn--accent">Get the guide${featured.pricePesewas !== null ? ` (${formatGHS(featured.pricePesewas / 100)})` : ''}</a>
         </div>
       </div>
     </section>`
@@ -278,7 +278,7 @@ async function renderBooksIndex(env: Env): Promise<Response> {
       <div class="container hero__content">
         <span class="eyebrow hero__eyebrow">Books</span>
         <h1 class="hero__title">Guides for wherever you're starting</h1>
-        <p class="hero__subtitle">Practical, honest eBooks on saving, investing, and building wealth — start with the one that matches where you are.</p>
+        <p class="hero__subtitle">Practical, honest eBooks on saving, investing, and building wealth. Start with the one that matches where you are.</p>
         <div class="hero__actions">
           <a href="#book-grid" class="btn btn--primary">Browse guides</a>
           <a href="/newsletter/" class="btn btn--secondary">Get notified about new guides</a>
@@ -303,10 +303,10 @@ ${featuredSection}
           </div>
         </div>
 
-        <p class="alert alert--info hidden" data-filter-empty aria-live="polite">No guides in this category yet — <a href="/newsletter/">subscribe</a> to hear when one arrives.</p>
+        <p class="alert alert--info hidden" data-filter-empty aria-live="polite">No guides in this category yet. <a href="/newsletter/">Subscribe</a> to hear when one arrives.</p>
 
         <div class="grid grid--3" data-filter-grid>
-          ${cardsHtml || '<p class="text-secondary col-span-full">No guides published yet — check back soon.</p>'}
+          ${cardsHtml || '<p class="text-secondary col-span-full">No guides published yet. Check back soon.</p>'}
         </div>
       </div>
     </section>
@@ -327,9 +327,9 @@ ${featuredSection}
         <span class="eyebrow text-center">Questions</span>
         <h2 id="faq-heading" class="mt-2 mb-5 text-center">Frequently asked questions</h2>
         <div class="faq">
-          <details class="faq__item"><summary class="faq__question">How do I get a guide?<span class="faq__icon" aria-hidden="true"></span></summary><p class="faq__answer">Tap "Get the guide" on any book, complete the simple checkout, and you'll get digital access right away — no shipping, no waiting.</p></details>
+          <details class="faq__item"><summary class="faq__question">How do I get a guide?<span class="faq__icon" aria-hidden="true"></span></summary><p class="faq__answer">Tap "Get the guide" on any book, complete the simple checkout, and you'll get digital access right away, with no shipping and no waiting.</p></details>
           <details class="faq__item"><summary class="faq__question">How much do the guides cost?<span class="faq__icon" aria-hidden="true"></span></summary><p class="faq__answer">Most guides are GH&#8373;39. A number of free templates, calculators, and articles are also available on the Resources page.</p></details>
-          <details class="faq__item"><summary class="faq__question">Is this financial advice?<span class="faq__icon" aria-hidden="true"></span></summary><p class="faq__answer">No. Robayer WealthLab provides financial education, not licensed financial advice — always do your own research before making investment decisions.</p></details>
+          <details class="faq__item"><summary class="faq__question">Is this financial advice?<span class="faq__icon" aria-hidden="true"></span></summary><p class="faq__answer">No. Robayer WealthLab provides financial education, not licensed financial advice. Always do your own research before making investment decisions.</p></details>
           <details class="faq__item"><summary class="faq__question">Can I read guides on my phone?<span class="faq__icon" aria-hidden="true"></span></summary><p class="faq__answer">Yes. Every guide is designed to be read comfortably on mobile, since that's how most readers use the site.</p></details>
           <details class="faq__item"><summary class="faq__question">When will new guides be added?<span class="faq__icon" aria-hidden="true"></span></summary><p class="faq__answer">Regularly. Subscribe to the newsletter below to be the first to know when a new one is ready.</p></details>
         </div>
@@ -346,9 +346,9 @@ ${NEWSLETTER_BAND}`;
     "@context": "https://schema.org",
     "@type": "FAQPage",
     "mainEntity": [
-      { "@type": "Question", "name": "How do I get a guide?", "acceptedAnswer": { "@type": "Answer", "text": "Tap \\"Get the guide\\" on any book, complete the simple checkout, and you'll get digital access right away — no shipping, no waiting." } },
+      { "@type": "Question", "name": "How do I get a guide?", "acceptedAnswer": { "@type": "Answer", "text": "Tap \\"Get the guide\\" on any book, complete the simple checkout, and you'll get digital access right away, with no shipping and no waiting." } },
       { "@type": "Question", "name": "How much do the guides cost?", "acceptedAnswer": { "@type": "Answer", "text": "Most guides are GH\\u20b539. A number of free templates, calculators, and articles are also available on the Resources page." } },
-      { "@type": "Question", "name": "Is this financial advice?", "acceptedAnswer": { "@type": "Answer", "text": "No. Robayer WealthLab provides financial education, not licensed financial advice — always do your own research before making investment decisions." } },
+      { "@type": "Question", "name": "Is this financial advice?", "acceptedAnswer": { "@type": "Answer", "text": "No. Robayer WealthLab provides financial education, not licensed financial advice. Always do your own research before making investment decisions." } },
       { "@type": "Question", "name": "Can I read guides on my phone?", "acceptedAnswer": { "@type": "Answer", "text": "Yes. Every guide is designed to be read comfortably on mobile, since that's how most readers use the site." } },
       { "@type": "Question", "name": "When will new guides be added?", "acceptedAnswer": { "@type": "Answer", "text": "Regularly. Subscribe to the newsletter below to be the first to know when a new one is ready." } }
     ]
@@ -358,8 +358,8 @@ ${NEWSLETTER_BAND}`;
   const html = renderShell({
     title: 'Financial eBooks for Ghana | Robayer WealthLab',
     description:
-      'Practical eBooks on saving, investing, and building wealth in Ghana — starting with Starting to Invest with GH₵100. Honest guidance, no hype, from GH₵39.',
-    twitterDescription: 'Practical eBooks on saving, investing, and building wealth in Ghana — honest guidance, no hype, from GH₵39.',
+      'Practical eBooks on saving, investing, and building wealth in Ghana, starting with Starting to Invest with GH₵100. Honest guidance, no hype, from GH₵39.',
+    twitterDescription: 'Practical eBooks on saving, investing, and building wealth in Ghana: honest guidance, no hype, from GH₵39.',
     canonical: `${SITE_ORIGIN}/books/`,
     ogImage: `${SITE_ORIGIN}/assets/branding/social/og-image.jpg`,
     extraHead: faqJsonLd,
@@ -381,22 +381,52 @@ const GENERIC_FAQ = `
         <h2 id="faq-heading" class="mt-2 mb-5 text-center">Frequently asked questions</h2>
         <div class="faq">
           <details class="faq__item"><summary class="faq__question">What exactly do I get when I buy this guide?<span class="faq__icon" aria-hidden="true"></span></summary><p class="faq__answer">A downloadable digital guide you can start reading right away, plus any updates we make to it later — at no extra cost.</p></details>
-          <details class="faq__item"><summary class="faq__question">Can I read it on my phone?<span class="faq__icon" aria-hidden="true"></span></summary><p class="faq__answer">Yes — it's designed to be comfortable to read on any device, phone included.</p></details>
-          <details class="faq__item"><summary class="faq__question">Is this financial advice?<span class="faq__icon" aria-hidden="true"></span></summary><p class="faq__answer">No. Robayer WealthLab provides financial education, not licensed financial advice — always do your own research before making investment decisions.</p></details>
-          <details class="faq__item"><summary class="faq__question">What if I have questions after reading?<span class="faq__icon" aria-hidden="true"></span></summary><p class="faq__answer">Subscribe to the newsletter — we regularly answer reader questions there.</p></details>
+          <details class="faq__item"><summary class="faq__question">Can I read it on my phone?<span class="faq__icon" aria-hidden="true"></span></summary><p class="faq__answer">Yes. It's designed to be comfortable to read on any device, phone included.</p></details>
+          <details class="faq__item"><summary class="faq__question">Is this financial advice?<span class="faq__icon" aria-hidden="true"></span></summary><p class="faq__answer">No. Robayer WealthLab provides financial education, not licensed financial advice. Always do your own research before making investment decisions.</p></details>
+          <details class="faq__item"><summary class="faq__question">What if I have questions after reading?<span class="faq__icon" aria-hidden="true"></span></summary><p class="faq__answer">Subscribe to the newsletter. We regularly answer reader questions there.</p></details>
         </div>
       </div>
     </section>`;
 
+// Reuses content/founder/bio.json — the exact same single-source-of-truth
+// component already live on /about/ (js/components/founder-bio.js) —
+// rather than a second, hardcoded bio duplicated here. The [data-founder-bio]
+// attributes are hydrated client-side after partials load; the text
+// below is the pre-hydration fallback (matches founder-bio.js's own
+// "existing hand-written text is the fallback" contract), not a second
+// source of truth.
 const ABOUT_AUTHOR = `
     <section class="section bg-paper" aria-labelledby="author-heading">
       <div class="container grid grid--2 gap-5">
-        <div class="rounded-lg bg-sand aspect-4-5" aria-hidden="true"></div>
+        <img src="/assets/branding/founder/founder-portrait.jpg" alt="Robert Loh Kobla, Founder of Robayer WealthLab" class="rounded-lg aspect-4-5" style="width:100%;object-fit:cover;">
         <div>
           <span class="eyebrow">About the author</span>
           <h2 id="author-heading" class="mt-2 mb-3">Robert Loh Kobla</h2>
-          <p class="mb-4">Robert founded Robayer WealthLab to simplify financial education for ordinary Ghanaians — practical knowledge, disciplined investing, and honest guidance, one step at a time.</p>
+          <p class="mb-4" data-founder-bio="short">Robert founded Robayer WealthLab to simplify financial education for ordinary Ghanaians: practical knowledge, disciplined investing, and honest guidance, one step at a time.</p>
           <a href="/about/" class="btn btn--secondary">Read the full story</a>
+        </div>
+      </div>
+    </section>`;
+
+// Concise, non-exaggerated trust indicators (Founder Edition launch-
+// readiness refinement — "reinforce credibility without fabricating
+// claims"). Every line here is checked directly against the real
+// manuscript and this platform's own governance policy
+// (docs/v3-marketplace-governance.md), not invented marketing copy.
+// A generic, reusable component in the same style as GENERIC_FAQ —
+// worth revisiting once a second product with different real
+// properties exists, so this isn't silently applied to a future book
+// these specific claims don't hold for.
+const TRUST_SIGNALS = `
+    <section class="section--tight bg-sand" aria-label="Why readers trust this guide">
+      <div class="container">
+        <div class="grid grid--3 gap-3 text-center">
+          <div>&#127468;&#127469;&nbsp;&nbsp;Written specifically for Ghanaian readers</div>
+          <div>&#9989;&nbsp;&nbsp;Covers only regulated, licensed institutions</div>
+          <div>&#128683;&nbsp;&nbsp;No guaranteed-return promises</div>
+          <div>&#128203;&nbsp;&nbsp;Includes real worksheets and checklists</div>
+          <div>&#128218;&nbsp;&nbsp;Plain-language, practical guidance</div>
+          <div>&#128274;&nbsp;&nbsp;Instant, secure digital delivery</div>
         </div>
       </div>
     </section>`;
@@ -420,6 +450,63 @@ function render404(env: Env, slug: string): Response {
   return htmlResponse(html, 404);
 }
 
+// ============================================================
+// Description section parsing — the premium product page (Version 3.0
+// Founder Edition Phase 2) reads "What you'll learn" / "Inside the
+// guide" / "Who this guide is for" / "Frequently asked questions" as
+// distinct, purpose-styled sections rather than one undifferentiated
+// blob. Deliberately parses the SAME `products.description` rich-text
+// field already edited through the existing admin editor, rather than
+// adding new schema columns for each section — the content model
+// doesn't change, only how this route presents it (this project's
+// standing "generalize what exists" discipline). A product whose
+// description doesn't use these headings still renders correctly: the
+// whole thing falls back to the original single "About this guide"
+// block, and FAQ falls back to GENERIC_FAQ — nothing regresses for any
+// other product in the catalog.
+// ============================================================
+
+interface DescriptionSection {
+  heading: string;
+  html: string;
+}
+
+function parseDescriptionSections(descriptionHtml: string | null): { intro: string; sections: DescriptionSection[] } {
+  if (!descriptionHtml) return { intro: '', sections: [] };
+  const parts = descriptionHtml.split(/<h2>([\s\S]*?)<\/h2>/);
+  const intro = (parts[0] ?? '').trim();
+  const sections: DescriptionSection[] = [];
+  for (let i = 1; i < parts.length; i += 2) {
+    sections.push({ heading: (parts[i] ?? '').trim(), html: (parts[i + 1] ?? '').trim() });
+  }
+  return { intro, sections };
+}
+
+function findSection(sections: DescriptionSection[], match: RegExp): DescriptionSection | undefined {
+  return sections.find((s) => match.test(s.heading));
+}
+
+function extractListItems(html: string): string[] {
+  return [...html.matchAll(/<li>([\s\S]*?)<\/li>/g)].map((m) => m[1].trim());
+}
+
+interface FaqPair {
+  question: string;
+  answer: string;
+}
+
+/** Strips the tags a rich-text answer might legitimately contain (bold, links) down to plain text for JSON-LD, where a raw `<strong>` tag would be invalid as displayed text in a Google rich-result preview. */
+function stripTags(html: string): string {
+  return html.replace(/<[^>]+>/g, '').trim();
+}
+
+function parseFaqPairs(html: string): FaqPair[] {
+  return [...html.matchAll(/<h3>([\s\S]*?)<\/h3>\s*<p>([\s\S]*?)<\/p>/g)].map((m) => ({
+    question: stripTags(m[1]),
+    answer: stripTags(m[2]),
+  }));
+}
+
 async function renderBookDetail(env: Env, slug: string): Promise<Response> {
   const product = await productService.getProductBySlug(env, slug);
   if (!product || !isPubliclyListedStatus(product.status)) {
@@ -428,7 +515,12 @@ async function renderBookDetail(env: Env, slug: string): Promise<Response> {
 
   const isUpcoming = product.status === 'coming-soon';
   const priceLabel = product.pricePesewas === null ? null : product.pricePesewas === 0 ? 'Free' : formatGHS(product.pricePesewas / 100);
-  const metaBits = [labelize(product.topic), labelize(product.productType)];
+  // 'ebook' displays as "Digital Guide" here (and "Digital Wealth Guide"
+  // in the hero eyebrow above) rather than the raw labelize() output
+  // "Ebook" — a display-only mapping; product.productType itself, the
+  // admin dropdown, and the database enum are all untouched.
+  const productTypeLabel = product.productType === 'ebook' ? 'Digital Guide' : labelize(product.productType);
+  const metaBits = [labelize(product.topic), productTypeLabel];
   if (product.estimatedReadingTime) metaBits.push(`~${product.estimatedReadingTime} min read`);
   if (product.version) metaBits.push(`Version ${escapeHtml(product.version)}`);
   metaBits.push(product.language === 'en' ? 'English' : escapeHtml(product.language));
@@ -438,7 +530,7 @@ async function renderBookDetail(env: Env, slug: string): Promise<Response> {
     ? '<a href="/newsletter/" class="btn btn--accent">Get notified when this launches</a>'
     : priceLabel === null
       ? '<span class="badge badge--warning">Price coming soon</span>'
-      : `<a href="#" class="btn btn--accent" data-buy-button data-product-slug="${escapeHtml(product.slug)}">Buy the guide — ${escapeHtml(priceLabel)}</a>`;
+      : `<a href="#" class="btn btn--accent" data-buy-button data-product-slug="${escapeHtml(product.slug)}">Buy the guide (${escapeHtml(priceLabel)})</a>`;
 
   const tagsLine = product.tags
     ? `<p class="text-secondary text-small mb-3">Tags: ${escapeHtml(
@@ -492,38 +584,225 @@ async function renderBookDetail(env: Env, slug: string): Promise<Response> {
     ? ` style="background-image:url('${escapeHtml(product.coverPublicUrl)}');background-size:cover;background-position:center;"`
     : '';
 
+  // No real cover image exists yet for any product (docs/flagship-cover-design-brief.md
+  // covers the real artwork brief) — rather than an empty box, an honest typographic
+  // placeholder built from the product's own real title/subtitle renders when no
+  // cover has been uploaded, so the hero doesn't look broken or unfinished.
+  const coverPlaceholder = product.coverPublicUrl
+    ? ''
+    : `<div class="book-card__cover-placeholder-text" aria-hidden="true">
+         <span class="book-card__cover-placeholder-eyebrow">Robayer WealthLab</span>
+         <span class="book-card__cover-placeholder-title">${escapeHtml(product.title)}</span>
+         <span class="book-card__cover-placeholder-subtitle">${escapeHtml(product.subtitle ?? '')}</span>
+       </div>`;
+
+  const { intro, sections } = parseDescriptionSections(product.description);
+  const learnSection = findSection(sections, /what you'?ll learn/i);
+  const insideSection = findSection(sections, /inside the guide|what'?s inside/i);
+  const audienceSection = findSection(sections, /who this (guide|book) is for/i);
+  const faqSection = findSection(sections, /frequently asked questions/i);
+  const whySection = findSection(sections, /why (this|the) guide was written/i);
+  const recognizedHeadings = new Set(
+    [learnSection, insideSection, audienceSection, faqSection, whySection]
+      .filter((s): s is DescriptionSection => !!s)
+      .map((s) => s.heading)
+  );
+  const otherSections = sections.filter((s) => !recognizedHeadings.has(s.heading));
+
+  // "Why this guide was written" — a trust-building narrative section
+  // (Version 3.0 Founder Edition, flagship launch-readiness refinement).
+  // Deliberately built as a recognized description section rather than a
+  // separate page, same pattern as every other section here — the
+  // founder's real motivation (from the manuscript's own "Why I Wrote
+  // This Book"), ending in a CTA that references Chapter 8 by name
+  // without describing its actual content, so the page builds urgency
+  // to buy rather than substituting for the chapter itself.
+  const whyHtml = whySection
+    ? `
+    <section class="section bg-navy" aria-labelledby="why-heading">
+      <div class="container content-column">
+        <span class="eyebrow" style="color:rgba(255,255,255,0.7);">Why this guide exists</span>
+        <h2 id="why-heading" class="mt-2 mb-4" style="color:#fff;">Why This Guide Was Written</h2>
+        <div style="color:rgba(255,255,255,0.85);">${whySection.html}</div>
+      </div>
+    </section>`
+    : '';
+
+  const learnItems = learnSection ? extractListItems(learnSection.html) : [];
+  const learnHtml =
+    learnItems.length > 0
+      ? `
+    <section class="section bg-sand" aria-labelledby="learn-heading">
+      <div class="container">
+        <span class="eyebrow">Why this guide</span>
+        <h2 id="learn-heading" class="mt-2 mb-4">What you'll learn</h2>
+        <div class="grid grid--2 gap-3">
+          ${learnItems.map((item) => `<div class="rounded-lg bg-paper" style="padding:var(--space-3);">&#10003;&nbsp;&nbsp;${item}</div>`).join('\n')}
+        </div>
+      </div>
+    </section>`
+      : '';
+
+  // Scoped to just the <ol>...</ol> chapter list — extractListItems on the
+  // whole section would also pick up the "Bonus resources included" <ul>
+  // below it, double-counting those items as extra numbered "chapters".
+  const chapterListMatch = insideSection ? insideSection.html.match(/<ol>[\s\S]*?<\/ol>/) : null;
+  const chapterItems = chapterListMatch ? extractListItems(chapterListMatch[0]) : [];
+  // A "Bonus resources included" <h3> + <ul> sub-block, if the description
+  // has one, is parsed out and rendered as its own visual grid rather than
+  // a plain list — this is the CMS-driven answer to "no testimonials exist,
+  // so replace social proof with transparency" (Founder Edition launch-
+  // readiness refinement): showing prospective buyers exactly what they
+  // get, concretely, instead of leaving it as one line of prose.
+  const bonusMatch = insideSection ? insideSection.html.match(/<h3>\s*Bonus resources[^<]*<\/h3>\s*<ul>([\s\S]*?)<\/ul>/i) : null;
+  const bonusItems = bonusMatch ? extractListItems(`<ul>${bonusMatch[1]}</ul>`) : [];
+  // Anything left in the "Inside the guide" section besides the <ol> and
+  // the bonus-resources sub-block (a real fallback for future CMS content
+  // this route doesn't have a bespoke layout for) is preserved as-is.
+  const insideExtra = insideSection
+    ? insideSection.html
+        .replace(/<ol>[\s\S]*?<\/ol>/, '')
+        .replace(/<h3>\s*Bonus resources[^<]*<\/h3>\s*<ul>[\s\S]*?<\/ul>/i, '')
+        .trim()
+    : '';
+  const BONUS_ICONS = ['&#128203;', '&#128197;', '&#9989;', '&#127919;', '&#128279;', '&#128218;'];
+  const insideHtml =
+    chapterItems.length > 0
+      ? `
+    <section class="section" aria-labelledby="inside-heading">
+      <div class="container content-column">
+        <span class="eyebrow">What's inside</span>
+        <h2 id="inside-heading" class="mt-2 mb-4">Inside the guide</h2>
+        <ol style="list-style:none;padding:0;margin:0;display:grid;gap:var(--space-2);">
+          ${chapterItems
+            .map(
+              (item, i) =>
+                `<li style="display:flex;gap:var(--space-3);align-items:flex-start;"><span class="badge" aria-hidden="true">${i + 1}</span><span>${item}</span></li>`
+            )
+            .join('\n')}
+        </ol>
+        ${
+          bonusItems.length > 0
+            ? `
+        <h3 class="mt-5 mb-3">Bonus resources included</h3>
+        <div class="grid grid--3 gap-3">
+          ${bonusItems
+            .map((item, i) => `<div class="rounded-lg bg-sand" style="padding:var(--space-3);">${BONUS_ICONS[i % BONUS_ICONS.length]}&nbsp;&nbsp;${item}</div>`)
+            .join('\n')}
+        </div>`
+            : ''
+        }
+        ${insideExtra}
+      </div>
+    </section>`
+      : '';
+
+  const audienceHtml = audienceSection
+    ? `
+    <section class="section bg-paper" aria-labelledby="audience-heading">
+      <div class="container content-column">
+        <span class="eyebrow">Is this for you?</span>
+        <h2 id="audience-heading" class="mt-2 mb-4">Who this guide is for</h2>
+        ${audienceSection.html}
+      </div>
+    </section>`
+    : '';
+
+  const faqPairs = faqSection ? parseFaqPairs(faqSection.html) : [];
+  const faqHtml =
+    faqPairs.length > 0
+      ? `
+    <section class="section" aria-labelledby="faq-heading">
+      <div class="container content-column">
+        <span class="eyebrow text-center">Questions</span>
+        <h2 id="faq-heading" class="mt-2 mb-5 text-center">Frequently asked questions</h2>
+        <div class="faq">
+          ${faqPairs
+            .map(
+              (f) =>
+                `<details class="faq__item"><summary class="faq__question">${escapeHtml(f.question)}<span class="faq__icon" aria-hidden="true"></span></summary><p class="faq__answer">${escapeHtml(f.answer)}</p></details>`
+            )
+            .join('\n')}
+        </div>
+      </div>
+    </section>`
+      : GENERIC_FAQ;
+
+  // Any h2 section in the description this route doesn't specifically
+  // recognize (a product with different structure than the four named
+  // sections above) still renders — nothing authored in the CMS is
+  // silently dropped just because this page doesn't have a bespoke
+  // layout for it yet.
+  const otherSectionsHtml = otherSections
+    .map(
+      (s) => `
+    <section class="section" aria-labelledby="section-${escapeHtml(s.heading.toLowerCase().replace(/[^a-z0-9]+/g, '-'))}">
+      <div class="container content-column">
+        <h2 id="section-${escapeHtml(s.heading.toLowerCase().replace(/[^a-z0-9]+/g, '-'))}" class="mt-2 mb-4">${escapeHtml(s.heading)}</h2>
+        ${s.html}
+      </div>
+    </section>`
+    )
+    .join('\n');
+
+  const closingCta =
+    !isUpcoming && priceLabel !== null
+      ? `
+    <section class="section bg-navy" aria-labelledby="cta-heading">
+      <div class="container content-column text-center">
+        <h2 id="cta-heading" class="mt-2 mb-3" style="color:#fff;">Ready to start with GH&#8373;1?</h2>
+        <p class="mb-4" style="color:rgba(255,255,255,0.8);">Instant digital access &bull; Read on any device &bull; Secure checkout via Paystack</p>
+        <a href="#" class="btn btn--accent" data-buy-button data-product-slug="${escapeHtml(product.slug)}">Buy the guide (${escapeHtml(priceLabel)})</a>
+      </div>
+    </section>`
+      : '';
+
+  // "Digital Wealth Guide" — the customer-facing term, not "eBook" (see
+  // docs/flagship-launch-checklist.md's terminology note for the full
+  // reasoning). The underlying product_type taxonomy value ('ebook')
+  // and the /books/ route are deliberately left unchanged — this is a
+  // display-label change only, not an infrastructure rename, so no
+  // existing URL, schema enum, or indexed link is affected.
+  const productLabel = isUpcoming ? 'Coming soon' : 'Digital Wealth Guide';
+
   const body = `
     <section class="hero hero--split bg-paper">
       <div class="container">
         <div class="hero__content">
           <div>
-            <span class="eyebrow hero__eyebrow">${isUpcoming ? 'Coming soon' : 'eBook'}</span>
+            <span class="eyebrow hero__eyebrow">${productLabel}</span>
             <h1 class="hero__title">${escapeHtml(product.title)}</h1>
             <p class="hero__subtitle">${escapeHtml(product.subtitle ?? product.shortDescription ?? '')}</p>
             <p class="text-secondary text-small mb-2">${metaBits.map(escapeHtml).join(' &bull; ')}</p>
             ${tagsLine}
             ${priceLabel !== null ? `<p class="book-card__price text-body-lg mb-3">${escapeHtml(priceLabel)}</p>` : ''}
             <div class="hero__actions">${buyAction}</div>
-            <p class="text-secondary text-small mt-3">Instant digital access &bull; Read on any device &bull; Secure checkout via Paystack</p>
+            <p class="text-secondary text-small mt-3">Written specifically for Ghana &bull; Instant digital access &bull; Secure checkout via Paystack</p>
+            ${
+              !isUpcoming && priceLabel !== null
+                ? `<p class="text-secondary text-small mt-1">Full refund within 7 days if you haven't downloaded more than once. See the <a href="/legal/terms-of-use/#refund-policy">refund policy</a>.</p>`
+                : ''
+            }
           </div>
-          <div class="book-card__cover"${coverStyle} aria-hidden="true"></div>
+          <div class="book-card__cover"${coverStyle} aria-hidden="true">${coverPlaceholder}</div>
         </div>
       </div>
     </section>
 
-    <section class="section" aria-labelledby="about-heading">
+    <section class="section--tight" aria-labelledby="about-heading">
       <div class="container content-column">
         <span class="eyebrow">About this guide</span>
         <h2 id="about-heading" class="mt-2 mb-4 sr-only">About this guide</h2>
-        ${product.description ?? `<p>${escapeHtml(product.shortDescription ?? '')}</p>`}
+        ${intro || (product.description ?? `<p>${escapeHtml(product.shortDescription ?? '')}</p>`)}
       </div>
     </section>
-${galleryHtml}${ABOUT_AUTHOR}${GENERIC_FAQ}${relatedSection}
+${whyHtml}${learnHtml}${TRUST_SIGNALS}${audienceHtml}${insideHtml}${otherSectionsHtml}${galleryHtml}${ABOUT_AUTHOR}${faqHtml}${relatedSection}
     <section class="section--tight">
       <div class="container content-column">
-        <p class="alert alert--warning">Robayer WealthLab provides financial education, not licensed financial advice. This guide is for informational purposes only — always do your own research and consider your personal circumstances before making investment decisions.</p>
+        <p class="alert alert--warning">Robayer WealthLab provides financial education, not licensed financial advice. This guide is for informational purposes only. Always do your own research and consider your personal circumstances before making investment decisions.</p>
       </div>
     </section>
+${closingCta}
 ${NEWSLETTER_BAND}`;
 
   const breadcrumb = `
@@ -556,9 +835,11 @@ ${NEWSLETTER_BAND}`;
   // BreadcrumbList + FAQPage — the two structured-data blocks every
   // hand-authored product page also carried (see this route's header
   // comment on preserving SEO surface, not just visible content).
-  // FAQPage mirrors GENERIC_FAQ's own rendered questions exactly (real
-  // structured data matching what's actually on the page), not a
-  // per-product custom Q&A set the data model has no field for.
+  // FAQPage now mirrors whichever FAQ actually rendered above — the
+  // product's own real, CMS-authored questions when present (faqPairs),
+  // falling back to the same generic four questions GENERIC_FAQ renders
+  // for a product with no FAQ section yet. Always real structured data
+  // matching what's actually on the page, never invented independently.
   const breadcrumbJsonLd = `
   <script type="application/ld+json">
   {
@@ -572,16 +853,28 @@ ${NEWSLETTER_BAND}`;
   }
   </script>`;
 
+  const faqEntities =
+    faqPairs.length > 0
+      ? faqPairs
+      : [
+          { question: 'What exactly do I get when I buy this guide?', answer: 'A downloadable digital guide you can start reading right away, plus any updates we make to it later — at no extra cost.' },
+          { question: 'Can I read it on my phone?', answer: "Yes. It's designed to be comfortable to read on any device, phone included." },
+          { question: 'Is this financial advice?', answer: 'No. Robayer WealthLab provides financial education, not licensed financial advice. Always do your own research before making investment decisions.' },
+          { question: 'What if I have questions after reading?', answer: 'Subscribe to the newsletter. We regularly answer reader questions there.' },
+        ];
+
   const faqJsonLd = `
   <script type="application/ld+json">
   {
     "@context": "https://schema.org",
     "@type": "FAQPage",
     "mainEntity": [
-      { "@type": "Question", "name": "What exactly do I get when I buy this guide?", "acceptedAnswer": { "@type": "Answer", "text": "A downloadable digital guide you can start reading right away, plus any updates we make to it later — at no extra cost." } },
-      { "@type": "Question", "name": "Can I read it on my phone?", "acceptedAnswer": { "@type": "Answer", "text": "Yes — it's designed to be comfortable to read on any device, phone included." } },
-      { "@type": "Question", "name": "Is this financial advice?", "acceptedAnswer": { "@type": "Answer", "text": "No. Robayer WealthLab provides financial education, not licensed financial advice — always do your own research before making investment decisions." } },
-      { "@type": "Question", "name": "What if I have questions after reading?", "acceptedAnswer": { "@type": "Answer", "text": "Subscribe to the newsletter — we regularly answer reader questions there." } }
+      ${faqEntities
+        .map(
+          (f) =>
+            `{ "@type": "Question", "name": ${JSON.stringify(f.question)}, "acceptedAnswer": { "@type": "Answer", "text": ${JSON.stringify(f.answer)} } }`
+        )
+        .join(',\n      ')}
     ]
   }
   </script>`;
@@ -594,7 +887,7 @@ ${NEWSLETTER_BAND}`;
     extraHead: breadcrumbJsonLd + bookJsonLd + faqJsonLd,
     breadcrumb,
     bodyContent: body,
-    scripts: ['/js/components/buy-button.js', '/js/main.js'],
+    scripts: ['/js/components/buy-button.js', '/js/components/founder-bio.js', '/js/main.js'],
   });
 
   return htmlResponse(html, 200);
