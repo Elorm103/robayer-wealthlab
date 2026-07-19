@@ -79,7 +79,7 @@ const ORGANIZATION_JSON_LD = `
     "name": "Robayer WealthLab",
     "url": "${SITE_ORIGIN}",
     "logo": "${SITE_ORIGIN}/assets/branding/logo/logo.png",
-    "description": "Financial education for ordinary Ghanaians — practical, honest guidance on saving, investing, and building wealth.",
+    "description": "Financial education for ordinary Ghanaians: practical, honest guidance on saving, investing, and building wealth.",
     "telephone": "+233 53 780 6352",
     "address": { "@type": "PostalAddress", "addressLocality": "Accra", "addressCountry": "GH" },
     "founder": { "@type": "Person", "name": "Robert Loh Kobla" },
@@ -169,11 +169,11 @@ const NEWSLETTER_BAND = `
     </section>`;
 
 const LISTING_FAQ_QA: Array<{ q: string; a: string }> = [
-  { q: 'How often do you publish new articles?', a: "Weekly, alongside the newsletter — subscribe above to get each one as it's published." },
-  { q: 'Do I need any background knowledge to follow along?', a: 'No — articles are written for complete beginners first, with more advanced topics clearly marked.' },
-  { q: 'Can I suggest a topic?', a: 'Yes — reach out through the Contact page. Reader questions are where most articles start.' },
+  { q: 'How often do you publish new articles?', a: "Weekly, alongside the newsletter. Subscribe above to get each one as it's published." },
+  { q: 'Do I need any background knowledge to follow along?', a: 'No, articles are written for complete beginners first, with more advanced topics clearly marked.' },
+  { q: 'Can I suggest a topic?', a: 'Yes, reach out through the Contact page. Reader questions are where most articles start.' },
   { q: 'Are these articles the same as the free resources?', a: 'No. Resources are practical templates and checklists; articles are explanations and stories written to build understanding.' },
-  { q: 'Is the advice in these articles personalized to me?', a: 'No. Articles are financial education, not licensed financial advice — always consider your own circumstances.' },
+  { q: 'Is the advice in these articles personalized to me?', a: 'No. Articles are financial education, not licensed financial advice; always consider your own circumstances.' },
 ];
 
 function labelize(value: string): string {
@@ -261,7 +261,7 @@ async function renderBlogIndex(env: Env): Promise<Response> {
       <div class="container hero__content">
         <span class="eyebrow hero__eyebrow">Blog</span>
         <h1 class="hero__title">Real answers to real money questions</h1>
-        <p class="hero__subtitle">Plain-language articles on saving, investing, and building wealth in Ghana — written for wherever you're starting.</p>
+        <p class="hero__subtitle">Plain-language articles on saving, investing, and building wealth in Ghana, written for wherever you're starting.</p>
         <div class="hero__actions">
           <a href="#articles-grid" class="btn btn--primary">Browse articles</a>
         </div>
@@ -289,10 +289,10 @@ ${featuredSection}
           </div>
         </div>
 
-        <p class="alert alert--info hidden" data-filter-empty aria-live="polite">No articles match — try a different term, or <a href="/newsletter/">subscribe</a> to request one.</p>
+        <p class="alert alert--info hidden" data-filter-empty aria-live="polite">No articles match. Try a different term, or <a href="/newsletter/">subscribe</a> to request one.</p>
 
         <div class="grid grid--3" data-filter-grid>
-          ${cardsHtml || '<p class="text-secondary col-span-full">No articles published yet — check back soon.</p>'}
+          ${cardsHtml || '<p class="text-secondary col-span-full">No articles published yet. Check back soon.</p>'}
         </div>
       </div>
     </section>
@@ -321,7 +321,7 @@ ${NEWSLETTER_BAND}
 
   const html = renderShell({
     title: 'Financial Lessons & Guides | Robayer WealthLab',
-    description: 'Plain-language articles on saving, investing, and building wealth in Ghana — treasury bills, mobile money, budgeting, and more.',
+    description: 'Plain-language articles on saving, investing, and building wealth in Ghana: treasury bills, mobile money, budgeting, and more.',
     canonical: `${SITE_ORIGIN}/blog/`,
     ogImage: `${SITE_ORIGIN}/assets/branding/social/og-image.jpg`,
     extraHead: faqJsonLd,
@@ -378,7 +378,7 @@ async function renderPostDetail(request: Request, env: Env, logger: Logger, slug
   const authorInitial = (post.authorName ?? 'R').trim().charAt(0).toUpperCase() || 'R';
 
   const previewBanner = isPreview
-    ? `<div class="container mt-3"><p class="alert alert--warning">Preview — this post is <strong>${escapeHtml(labelize(post.status))}</strong> and is not visible to the public.</p></div>`
+    ? `<div class="container mt-3"><p class="alert alert--warning">Preview: this post is <strong>${escapeHtml(labelize(post.status))}</strong> and is not visible to the public.</p></div>`
     : '';
 
   const body = `
@@ -403,7 +403,7 @@ ${previewBanner}
         <div class="article-body">
           ${post.body ?? ''}
         </div>
-        <p class="alert alert--warning mt-5">Robayer WealthLab provides financial education, not licensed financial advice. This article is for informational purposes only — always do your own research and consider your personal circumstances before making investment decisions.</p>
+        <p class="alert alert--warning mt-5">Robayer WealthLab provides financial education, not licensed financial advice. This article is for informational purposes only; always do your own research and consider your personal circumstances before making investment decisions.</p>
       </div>
     </section>
 ${NEWSLETTER_BAND}`;

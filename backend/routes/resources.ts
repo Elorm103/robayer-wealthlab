@@ -80,7 +80,7 @@ const ORGANIZATION_JSON_LD = `
     "name": "Robayer WealthLab",
     "url": "${SITE_ORIGIN}",
     "logo": "${SITE_ORIGIN}/assets/branding/logo/logo.png",
-    "description": "Financial education for ordinary Ghanaians — practical, honest guidance on saving, investing, and building wealth.",
+    "description": "Financial education for ordinary Ghanaians: practical, honest guidance on saving, investing, and building wealth.",
     "telephone": "+233 53 780 6352",
     "address": { "@type": "PostalAddress", "addressLocality": "Accra", "addressCountry": "GH" },
     "founder": { "@type": "Person", "name": "Robert Loh Kobla" },
@@ -174,7 +174,7 @@ const CALCULATORS_SECTION = `
       <div class="container">
         <span class="eyebrow">Free tools</span>
         <h2 id="calculators-heading" class="mt-2 mb-3">Financial calculators</h2>
-        <p class="mb-5 text-secondary">Our first calculators are live — try <a href="/calculators/">Compound Interest, Savings Goal, and Investment Growth</a> now, no login required. Not sure which one fits your situation? Try the <a href="/goal-planner/">Goal Planner</a> — pick a goal and get pointed to the right tool. More calculators are on the way, including these:</p>
+        <p class="mb-5 text-secondary">Our first calculators are live. Try <a href="/calculators/">Compound Interest, Savings Goal, and Investment Growth</a> now, no login required. Not sure which one fits your situation? Try the <a href="/goal-planner/">Goal Planner</a>: pick a goal and get pointed to the right tool. More calculators are on the way, including these:</p>
 
         <div class="grid grid--3">
           <div class="resource-card resource-card--upcoming" data-category="investing" data-title="Treasury Bills Calculator">
@@ -203,14 +203,14 @@ const CALCULATORS_SECTION = `
     </section>`;
 
 const FAQ_QA: Array<{ q: string; a: string }> = [
-  { q: 'Are these resources really free?', a: 'Yes — every checklist, worksheet, and tracker on this page is free. Only the eBooks in the Books section are paid.' },
+  { q: 'Are these resources really free?', a: 'Yes, every checklist, worksheet, and tracker on this page is free. Only the eBooks in the Books section are paid.' },
   {
     q: 'Do I need to make an account to download something?',
-    a: "No. Just tap download — no sign-up required, though subscribing to the newsletter means you'll hear about new resources first.",
+    a: "No. Just tap download, no sign-up required, though subscribing to the newsletter means you'll hear about new resources first.",
   },
   { q: 'What format are the downloads?', a: 'Most are simple, printable documents designed to work whether you prefer pen and paper or typing on your phone.' },
   { q: 'When will the calculators be ready?', a: "We're building them now. Subscribe to the newsletter to be the first to try them when they launch." },
-  { q: 'Can I suggest a resource?', a: 'Yes — reach out through the Contact page. Reader requests are exactly how new resources get made.' },
+  { q: 'Can I suggest a resource?', a: 'Yes, reach out through the Contact page. Reader requests are exactly how new resources get made.' },
 ];
 
 const FAQ_SECTION = `
@@ -271,7 +271,7 @@ function renderResourceCard(resource: ResourceRecord): string {
   <span class="badge ${FORMAT_BADGE_VARIANT[resource.format] ?? 'badge--info'} resource-card__format">${escapeHtml(labelize(resource.format))}</span>
   <p class="resource-card__title">${escapeHtml(resource.title)}</p>
   ${resource.shortDescription ? `<p class="text-secondary text-small mt-2 mb-3">${escapeHtml(resource.shortDescription)}</p>` : ''}
-  <a href="${downloadHref}" class="btn btn--secondary" ${downloadAttrs}>Download — Free</a>
+  <a href="${downloadHref}" class="btn btn--secondary" ${downloadAttrs}>Download: Free</a>
 </div>`;
 }
 
@@ -302,7 +302,7 @@ async function renderResourcesIndex(env: Env): Promise<Response> {
         <span class="eyebrow feature-banner__eyebrow">Free resource</span>
         <h2 id="featured-resource-heading" class="mt-2 mb-2 feature-banner__title">${escapeHtml(featured.title)}</h2>
         <p class="mb-4 feature-banner__copy mx-auto">${escapeHtml(featured.shortDescription ?? '')}</p>
-        <a href="${featured.fileMediaId ? `/resources/${escapeHtml(featured.slug)}/download` : '#'}" class="btn btn--accent"${featured.fileMediaId ? ' download' : ' aria-disabled="true"'}>Download — Free</a>
+        <a href="${featured.fileMediaId ? `/resources/${escapeHtml(featured.slug)}/download` : '#'}" class="btn btn--accent"${featured.fileMediaId ? ' download' : ' aria-disabled="true"'}>Download: Free</a>
       </div>
     </section>`
     : '';
@@ -327,7 +327,7 @@ async function renderResourcesIndex(env: Env): Promise<Response> {
       <div class="container hero__content">
         <span class="eyebrow hero__eyebrow">Resources</span>
         <h1 class="hero__title">Free tools for wherever you're starting</h1>
-        <p class="hero__subtitle">Checklists, worksheets, and calculators to help you save, budget, and invest — no sign-up required.</p>
+        <p class="hero__subtitle">Checklists, worksheets, and calculators to help you save, budget, and invest, no sign-up required.</p>
         <div class="hero__actions">
           <a href="#resources-grid" class="btn btn--primary">Browse resources</a>
         </div>
@@ -357,10 +357,10 @@ ${featuredSection}
           </div>
         </div>
 
-        <p class="alert alert--info hidden" data-filter-empty aria-live="polite">No resources match — try a different term, or <a href="/newsletter/">subscribe</a> to request one.</p>
+        <p class="alert alert--info hidden" data-filter-empty aria-live="polite">No resources match. Try a different term, or <a href="/newsletter/">subscribe</a> to request one.</p>
 
         <div class="grid grid--3" data-filter-grid>
-          ${cardsHtml || '<p class="text-secondary col-span-full">No resources published yet — check back soon.</p>'}
+          ${cardsHtml || '<p class="text-secondary col-span-full">No resources published yet. Check back soon.</p>'}
         </div>
       </div>
     </section>
@@ -371,7 +371,7 @@ ${NEWSLETTER_BAND}`;
 
   const html = renderShell({
     title: 'Free Financial Resources & Tools | Robayer WealthLab',
-    description: 'Free checklists, worksheets, and calculators to help you budget, save, and invest in Ghana — no sign-up required. Browse the resource library.',
+    description: 'Free checklists, worksheets, and calculators to help you budget, save, and invest in Ghana, no sign-up required. Browse the resource library.',
     canonical: `${SITE_ORIGIN}/resources/`,
     ogImage: `${SITE_ORIGIN}/assets/branding/social/og-image.jpg`,
     extraHead: faqJsonLd(),
