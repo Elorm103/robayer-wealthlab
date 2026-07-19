@@ -648,7 +648,19 @@ CREATE TABLE products (
   updated_by                   INTEGER REFERENCES admin_users(id),
   created_at                   TEXT NOT NULL DEFAULT (datetime('now')),
   updated_at                   TEXT NOT NULL DEFAULT (datetime('now')),
-  deleted_at                   TEXT
+  deleted_at                   TEXT,
+
+  -- Version 3.0 Founder Edition (migration 0017) — see that migration's
+  -- header for why this stays a plain FK to admin_users rather than a
+  -- new identity table: the founder is creator #1, no separate creator
+  -- identity exists yet. approval_status defaults 'approved' since every
+  -- product today is created through the admin, the only path that
+  -- exists; a future creator-submission flow (Version 3.1+) sets it to
+  -- 'pending_review' instead.
+  creator_id                   INTEGER REFERENCES admin_users(id),
+  approval_status               TEXT NOT NULL DEFAULT 'approved'
+                                   CHECK (approval_status IN ('pending_review', 'approved', 'rejected')),
+  rejection_reason              TEXT
 );
 
 CREATE INDEX idx_products_status ON products(status);
@@ -657,6 +669,8 @@ CREATE INDEX idx_products_product_type ON products(product_type);
 CREATE INDEX idx_products_featured ON products(featured);
 CREATE INDEX idx_products_deleted_at ON products(deleted_at);
 CREATE INDEX idx_products_created_at ON products(created_at);
+CREATE INDEX idx_products_creator_id ON products(creator_id);
+CREATE INDEX idx_products_approval_status ON products(approval_status);
 
 -- ============================================================
 -- PRODUCT_FILES
