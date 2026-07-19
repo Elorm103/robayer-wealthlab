@@ -112,6 +112,20 @@
           <path class="kente-ribbon__stripe kente-ribbon__stripe--gold" d="M300,26 C222,4 160,66 192,133 C224,201 132,238 26,222" />
           <path class="kente-ribbon__stripe kente-ribbon__stripe--green" d="M300,50 C228,30 172,88 200,152 C228,217 141,257 39,242" />
           <path class="kente-ribbon__stripe kente-ribbon__stripe--red" d="M300,74 C233,55 181,110 206,172 C233,232 154,276 50,262" />
+          <!-- Weft "stitches" crossing the three flowing bands (the warp) —
+               gives the ribbon woven-fabric character rather than reading
+               as flat parallel bands, while staying an abstract, simplified
+               interpretation (never a literal high-fidelity weave). Each
+               rect is hand-placed and rotated to the ribbon's local
+               direction at that point. -->
+          <g class="kente-ribbon__weave">
+            <rect class="kente-ribbon__weft kente-ribbon__weft--gold" x="232" y="42.5" width="54" height="9" rx="4" transform="rotate(83 259 47)" />
+            <rect class="kente-ribbon__weft kente-ribbon__weft--green" x="185" y="65.5" width="54" height="9" rx="4" transform="rotate(44 212 70)" />
+            <rect class="kente-ribbon__weft kente-ribbon__weft--red" x="171" y="140.5" width="54" height="9" rx="4" transform="rotate(-4 198 145)" />
+            <rect class="kente-ribbon__weft kente-ribbon__weft--gold" x="170" y="198.5" width="54" height="9" rx="4" transform="rotate(34 197 203)" />
+            <rect class="kente-ribbon__weft kente-ribbon__weft--green" x="121" y="231.5" width="54" height="9" rx="4" transform="rotate(72 148 236)" />
+            <rect class="kente-ribbon__weft kente-ribbon__weft--red" x="57" y="240.5" width="54" height="9" rx="4" transform="rotate(90 84 245)" />
+          </g>
         </svg>
         <div class="hero__content" data-reveal>
           <div class="hero__text">

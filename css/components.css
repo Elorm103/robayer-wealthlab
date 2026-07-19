@@ -824,6 +824,15 @@
   .hero--split .hero__actions {
     justify-content: center;
   }
+  /* Mobile/tablet composition: the illustration leads the hero (visual
+     hook first, then message, then CTA, then the founder trust credit
+     last) rather than trailing below everything as an unrelated block.
+     order:-1 is visual only — DOM order (and reading order for
+     assistive tech) is unchanged. */
+  .hero--split .hero__visual {
+    order: -1;
+    margin-bottom: var(--space-3);
+  }
 }
 
 /* Gradient + floating-shape variant — decorative only, no images */
@@ -874,23 +883,45 @@
 
 @media (max-width: 767px) {
   .hero__illustration {
-    max-width: 260px;
+    max-width: 220px;
   }
 }
 
 /* Very low-opacity Ghanaian financial context behind the Nkyinkyim anchor
-   — "the visitor should not consciously notice it." Deliberately static
-   (no motion) so it stays background texture, never a competing element. */
+   — "the visitor should not consciously notice it." Mobile refinement
+   pass: a very slow independent drift on this whole layer (background)
+   plus a gentle pulse on the nodes, both extremely subtle — a
+   lightweight, pure-CSS stand-in for parallax depth (background and
+   foreground move at different rates) rather than a JS scroll listener,
+   which this codebase has none of and shouldn't need for a decorative
+   effect. Still reads as background texture, not a competing element. */
 .hero__context {
   fill: none;
   stroke: var(--color-growth-green);
   stroke-width: 2;
   opacity: 0.09;
+  animation: financial-context-drift 34s ease-in-out infinite;
 }
 
 .hero__context circle {
   fill: var(--color-growth-green);
   stroke: none;
+  transform-box: fill-box;
+  transform-origin: center;
+  animation: financial-node-pulse 10s ease-in-out infinite;
+}
+
+.hero__context circle:nth-child(3) { animation-delay: -4s; }
+.hero__context circle:nth-child(4) { animation-delay: -8s; }
+
+@keyframes financial-context-drift {
+  0%, 100% { transform: translate(0, 0); }
+  50% { transform: translate(3px, -3px); }
+}
+
+@keyframes financial-node-pulse {
+  0%, 100% { transform: scale(1); }
+  50% { transform: scale(1.25); }
 }
 
 /* Abstract accent geometry — deliberately not a duplicated Adinkra symbol. */
@@ -902,14 +933,18 @@
 /* Nkyinkyim anchor illustration — a large, soft editorial illustration,
    not a logo or badge: two-tone gradient fill, blurred shadow duplicate,
    no stroke outline, no glossy highlight. Barely perceptible ambient
-   float, matching the site's slow decorative-motion register. */
+   float + a very subtle "breathing" scale, matching the site's slow
+   decorative-motion register — combined into one keyframe so float and
+   breathe don't fight over the transform property. */
 .hero__nkyinkyim {
+  transform-box: fill-box;
+  transform-origin: center;
   animation: hero-nkyinkyim-float 22s var(--ease-standard) infinite;
 }
 
 @keyframes hero-nkyinkyim-float {
-  0%, 100% { transform: translateY(0); }
-  50% { transform: translateY(-8px); }
+  0%, 100% { transform: translateY(0) scale(1); }
+  50% { transform: translateY(-8px) scale(1.015); }
 }
 
 /* ============================================================
@@ -969,6 +1004,22 @@
   50% { transform: translate(-4px, 6px); }
 }
 
+/* Weft "stitches" crossing the three flowing bands — mobile refinement
+   pass, gives the ribbon woven-fabric character. Shares the stripes'
+   own drift animation (no delay) so the whole ribbon moves as one
+   shape rather than the weave sliding independently of the bands. */
+.kente-ribbon__weave {
+  animation: kente-ribbon-drift 26s var(--ease-standard) infinite;
+}
+
+.kente-ribbon__weft {
+  opacity: 0.6;
+}
+
+.kente-ribbon__weft--gold  { fill: url(#kente-grad-gold); }
+.kente-ribbon__weft--green { fill: url(#kente-grad-green); }
+.kente-ribbon__weft--red   { fill: url(#kente-grad-red); }
+
 /* ============================================================
    ADINKRA MOTIF — Ghanaian Identity redesign. A whisper-quiet
    background watermark, never a foreground graphic. Restricted to
@@ -1001,6 +1052,26 @@
 
 .adinkra-motif--top-right    { top: -8%;  right: -6%; }
 .adinkra-motif--bottom-left  { bottom: -10%; left: -6%; animation-delay: -12s; }
+
+/* Mobile refinement pass: the sitewide clamp() floor (140px) doesn't
+   shrink further on narrow viewports, so the motif was pinning at a
+   fixed size and clipping arbitrarily against .section--motif's
+   overflow:hidden edge. Smaller floor + tighter offsets so mobile gets
+   a deliberate corner-bleed instead of an accidental crop. */
+@media (max-width: 767px) {
+  .adinkra-motif {
+    width: clamp(90px, 28vw, 150px);
+    height: clamp(90px, 28vw, 150px);
+  }
+  .adinkra-motif--top-right {
+    top: -2%;
+    right: -8%;
+  }
+  .adinkra-motif--bottom-left {
+    bottom: -4%;
+    left: -8%;
+  }
+}
 
 /* The section a motif sits in needs its own stacking/clip context so
    the watermark never causes horizontal scroll or overlaps a
