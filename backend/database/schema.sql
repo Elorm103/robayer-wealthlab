@@ -1,8 +1,14 @@
--- Robayer WealthLab — Cloudflare D1 Schema (Version 1.2 Sprint 2)
+-- Robayer WealthLab — Cloudflare D1 Schema
 --
--- STATUS: Design only. This file has never been run against a real
--- D1 database. No database exists yet. See docs/database-design.md
--- for the full field-by-field rationale behind every table.
+-- STATUS: this is the live production schema, current as of migration
+-- 0016 (Version 2.1 Phase 6) and verified against migrations 0001-0016
+-- during the Version 2.1 Phase 7 Final Acceptance Audit's data-integrity
+-- review. This file is the cumulative, human-readable reference that
+-- backend/database/migrations/*.sql should sum to when applied in
+-- order via `wrangler d1 migrations apply` — it is not itself applied
+-- directly to any real database (see docs/deployment-checklist.md).
+-- See docs/database-design.md for the full field-by-field rationale
+-- behind every table.
 --
 -- Conventions used throughout:
 --   - Every table has a surrogate INTEGER PRIMARY KEY, plus a natural
@@ -42,7 +48,7 @@ CREATE TABLE payment_transactions (
   id                   INTEGER PRIMARY KEY AUTOINCREMENT,
   purchase_session_id  INTEGER REFERENCES purchase_sessions(id), -- nullable: a webhook could in principle arrive for a reference with no matching session (see docs/payment-verification.md) — the row is still recorded for audit, just with no session to link
   paystack_reference   TEXT NOT NULL UNIQUE,
-  event_type           TEXT NOT NULL, -- e.g. "charge.success", "charge.failed" — the raw Paystack webhook event name, for audit
+  event_type           TEXT NOT NULL DEFAULT 'charge.success', -- e.g. "charge.success", "charge.failed" — the raw Paystack webhook event name, for audit
   amount_pesewas       INTEGER NOT NULL,
   currency             TEXT NOT NULL DEFAULT 'GHS',
   status               TEXT NOT NULL DEFAULT 'pending' CHECK (status IN ('pending', 'success', 'failed', 'abandoned')),
@@ -469,6 +475,8 @@ CREATE TABLE unsubscribe_tokens (
   created_at     TEXT NOT NULL DEFAULT (datetime('now'))
 );
 
+CREATE INDEX idx_unsubscribe_tokens_subscriber ON unsubscribe_tokens(subscriber_id);
+
 -- ============================================================
 -- NEWSLETTER_CAMPAIGNS / NEWSLETTER_CAMPAIGN_RECIPIENTS
 -- Added in migration 0016 (Version 2.1 Phase 6, Newsletter Campaigns)
@@ -566,8 +574,6 @@ CREATE INDEX idx_media_assets_media_type ON media_assets(media_type);
 CREATE INDEX idx_media_assets_content_hash ON media_assets(content_hash);
 CREATE INDEX idx_media_assets_deleted_at ON media_assets(deleted_at);
 CREATE INDEX idx_media_assets_created_at ON media_assets(created_at);
-
-CREATE INDEX idx_unsubscribe_tokens_subscriber ON unsubscribe_tokens(subscriber_id);
 
 -- ============================================================
 -- PRODUCTS

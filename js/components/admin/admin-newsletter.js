@@ -9,7 +9,7 @@
 const CAMPAIGNS_API_BASE = '/api/admin/newsletter/campaigns';
 
 const STATUS_LABELS = { draft: 'Draft', sending: 'Sending', sent: 'Sent', failed: 'Failed' };
-const STATUS_BADGE_CLASS = { draft: '', sending: 'badge--warning', sent: 'badge--success', failed: 'badge--error' };
+const STATUS_BADGE_CLASS = { draft: 'badge--info', sending: 'badge--warning', sent: 'badge--success', failed: 'badge--error' };
 
 function initAdminNewsletter() {
   const root = document.querySelector('[data-campaigns-root]');

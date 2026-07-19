@@ -116,6 +116,32 @@ async function getDeliverySummary(env: Env, campaignId: number): Promise<Deliver
   return summary;
 }
 
+/**
+ * Batched form of `getDeliverySummary()` for list views — one aggregate
+ * query grouped by `(campaign_id, status)` instead of one query per
+ * non-draft campaign. Found as a real N+1 during the Phase 7 acceptance
+ * audit's performance review; fixed here rather than left as debt since
+ * the fix is a straightforward query change with no added complexity.
+ */
+async function getDeliverySummaries(env: Env, campaignIds: number[]): Promise<Map<number, DeliverySummary>> {
+  const map = new Map<number, DeliverySummary>();
+  if (campaignIds.length === 0) return map;
+
+  const placeholders = campaignIds.map(() => '?').join(',');
+  const { results } = await env.DB.prepare(
+    `SELECT campaign_id, status, COUNT(*) AS count FROM newsletter_campaign_recipients WHERE campaign_id IN (${placeholders}) GROUP BY campaign_id, status`
+  )
+    .bind(...campaignIds)
+    .all<{ campaign_id: number; status: string; count: number }>();
+
+  for (const row of results) {
+    const summary = map.get(row.campaign_id) ?? { ...EMPTY_SUMMARY };
+    if (row.status in summary) (summary as unknown as Record<string, number>)[row.status] = row.count;
+    map.set(row.campaign_id, summary);
+  }
+  return map;
+}
+
 function toApiShape(row: CampaignRow, delivery: DeliverySummary): CampaignRecord {
   return {
     id: row.id,
@@ -145,12 +171,9 @@ const CAMPAIGN_SELECT = `
 
 export async function listCampaigns(env: Env): Promise<CampaignRecord[]> {
   const { results } = await env.DB.prepare(`${CAMPAIGN_SELECT} WHERE c.deleted_at IS NULL ORDER BY c.id DESC`).all<CampaignRow>();
-  const records: CampaignRecord[] = [];
-  for (const row of results) {
-    const delivery = row.status === 'draft' ? EMPTY_SUMMARY : await getDeliverySummary(env, row.id);
-    records.push(toApiShape(row, delivery));
-  }
-  return records;
+  const nonDraftIds = results.filter((row) => row.status !== 'draft').map((row) => row.id);
+  const deliveryByCampaign = await getDeliverySummaries(env, nonDraftIds);
+  return results.map((row) => toApiShape(row, row.status === 'draft' ? EMPTY_SUMMARY : deliveryByCampaign.get(row.id) ?? EMPTY_SUMMARY));
 }
 
 export async function getCampaignById(env: Env, id: number): Promise<CampaignRecord | null> {

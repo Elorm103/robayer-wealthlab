@@ -28,9 +28,8 @@ means `routes/` files stay thin and easy to read.
 | `admin/dashboardService.ts` ✅ | Real D1 aggregate queries backing the dashboard's KPI cards (orders/revenue, subscribers, consultations, contacts, recent activity). Added Version 2.0 Phase 0.2 — see `docs/v2-admin-shell-architecture.md`. Every figure independently degrades to `null` ("No data yet") on its own query failure rather than blanking the whole dashboard; `productsCount` is always `null` this phase since the product catalog lives in `content/products/*.json`, not D1 |
 | `mediaService.ts` ✅ | Added Version 2.0 Phase 1 — the only code that writes to `media_assets` or the `media/` R2 prefix. Upload (sniff → hash → dedupe → threat-scan hook → R2 put → D1 insert), list/search/filter/paginate, metadata update, replace, soft delete, restore. See `docs/v2-media-library-spec.md` |
 
-✅ = implemented. Every other admin module (`admin/productsService.ts`
-and similar, per `docs/v2-architecture.md`'s `services/admin/` folder
-structure) remains unimplemented — out of scope until its own phase.
+✅ = implemented as of the phase noted. **Current status, corrected during the Version 2.1 Phase 7 Final Acceptance Audit: every admin module named as "out of scope" below has since shipped.** The table and "Today" log below stop narrating at Version 2.0 Phase 1 and are preserved as historical record, not edited retroactively — for what's real today: `productService.ts` (the real D1-backed catalog, distinct from `productCatalogService.ts` above), `blogService.ts`, `resourceService.ts`, `campaignService.ts` (newsletter campaigns), `unsubscribeService.ts`, and `services/admin/` gained `adminUserService.ts`, `settingsService.ts`, `orderService.ts`, `analyticsService.ts`, `consultationService.ts`, `contactService.ts`, alongside the `authService.ts`/`sessionService.ts`/`auditService.ts` already listed. See each `docs/v2.1-phaseN-implementation.md` / `docs/v2-*.md` for when each shipped, and `docs/v2.1-release-checkpoint.md` for the full current-state audit.
+
 `downloadService.ts` (planned as of Sprint 2.3/2.4) never materialized
 as its own file — its responsibility split across
 `entitlementService.ts` (access decisions, token issuance/redemption)

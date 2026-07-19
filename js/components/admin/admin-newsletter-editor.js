@@ -15,7 +15,7 @@
 const CAMPAIGNS_API_BASE = '/api/admin/newsletter/campaigns';
 
 const STATUS_LABELS = { draft: 'Draft', sending: 'Sending', sent: 'Sent', failed: 'Failed' };
-const STATUS_BADGE_CLASS = { draft: '', sending: 'badge--warning', sent: 'badge--success', failed: 'badge--error' };
+const STATUS_BADGE_CLASS = { draft: 'badge--info', sending: 'badge--warning', sent: 'badge--success', failed: 'badge--error' };
 
 const RICHTEXT_ALLOWED_TAGS = new Set(['P', 'H2', 'H3', 'STRONG', 'B', 'EM', 'I', 'UL', 'OL', 'LI', 'BLOCKQUOTE', 'CODE', 'A', 'IMG', 'BR', 'DIV']);
 

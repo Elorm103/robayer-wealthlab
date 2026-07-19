@@ -156,14 +156,18 @@ abuse. See `docs/payment-verification.md`'s "Webhook security."
 
 ## Secret management & environment variables
 
-Already fully documented in `backend/config/README.md` — every secret
-(`PAYSTACK_SECRET_KEY` — which, as of Sprint 2.4, also verifies
-webhook signatures, see above — `ADMIN_SESSION_SECRET`, `RESEND_API_KEY`)
-is set via Cloudflare's own `wrangler secret put` mechanism or
-dashboard, **never** committed to this repository in any form,
-including in `wrangler.jsonc` itself (which holds only non-secret
+Already fully documented in `backend/config/README.md` — the two real
+secrets this project actually has (`PAYSTACK_SECRET_KEY` — which, as of
+Sprint 2.4, also verifies webhook signatures, see above — and
+`RESEND_API_KEY`) are set via Cloudflare's own `wrangler secret put`
+mechanism or dashboard, **never** committed to this repository in any
+form, including in `wrangler.jsonc` itself (which holds only non-secret
 configuration and binding names). No separate `PAYSTACK_WEBHOOK_SECRET`
-exists — see "Paystack webhook verification" above.
+exists — see "Paystack webhook verification" above. **`ADMIN_SESSION_SECRET`
+was planned here but never built** — admin sessions are validated
+against `admin_sessions` D1 rows directly, not a signed token; see
+`backend/config/README.md` and `docs/v2.1-technical-debt-register.md`
+for the corrected picture, found during the Version 2.1 Phase 7 audit.
 
 ## CORS
 

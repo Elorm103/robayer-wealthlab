@@ -1,12 +1,13 @@
 {
   "$schema": "./node_modules/wrangler/config-schema.json",
-  // Robayer WealthLab — Cloudflare Worker configuration (Version 1.2 Sprint 3).
+  // Robayer WealthLab — Cloudflare Worker configuration. This is the
+  // live production configuration (deployed repeatedly through Version
+  // 2.1 Phase 6, most recently verified during Phase 7's Final
+  // Acceptance Audit) — not a design-only file.
   //
   // No secret value belongs in this file, ever — see config/README.md and
   // docs/backend-security.md. Only non-secret configuration and binding
-  // *names* live here. The D1/KV IDs below are real (provisioned in
-  // Sprint 3, Phase 3 — see docs/cloudflare-resources.md) — the Worker
-  // itself has still never been deployed.
+  // *names* live here.
   "name": "robayer-wealthlab-api",
   "main": "worker/index.ts",
   "compatibility_date": "2026-07-06",
@@ -98,10 +99,10 @@
     }
   ],
 
-  // R2 — file storage (Phase 3: docs/storage-strategy.md). Bound now per
-  // this sprint's explicit scope ("configure R2 bucket bindings, no
-  // uploads yet") — no route reads or writes to it yet; that begins only
-  // once Orders/Downloads are implemented in a future sprint.
+  // R2 — file storage (Phase 3: docs/storage-strategy.md). Actively
+  // read/written today by routes/downloads.ts (product/resource files)
+  // and services/mediaService.ts (Media Library uploads, Version 2.0
+  // Phase 1) via the STORAGE binding.
   "r2_buckets": [
     {
       "binding": "STORAGE",
@@ -110,10 +111,11 @@
   ],
 
   // KV — rate-limit counters only, per docs/backend-security.md's
-  // "only where appropriate" scope (the admin-session-storage use case
-  // does not apply yet — no admin dashboard exists in this sprint).
-  // id is real — created via `wrangler kv namespace create RATE_LIMIT_KV`
-  // (Sprint 3, Phase 3).
+  // "only where appropriate" scope. The admin dashboard exists now
+  // (Version 2.0+) but admin sessions are D1-backed (admin_sessions
+  // table), not KV — this binding's scope has deliberately stayed
+  // rate-limiting-only. id is real — created via
+  // `wrangler kv namespace create RATE_LIMIT_KV`.
   "kv_namespaces": [
     {
       "binding": "RATE_LIMIT_KV",

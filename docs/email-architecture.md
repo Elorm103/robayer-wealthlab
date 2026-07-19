@@ -1,11 +1,6 @@
 # Outbound Email Architecture (Version 1.2 — Pre-Sprint 3)
 
-**Status: architecture and documentation only.** No email has ever
-been sent by this project. No Worker code exists. No provider account
-has been created. This document specifies the design Sprint 3 (or
-whichever sprint actually implements it) builds from, matching the
-same "design first, build later" discipline as every other backend
-document in `docs/`.
+**Status: historical design document — real emails have been sent by this project since Sprint 3.** `emailService.ts` was built largely as designed below, with one significant exception found and corrected during the Version 2.1 Phase 7 Final Acceptance Audit: **the Cron-Trigger-driven retry loop described in step 3 below (and referenced in the "Indexes" note in `docs/database-design.md`) was never built.** `emailService.ts` sends inline, once, at the moment the triggering action happens; a failure is recorded in `email_log` with `status = 'failed'` and nothing automatically retries it today. This project has zero Cloudflare Queues/Cron Triggers/Durable Objects anywhere — see `docs/v2.1-technical-debt-register.md` item 4 for the current, honest state of this and the concrete trigger for building the retry loop if it's ever needed. The rest of this document (provider choice, template structure, `email_log` schema) remains accurate.
 
 ## Recommended provider: Resend
 

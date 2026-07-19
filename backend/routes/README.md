@@ -26,10 +26,7 @@ only, never database queries or Paystack calls directly (that's what
 | `admin/media.ts` ✅ | `POST/GET /api/admin/media`, `GET/PATCH/DELETE /api/admin/media/:id`, `POST /api/admin/media/:id/replace`, `POST /api/admin/media/:id/restore` — added Version 2.0 Phase 1 (Media Library), see `docs/v2-media-library-spec.md`. Viewing open to every role; every mutation gated `editor`/`super_admin` via `requireRole()` |
 | `media.ts` ✅ | `GET /api/media/file/:key` — the public, unauthenticated counterpart to `admin/media.ts`, added the same phase. Deliberately outside `admin/` (no auth), matching `downloads.ts`'s top-level placement for its own public-but-token-gated route |
 
-✅ = implemented. `products.ts` remains unimplemented. Every other
-`routes/admin/*` module (products, blog, resources, newsletter,
-consultations, contacts, orders, analytics, settings, users — per
-`docs/v2-architecture.md`) remains out of scope until its own phase.
+✅ = implemented as of the phase noted. **Current status, corrected during the Version 2.1 Phase 7 Final Acceptance Audit: every module named as "out of scope" below has since shipped.** The table and "Today" log below stop narrating at Version 2.0 Phase 1 and are preserved as historical record, not edited retroactively — for what's real today, this list is authoritative: `products.ts` (public catalog), `books.ts`/`resources.ts`/`blog.ts` (server-rendered public pages), `unsubscribe.ts`, and every `routes/admin/*` module — `auth.ts`, `dashboard.ts`, `media.ts`, `products.ts`, `orders.ts`, `consultations.ts`, `contacts.ts`, `analytics.ts`, `resources.ts`, `blog.ts`, `settings.ts`, `users.ts`, `newsletterCampaigns.ts` — are all implemented and live in production. See each `docs/v2.1-phaseN-implementation.md` / `docs/v2-*.md` for when each shipped, and `docs/v2.1-release-checkpoint.md` for the full current-state audit.
 
 Each endpoint's purpose, request/response shape, authentication
 requirement, validation rules, and possible errors are documented in

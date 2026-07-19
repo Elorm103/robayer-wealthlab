@@ -13,7 +13,7 @@ or dashboard, entirely outside git.
 
 | Variable (future) | Purpose | Secret? |
 |---|---|---|
-| `ADMIN_SESSION_SECRET` | Signing admin session tokens — see `docs/authentication-strategy.md` | Yes |
+| ~~`ADMIN_SESSION_SECRET`~~ | Was planned to sign admin session tokens. **Never built** — the admin auth system that actually shipped (Version 2.0 Phase 0.1, see `docs/v2-authentication-design.md`) validates sessions against `admin_sessions` D1 rows directly (token + `csrf_secret` per row, revocable individually), not a signed/HMAC token, so no such secret exists in production. Corrected during the Version 2.1 Phase 7 audit — see `backend/worker/env.ts`, which has never declared this variable. | — |
 | ~~`ALLOWED_ORIGIN`~~ | Was a CORS allow-list. Implemented in Version 2.0 Phase 0.2, then **removed entirely** in the Version 2.0 Same-Origin Migration once the frontend and this Worker became same-origin (no CORS-consuming caller remained) — see `../../docs/v2-same-origin-architecture.md` | — |
 | `RESEND_API_KEY` | Outbound transactional email via Resend — see `docs/email-architecture.md` (this row was a generic `EMAIL_API_KEY` placeholder until the provider was chosen) | Yes |
 

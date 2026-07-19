@@ -5,6 +5,30 @@ are in `YYYY-MM-DD`. Entries are grouped by development phase/sprint;
 `v1.0.0-production-baseline` is the first tagged checkpoint (see below),
 marking the site as production-ready.
 
+## [Unreleased] — Version 2.1 Phase 7 — Final Acceptance Audit — 2026-07-19
+
+Seventh and final stage of Version 2.1 (Content & Administration Platform, see `docs/v2.1-architecture-plan.md`). A release-readiness review, not an implementation phase — no new features. Full report: `docs/v2.1-release-checkpoint.md`. Release notes: `docs/releases/v2.1.0.md`.
+
+**Audited — zero functional or security defects found**
+- All 11 admin modules (Products, Media Library, Resources, Blog, Newsletter, Orders, Consultations, Contacts, Analytics, Settings, Users) plus Account & Security verified end-to-end via a real browser walkthrough — every CRUD flow tested, zero console errors, zero unhandled 4xx/5xx.
+- Every admin route (13 files, 90 handlers) re-audited for the `requireAuth`→`requireRole`→`requireCsrf` pattern and IDOR protections — zero issues found. Core security primitives (`requireAuth`, `requireRole`, `csrf`, `sessionService`, `passwordHash`, `adminSessionToken`, `authService`) freshly re-read line by line — zero issues found. XSS/SQLi spot check on the rich-text sanitizer and D1 query patterns — zero issues found.
+
+**Fixed**
+- `campaignService.ts`'s `listCampaigns()` had a genuine N+1 query (one delivery-summary query per non-draft campaign) — replaced with a single aggregate query grouped by `(campaign_id, status)`.
+- `payment_transactions.event_type` was missing `DEFAULT 'charge.success'` in `schema.sql`, though the real, deployed table (migration `0003`) has always had it — `schema.sql` corrected to match; no database change needed.
+- `newsletter_campaigns`' Draft status badge rendered with no color class while every other module's Draft badge is blue — `admin-newsletter.js`/`admin-newsletter-editor.js` corrected to match.
+- The Dashboard's "Getting started" panel still said Newsletter/Settings/Users "remain shells, arriving in a later phase" — corrected; all three have been live since Phases 4–6.
+
+**Fixed — operational documentation, found materially misleading**
+- `docs/backup-and-recovery.md`, `docs/deployment-checklist.md`, and `docs/monitoring-and-alerting.md` were frozen at "nothing deployed yet" and described infrastructure that was never built: a Cron-Trigger-driven weekly D1 backup export, a daily Paystack reconciliation Cron, an automated D1 health-check Cron, and "KV-backed" admin sessions verified against an `ADMIN_SESSION_SECRET` that has never existed. All three were rewritten to describe the real system — D1 Time Travel and Worker version rollback are real; the rest is honestly stated as manual/not-yet-built rather than presented as already mitigated.
+- Two real, previously-undocumented gaps surfaced while correcting the backup runbook: no backup exists beyond D1 Time Travel's retention window, and Media Library uploads (R2) have no backup path at all (an admin-uploaded file exists only in R2; losing the bucket loses the file). Both added to `docs/v2.1-technical-debt-register.md`.
+- `docs/v2.1-architecture-plan.md`'s phase numbers didn't match what actually shipped (its "Phase 3," "Phase 4," and "Phase 6" sections describe different features than the real Phase 3/4/6) — a reconciliation table added at the top of the document.
+- `backend/README.md`, `backend/routes/README.md`, `backend/services/README.md`, `backend/config/README.md`, `docs/backend-security.md`, and `docs/email-architecture.md` all had stale claims (pre-deployment status, `ADMIN_SESSION_SECRET` as a real variable, a Cron-based email retry loop that was never built) — corrected.
+
+**Added**
+- `docs/v2.1-technical-debt-register.md` — nine deliberate architectural trade-offs and known gaps (Cloudflare Queues deferral, the GitHub Pages/Worker split, deploy-metadata injection, the synchronous email model, PBKDF2's platform-imposed iteration ceiling, the untested-in-production last-Super-Admin guard, a local `wrangler dev` cosmetic quirk, and the two backup gaps above), each with its current approach, why it was chosen, and the concrete trigger for revisiting it.
+- `docs/releases/v2.1.0.md` — curated release notes (features, migrations, security improvements, operational changes, known limitations, upgrade/deployment/rollback notes), distinct from this chronological changelog.
+
 ## [Unreleased]
 
 **Changed — social media integration**
