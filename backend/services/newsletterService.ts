@@ -80,8 +80,18 @@ export async function subscribeToNewsletter(
     subscriberId = existing.id;
   }
 
-  if (isFirstSubscribe) {
-    const template: EmailTemplateName = isFreeGuideSource(input.source)
+  // A `/free-guide/` submission is a specific content request, not just a
+  // subscribe-or-don't toggle — someone who's already subscribed but wants
+  // the guide again (a real, now-confirmed case: an existing subscriber
+  // testing/using the free-guide form and getting nothing) still needs it
+  // resent. `newsletter-welcome` stays first-subscribe-only (resending a
+  // "welcome to the club" email to someone already on the list would look
+  // like the site forgot them), but `free-guide-delivery` re-sends on every
+  // request from that source, since the visitor is explicitly asking for it
+  // again, not being re-subscribed.
+  const isFreeGuideRequest = isFreeGuideSource(input.source);
+  if (isFirstSubscribe || isFreeGuideRequest) {
+    const template: EmailTemplateName = isFreeGuideRequest
       ? 'free-guide-delivery'
       : 'newsletter-welcome';
 
