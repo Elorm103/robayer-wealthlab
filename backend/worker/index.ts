@@ -164,6 +164,7 @@ import {
   handleResourcesBulkAction,
 } from '../routes/admin/resources';
 import { handleResourcesIndex, handleResourceDownloadRoute } from '../routes/resources';
+import { handleFreeGuideIndex } from '../routes/free-guide';
 import {
   handleBlogMeta,
   handleBlogList,
@@ -406,6 +407,9 @@ const ROUTES: Route[] = [
   // action, matching this content type's simpler, single-file shape.
   { pattern: new URLPattern({ pathname: '/resources/' }), method: 'GET', handler: handleResourcesIndex },
   { pattern: new URLPattern({ pathname: '/resources/:slug/download' }), method: 'GET', handler: handleResourceDownloadRoute },
+  // Added Phase 11 (Free Guide modernization) — identical pattern, own
+  // Workers Route. See routes/free-guide.ts's header comment.
+  { pattern: new URLPattern({ pathname: '/free-guide/' }), method: 'GET', handler: handleFreeGuideIndex },
   // Added Version 2.1 Phase 2 (Blog CMS) — public site integration,
   // identical `/books/*`/`/resources/*` Workers Route pattern. Has a
   // real per-post detail page (unlike Resources) — mirrors `/books/*`'s

@@ -11,6 +11,13 @@ import type { Env } from '../worker/env';
 import type { Logger } from '../utils/logger';
 import { sendEmail, type EmailTemplateName } from './emailService';
 import { getOrCreateUnsubscribeToken } from './unsubscribeService';
+import { getResourceBySlug } from './resourceService';
+
+// The free guide's own `resources` row — see routes/free-guide.ts's
+// header comment for why the guide is modeled as a resource (Media
+// Library-managed, admin-editable) while keeping its own email-gated
+// delivery, rather than the generic public download route.
+const FREE_GUIDE_RESOURCE_SLUG = 'free-guide-7-money-mistakes';
 
 // This Worker doesn't know its own public origin from an incoming
 // request alone (no `request` is threaded this deep) — matches
@@ -101,10 +108,23 @@ export async function subscribeToNewsletter(
     const unsubscribeToken = await getOrCreateUnsubscribeToken(env, subscriberId);
     const unsubscribeUrl = `${env.SITE_BASE_URL}/newsletter/unsubscribe/?token=${unsubscribeToken}`;
 
+    // Resolved live from the `resources` row on every send, not
+    // hardcoded, so replacing the PDF in admin updates every future
+    // delivery email automatically. Falls back to the last-known static
+    // path only if the resource or its file is ever missing, so a
+    // send never silently omits the download link.
+    let downloadUrl = `${env.SITE_BASE_URL}/assets/downloads/7-money-mistakes-ghana.pdf`;
+    if (isFreeGuideRequest) {
+      const resource = await getResourceBySlug(env, FREE_GUIDE_RESOURCE_SLUG);
+      if (resource?.filePublicUrl) {
+        downloadUrl = `${env.SITE_BASE_URL}${resource.filePublicUrl}`;
+      }
+    }
+
     await sendEmail(env, logger, {
       template,
       to: input.email,
-      data: { unsubscribeUrl },
+      data: { unsubscribeUrl, downloadUrl },
       entityType: 'newsletter_subscriber',
       entityId: subscriberId,
       listUnsubscribeUrl: `${API_BASE_URL}/api/newsletter/unsubscribe/${unsubscribeToken}`,

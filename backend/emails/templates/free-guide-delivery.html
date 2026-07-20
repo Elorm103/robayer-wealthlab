@@ -15,8 +15,11 @@
 <p style="margin:0 0 16px;">Your guide is ready below.</p>
 <!-- Bulletproof CTA button: VML roundrect for Outlook desktop, plain
      padded <a> for every other client, same pattern as
-     newsletter-welcome.html and secure-download.html. Links directly to
-     the existing deployed public asset (assets/downloads/7-money-mistakes-ghana.pdf)
+     newsletter-welcome.html and secure-download.html. Links to
+     {{downloadUrl}}, the free guide's real Media Library file URL
+     (services/newsletterService.ts resolves it from the `resources`
+     row at send time), not a hardcoded static asset path — replacing
+     the PDF in admin now updates this link automatically. Direct link
      rather than an attachment; see docs/free-guide-forensic-report.md's
      finding that this system has no attachment capability, and a direct
      link avoids adding one just for a freely-downloadable asset. -->
@@ -27,13 +30,13 @@
         <tr>
           <td style="border-radius:6px;background-color:#1F5C4E;" align="center">
             <!--[if mso]>
-            <v:roundrect xmlns:v="urn:schemas-microsoft-com:vml" xmlns:w="urn:schemas-microsoft-com:office:word" href="https://robayerwealthlab.com/assets/downloads/7-money-mistakes-ghana.pdf" style="height:44px;v-text-anchor:middle;width:240px;" arcsize="14%" strokecolor="#1F5C4E" fillcolor="#1F5C4E">
+            <v:roundrect xmlns:v="urn:schemas-microsoft-com:vml" xmlns:w="urn:schemas-microsoft-com:office:word" href="{{downloadUrl}}" style="height:44px;v-text-anchor:middle;width:240px;" arcsize="14%" strokecolor="#1F5C4E" fillcolor="#1F5C4E">
             <w:anchorlock/>
             <center style="color:#FFFFFF;font-family:Georgia,'Times New Roman',serif;font-size:16px;font-weight:bold;">Download Your Free Guide</center>
             </v:roundrect>
             <![endif]-->
             <!--[if !mso]><!-->
-            <a href="https://robayerwealthlab.com/assets/downloads/7-money-mistakes-ghana.pdf" target="_blank" style="display:inline-block;padding:14px 28px;font-family:Georgia,'Times New Roman',serif;font-size:16px;font-weight:bold;color:#FFFFFF;text-decoration:none;border-radius:6px;background-color:#1F5C4E;">Download Your Free Guide</a>
+            <a href="{{downloadUrl}}" target="_blank" style="display:inline-block;padding:14px 28px;font-family:Georgia,'Times New Roman',serif;font-size:16px;font-weight:bold;color:#FFFFFF;text-decoration:none;border-radius:6px;background-color:#1F5C4E;">Download Your Free Guide</a>
             <!--<![endif]-->
           </td>
         </tr>
