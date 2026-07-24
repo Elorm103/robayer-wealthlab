@@ -143,6 +143,7 @@ ${opts.bodyContent}
   <script src="/js/includes.js"></script>
   <script src="/js/components/nav.js"></script>
   <script src="/js/components/theme-toggle.js"></script>
+  <script src="/js/components/branding.js"></script>
   <script src="/js/content-inject.js"></script>
   <script src="/js/components/newsletter-form.js"></script>
 ${opts.scripts.map((s) => `  <script src="${s}"></script>`).join('\n')}

@@ -136,13 +136,24 @@
   display: flex;
   align-items: center;
   justify-content: space-between;
+  gap: var(--space-6);
   min-height: var(--header-height);
+}
+
+/* Header gets more breathing room than the standard 1200px site container:
+   at 9 nav items the natural content width leaves near-zero slack inside
+   1200px, producing the cramped edge-to-edge look the header redesign was
+   meant to fix. Scoped to .site-header only, so every other section keeps
+   the shared .container width and responsive behaviour unchanged. */
+.site-header .nav {
+  max-width: 1360px;
+  min-height: var(--site-header-height);
 }
 
 .nav__logo {
   display: flex;
   align-items: center;
-  gap: var(--space-2);
+  gap: var(--space-3);
   font-family: var(--font-display);
   font-weight: var(--weight-semibold);
   font-size: 1.125rem;
@@ -168,7 +179,7 @@
 .nav__list {
   display: flex;
   align-items: center;
-  gap: var(--space-4);
+  gap: var(--space-5);
   font-family: var(--font-heading);
   font-weight: var(--weight-medium);
   font-size: var(--text-small);
@@ -179,11 +190,13 @@
   padding-bottom: var(--space-2);
   border-bottom: 2px solid transparent;
   transition: color var(--duration-base) var(--ease-standard),
-              border-color var(--duration-base) var(--ease-standard);
+              border-color var(--duration-base) var(--ease-standard),
+              opacity var(--duration-base) var(--ease-standard);
 }
 
 .nav__list a:hover {
   color: var(--color-accent);
+  opacity: 0.85;
   text-decoration: none;
 }
 
@@ -214,11 +227,13 @@
   background-color: transparent;
   color: var(--color-ink-navy);
   transition: background-color var(--duration-base) var(--ease-standard),
-              border-color var(--duration-base) var(--ease-standard);
+              border-color var(--duration-base) var(--ease-standard),
+              color var(--duration-base) var(--ease-standard);
 }
 
 .theme-toggle:hover {
   border-color: var(--color-accent);
+  background-color: var(--color-surface);
   color: var(--color-accent);
 }
 
@@ -249,15 +264,26 @@
    Goal Planner (Sprint 4) and Learn (Sprint 5) brought the nav to 8
    items, with a measured natural width of ~1099px — reusing the
    existing 1199px breakpoint already defined for .grid--2/.grid--3
-   rather than introducing a new arbitrary value. */
-@media (max-width: 1199px) {
+   rather than introducing a new arbitrary value.
+   Widened again from 1199px to 1359px in the Header Modernization pass:
+   a 9th item (Investment Centre) had since been added without revisiting
+   this breakpoint, leaving the desktop nav's natural width (~1264px,
+   measured live: logo ~168px + menu ~1096px) only ~7px under the
+   1152px-1360px available range at the old spacing — the header was
+   being forced to compress with zero breathing room at every desktop
+   width, which is what read as "cramped". The header now gets its own
+   wider 1360px max-width (see .site-header .nav above, not the shared
+   1200px .container), and the collapse point is set to match it exactly:
+   below 1360px there's no partial/squeezed desktop state, it goes
+   straight to the clean mobile panel. */
+@media (max-width: 1359px) {
   .nav__toggle {
     display: flex;
   }
 
   .nav__menu {
     position: fixed;
-    inset: var(--header-height) 0 0 0;
+    inset: var(--site-header-height) 0 0 0;
     flex-direction: column;
     align-items: stretch;
     gap: 0;
@@ -824,201 +850,53 @@
   .hero--split .hero__actions {
     justify-content: center;
   }
-  /* Mobile/tablet composition: the illustration leads the hero (visual
-     hook first, then message, then CTA, then the founder trust credit
-     last) rather than trailing below everything as an unrelated block.
+  /* Mobile/tablet composition: the book leads the hero (visual hook
+     first, then message, then CTA, then the founder trust credit last)
+     rather than trailing below everything as an unrelated block.
      order:-1 is visual only — DOM order (and reading order for
      assistive tech) is unchanged. */
   .hero--split .hero__visual {
     order: -1;
-    margin-bottom: var(--space-3);
+    margin-bottom: var(--space-4);
   }
 }
 
-/* Gradient + floating-shape variant — decorative only, no images */
-.hero--gradient {
-  position: relative;
-  overflow: hidden;
-}
-
-.hero--gradient::before {
-  content: "";
-  position: absolute;
-  inset: 0;
-  z-index: 0;
-  background:
-    radial-gradient(circle at 15% 20%, rgba(31, 92, 78, 0.10), transparent 40%),
-    radial-gradient(circle at 85% 15%, rgba(212, 160, 23, 0.14), transparent 45%),
-    radial-gradient(circle at 75% 85%, rgba(22, 35, 61, 0.08), transparent 40%);
-  pointer-events: none;
-}
-
-.hero--gradient .container {
-  position: relative;
-  z-index: 1;
-}
-
-/* Hero visual — right-column illustration (hero--split). See
-   docs/design/ghanaian-design-language.md's "anchor tier" pattern. */
+/* Hero visual — right-column book cover (hero--split). Homepage
+   Modernization pass: replaces the earlier animated illustration with
+   a clean, static composition; the book itself is the sole visual
+   element here, no background texture or accent shapes competing for
+   attention. */
 .hero__visual {
   display: flex;
   align-items: center;
   justify-content: center;
   min-width: 0;
-  position: relative;
-  z-index: 1;
 }
 
-.hero__illustration {
+.book-card__cover--hero {
+  display: block;
   width: 100%;
-  max-width: 400px;
-  height: auto;
+  max-width: 320px;
+  box-shadow: var(--shadow-2);
+  transition: box-shadow var(--duration-base) var(--ease-standard);
+}
+
+.book-card__cover--hero:hover,
+.book-card__cover--hero:focus-visible {
+  box-shadow: var(--shadow-3);
 }
 
 @media (max-width: 1199px) {
-  .hero__illustration {
-    max-width: 320px;
+  .book-card__cover--hero {
+    max-width: 260px;
   }
 }
 
 @media (max-width: 767px) {
-  .hero__illustration {
-    max-width: 220px;
+  .book-card__cover--hero {
+    max-width: 200px;
   }
 }
-
-/* Very low-opacity Ghanaian financial context behind the Nkyinkyim anchor
-   — "the visitor should not consciously notice it." Mobile refinement
-   pass: a very slow independent drift on this whole layer (background)
-   plus a gentle pulse on the nodes, both extremely subtle — a
-   lightweight, pure-CSS stand-in for parallax depth (background and
-   foreground move at different rates) rather than a JS scroll listener,
-   which this codebase has none of and shouldn't need for a decorative
-   effect. Still reads as background texture, not a competing element. */
-.hero__context {
-  fill: none;
-  stroke: var(--color-growth-green);
-  stroke-width: 2;
-  opacity: 0.09;
-  animation: financial-context-drift 34s ease-in-out infinite;
-}
-
-.hero__context circle {
-  fill: var(--color-growth-green);
-  stroke: none;
-  transform-box: fill-box;
-  transform-origin: center;
-  animation: financial-node-pulse 10s ease-in-out infinite;
-}
-
-.hero__context circle:nth-child(3) { animation-delay: -4s; }
-.hero__context circle:nth-child(4) { animation-delay: -8s; }
-
-@keyframes financial-context-drift {
-  0%, 100% { transform: translate(0, 0); }
-  50% { transform: translate(3px, -3px); }
-}
-
-@keyframes financial-node-pulse {
-  0%, 100% { transform: scale(1); }
-  50% { transform: scale(1.25); }
-}
-
-/* Abstract accent geometry — deliberately not a duplicated Adinkra symbol. */
-.hero__accents {
-  fill: var(--color-ink-navy);
-  opacity: 0.12;
-}
-
-/* Nkyinkyim anchor illustration — a large, soft editorial illustration,
-   not a logo or badge: two-tone gradient fill, blurred shadow duplicate,
-   no stroke outline, no glossy highlight. Barely perceptible ambient
-   float + a very subtle "breathing" scale, matching the site's slow
-   decorative-motion register — combined into one keyframe so float and
-   breathe don't fight over the transform property. */
-.hero__nkyinkyim {
-  transform-box: fill-box;
-  transform-origin: center;
-  animation: hero-nkyinkyim-float 22s var(--ease-standard) infinite;
-}
-
-@keyframes hero-nkyinkyim-float {
-  0%, 100% { transform: translateY(0) scale(1); }
-  50% { transform: translateY(-8px) scale(1.015); }
-}
-
-/* ============================================================
-   KENTE RIBBON — Ghanaian Identity redesign, hero refinement pass.
-   (docs/homepage-ghanaian-redesign-plan.md,
-   docs/design/ghanaian-design-language.md,
-   docs/design/brand-assets.md).
-
-   A flowing corner accent, never a full-width pattern — frames a
-   section rather than competing with it. Rebuilt from the original
-   thin dashed outline into wider gradient-filled bands (Sika Gold /
-   Growth Green / Kente Red, each a two-stop gradient into its own
-   darker tone) plus a soft blurred "fold shadow" band beneath, so it
-   reads as flowing fabric rather than an SVG line. Purely decorative:
-   aria-hidden, no pointer events, absolutely positioned within an
-   already position:relative ancestor so it never affects document
-   flow or causes layout shift.
-   ============================================================ */
-.kente-ribbon {
-  position: absolute;
-  top: 0;
-  right: 0;
-  width: clamp(140px, 20vw, 300px);
-  height: auto;
-  pointer-events: none;
-  z-index: 0;
-}
-
-@media (max-width: 767px) {
-  .kente-ribbon {
-    width: clamp(90px, 32vw, 150px);
-  }
-}
-
-.kente-ribbon__shadow {
-  fill: none;
-  stroke: var(--color-ink-navy);
-  stroke-width: 22;
-  stroke-linecap: round;
-  opacity: 0.10;
-  filter: url(#kente-band-shadow);
-}
-
-.kente-ribbon__stripe {
-  fill: none;
-  stroke-width: 20;
-  stroke-linecap: round;
-  animation: kente-ribbon-drift 26s var(--ease-standard) infinite;
-}
-
-.kente-ribbon__stripe--gold  { stroke: url(#kente-grad-gold);  opacity: 0.55; }
-.kente-ribbon__stripe--green { stroke: url(#kente-grad-green); opacity: 0.40; animation-delay: -9s; }
-.kente-ribbon__stripe--red   { stroke: url(#kente-grad-red);   opacity: 0.32; animation-delay: -18s; }
-
-@keyframes kente-ribbon-drift {
-  0%, 100% { transform: translate(0, 0); }
-  50% { transform: translate(-4px, 6px); }
-}
-
-/* Weft "stitches" crossing the three flowing bands — mobile refinement
-   pass, gives the ribbon woven-fabric character. Shares the stripes'
-   own drift animation (no delay) so the whole ribbon moves as one
-   shape rather than the weave sliding independently of the bands. */
-.kente-ribbon__weave {
-  animation: kente-ribbon-drift 26s var(--ease-standard) infinite;
-}
-
-.kente-ribbon__weft {
-  opacity: 0.6;
-}
-
-.kente-ribbon__weft--gold  { fill: url(#kente-grad-gold); }
-.kente-ribbon__weft--green { fill: url(#kente-grad-green); }
-.kente-ribbon__weft--red   { fill: url(#kente-grad-red); }
 
 /* ============================================================
    ADINKRA MOTIF — Ghanaian Identity redesign. A whisper-quiet
@@ -1635,7 +1513,7 @@ a.resource-card {
 
   .article-layout__sidebar {
     position: sticky;
-    top: calc(var(--header-height) + var(--space-4));
+    top: calc(var(--site-header-height) + var(--space-4));
   }
 }
 

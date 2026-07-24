@@ -54,9 +54,10 @@ function initNav() {
 
   // Reset to desktop state on resize past the mobile breakpoint
   // (must match the @media breakpoint in .nav__toggle, components.css;
-  // widened to 1199px in Version 1.1 Sprint 5 to fit 8 nav items + CTA)
+  // widened to 1359px in the Header Modernization pass to match the
+  // header's own wider 1360px max-width)
   window.addEventListener('resize', () => {
-    if (window.innerWidth > 1199) {
+    if (window.innerWidth > 1359) {
       closeMenu();
     }
   });

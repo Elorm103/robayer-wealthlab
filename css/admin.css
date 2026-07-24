@@ -1525,6 +1525,44 @@
   gap: var(--space-2);
 }
 
+/* Dark-mode logo slot's own preview swatch always renders on a dark
+   background, regardless of the admin panel's own theme — a light-on-
+   transparent logo would otherwise be invisible against the light
+   .media-ref-picker__preview default. */
+.media-ref-picker__preview--dark {
+  background-color: var(--color-ink-navy);
+}
+
+/* ---------- Branding live preview (admin/branding/) ---------- */
+.branding-preview-header {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  padding: var(--space-3);
+  border-radius: var(--radius-sm);
+  border: 1px solid var(--color-border);
+  background-color: var(--color-bg);
+  color: var(--color-ink-navy);
+  font-family: var(--font-display);
+  font-weight: var(--weight-semibold);
+  font-size: 1.125rem;
+}
+
+.branding-preview-header + .branding-preview-header {
+  margin-top: var(--space-2);
+}
+
+.branding-preview-header--dark {
+  background-color: var(--color-ink-navy);
+  color: var(--color-white);
+}
+
+.branding-preview-header__logo {
+  width: 24px;
+  height: auto;
+  flex-shrink: 0;
+}
+
 /* ---------- Files / gallery / relations list rows ---------- */
 .editor-list {
   display: flex;

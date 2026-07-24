@@ -71,62 +71,18 @@
 
     <!-- ============================================================
          HERO
-         Version 1.1 Brand Polish: revised from the Version 1.0 Brand
-         & UX Review's hero, which removed the founder entirely after
-         an earlier version let his portrait dominate half the first
-         screen. Neither extreme was right — this version keeps the
-         mission as the primary visual element (headline, subtitle,
-         CTAs, full width, no competing image) and reintroduces the
-         founder as a small, quiet signature line beneath the CTAs:
-         present, because financial education runs on trust in a real
-         person, but sized and placed so it can never out-compete the
-         mission for attention. Decorative gradient + floating shapes
-         are CSS-only (no images).
+         Homepage Modernization pass: the earlier animated Kente-ribbon
+         corner accent and the floating Nkyinkyim/growth-curve
+         illustration have been removed entirely (not replaced with new
+         motion) in favour of a clean, static composition. The book
+         cover is now the hero's primary visual, filled from the same
+         real, active product data the "Featured eBook" section further
+         down the page already uses (js/components/product-loader.js's
+         [data-feature-banner] binding) — never a hardcoded title, so a
+         future product rename can't leave this section stale.
          ============================================================ -->
-    <section class="hero hero--split hero--gradient bg-paper">
+    <section class="hero hero--split bg-paper">
       <div class="container">
-        <!-- Kente ribbon — flowing corner accent, rebuilt as filled gradient
-             bands (not thin dashed lines) with a soft fold shadow, so it
-             reads as fabric rather than an outline. Frames the hero rather
-             than competing with it. See docs/design/ghanaian-design-language.md
-             and docs/design/brand-assets.md for the approved opacity range. -->
-        <svg class="kente-ribbon" viewBox="0 0 300 300" aria-hidden="true" focusable="false">
-          <defs>
-            <linearGradient id="kente-grad-gold" x1="0%" y1="0%" x2="100%" y2="100%">
-              <stop offset="0%" stop-color="var(--color-sika-gold)" />
-              <stop offset="100%" stop-color="var(--color-sika-gold-dark)" />
-            </linearGradient>
-            <linearGradient id="kente-grad-green" x1="0%" y1="0%" x2="100%" y2="100%">
-              <stop offset="0%" stop-color="var(--color-growth-green)" />
-              <stop offset="100%" stop-color="var(--color-growth-green-dark)" />
-            </linearGradient>
-            <linearGradient id="kente-grad-red" x1="0%" y1="0%" x2="100%" y2="100%">
-              <stop offset="0%" stop-color="var(--color-kente-red)" />
-              <stop offset="100%" stop-color="color-mix(in srgb, var(--color-kente-red) 78%, black)" />
-            </linearGradient>
-            <filter id="kente-band-shadow" x="-30%" y="-30%" width="160%" height="160%">
-              <feGaussianBlur stdDeviation="6" />
-            </filter>
-          </defs>
-          <path class="kente-ribbon__shadow" d="M300,30 C225,8 165,68 195,135 C225,203 135,240 30,225" />
-          <path class="kente-ribbon__stripe kente-ribbon__stripe--gold" d="M300,26 C222,4 160,66 192,133 C224,201 132,238 26,222" />
-          <path class="kente-ribbon__stripe kente-ribbon__stripe--green" d="M300,50 C228,30 172,88 200,152 C228,217 141,257 39,242" />
-          <path class="kente-ribbon__stripe kente-ribbon__stripe--red" d="M300,74 C233,55 181,110 206,172 C233,232 154,276 50,262" />
-          <!-- Weft "stitches" crossing the three flowing bands (the warp) —
-               gives the ribbon woven-fabric character rather than reading
-               as flat parallel bands, while staying an abstract, simplified
-               interpretation (never a literal high-fidelity weave). Each
-               rect is hand-placed and rotated to the ribbon's local
-               direction at that point. -->
-          <g class="kente-ribbon__weave">
-            <rect class="kente-ribbon__weft kente-ribbon__weft--gold" x="232" y="42.5" width="54" height="9" rx="4" transform="rotate(83 259 47)" />
-            <rect class="kente-ribbon__weft kente-ribbon__weft--green" x="185" y="65.5" width="54" height="9" rx="4" transform="rotate(44 212 70)" />
-            <rect class="kente-ribbon__weft kente-ribbon__weft--red" x="171" y="140.5" width="54" height="9" rx="4" transform="rotate(-4 198 145)" />
-            <rect class="kente-ribbon__weft kente-ribbon__weft--gold" x="170" y="198.5" width="54" height="9" rx="4" transform="rotate(34 197 203)" />
-            <rect class="kente-ribbon__weft kente-ribbon__weft--green" x="121" y="231.5" width="54" height="9" rx="4" transform="rotate(72 148 236)" />
-            <rect class="kente-ribbon__weft kente-ribbon__weft--red" x="57" y="240.5" width="54" height="9" rx="4" transform="rotate(90 84 245)" />
-          </g>
-        </svg>
         <div class="hero__content" data-reveal>
           <div class="hero__text">
             <span class="eyebrow hero__eyebrow">Financial education for Ghana</span>
@@ -152,54 +108,19 @@
               </div>
             </div>
           </div>
-          <!-- Hero visual — Nkyinkyim ("life's twists and turns") as a large
-               editorial-illustration anchor: soft two-tone gradient, a
-               blurred shadow duplicate (never a hard outline or glossy
-               highlight), set against a very low-opacity Ghanaian financial
-               context (a growth curve with connected nodes) and a scatter of
-               abstract accent marks. This is the hero's focal point — see
-               docs/design/ghanaian-design-language.md's "anchor tier" vs.
-               "watermark tier" distinction. Purely decorative. -->
-          <div class="hero__visual" aria-hidden="true">
-            <svg class="hero__illustration" viewBox="0 0 400 400" focusable="false">
-              <defs>
-                <linearGradient id="nkyinkyim-gradient" x1="0%" y1="0%" x2="100%" y2="100%">
-                  <stop offset="0%" stop-color="var(--color-sika-gold)" />
-                  <stop offset="100%" stop-color="var(--color-sika-gold-dark)" />
-                </linearGradient>
-                <filter id="nkyinkyim-shadow" x="-40%" y="-40%" width="180%" height="180%">
-                  <feGaussianBlur stdDeviation="9" />
-                </filter>
-              </defs>
-
-              <!-- Financial context: a faint growth curve with connected
-                   nodes — "the visitor should not consciously notice it." -->
-              <g class="hero__context">
-                <path d="M28,338 C92,318 118,258 160,252 C212,245 232,158 302,108 C332,86 352,68 372,48" />
-                <circle cx="28" cy="338" r="4" />
-                <circle cx="160" cy="252" r="4" />
-                <circle cx="372" cy="48" r="4" />
-              </g>
-
-              <!-- Abstract accent geometry — never a duplicated Adinkra symbol. -->
-              <g class="hero__accents">
-                <circle cx="66" cy="86" r="5" />
-                <circle cx="336" cy="318" r="3" />
-                <circle cx="52" cy="230" r="3" />
-                <rect x="326" y="72" width="8" height="8" transform="rotate(45 330 76)" />
-                <rect x="70" y="330" width="7" height="7" transform="rotate(45 73.5 333.5)" />
-              </g>
-
-              <!-- Nkyinkyim — shadow duplicate, then the gradient anchor shape. -->
-              <g class="hero__nkyinkyim">
-                <svg x="55" y="62" width="290" height="290" viewBox="0 0 360 360" fill="var(--color-ink-navy)" filter="url(#nkyinkyim-shadow)" opacity="0.16">
-                  <polygon points="360 51.429 360 0 0 0 0 51.429 0 64.286 0 115.714 308.571 115.714 308.571 128.571 0 128.571 0 180 0 192.857 0 244.286 308.571 244.286 308.571 257.143 0 257.143 0 308.571 0 360 51.429 360 51.429 308.571 102.857 308.571 102.857 360 154.286 360 154.286 308.571 205.714 308.571 205.714 360 257.143 360 257.143 308.571 308.571 308.571 308.571 360 360 360 360 308.571 360 257.143 360 244.286 360 192.857 51.429 192.857 51.429 180 360 180 360 128.571 360 115.714 360 64.286 51.429 64.286 51.429 51.429 360 51.429" />
-                </svg>
-                <svg x="55" y="55" width="290" height="290" viewBox="0 0 360 360" fill="url(#nkyinkyim-gradient)" opacity="0.9">
-                  <polygon points="360 51.429 360 0 0 0 0 51.429 0 64.286 0 115.714 308.571 115.714 308.571 128.571 0 128.571 0 180 0 192.857 0 244.286 308.571 244.286 308.571 257.143 0 257.143 0 308.571 0 360 51.429 360 51.429 308.571 102.857 308.571 102.857 360 154.286 360 154.286 308.571 205.714 308.571 205.714 360 257.143 360 257.143 308.571 308.571 308.571 308.571 360 360 360 360 308.571 360 257.143 360 244.286 360 192.857 51.429 192.857 51.429 180 360 180 360 128.571 360 115.714 360 64.286 51.429 64.286 51.429 51.429 360 51.429" />
-                </svg>
-              </g>
-            </svg>
+          <!-- Hero visual — the flagship book, the hero's one focal
+               element. Same honest typographic placeholder convention
+               used everywhere else on the site until a real cover image
+               is uploaded (never fabricated artwork); data-feature-*
+               hooks are filled from real product data by product-loader.js,
+               identical to the Featured eBook section below. -->
+          <div class="hero__visual" data-feature-banner>
+            <a href="/books/" class="book-card__cover book-card__cover--hero" aria-label="See our featured eBook">
+              <span class="book-card__cover-placeholder-text" aria-hidden="true">
+                <span class="book-card__cover-placeholder-eyebrow">Robayer WealthLab</span>
+                <span class="book-card__cover-placeholder-title" data-feature-title>Small Cedis, Big Wealth</span>
+              </span>
+            </a>
           </div>
         </div>
       </div>
@@ -473,6 +394,7 @@
   <script src="/js/includes.js"></script>
   <script src="/js/components/nav.js"></script>
   <script src="/js/components/theme-toggle.js"></script>
+  <script src="/js/components/branding.js"></script>
   <script src="/js/content-inject.js"></script>
   <script src="/js/components/founder-bio.js"></script>
   <script src="/js/components/product-loader.js"></script>

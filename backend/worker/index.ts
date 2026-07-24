@@ -108,6 +108,8 @@ import {
   handleMediaRestore,
 } from '../routes/admin/media';
 import { handleMediaFile } from '../routes/media';
+import { handleGetBranding, handleUpdateBranding } from '../routes/admin/branding';
+import { handleGetPublicBranding } from '../routes/branding';
 import {
   handleProductsMeta,
   handleProductsList,
@@ -270,6 +272,13 @@ const ROUTES: Route[] = [
   // slashes, since a real storage key is itself a path
   // (media/images/books/<uuid>.jpg) — see routes/media.ts.
   { pattern: new URLPattern({ pathname: '/api/media/file/:key(.*)' }), method: 'GET', handler: handleMediaFile },
+  // Added Homepage Modernization Part 4 (CMS Logo Management) — see
+  // services/admin/brandingService.ts. Public GET has no auth, matching
+  // /api/media/file's trust model (a resolved logo URL is exactly as
+  // public as the underlying Media Library asset it points to).
+  { pattern: new URLPattern({ pathname: '/api/admin/branding' }), method: 'GET', handler: handleGetBranding },
+  { pattern: new URLPattern({ pathname: '/api/admin/branding' }), method: 'PATCH', handler: handleUpdateBranding },
+  { pattern: new URLPattern({ pathname: '/api/branding' }), method: 'GET', handler: handleGetPublicBranding },
   // Added Version 2.0 Phase 2 (Products Module) — see
   // docs/products-module-implementation.md. `/api/admin/products/meta` and
   // `/api/admin/products/bulk` are ordered before `/api/admin/products/:id`

@@ -130,7 +130,8 @@
   /* ---------- Layout ---------- */
   --container-max: 1200px;
   --container-pad: var(--space-4); /* 24px, overridden down to space-3 on mobile in layout.css */
-  --header-height: 88px;
+  --header-height: 88px; /* shared base unit — admin sidebar sizes off this directly, do not change */
+  --site-header-height: calc(var(--header-height) + var(--space-3)); /* actual rendered public-site header height; everything that needs to sit flush against the header (mobile nav panel, sticky sidebars) should reference this, not --header-height */
 
   /* ---------- Z-index scale (by layer/purpose, not by component) ---------- */
   --z-sticky:    100;  /* sticky site header, sticky sidebars (e.g. article TOC) */
