@@ -404,15 +404,28 @@
         if (!featured) return; // Leave the existing static content as-is.
 
         const titleEl = banner.querySelector('[data-feature-title]');
+        const subtitleEl = banner.querySelector('[data-feature-subtitle]');
         const descriptionEl = banner.querySelector('[data-feature-description]');
         const ctaEl = banner.querySelector('[data-feature-cta]');
+        const coverImgEl = banner.querySelector('[data-feature-cover-img]');
+        const placeholderEl = banner.querySelector('[data-feature-placeholder]');
 
         if (titleEl) titleEl.textContent = featured.title;
+        if (subtitleEl && featured.subtitle) subtitleEl.textContent = featured.subtitle;
         if (descriptionEl && featured.shortDescription) descriptionEl.textContent = featured.shortDescription;
         if (ctaEl) {
           ctaEl.setAttribute('href', '/books/' + featured.slug + '/');
           const priceLabel = featured.price === 0 ? 'Free' : formatCurrency(featured.price, featured.currency);
           ctaEl.textContent = 'Get the guide: ' + priceLabel;
+        }
+        // Real uploaded cover takes over from the typographic
+        // placeholder when the featured product has one — missing
+        // covers are handled gracefully by simply leaving the
+        // placeholder in place (its default, already-visible state).
+        if (coverImgEl && featured.coverImage) {
+          coverImgEl.src = featured.coverImage;
+          coverImgEl.hidden = false;
+          if (placeholderEl) placeholderEl.hidden = true;
         }
       });
     });

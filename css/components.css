@@ -144,9 +144,16 @@
    at 9 nav items the natural content width leaves near-zero slack inside
    1200px, producing the cramped edge-to-edge look the header redesign was
    meant to fix. Scoped to .site-header only, so every other section keeps
-   the shared .container width and responsive behaviour unchanged. */
+   the shared .container width and responsive behaviour unchanged.
+   Widened again from 1360px to 1440px in the launch-stabilization pass:
+   adding "Home" as a 10th nav item plus the larger logo mark (24px to
+   40px) and its bigger tap-safe hit area pushed natural content to
+   ~1326px, which overflowed the old 1360px cap (1312px available) by
+   ~14px — verified live, not estimated. See the matching 1439px
+   collapse breakpoint below, same "no squeezed in-between state"
+   principle as the original 1360px calibration. */
 .site-header .nav {
-  max-width: 1360px;
+  max-width: 1440px;
   min-height: var(--site-header-height);
 }
 
@@ -158,6 +165,12 @@
   font-weight: var(--weight-semibold);
   font-size: 1.125rem;
   color: var(--color-ink-navy);
+  /* Larger safe click/tap area than the visible logo mark + wordmark
+     alone — padding expands the hit region, the matching negative
+     margin cancels it back out so header spacing/alignment is
+     unaffected (a bigger hit target, not a bigger visual footprint). */
+  padding: var(--space-2);
+  margin: calc(var(--space-2) * -1);
 }
 
 .nav__logo:hover {
@@ -165,7 +178,7 @@
 }
 
 .nav__logo-mark {
-  width: 24px;
+  width: 40px;
   height: auto;
   flex-shrink: 0;
 }
@@ -275,8 +288,16 @@
    wider 1360px max-width (see .site-header .nav above, not the shared
    1200px .container), and the collapse point is set to match it exactly:
    below 1360px there's no partial/squeezed desktop state, it goes
-   straight to the clean mobile panel. */
-@media (max-width: 1359px) {
+   straight to the clean mobile panel.
+   Widened again from 1359px to 1439px in the launch-stabilization pass:
+   a 10th item (Home) plus the larger 40px logo (was 24px) and its new
+   tap-safe padding pushed natural content to ~1326px, overflowing the
+   1360px cap's 1312px available width by ~14px (measured live). The
+   header's own max-width moved to 1440px to match (see .site-header
+   .nav above), and this breakpoint moves with it for the same reason
+   as before — no partial/squeezed state between "full nav" and
+   "hamburger". */
+@media (max-width: 1439px) {
   .nav__toggle {
     display: flex;
   }
@@ -634,9 +655,6 @@
   border-radius: 999px;
   background-color: var(--color-bg-alt);
   color: var(--color-text-heading);
-  font-family: var(--font-heading);
-  font-weight: var(--weight-medium);
-  font-size: var(--text-small);
   transition: background-color var(--duration-base) var(--ease-standard),
               color var(--duration-base) var(--ease-standard);
 }
@@ -645,6 +663,12 @@
   background-color: var(--color-accent);
   color: var(--color-text-on-dark);
   text-decoration: none;
+}
+
+.footer__social-icon {
+  width: 18px;
+  height: 18px;
+  flex-shrink: 0;
 }
 
 .footer__grid {
@@ -709,7 +733,7 @@
 .field__input:disabled,
 .field__textarea:disabled,
 .field__select:disabled {
-  background-color: var(--color-light-sand);
+  background-color: var(--color-bg-alt); /* was the raw --color-light-sand palette color — theme-invariant, so disabled fields kept a light beige fill in dark mode */
   color: var(--color-text-secondary);
   border-color: var(--color-border);
   cursor: not-allowed;
@@ -868,16 +892,45 @@
    attention. */
 .hero__visual {
   display: flex;
+  flex-direction: column;
   align-items: center;
   justify-content: center;
+  gap: var(--space-3);
   min-width: 0;
 }
 
 .book-card__cover--hero {
   display: block;
+  position: relative;
   width: 100%;
   max-width: 320px;
   box-shadow: var(--shadow-2);
+}
+
+/* Real uploaded cover (when the featured product has one) — fills the
+   same box the typographic placeholder occupies, so swapping between
+   the two never shifts layout. See js/components/product-loader.js's
+   initFeatureBanners(). */
+.book-card__cover-image {
+  display: block;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+/* The book's own CTA — deliberately understated (small text link, not
+   a second primary button) since the two .hero__actions buttons above
+   already carry the hero's main asks; this one is specific to the
+   featured book itself. */
+.hero__book-cta {
+  font-family: var(--font-heading);
+  font-weight: var(--weight-medium);
+  font-size: var(--text-small);
+  color: var(--color-accent);
+}
+
+.hero__book-cta:hover {
+  text-decoration: underline;
 }
 
 @media (max-width: 1199px) {
@@ -890,67 +943,6 @@
   .book-card__cover--hero {
     max-width: 200px;
   }
-}
-
-/* ============================================================
-   ADINKRA MOTIF — Ghanaian Identity redesign. A whisper-quiet
-   background watermark, never a foreground graphic. Restricted to
-   the three symbols approved in docs/design/ghanaian-design-
-   language.md (Gye Nyame, Sankofa, Nkyinkyim), each used only where
-   its meaning thematically fits the section it appears in.
-
-   Base component (.adinkra-motif) handles opacity/color/motion;
-   corner-placement modifiers are generic and reusable by any future
-   section, not hardcoded per-instance. The parent section needs its
-   own position:relative + overflow:hidden — see .section--motif
-   below, applied per-section in index.html.
-   ============================================================ */
-.adinkra-motif {
-  position: absolute;
-  width: clamp(140px, 18vw, 220px);
-  height: clamp(140px, 18vw, 220px);
-  color: var(--color-ink-navy);
-  opacity: 0.09;
-  pointer-events: none;
-  z-index: 0;
-}
-
-.adinkra-motif__glyph {
-  width: 100%;
-  height: 100%;
-  display: block;
-}
-
-.adinkra-motif--top-right    { top: -8%;  right: -6%; }
-.adinkra-motif--bottom-left  { bottom: -10%; left: -6%; }
-
-/* Mobile refinement pass: the sitewide clamp() floor (140px) doesn't
-   shrink further on narrow viewports, so the motif was pinning at a
-   fixed size and clipping arbitrarily against .section--motif's
-   overflow:hidden edge. Smaller floor + tighter offsets so mobile gets
-   a deliberate corner-bleed instead of an accidental crop. */
-@media (max-width: 767px) {
-  .adinkra-motif {
-    width: clamp(90px, 28vw, 150px);
-    height: clamp(90px, 28vw, 150px);
-  }
-  .adinkra-motif--top-right {
-    top: -2%;
-    right: -8%;
-  }
-  .adinkra-motif--bottom-left {
-    bottom: -4%;
-    left: -8%;
-  }
-}
-
-/* The section a motif sits in needs its own stacking/clip context so
-   the watermark never causes horizontal scroll or overlaps a
-   neighboring section — reusable by any future section that adopts
-   an Adinkra watermark, per docs/design/ghanaian-design-language.md. */
-.section--motif {
-  position: relative;
-  overflow: hidden;
 }
 
 /* Premium portrait treatment — Home hero + Meet the Founder photos.
@@ -1082,7 +1074,7 @@
 .blog-card__image {
   width: 100%;
   aspect-ratio: 16 / 9;
-  background-color: var(--color-light-sand);
+  background-color: var(--color-bg-alt); /* was the raw --color-light-sand palette color — theme-invariant, so this placeholder stayed light-beige on dark cards */
   border-radius: var(--radius-md);
   margin-bottom: var(--space-2);
 }
@@ -1251,11 +1243,11 @@ a.resource-card {
 }
 
 .table tbody tr:nth-child(odd) {
-  background-color: var(--color-warm-paper);
+  background-color: var(--color-bg-alt); /* was the raw --color-warm-paper palette color — theme-invariant, so odd rows stayed light-beige on a dark page */
 }
 
 .table tbody tr:nth-child(even) {
-  background-color: var(--color-white);
+  background-color: var(--color-bg); /* was the raw --color-white palette color — same issue, even rows stayed pure white on a dark page */
 }
 
 .table td.numeric,

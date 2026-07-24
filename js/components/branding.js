@@ -37,20 +37,23 @@ function isDarkTheme() {
   return document.documentElement.getAttribute('data-theme') === 'dark';
 }
 
+/** header.html and footer.html both use the .nav__logo-mark class on their own <img>, so this must update every match — a single querySelector() here was the footer logo's dark-mode bug: only the header's (first-match) logo ever got swapped, and the footer silently kept the light-mode file regardless of theme. */
 function applyLogoSrc(src, altText) {
-  const img = document.querySelector('.nav__logo-mark');
-  if (!img || !src) return;
-  img.src = src;
-  if (altText !== undefined) img.alt = altText || '';
+  if (!src) return;
+  document.querySelectorAll('.nav__logo-mark').forEach((img) => {
+    img.src = src;
+    if (altText !== undefined) img.alt = altText || '';
+  });
 }
 
 function applyLogoAsset(asset) {
   if (!asset) return;
-  const img = document.querySelector('.nav__logo-mark');
   applyLogoSrc(asset.url, asset.altText);
-  if (img && asset.width && asset.height) {
-    img.width = asset.width;
-    img.height = asset.height;
+  if (asset.width && asset.height) {
+    document.querySelectorAll('.nav__logo-mark').forEach((img) => {
+      img.width = asset.width;
+      img.height = asset.height;
+    });
   }
 }
 

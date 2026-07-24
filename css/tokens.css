@@ -223,4 +223,42 @@
   --shadow-1: 0px 2px 4px rgba(0, 0, 0, 0.20);
   --shadow-2: 0px 4px 14px rgba(0, 0, 0, 0.32);
   --shadow-3: 0px 10px 32px rgba(0, 0, 0, 0.48);
+
+  /* Launch stabilization pass: --color-success/warning/error/info and
+     their four -tint siblings were never overridden here, so every
+     .badge/.alert (Investment Centre's info banner, every topic card's
+     Beginner/Intermediate/Advanced badge, form success/error states)
+     was still rendering its light-mode near-white tint background in
+     dark mode — measured 3.48:1 text-on-background, failing the 4.5:1
+     AA minimum, and reading as a jarring pale rectangle on an
+     otherwise-dark page. Replaced with dark, desaturated "chip"
+     backgrounds (same hue family, low lightness) paired with brighter
+     saturated text — the same "lighter tonal variant, not inverted"
+     formula already used for --color-accent above, verified per pair:
+     success 7.7:1, warning 7.9:1, error 6.0:1, info 6.6:1 (all AA, most
+     AAA). The chip backgrounds sit close in value to --color-surface on
+     purpose (only ~1.3:1 against the page) so they read as a quiet
+     surface-level chip, not a bright alert — the text carries the
+     semantic color, matching how --color-text-primary/-secondary/
+     -heading already form a deliberate hierarchy instead of flattening
+     everything to white. */
+  --color-success:      #81DAAD;
+  --color-success-tint: #1B372E;
+  --color-warning:      #EBC270;
+  --color-warning-tint: #3B2E16;
+  --color-error:        #ED8B82;
+  --color-error-tint:   #401F1C;
+  --color-info:         #82B8ED;
+  --color-info-tint:    #1E2E3E;
+}
+
+/* Form placeholders inherit the browser's fixed default grey (#757575)
+   regardless of theme, since no CSS ever declared a color for them —
+   3.47:1 against a dark input surface, failing AA (it happens to scrape
+   past on a light input, 4.61:1, which is why this went unnoticed).
+   One theme-aware rule fixes both directions at once. */
+.field__input::placeholder,
+.field__textarea::placeholder {
+  color: var(--color-text-secondary);
+  opacity: 1;
 }

@@ -39,7 +39,7 @@
     "tiktok": "https://www.tiktok.com/@robayerwealthlab"
   },
   "branding": {
-    "_comment": "Reference-only. These paths are duplicated as static <link>/<meta>/JSON-LD tags in every page's <head>; see assets/branding/README.md before changing any of them. logo/ogImage are the real production assets as of Phase 17; favicon* remain coded placeholders pending a future phase.",
+    "_comment": "Reference-only. These paths are duplicated as static <link>/<meta>/JSON-LD tags in every page's <head>; see assets/branding/README.md before changing any of them. All five are real, current production assets as of the Version 3.0 launch-stabilization pass — favicon.svg/favicon-32.png/apple-touch-icon.png were regenerated directly from the real logo mark (assets/branding/logo/logo-mark.png), replacing an obsolete coded three-bar icon that predated the current logo.",
     "logo": "/assets/branding/logo/logo.png",
     "faviconSvg": "/assets/icons/favicon.svg",
     "favicon32": "/assets/icons/favicon-32.png",
