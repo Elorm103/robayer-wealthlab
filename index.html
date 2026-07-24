@@ -113,14 +113,20 @@
                used everywhere else on the site until a real cover image
                is uploaded (never fabricated artwork); data-feature-*
                hooks are filled from real product data by product-loader.js,
-               identical to the Featured eBook section below. -->
+               identical to the Featured eBook section below. Purely
+               decorative (aria-hidden), matching the existing
+               book-card__cover convention in backend/routes/books.ts's
+               Featured eBook banner and Book Detail hero — the "Explore
+               Free Resources" / "Get in Touch" CTAs and the header's own
+               "Books" link already carry navigation, so the cover doesn't
+               need to double as a link. -->
           <div class="hero__visual" data-feature-banner>
-            <a href="/books/" class="book-card__cover book-card__cover--hero" aria-label="See our featured eBook">
-              <span class="book-card__cover-placeholder-text" aria-hidden="true">
+            <div class="book-card__cover book-card__cover--hero" aria-hidden="true">
+              <span class="book-card__cover-placeholder-text">
                 <span class="book-card__cover-placeholder-eyebrow">Robayer WealthLab</span>
                 <span class="book-card__cover-placeholder-title" data-feature-title>Small Cedis, Big Wealth</span>
               </span>
-            </a>
+            </div>
           </div>
         </div>
       </div>

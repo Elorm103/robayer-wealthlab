@@ -878,12 +878,6 @@
   width: 100%;
   max-width: 320px;
   box-shadow: var(--shadow-2);
-  transition: box-shadow var(--duration-base) var(--ease-standard);
-}
-
-.book-card__cover--hero:hover,
-.book-card__cover--hero:focus-visible {
-  box-shadow: var(--shadow-3);
 }
 
 @media (max-width: 1199px) {
