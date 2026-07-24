@@ -19,6 +19,7 @@ import type { Logger } from '../utils/logger';
 import { jsonError } from '../utils/responses';
 import { isRateLimited } from '../middleware/rateLimit';
 import { redeemDownloadToken, type RedeemDenialReason } from '../services/entitlementService';
+import { buildDownloadFilename } from '../utils/downloadFilename';
 import type { ApiErrorCode } from '../types/api-contracts';
 
 // Slows automated token-guessing attempts — defense in depth alongside
@@ -84,7 +85,12 @@ export async function handleDownload(request: Request, env: Env, logger: Logger,
     status: 200,
     headers: {
       'Content-Type': contentTypeFor(result.asset.fileType),
-      'Content-Disposition': `attachment; filename="${result.asset.filename}"`,
+      // The saved filename is built fresh from the product's current
+      // title, never from result.asset.filename (media_assets.original_filename
+      // — the literal filename captured once at upload time, which drifts
+      // out of sync the moment a product is ever renamed; see
+      // utils/downloadFilename.ts for the incident this fixed).
+      'Content-Disposition': `attachment; filename="${buildDownloadFilename(result.productTitle, result.asset.fileType)}"`,
       'Content-Length': String(object.size),
       'Cache-Control': 'no-store', // never let a browser/proxy cache a purchased file at a URL that's about to be invalidated
     },
