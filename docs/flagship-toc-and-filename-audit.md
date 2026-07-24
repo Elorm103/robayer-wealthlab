@@ -91,8 +91,15 @@ Critically, [`productCatalogService.ts`](../backend/services/productCatalogServi
 - **No regression to existing purchases confirmed:** a second `GET` on the same (now-used) token correctly returned `409`; `deliveries.downloads_used` incremented to 1; `download_tokens.used_at` was set — the token/entitlement system's behavior is completely unchanged, only the filename it hands back changed.
 - Product ID, slug, download tokens, and download security were not touched anywhere in this fix, consistent with the task's explicit constraints.
 
-**Not yet done (deliberately, pending explicit confirmation):**
-- The corrected PDF has **not** been uploaded to production R2. It exists locally, fully verified, ready to replace `ebooks/starting-to-invest-with-gh100.pdf` via [`docs/media-library-asset-replacement-procedure.md`](media-library-asset-replacement-procedure.md)'s established procedure.
-- The filename-fix code has **not** been deployed. It's committed to the branch but `wrangler deploy` has not been run.
+## 6. Production rollout
 
-Both are real, production-facing, hard-to-reverse-in-spirit actions (one replaces the live paid product's actual deliverable file; the other changes what every future customer downloads) — held for explicit go-ahead before executing, per this session's own operating rules.
+Both fixes are now live, deployed with explicit user confirmation on 2026-07-24:
+
+1. **R2:** uploaded the corrected PDF to the existing storage key (`ebooks/starting-to-invest-with-gh100.pdf`, `--remote`), per [`docs/media-library-asset-replacement-procedure.md`](media-library-asset-replacement-procedure.md). No new key created — every `product_files`/`media_assets` row pointing at the old key transparently now serves the new file.
+2. **Worker:** deployed via `wrangler deploy` (version `c62e032a-5c5f-47ba-8d29-90411aefcffe`).
+3. **Verified through the real customer path, not just the binding in isolation:** requested a fresh download token against a real existing verified purchase (`RWL-2026-000023`) via the live `POST /api/purchases/:reference/downloads` → `GET /api/download/:token` flow on `robayerwealthlab.com`. The response returned `Content-Disposition: attachment; filename="Small-Cedis-Big-Wealth.pdf"` and a `Content-Length` of 725420 bytes.
+4. **Byte-for-byte confirmation:** downloaded the live production response and hashed it — `sha256: 9f0bd9fc2f9509122a90b8fe2233ce9d24b3478d5bb688b2a6c262934acfe684` — identical to the locally-verified corrected PDF. Both R2 and the Worker binding are confirmed serving the exact same corrected file real customers now receive.
+5. **D1 synced last, only after the storage-side write was independently confirmed** (per the procedure's governing rule): updated `media_assets.size_bytes` (725420), `content_hash` (the hash above), and `updated_at` via a targeted `UPDATE ... WHERE storage_key = ?`, confirmed by read-back.
+6. Temporary diagnostic files (test D1 rows, scratch scripts, downloaded verification copies) were removed after use; the durable pipeline (`backend/scripts/`) remains in the repo for future editions of the book.
+
+No real customer's existing entitlement was affected — the verification purchase used is this project's own established test-pattern reference (`checkout+rwl-2026-000023@robayerwealthlab.com`), not an external customer, and still has 3 of 5 downloads remaining after this verification.
