@@ -14,11 +14,30 @@
 
 :root {
   /* ---------- Color: Primary ---------- */
-  --color-growth-green: #1F5C4E;
+  /* Version 3.0 UI/UX Pro Max polish: growth-green was #1F5C4E (HSL
+     166°, a teal-shifted hue) — sampled against the real logo file
+     (assets/branding/logo/logo.png), the logo's own green clusters at
+     ~#288038 (HSL 131°), a true grass/kelly green with no teal cast.
+     #206F34 (HSL 135°) lands 4° from the logo's actual hue — as close
+     as the palette can get while still clearing 4.5:1 text contrast on
+     both --color-bg and --color-bg-alt with real margin (5.8–6.2:1,
+     verified). The old value's 7+:1 contrast was "too safe" — accuracy
+     to the brand mark, not just a bigger safety margin, was the goal
+     per the explicit "UI should visually feel like it belongs to the
+     logo" requirement. See docs/v3-design-system.md. */
+  --color-growth-green: #206F34;
   --color-ink-navy:      #16233D;
 
   /* ---------- Color: Accent ---------- */
-  --color-sika-gold:  #D4A017;
+  /* sika-gold was #D4A017 (HSL 43°, 80%, 46%) — already the same hue
+     family as the logo's sampled gold (~#E8B830, HSL 44°), just
+     darker/less vibrant. Brightened to #E6AF19 (HSL 44°, 80%, 50%): a
+     true hue match, not a correction. Never used as small text on a
+     light background at any lightness (2–2.4:1 either way — gold
+     inherently can't clear 4.5:1 there), so this only ever improves
+     things: dark-mode contrast climbs from 7.6:1 to 9.1:1, and
+     --color-text-on-accent still clears 5.7:1 against it. */
+  --color-sika-gold:  #E6AF19;
   --color-kente-red:  #B33A3A;
 
   /* ---------- Color: Neutral ---------- */
@@ -42,8 +61,8 @@
   --color-info-tint:    #E6EEF7;
 
   /* ---------- Color: Hover states ---------- */
-  --color-growth-green-dark: #1A4F43; /* growth green, ~8% darker */
-  --color-sika-gold-dark:    #BF8F14; /* sika gold, ~8% darker */
+  --color-growth-green-dark: #195729; /* growth green, ~8% darker (recalculated for the new #206F34 base) */
+  --color-sika-gold-dark:    #C19315; /* sika gold, ~8% darker (recalculated for the new #E6AF19 base) */
 
   /* ---------- Color: Role mapping (use these in components, not raw colors) ---------- */
   /* Ghanaian Identity redesign (docs/homepage-ghanaian-redesign-plan.md,
@@ -68,7 +87,21 @@
   --color-highlight:       var(--color-sika-gold);
 
   /* ---------- Typography: Font families ---------- */
-  --font-display: 'Fraunces', Georgia, serif;
+  /* Version 3.0 UI/UX Pro Max polish: font-display was Fraunces — a
+     warm, "wonky"-axis old-style serif whose editorial character skews
+     toward lifestyle/food/indie-publishing brands, not financial trust.
+     Swapped for Newsreader (Google's "News Editorial" pairing per the
+     UI/UX Pro Max skill's typography database: "news, editorial,
+     journalism, trustworthy, readable, informative" — explicitly
+     designed for long-form reading, which matches this site's
+     guide/blog-heavy content). Space Grotesk, Work Sans, and IBM Plex
+     Mono are unchanged: Space Grotesk already echoes the logo's own
+     bold geometric wordmark and has no better skill-database match;
+     Work Sans already scores well on warmth+readability with no clear
+     improvement available; IBM Plex Mono is independently validated by
+     the skill's "Financial Trust" pairing for data/label contexts. See
+     docs/v3-design-system.md for the full audit. */
+  --font-display: 'Newsreader', Georgia, serif;
   --font-heading: 'Space Grotesk', 'Helvetica Neue', Arial, sans-serif;
   --font-body:    'Work Sans', 'Helvetica Neue', Arial, sans-serif;
   --font-mono:    'IBM Plex Mono', 'Courier New', monospace;
@@ -159,4 +192,35 @@
   --color-text-on-dark:    var(--color-ink-navy);
   --color-border:          rgba(255, 255, 255, 0.12);
   --color-border-strong:   rgba(255, 255, 255, 0.28);
+  /* --color-accent (links, nav hover, eyebrows, focus borders — used as
+     TEXT throughout, not just backgrounds) inherited the light-mode
+     growth-green unchanged until this pass: #206F34 measures only
+     2.9:1 against this theme's #10161F/#1B222D backgrounds, well under
+     the 4.5:1 AA minimum. Per the Skill's `color-dark-mode` rule
+     ("desaturated/lighter tonal variants, not inverted colors; test
+     contrast separately"), dark mode gets its own lighter tint of the
+     same hue (140° vs. light mode's 135° — same green family) rather
+     than reusing the light-mode value: #53C679 clears 8.4:1 on
+     --color-bg and 7.4:1 on --color-surface, comfortably AAA. Sika
+     gold is untouched here — it already improves in dark mode (9.1:1)
+     since brightness moves the right direction for a warm accent on a
+     dark surface. */
+  --color-accent: #53C679;
+
+  /* Shadows were never overridden for dark mode before this pass: the
+     three --shadow-* tokens are navy-tinted rgba(22,35,61,...), tuned
+     to read as soft depth against a light page — laid over an already
+     near-black background, that same navy tint is close to invisible,
+     so every card/dropdown/modal silently lost its sense of elevation
+     in dark mode (this is why dark mode felt "merely dark" rather than
+     designed). Re-tuned as pure-black-based shadows, which work
+     regardless of the surface hue underneath, with more restraint at
+     the low end — .card-level elevation now leans on --color-border's
+     existing dark-mode value for edge definition rather than a shadow
+     that would just muddy the surface, while modal-level elevation
+     (--shadow-3) stays strong enough to genuinely separate an overlay
+     from the page behind it. */
+  --shadow-1: 0px 2px 4px rgba(0, 0, 0, 0.20);
+  --shadow-2: 0px 4px 14px rgba(0, 0, 0, 0.32);
+  --shadow-3: 0px 10px 32px rgba(0, 0, 0, 0.48);
 }

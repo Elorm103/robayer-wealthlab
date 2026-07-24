@@ -53,7 +53,7 @@
 }
 
 .btn:focus-visible {
-  box-shadow: 0 0 0 4px rgba(31, 92, 78, 0.15);
+  box-shadow: 0 0 0 4px rgba(32, 111, 52, 0.15); /* --color-growth-green as rgba (CSS can't color-mix a var() into an alpha channel here) */
 }
 
 /* The [hidden] attribute alone loses to the display:inline-flex rule
@@ -99,7 +99,7 @@
 }
 
 .btn--accent:focus-visible {
-  box-shadow: 0 0 0 4px rgba(212, 160, 23, 0.25);
+  box-shadow: 0 0 0 4px rgba(230, 175, 25, 0.25); /* --color-sika-gold as rgba */
 }
 
 .btn--disabled,
@@ -418,7 +418,7 @@
 .testimonial__quote {
   font-family: var(--font-display);
   font-style: italic;
-  font-weight: var(--weight-medium); /* matches the only italic weight actually loaded (Fraunces 500 italic) */
+  font-weight: var(--weight-medium); /* matches the only italic weight actually loaded (Newsreader 500 italic) */
   font-size: var(--text-body-lg);
   color: var(--color-ink-navy);
   margin-bottom: var(--space-3);
@@ -470,7 +470,7 @@
 .pull-quote {
   font-family: var(--font-display);
   font-style: italic;
-  font-weight: var(--weight-medium); /* matches the only italic weight actually loaded (Fraunces 500 italic) */
+  font-weight: var(--weight-medium); /* matches the only italic weight actually loaded (Newsreader 500 italic) */
   font-size: var(--text-body-lg);
   color: var(--color-text-heading);
   max-width: 480px;
@@ -643,7 +643,7 @@
 
 .footer__social a:hover {
   background-color: var(--color-accent);
-  color: var(--color-white);
+  color: var(--color-text-on-dark);
   text-decoration: none;
 }
 
@@ -913,7 +913,6 @@
   opacity: 0.09;
   pointer-events: none;
   z-index: 0;
-  animation: adinkra-drift 24s var(--ease-standard) infinite;
 }
 
 .adinkra-motif__glyph {
@@ -923,7 +922,7 @@
 }
 
 .adinkra-motif--top-right    { top: -8%;  right: -6%; }
-.adinkra-motif--bottom-left  { bottom: -10%; left: -6%; animation-delay: -12s; }
+.adinkra-motif--bottom-left  { bottom: -10%; left: -6%; }
 
 /* Mobile refinement pass: the sitewide clamp() floor (140px) doesn't
    shrink further on narrow viewports, so the motif was pinning at a
@@ -954,16 +953,11 @@
   overflow: hidden;
 }
 
-@keyframes adinkra-drift {
-  0%, 100% { transform: translateY(0); }
-  50% { transform: translateY(-6px); }
-}
-
 /* Premium portrait treatment — Home hero + Meet the Founder photos.
    Layered on top of the existing rounded-lg/aspect-4-5/img-cover
    utility classes, not a replacement for them. */
 .portrait-frame {
-  box-shadow: 0 0 0 1px rgba(212, 160, 23, 0.25), var(--shadow-3);
+  box-shadow: 0 0 0 1px rgba(230, 175, 25, 0.25), var(--shadow-3); /* --color-sika-gold as rgba */
 }
 
 /* ============================================================
@@ -1371,7 +1365,7 @@ a.resource-card {
 .filter-pill[aria-pressed="true"] {
   background-color: var(--color-accent);
   border-color: var(--color-accent);
-  color: var(--color-white);
+  color: var(--color-text-on-dark);
 }
 
 /* ============================================================
