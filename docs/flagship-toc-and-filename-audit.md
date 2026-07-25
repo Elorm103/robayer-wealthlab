@@ -103,3 +103,17 @@ Both fixes are now live, deployed with explicit user confirmation on 2026-07-24:
 6. Temporary diagnostic files (test D1 rows, scratch scripts, downloaded verification copies) were removed after use; the durable pipeline (`backend/scripts/`) remains in the repo for future editions of the book.
 
 No real customer's existing entitlement was affected — the verification purchase used is this project's own established test-pattern reference (`checkout+rwl-2026-000023@robayerwealthlab.com`), not an external customer, and still has 3 of 5 downloads remaining after this verification.
+
+## 7. Follow-up: cover logo and author-page placeholder
+
+After the above went live, comparing the new production PDF against an older local copy surfaced two further, unrelated content issues on pages the TOC fix never touched:
+
+- **Page 1 (cover):** missing the Robayer WealthLab logo — present in the older copy, absent here.
+- **Page 4 (About the Author):** still had the literal placeholder line `[Insert professional photo here]`.
+
+Fixed surgically via a new script, [`backend/scripts/fix-book-cover-and-author-page.mjs`](../backend/scripts/fix-book-cover-and-author-page.mjs), rather than regenerating either page from scratch:
+
+1. Drew the real production logo asset (`assets/branding/logo/logo-with-tagline.png` — the same source used to compose the site's OG image) directly onto the existing cover page's content stream via `pdf-lib`'s `drawImage`, centered above the existing eyebrow text.
+2. White-boxed the placeholder line's exact bounding box on the Author page (found by scanning a rendered screenshot for its non-white pixels, then converting to PDF point coordinates) via `drawRectangle` — a standard redaction technique, since `pdf-lib` can't parse/rewrite existing text runs directly.
+
+**Verification:** page count preserved (37 → 37); all 35 other pages (including the TOC, its outline, and its 24 link annotations from the fix above) confirmed byte-identical/untouched. Uploaded to the same R2 storage key, verified via a real download through the same test purchase (`RWL-2026-000023`) — response hash matched the local corrected file exactly (`sha256: 58779e38...b3136`) — and `media_assets` metadata updated to match, same procedure as before.
