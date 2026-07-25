@@ -1,7 +1,8 @@
 -- Robayer WealthLab — Cloudflare D1 Schema
 --
 -- STATUS: this is the live production schema, current as of migration
--- 0018 (Version 3.0.2 Milestone M1: Customer Identity & Guest Checkout).
+-- 0019 (Version 3.0.2 Milestone M2: Orders, Receipts & Customer
+-- Library, extending Milestone M1: Customer Identity & Guest Checkout).
 -- This file is the cumulative, human-readable reference that
 -- backend/database/migrations/*.sql should sum to when applied in
 -- order via `wrangler d1 migrations apply` — it is not itself applied
@@ -946,5 +947,83 @@ CREATE TABLE customer_password_tokens (
   used_at      TEXT,
   created_at   TEXT NOT NULL DEFAULT (datetime('now'))
 );
+
+-- ============================================================
+-- Version 3.0.2 Milestone M2 (Orders, Receipts & Customer Library,
+-- migration 0019) — see docs/v3.0.2-commerce-architecture-blueprint.md
+-- Deliverable 3, ADR-003, ADR-008, ADR-009.
+-- ============================================================
+
+-- Line items per purchase (ADR-009: quantity > 1 means N independent
+-- licenses/deliveries, never one shared license).
+CREATE TABLE order_items (
+  id                  INTEGER PRIMARY KEY AUTOINCREMENT,
+  purchase_session_id INTEGER NOT NULL REFERENCES purchase_sessions(id),
+  product_id          TEXT NOT NULL,
+  product_title       TEXT NOT NULL,
+  unit_price_pesewas  INTEGER NOT NULL CHECK (unit_price_pesewas >= 0),
+  quantity            INTEGER NOT NULL DEFAULT 1 CHECK (quantity >= 1),
+  asset_id            TEXT
+);
+
+CREATE INDEX idx_order_items_session ON order_items(purchase_session_id);
+CREATE INDEX idx_order_items_product ON order_items(product_id);
+
+-- Customer-facing proof of ownership, deliberately separate from
+-- deliveries (access control). revoked_at is only ever set by
+-- services/orders/revocationService.ts, always alongside the matching
+-- deliveries.status = 'revoked' update (ADR-003).
+CREATE TABLE licenses (
+  id                  INTEGER PRIMARY KEY AUTOINCREMENT,
+  purchase_session_id INTEGER NOT NULL REFERENCES purchase_sessions(id),
+  product_id          TEXT NOT NULL,
+  customer_id         INTEGER REFERENCES customers(id),
+  license_key         TEXT NOT NULL UNIQUE,
+  license_type        TEXT NOT NULL DEFAULT 'personal' CHECK (license_type IN ('personal')),
+  terms_version       TEXT,
+  issued_at           TEXT NOT NULL DEFAULT (datetime('now')),
+  revoked_at          TEXT
+);
+
+CREATE INDEX idx_licenses_customer ON licenses(customer_id);
+CREATE INDEX idx_licenses_purchase_session ON licenses(purchase_session_id);
+
+-- Persisted, regenerable proof of payment. tax_breakdown (ADR-008) is
+-- a JSON array of {label, rate_percent, amount_pesewas}; empty by
+-- default (this business is assumed not VAT-registered unless site
+-- configuration says otherwise — see services/orders/taxService.ts).
+CREATE TABLE receipts (
+  id                  INTEGER PRIMARY KEY AUTOINCREMENT,
+  receipt_number      TEXT UNIQUE, -- nullable between insert and the follow-up UPDATE, mirroring purchase_sessions.purchase_reference exactly
+  purchase_session_id INTEGER NOT NULL REFERENCES purchase_sessions(id),
+  customer_id         INTEGER REFERENCES customers(id),
+  issued_at           TEXT NOT NULL DEFAULT (datetime('now')),
+  line_items          TEXT NOT NULL,
+  subtotal_pesewas    INTEGER NOT NULL CHECK (subtotal_pesewas >= 0),
+  discount_pesewas    INTEGER NOT NULL DEFAULT 0 CHECK (discount_pesewas >= 0),
+  tax_breakdown       TEXT NOT NULL DEFAULT '[]',
+  tax_pesewas         INTEGER NOT NULL DEFAULT 0 CHECK (tax_pesewas >= 0),
+  total_pesewas       INTEGER NOT NULL CHECK (total_pesewas >= 0),
+  tax_behavior        TEXT NOT NULL,
+  currency            TEXT NOT NULL DEFAULT 'GHS',
+  pdf_storage_key     TEXT
+);
+
+CREATE INDEX idx_receipts_customer ON receipts(customer_id);
+CREATE INDEX idx_receipts_purchase_session ON receipts(purchase_session_id);
+
+-- Single-use, short-lived token for the guest, reference-scoped
+-- receipt download (ADR-013 tier 2) — a sibling of download_tokens,
+-- not a reuse of it (see migration 0019's own header comment for why).
+CREATE TABLE receipt_download_tokens (
+  id          INTEGER PRIMARY KEY AUTOINCREMENT,
+  token       TEXT NOT NULL UNIQUE,
+  receipt_id  INTEGER NOT NULL REFERENCES receipts(id),
+  expires_at  TEXT NOT NULL,
+  used_at     TEXT,
+  created_at  TEXT NOT NULL DEFAULT (datetime('now'))
+);
+
+CREATE INDEX idx_receipt_download_tokens_receipt ON receipt_download_tokens(receipt_id);
 
 CREATE INDEX idx_customer_password_tokens_customer ON customer_password_tokens(customer_id);

@@ -148,3 +148,41 @@ export async function handleOrderResendDownload(request: Request, env: Env, logg
 
   return jsonSuccess({ resent: true });
 }
+
+/**
+ * Version 3.0.2 Milestone M2 - the internal, admin-triggered refund
+ * action (ADR-003's revocation-sync mechanism). `EDITOR_ROLES`-gated,
+ * same as the two resend actions above - this has a real, permanent,
+ * customer-facing consequence (access revoked), arguably a stronger
+ * reason for this gating than an email resend. The confirmation-step
+ * discipline (AR-009) belongs to whichever admin UI calls this - not
+ * built in this milestone - but this endpoint itself is idempotent
+ * either way (see revocationService.ts), so a double-submit from a
+ * slow UI can never double-revoke or corrupt state.
+ */
+export async function handleOrderRefund(request: Request, env: Env, logger: Logger, params: RouteParams): Promise<Response> {
+  const auth = await requireAuth(request, env, logger);
+  if (!auth.ok) return auth.response;
+  const roleFailure = await requireRole(request, env, logger, auth.auth, EDITOR_ROLES);
+  if (roleFailure) return roleFailure;
+  const csrfFailure = await requireCsrf(request, env, logger, auth.auth);
+  if (csrfFailure) return csrfFailure;
+
+  if (await isRateLimited(request, env, WRITE_RATE_LIMIT)) {
+    return jsonError('RATE_LIMITED', 'Too many requests. Please try again shortly.');
+  }
+
+  const reference = params.reference;
+  if (!isPlausibleReference(reference)) {
+    return jsonError('NOT_FOUND', 'This order could not be found.');
+  }
+
+  const result = await orderService.refundOrder(env, logger, auth.auth.adminId, reference);
+  if (!result.ok) {
+    if (result.reason === 'not_found') return jsonError('NOT_FOUND', 'This order could not be found.');
+    if (result.reason === 'already_refunded') return jsonError('VALIDATION_ERROR', 'This order has already been refunded.');
+    return jsonError('VALIDATION_ERROR', 'Only a verified order can be refunded.');
+  }
+
+  return jsonSuccess({ refunded: true });
+}

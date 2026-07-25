@@ -18,6 +18,7 @@ import { jsonError, jsonSuccess } from '../utils/responses';
 import { isRateLimited } from '../middleware/rateLimit';
 import { getFulfilmentStatus } from '../services/fulfilmentService';
 import { generateDownloadPermission } from '../services/entitlementService';
+import { generateReceiptDownloadPermission } from '../services/orders/receiptEntitlementService';
 
 const REFERENCE_PATTERN = /^RWL-\d{4}-\d{6,}$/;
 
@@ -89,4 +90,29 @@ export async function handleRequestDownload(request: Request, env: Env, logger: 
   }
 
   return jsonSuccess({ downloadUrl: `/api/download/${result.token}`, expiresAt: result.expiresAt });
+}
+
+// Milestone M2 (Orders, Receipts & Customer Library) — the guest,
+// reference-scoped receipt-download mint step (ADR-013 tier 2). Same
+// rate-limit calibration as the asset-download request above — a
+// visitor legitimately re-requesting their receipt is normal, not
+// abuse.
+const RECEIPT_DOWNLOAD_REQUEST_RATE_LIMIT = { endpoint: 'purchases-receipt-download', limit: 20, windowSeconds: 60 };
+
+export async function handleRequestReceiptDownload(request: Request, env: Env, logger: Logger, params: Record<string, string | undefined>): Promise<Response> {
+  if (await isRateLimited(request, env, RECEIPT_DOWNLOAD_REQUEST_RATE_LIMIT)) {
+    return jsonError('RATE_LIMITED', 'Too many requests. Please try again in a minute.');
+  }
+
+  const reference = params.reference;
+  if (!isPlausibleReference(reference)) {
+    return jsonError('PURCHASE_NOT_FOUND', 'This purchase could not be found.');
+  }
+
+  const result = await generateReceiptDownloadPermission(env, logger, reference);
+  if (!result.granted) {
+    return jsonError('RECEIPT_NOT_FOUND', 'This receipt could not be found.');
+  }
+
+  return jsonSuccess({ downloadUrl: `/api/download-receipt/${result.token}`, expiresAt: result.expiresAt });
 }

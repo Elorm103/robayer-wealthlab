@@ -71,6 +71,8 @@ export interface CatalogProduct {
   version: string | null;
   digitalAssets: DigitalAsset[];
   downloadPolicy: DownloadPolicy;
+  /** 'inclusive' | 'exclusive' | 'exempt' — Version 3.0.2 Milestone M2 (Orders, Receipts & Customer Library), see services/orders/taxService.ts. Already a live `products` column since before M1; simply not read by this function until M2 needed it for receipt generation. */
+  taxBehavior: string;
 }
 
 const PURCHASABLE_STATUS = 'active';
@@ -104,6 +106,7 @@ interface ProductRow {
   version: string | null;
   max_downloads: number | null;
   download_expires_days: number | null;
+  tax_behavior: string;
 }
 
 interface ProductFileRow {
@@ -123,7 +126,7 @@ export async function fetchCatalogProduct(env: Env, slugInput: unknown): Promise
   const slug = slugInput;
 
   const productRow = await env.DB.prepare(
-    `SELECT product_id, slug, title, status, price_pesewas, currency, version, max_downloads, download_expires_days
+    `SELECT product_id, slug, title, status, price_pesewas, currency, version, max_downloads, download_expires_days, tax_behavior
      FROM products WHERE slug = ? AND deleted_at IS NULL`
   )
     .bind(slug)
@@ -169,6 +172,7 @@ export async function fetchCatalogProduct(env: Env, slugInput: unknown): Promise
     version: productRow.version,
     digitalAssets,
     downloadPolicy: { maxPerPurchase: productRow.max_downloads, expiresAfterDays: productRow.download_expires_days },
+    taxBehavior: productRow.tax_behavior,
   };
 }
 

@@ -52,11 +52,16 @@
     { "pattern": "robayerwealthlab.com/free-guide/*", "zone_name": "robayerwealthlab.com" }
   ],
   "workers_dev": true,
-  // No compatibility_flags: this Worker has zero runtime npm dependencies
-  // (only fetch/crypto/D1/R2/KV — all native Workers Web APIs), so
-  // `nodejs_compat` has nothing to shim here. Add it if/when a future
-  // sprint introduces a library that actually needs a Node.js built-in —
-  // not by default.
+  // No compatibility_flags needed. Through M1, this Worker had zero
+  // runtime npm dependencies (only fetch/crypto/D1/R2/KV — all native
+  // Workers Web APIs). Milestone M2 (Orders, Receipts & Customer
+  // Library) added the first one — `pdf-lib`, for in-Worker receipt PDF
+  // generation — but it is pure JavaScript with no Node.js built-in
+  // dependency (confirmed by a same-day compatibility spike inside the
+  // real workerd runtime, see docs/v3.0.2-m2-receipt-architecture-plan.md),
+  // so `nodejs_compat` still has nothing to shim. Add it if/when a
+  // future sprint introduces a library that actually needs a Node.js
+  // built-in — not by default.
   "compatibility_flags": [],
 
   // Logs/traces via Cloudflare's dashboard — no separate Worker code or

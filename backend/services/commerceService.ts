@@ -37,6 +37,7 @@ import { getPaymentProvider } from './payments';
 import { formatPurchaseReference } from '../utils/purchaseReference';
 import { fulfilPurchase } from './fulfilmentService';
 import { findOrCreateCustomer } from './customer/identityService';
+import { createOrderArtifacts } from './orders/orderService';
 
 /** A pending session outlives a genuinely slow checkout, but doesn't sit "pending" forever if the visitor abandons it — see docs/commerce-foundation.md. */
 const PURCHASE_SESSION_TTL_MINUTES = 30;
@@ -277,6 +278,8 @@ interface PurchaseSessionRow {
   expiresAt: string;
   /** Milestone M1 — the marketing-consent checkbox state locked at checkout time, seeded into the new customer_profiles row at provisioning. */
   marketingOptIn: boolean;
+  /** Milestone M1 — the License Agreement version accepted at checkout time. Milestone M2 copies this onto the licenses row it creates, rather than capturing a fresh value. */
+  licenseVersion: string | null;
 }
 
 /**
@@ -484,6 +487,26 @@ export async function handlePaymentWebhook(env: Env, logger: Logger, input: Hand
     logger.error('customer.provisioning_skipped_no_email', { purchaseReference: providerReference });
   }
 
+  // Milestone M2 (Orders, Receipts & Customer Library) — order_items /
+  // licenses / receipts creation, immediately after customer
+  // provisioning and before fulfilment, per the ratified Blueprint's
+  // Deliverable 4 step 6. Same "never block or undo a real payment"
+  // discipline as the provisioning block above — createOrderArtifacts()
+  // itself never throws (see services/orders/orderService.ts).
+  const orderArtifacts = await createOrderArtifacts(env, logger, {
+    purchaseSessionId: session.id,
+    productId: session.productId,
+    productTitle: product.title,
+    amountPesewas: session.amountPesewas,
+    currency: session.currency,
+    taxBehavior: product.taxBehavior,
+    licenseTermsVersion: session.licenseVersion,
+    customerId,
+  });
+  if (!orderArtifacts) {
+    logger.error('order.artifacts_missing', { purchaseReference: providerReference });
+  }
+
   // Fulfilment (Version 1.2 Sprint 2.5, Digital Fulfilment Platform)
   // happens only after verification has fully and atomically
   // succeeded — never any earlier. fulfilPurchase() never throws (see
@@ -532,7 +555,8 @@ function normalizeVersionField(value: unknown): string | null {
 async function getPurchaseSessionByReference(env: Env, reference: string): Promise<PurchaseSessionRow | null> {
   const row = await env.DB.prepare(
     `SELECT id, product_slug AS productSlug, product_id AS productId, product_version AS productVersion,
-            amount_pesewas AS amountPesewas, currency, status, expires_at AS expiresAt, marketing_opt_in AS marketingOptIn
+            amount_pesewas AS amountPesewas, currency, status, expires_at AS expiresAt, marketing_opt_in AS marketingOptIn,
+            license_version AS licenseVersion
      FROM purchase_sessions WHERE purchase_reference = ?`
   )
     .bind(reference)

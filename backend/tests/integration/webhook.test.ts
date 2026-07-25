@@ -14,6 +14,16 @@ import { queueVerifyResponse } from '../outboundMock';
 import { seedTestProduct, cleanupTestProduct, TEST_PRODUCT_SLUG } from '../helpers';
 
 beforeEach(async () => {
+  // Milestone M2 (Orders, Receipts & Customer Library) — every real
+  // charge.success webhook now also creates order_items/licenses/
+  // receipts as a side effect (see commerceService.ts's
+  // createOrderArtifacts() call), so this pre-existing M1 test file's
+  // own cleanup must clear those too, in dependency order, before
+  // purchase_sessions itself.
+  await env.DB.exec('DELETE FROM receipt_download_tokens');
+  await env.DB.exec('DELETE FROM receipts');
+  await env.DB.exec('DELETE FROM licenses');
+  await env.DB.exec('DELETE FROM order_items');
   await env.DB.exec('DELETE FROM deliveries');
   await env.DB.exec('DELETE FROM payment_transactions');
   await env.DB.exec('DELETE FROM purchase_sessions');

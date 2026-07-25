@@ -21,6 +21,7 @@ import type { Logger } from '../../utils/logger';
 import { sendEmail } from '../emailService';
 import { exclusiveEndDate } from '../../utils/dateRange';
 import * as auditService from './auditService';
+import { revokePurchase } from '../orders/revocationService';
 
 export const ORDER_STATUSES = ['pending', 'verified', 'failed', 'expired', 'cancelled', 'refunded'] as const;
 export type OrderStatus = (typeof ORDER_STATUSES)[number];
@@ -419,6 +420,48 @@ export async function resendDownload(env: Env, logger: Logger, actorId: number, 
     action: 'order.download_resent',
     entityType: 'purchase_session',
     entityId: session.id,
+  });
+
+  return { ok: true };
+}
+
+export type RefundResult = { ok: true } | { ok: false; reason: 'not_found' | 'not_verified' | 'already_refunded' };
+
+/**
+ * Version 3.0.2 Milestone M2 - the internal, admin-triggered refund
+ * action (per the M2A Product Owner's approved scope: no customer
+ * refund request workflow, no refund portal, no approval queue - just
+ * this one, audited, admin-only action). Delegates the actual
+ * revocation-sync write to `services/orders/revocationService.ts`, the
+ * one place `licenses.revoked_at` and `deliveries.status = 'revoked'`
+ * are ever set together (ADR-003). This function's own job is only
+ * the audit-log entry - the same separation of concerns
+ * `resendReceipt`/`resendDownload` above already establish for this
+ * file (business effect happens in the delegated call; this file
+ * records that an admin caused it).
+ *
+ * `entityId` is the affected `purchase_sessions.id` (M2C MAR
+ * closeout - previously left `null`, which meant a refund event could
+ * only be found by scanning `metadata`, not via
+ * `idx_audit_logs_entity`, unlike this codebase's general audit-log
+ * convention of populating `entity_id` wherever the affected row is
+ * already known).
+ */
+export async function refundOrder(env: Env, logger: Logger, actorId: number, reference: string): Promise<RefundResult> {
+  const result = await revokePurchase(env, logger, reference, 'refund');
+
+  if (!result.ok) {
+    if (result.reason === 'already_revoked') return { ok: false, reason: 'already_refunded' };
+    return { ok: false, reason: result.reason };
+  }
+
+  await auditService.record(env, logger, {
+    actorType: 'admin',
+    actorId,
+    action: 'order.refunded',
+    entityType: 'purchase_session',
+    entityId: result.purchaseSessionId,
+    metadata: { reference, licenseIds: result.licenseIds, deliveryIds: result.deliveryIds },
   });
 
   return { ok: true };

@@ -53,8 +53,8 @@ import { handleContact } from '../routes/contact';
 import { handleConsultation } from '../routes/consultation';
 import { handleCreateCheckoutSession } from '../routes/checkout';
 import { handlePaystackWebhook } from '../routes/webhooks';
-import { handleGetPurchaseStatus, handleRequestDownload } from '../routes/purchases';
-import { handleDownload } from '../routes/downloads';
+import { handleGetPurchaseStatus, handleRequestDownload, handleRequestReceiptDownload } from '../routes/purchases';
+import { handleDownload, handleDownloadReceipt } from '../routes/downloads';
 import { handleUnsubscribeStatus, handleUnsubscribeConfirm } from '../routes/unsubscribe';
 import {
   handleAdminLogin,
@@ -147,6 +147,7 @@ import {
   handleOrderGet,
   handleOrderResendReceipt,
   handleOrderResendDownload,
+  handleOrderRefund,
 } from '../routes/admin/orders';
 import {
   handleAnalyticsSummary,
@@ -191,6 +192,16 @@ import {
   handleCustomerForgotPassword,
   handleCustomerSetPassword,
 } from '../routes/customer/auth';
+// Version 3.0.2 Milestone M2 (Orders, Receipts & Customer Library) —
+// the Customer Library's data layer. See
+// docs/v3.0.2-m2-api-planning-report.md.
+import {
+  handleListCustomerPurchases,
+  handleGetCustomerPurchase,
+  handleListCustomerReceipts,
+  handleDownloadCustomerReceipt,
+  handleListCustomerLicenses,
+} from '../routes/customer/purchases';
 
 export type { Env };
 
@@ -228,6 +239,10 @@ const ROUTES: Route[] = [
   { pattern: new URLPattern({ pathname: '/api/purchases/:reference' }), method: 'GET', handler: handleGetPurchaseStatus },
   { pattern: new URLPattern({ pathname: '/api/purchases/:reference/downloads' }), method: 'POST', handler: handleRequestDownload },
   { pattern: new URLPattern({ pathname: '/api/download/:token' }), method: 'GET', handler: handleDownload },
+  // Milestone M2 (Orders, Receipts & Customer Library) — guest,
+  // reference-scoped receipt download (ADR-013 tier 2).
+  { pattern: new URLPattern({ pathname: '/api/purchases/:reference/receipt-download' }), method: 'POST', handler: handleRequestReceiptDownload },
+  { pattern: new URLPattern({ pathname: '/api/download-receipt/:token' }), method: 'GET', handler: handleDownloadReceipt },
   // Added for newsletter compliance — docs/newsletter-unsubscribe-design.md.
   // GET is a safe, non-mutating status check; POST is the actual
   // confirm action (also what Resend's List-Unsubscribe-Post header
@@ -340,6 +355,9 @@ const ROUTES: Route[] = [
   { pattern: new URLPattern({ pathname: '/api/admin/orders/:reference' }), method: 'GET', handler: handleOrderGet },
   { pattern: new URLPattern({ pathname: '/api/admin/orders/:reference/resend-receipt' }), method: 'POST', handler: handleOrderResendReceipt },
   { pattern: new URLPattern({ pathname: '/api/admin/orders/:reference/resend-download' }), method: 'POST', handler: handleOrderResendDownload },
+  // Milestone M2 (Orders, Receipts & Customer Library) — internal,
+  // admin-triggered refund/revocation action (ADR-003).
+  { pattern: new URLPattern({ pathname: '/api/admin/orders/:reference/refund' }), method: 'POST', handler: handleOrderRefund },
   // Analytics (Phase 3 Stage 4) — read-only, no role gate beyond auth.
   { pattern: new URLPattern({ pathname: '/api/admin/analytics/summary' }), method: 'GET', handler: handleAnalyticsSummary },
   { pattern: new URLPattern({ pathname: '/api/admin/analytics/timeseries' }), method: 'GET', handler: handleAnalyticsTimeseries },
@@ -449,6 +467,16 @@ const ROUTES: Route[] = [
   { pattern: new URLPattern({ pathname: '/api/customer/auth/session' }), method: 'GET', handler: handleCustomerSession },
   { pattern: new URLPattern({ pathname: '/api/customer/auth/forgot-password' }), method: 'POST', handler: handleCustomerForgotPassword },
   { pattern: new URLPattern({ pathname: '/api/customer/auth/set-password' }), method: 'POST', handler: handleCustomerSetPassword },
+  // Milestone M2 (Orders, Receipts & Customer Library) — `/receipts`
+  // ordered before `/receipts/:receiptNumber/download`'s more specific
+  // pattern is irrelevant here since URLPattern matches by exact
+  // pathname shape, not by list order, but grouped together for
+  // readability, same convention as the admin orders block above.
+  { pattern: new URLPattern({ pathname: '/api/customer/purchases' }), method: 'GET', handler: handleListCustomerPurchases },
+  { pattern: new URLPattern({ pathname: '/api/customer/purchases/:reference' }), method: 'GET', handler: handleGetCustomerPurchase },
+  { pattern: new URLPattern({ pathname: '/api/customer/receipts' }), method: 'GET', handler: handleListCustomerReceipts },
+  { pattern: new URLPattern({ pathname: '/api/customer/receipts/:receiptNumber/download' }), method: 'GET', handler: handleDownloadCustomerReceipt },
+  { pattern: new URLPattern({ pathname: '/api/customer/licenses' }), method: 'GET', handler: handleListCustomerLicenses },
 ];
 
 export default {

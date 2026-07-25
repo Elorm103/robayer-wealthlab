@@ -111,4 +111,7 @@ export type ApiErrorCode =
   | 'CAMPAIGN_NOT_SENDING'
   | 'TEST_REQUIRED'
   | 'NO_RECIPIENTS'
-  | 'RECIPIENT_CAP_EXCEEDED';
+  | 'RECIPIENT_CAP_EXCEEDED'
+  // /api/customer/purchases/*, /api/customer/receipts/*, /api/purchases/:reference/receipt-download
+  // — added Version 3.0.2 Milestone M2 (Orders, Receipts & Customer Library)
+  | 'RECEIPT_NOT_FOUND';

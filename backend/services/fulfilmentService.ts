@@ -245,7 +245,13 @@ export interface FulfilmentStatusAsset {
  * "Security" — "Do not expose internal identifiers" extends to
  * internal *state names*, not just database ids.
  */
-export type CustomerFacingStatus = 'processing' | 'ready' | 'unavailable';
+// 'refunded' added Version 3.0.2 Milestone M2 (Orders, Receipts &
+// Customer Library) — see docs/v3.0.2-m2-customer-library-ux-plan.md's
+// "Purchase status" section. purchase_sessions.status already had a
+// live 'refunded' enum value since before M1; this is the first code
+// path that actually surfaces it distinctly to a visitor, once
+// services/orders/revocationService.ts sets it.
+export type CustomerFacingStatus = 'processing' | 'ready' | 'unavailable' | 'refunded';
 
 export interface FulfilmentStatus {
   status: CustomerFacingStatus;
@@ -254,6 +260,8 @@ export interface FulfilmentStatus {
   amountDisplay: string;
   /** Only populated when `status === 'ready'`. */
   assets: FulfilmentStatusAsset[];
+  /** Milestone M2 — null until the order-artifacts pass has run (or if it failed and hasn't yet been retried). */
+  receiptNumber: string | null;
 }
 
 interface PurchaseSessionSummaryRow {
@@ -282,16 +290,41 @@ export async function getFulfilmentStatus(env: Env, purchaseReference: string): 
   if (!session) return null;
 
   const customerStatus: CustomerFacingStatus =
-    session.status === 'verified' ? 'ready' : session.status === 'pending' ? 'processing' : 'unavailable';
+    session.status === 'verified'
+      ? 'ready'
+      : session.status === 'pending'
+        ? 'processing'
+        : session.status === 'refunded'
+          ? 'refunded'
+          : 'unavailable';
 
   let assets: FulfilmentStatusAsset[] = [];
+  let receiptNumber: string | null = null;
   if (customerStatus === 'ready') {
+    // Deliberately NOT populated for 'refunded' — a revoked entitlement
+    // must never be listed as downloadable, even though the real
+    // access gate (entitlementService.ts's deliveries.status check)
+    // would independently deny the actual download attempt regardless.
+    // Listing it anyway would be confusing at best.
     const product = await fetchCatalogProduct(env, session.productSlug);
     if (product) {
       assets = product.digitalAssets
         .filter(isAssetPublished)
         .map((asset) => ({ assetId: asset.assetId, displayName: asset.displayName, fileType: asset.fileType }));
     }
+  }
+  if (customerStatus === 'ready' || customerStatus === 'refunded') {
+    // The receipt itself remains viewable/downloadable even after a
+    // refund — a receipt is a historical financial record, not an
+    // access grant (see docs/v3.0.2-m2-database-planning-report.md's
+    // retention note: receipts are never deleted).
+    const receiptRow = await env.DB.prepare(
+      `SELECT receipt_number AS receiptNumber FROM receipts
+       WHERE purchase_session_id = (SELECT id FROM purchase_sessions WHERE purchase_reference = ?)`
+    )
+      .bind(purchaseReference)
+      .first<{ receiptNumber: string | null }>();
+    receiptNumber = receiptRow?.receiptNumber ?? null;
   }
 
   return {
@@ -300,5 +333,6 @@ export async function getFulfilmentStatus(env: Env, purchaseReference: string): 
     productTitle: session.productTitle,
     amountDisplay: formatAmount(session.amountPesewas, session.currency),
     assets,
+    receiptNumber,
   };
 }

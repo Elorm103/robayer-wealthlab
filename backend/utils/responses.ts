@@ -82,4 +82,5 @@ export const ERROR_STATUS: Record<ApiErrorCode, number> = {
   TEST_REQUIRED: 400,
   NO_RECIPIENTS: 400,
   RECIPIENT_CAP_EXCEEDED: 409,
+  RECEIPT_NOT_FOUND: 404,
 };

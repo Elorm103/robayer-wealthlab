@@ -19,6 +19,7 @@ import type { Logger } from '../utils/logger';
 import { jsonError } from '../utils/responses';
 import { isRateLimited } from '../middleware/rateLimit';
 import { redeemDownloadToken, type RedeemDenialReason } from '../services/entitlementService';
+import { redeemReceiptDownloadToken } from '../services/orders/receiptEntitlementService';
 import { buildDownloadFilename } from '../utils/downloadFilename';
 import type { ApiErrorCode } from '../types/api-contracts';
 
@@ -93,6 +94,50 @@ export async function handleDownload(request: Request, env: Env, logger: Logger,
       'Content-Disposition': `attachment; filename="${buildDownloadFilename(result.productTitle, result.asset.fileType)}"`,
       'Content-Length': String(object.size),
       'Cache-Control': 'no-store', // never let a browser/proxy cache a purchased file at a URL that's about to be invalidated
+    },
+  });
+}
+
+// Milestone M2 (Orders, Receipts & Customer Library) — GET
+// /api/download-receipt/:token, the guest reference-scoped receipt
+// redemption endpoint. Deliberately a separate route/handler from
+// handleDownload above rather than a shared one: the two token types
+// (download_tokens vs receipt_download_tokens) resolve to different
+// tables and different denial vocabularies (see
+// services/orders/receiptEntitlementService.ts's own header comment
+// on why it mirrors, rather than reuses, entitlementService.ts).
+const RECEIPT_DOWNLOAD_RATE_LIMIT = { endpoint: 'download-receipt', limit: 20, windowSeconds: 60 };
+
+const RECEIPT_REASON_TO_MESSAGE: Record<string, string> = {
+  token_not_found: 'This receipt link is invalid.',
+  token_expired: 'This receipt link has expired. Please request a new one from your purchase confirmation page.',
+  token_already_used: 'This receipt link has already been used. Please request a new one from your purchase confirmation page.',
+  receipt_unavailable: 'This receipt is temporarily unavailable. Please try again shortly.',
+};
+
+export async function handleDownloadReceipt(request: Request, env: Env, logger: Logger, params: Record<string, string | undefined>): Promise<Response> {
+  if (await isRateLimited(request, env, RECEIPT_DOWNLOAD_RATE_LIMIT)) {
+    return jsonError('RATE_LIMITED', 'Too many requests. Please try again in a minute.');
+  }
+
+  const result = await redeemReceiptDownloadToken(env, logger, params.token);
+  if (!result.ok) {
+    return jsonError('RECEIPT_NOT_FOUND', RECEIPT_REASON_TO_MESSAGE[result.reason] ?? RECEIPT_REASON_TO_MESSAGE.token_not_found);
+  }
+
+  const object = await env.STORAGE.get(result.storageKey);
+  if (!object) {
+    logger.error('download_receipt.object_not_found_in_storage', { storageKey: result.storageKey });
+    return jsonError('RECEIPT_NOT_FOUND', RECEIPT_REASON_TO_MESSAGE.receipt_unavailable);
+  }
+
+  return new Response(object.body, {
+    status: 200,
+    headers: {
+      'Content-Type': 'application/pdf',
+      'Content-Disposition': `attachment; filename="${result.receiptNumber}.pdf"`,
+      'Content-Length': String(object.size),
+      'Cache-Control': 'no-store',
     },
   });
 }
