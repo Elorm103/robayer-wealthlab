@@ -10,20 +10,24 @@
     "deploy:staging": "wrangler deploy --env staging",
     "tail": "wrangler tail",
     "typecheck": "tsc --noEmit",
+    "test": "vitest run",
     "db:apply:local": "wrangler d1 execute robayer-wealthlab-db --local --file=./database/schema.sql",
     "db:apply:remote": "wrangler d1 execute robayer-wealthlab-db --remote --file=./database/schema.sql"
   },
   "devDependencies": {
+    "@cloudflare/vitest-pool-workers": "^0.18.8",
     "@cloudflare/workers-types": "^4.0.0",
     "pdf-lib": "^1.17.1",
     "pdf-parse": "^2.4.5",
     "puppeteer-core": "^25.3.0",
     "typescript": "^5.4.0",
+    "vitest": "^4.1.10",
     "wrangler": "^4.0.0"
   },
   "allowScripts": {
     "esbuild@0.28.1": true,
     "workerd@1.20260701.1": true,
+    "workerd@1.20260722.1": true,
     "sharp@0.34.5": true
   }
 }

@@ -76,6 +76,26 @@
           </div>
 
           <p class="text-secondary text-small" data-fulfilment-download-error role="alert" hidden></p>
+
+          <!-- Version 3.0.2 Milestone M1 (Customer Identity & Guest
+               Checkout): a static, honest, low-pressure note — the
+               actual password-setup link only ever arrives by email
+               (services/customer/authService.ts issues a fresh,
+               single-use token per welcome email; this page never
+               constructs or displays that link itself, matching the
+               ratified Blueprint's "viewing by reference, actions
+               need a real token" access model). Shown unconditionally
+               rather than JS-detected, since whether this is a
+               first-ever purchase under this email isn't something
+               this page can honestly determine client-side — the
+               copy is worded to stay true either way. -->
+          <p class="text-secondary text-small">
+            Want to come back and see this purchase anytime, without
+            digging up this email? If this was your first purchase
+            with us, check your inbox for an optional link to set a
+            password — never required, and your download above works
+            the same either way.
+          </p>
         </div>
 
         <!-- Unavailable / error state -->

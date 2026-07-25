@@ -1,9 +1,8 @@
 -- Robayer WealthLab — Cloudflare D1 Schema
 --
 -- STATUS: this is the live production schema, current as of migration
--- 0016 (Version 2.1 Phase 6) and verified against migrations 0001-0016
--- during the Version 2.1 Phase 7 Final Acceptance Audit's data-integrity
--- review. This file is the cumulative, human-readable reference that
+-- 0018 (Version 3.0.2 Milestone M1: Customer Identity & Guest Checkout).
+-- This file is the cumulative, human-readable reference that
 -- backend/database/migrations/*.sql should sum to when applied in
 -- order via `wrangler d1 migrations apply` — it is not itself applied
 -- directly to any real database (see docs/deployment-checklist.md).
@@ -186,13 +185,31 @@ CREATE TABLE purchase_sessions (
   verified_at          TEXT, -- set only once verification succeeds (status transitions to 'verified') — the moment Sprint 2.5 delivery is allowed to trust
   expires_at           TEXT NOT NULL, -- short TTL (see backend/services/commerceService.ts) — a session that never resolves should not stay "pending" forever
   created_at           TEXT NOT NULL DEFAULT (datetime('now')),
-  updated_at           TEXT NOT NULL DEFAULT (datetime('now'))
+  updated_at           TEXT NOT NULL DEFAULT (datetime('now')),
   -- No deleted_at: like payment_transactions, a purchase session is a factual record of a purchase attempt, never hidden.
+
+  -- Version 3.0.2 Milestone M1 (Customer Identity & Guest Checkout,
+  -- migration 0018) — see docs/v3.0.2-commerce-architecture-blueprint.md.
+  -- customer_id is nullable: this row exists (status='pending') before
+  -- the customer is ever provisioned, and is set only at verification,
+  -- via the find-or-create-by-confirmed-email step (ADR-006 in
+  -- docs/v3.0.2-architecture-decision-register.md). The four consent
+  -- columns capture Terms of Service / License Agreement / marketing
+  -- consent at the moment of the Buy click (ADR-002's zero-form
+  -- checkout is preserved — see js/components/buy-button.js — this is
+  -- a purchase-time consent record, not a typed form field).
+  customer_id          INTEGER REFERENCES customers(id),
+  terms_accepted_at    TEXT,
+  terms_version        TEXT,
+  license_accepted_at  TEXT,
+  license_version      TEXT,
+  marketing_opt_in     INTEGER NOT NULL DEFAULT 0
 );
 
 CREATE INDEX idx_purchase_sessions_status ON purchase_sessions(status);
 CREATE INDEX idx_purchase_sessions_product ON purchase_sessions(product_slug);
 CREATE INDEX idx_purchase_sessions_reference ON purchase_sessions(purchase_reference);
+CREATE INDEX idx_purchase_sessions_customer ON purchase_sessions(customer_id);
 
 -- ============================================================
 -- NEWSLETTER_SUBSCRIBERS
@@ -864,3 +881,70 @@ CREATE INDEX idx_blog_posts_status ON blog_posts(status);
 CREATE INDEX idx_blog_posts_category ON blog_posts(category);
 CREATE INDEX idx_blog_posts_deleted_at ON blog_posts(deleted_at);
 CREATE INDEX idx_blog_posts_created_at ON blog_posts(created_at);
+
+-- ============================================================
+-- CUSTOMERS / CUSTOMER_PROFILES / CUSTOMER_SESSIONS /
+-- CUSTOMER_PASSWORD_TOKENS
+-- Added in migration 0018 (Version 3.0.2 Milestone M1: Customer
+-- Identity & Guest Checkout) — see
+-- docs/v3.0.2-commerce-architecture-blueprint.md and
+-- docs/v3.0.2-architecture-decision-register.md (ADR-002, ADR-004,
+-- ADR-006). The customer-facing identity, deliberately separate from
+-- admin_users (ADR-004: never merged). customer_sessions and
+-- customer_password_tokens directly mirror admin_sessions'/
+-- password_reset_tokens' already-proven shapes.
+-- ============================================================
+CREATE TABLE customers (
+  id                 INTEGER PRIMARY KEY AUTOINCREMENT,
+  email              TEXT NOT NULL UNIQUE,
+  password_hash      TEXT, -- NULL until the customer sets a password — an account with no password cannot be logged into by anyone (see ADR-002/ADR-006)
+  email_verified_at  TEXT, -- set immediately at purchase-triggered creation; a successful payment is itself the identity signal
+  status             TEXT NOT NULL DEFAULT 'active' CHECK (status IN ('active', 'suspended')),
+  created_at         TEXT NOT NULL DEFAULT (datetime('now')),
+  updated_at         TEXT NOT NULL DEFAULT (datetime('now')),
+  deleted_at         TEXT -- soft delete on account-closure request
+);
+
+CREATE INDEX idx_customers_status ON customers(status);
+CREATE INDEX idx_customers_deleted_at ON customers(deleted_at);
+
+CREATE TABLE customer_profiles (
+  customer_id       INTEGER PRIMARY KEY REFERENCES customers(id),
+  display_name      TEXT,
+  country           TEXT,
+  marketing_opt_in  INTEGER NOT NULL DEFAULT 0, -- seeded from purchase_sessions.marketing_opt_in at provisioning; editable later (Milestone M3)
+  preferred_topics  TEXT,
+  avatar_media_id   INTEGER REFERENCES media_assets(id),
+  updated_at        TEXT NOT NULL DEFAULT (datetime('now'))
+);
+
+CREATE TABLE customer_sessions (
+  id           INTEGER PRIMARY KEY AUTOINCREMENT,
+  token        TEXT NOT NULL UNIQUE,
+  customer_id  INTEGER NOT NULL REFERENCES customers(id),
+  csrf_secret  TEXT NOT NULL,
+  ip_created   TEXT,
+  user_agent   TEXT,
+  expires_at   TEXT NOT NULL,
+  revoked_at   TEXT,
+  created_at   TEXT NOT NULL DEFAULT (datetime('now')),
+  last_seen_at TEXT NOT NULL DEFAULT (datetime('now'))
+);
+
+CREATE INDEX idx_customer_sessions_customer ON customer_sessions(customer_id);
+CREATE INDEX idx_customer_sessions_expires ON customer_sessions(expires_at);
+
+-- Single-use, short-lived token backing BOTH the initial password-setup
+-- flow (after first purchase) and any later password-reset request —
+-- the mechanics are identical, only the triggering email's copy
+-- differs. Mirrors password_reset_tokens exactly.
+CREATE TABLE customer_password_tokens (
+  id           INTEGER PRIMARY KEY AUTOINCREMENT,
+  token        TEXT NOT NULL UNIQUE,
+  customer_id  INTEGER NOT NULL REFERENCES customers(id),
+  expires_at   TEXT NOT NULL,
+  used_at      TEXT,
+  created_at   TEXT NOT NULL DEFAULT (datetime('now'))
+);
+
+CREATE INDEX idx_customer_password_tokens_customer ON customer_password_tokens(customer_id);

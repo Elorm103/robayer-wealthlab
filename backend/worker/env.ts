@@ -12,6 +12,8 @@ export interface Env {
   STORAGE: R2Bucket;
   RATE_LIMIT_KV: KVNamespace;
   RESEND_API_KEY: string;
+  /** e.g. "https://api.resend.com" — kept configurable rather than hardcoded, same reasoning as PAYSTACK_BASE_URL below. In production this is always the real Resend URL; tests intercept it via tests/outboundMock.ts's outboundService rather than overriding this binding. */
+  RESEND_BASE_URL: string;
   // Added in Version 1.2 Sprint 2.3 (Commerce Foundation) — see
   // docs/commerce-foundation.md.
   /**

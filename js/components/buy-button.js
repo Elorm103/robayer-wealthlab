@@ -1,16 +1,27 @@
 /**
  * Robayer WealthLab: Buy Button Component (Version 1.2 Sprint 2.3,
- * Commerce Foundation)
+ * Commerce Foundation; extended Version 3.0.2 Milestone M1, Customer
+ * Identity & Guest Checkout)
  *
  * Progressive enhancement for any link/button marked [data-buy-button]
  * with a [data-product-slug]. On click: disables the button, shows a
- * loading state, POSTs only `{ productId }` to the Cloudflare Worker's
- * checkout endpoint (never price/currency/title; the Worker loads
- * those itself from the Product Platform, see
- * docs/commerce-foundation.md), then redirects the visitor to the
- * checkout URL the Worker returns. This is the one place on the site
- * that actually starts a purchase; see docs/commerce-foundation.md's
- * "Frontend" section.
+ * loading state, POSTs `{ productId, termsAccepted, licenseAccepted,
+ * marketingOptIn }` to the Cloudflare Worker's checkout endpoint
+ * (never price/currency/title; the Worker loads those itself from the
+ * Product Platform, see docs/commerce-foundation.md), then redirects
+ * the visitor to the checkout URL the Worker returns. This is the one
+ * place on the site that actually starts a purchase; see
+ * docs/commerce-foundation.md's "Frontend" section.
+ *
+ * Milestone M1 consent capture — see
+ * docs/v3.0.2-commerce-architecture-blueprint.md's ratified Checkout
+ * Architecture: `termsAccepted`/`licenseAccepted` are always sent as
+ * `true` — the visible "By purchasing, you agree to..." statement
+ * rendered next to the button (see backend/routes/books.ts) IS the
+ * consent action, deliberately not a second required checkbox click,
+ * per ADR-002's zero-added-friction decision. `marketingOptIn` reads
+ * the one genuinely optional, separately-rendered, unchecked-by-default
+ * checkbox on the page, if present.
  *
  * The Worker never verifies payment or grants anything from this
  * request; it only prepares a checkout session and hands back a URL
@@ -48,11 +59,27 @@ function initBuyButtons() {
       clearError(button);
       setLoading(button, true, defaultLabel);
 
+      // The one, page-singleton marketing checkbox, if the page rendered
+      // one — a product detail page has a single product context, so
+      // one shared checkbox (not one per Buy button) is the correct
+      // model even though the page may have more than one Buy button
+      // (hero + closing CTA — see backend/routes/books.ts).
+      const marketingCheckbox = document.querySelector('#purchase-marketing-optin');
+      const marketingOptIn = !!(marketingCheckbox && marketingCheckbox.checked);
+
       try {
         const response = await fetch(CHECKOUT_API_URL, {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ productId: productSlug }),
+          body: JSON.stringify({
+            productId: productSlug,
+            // Sending Buy at all IS the acceptance action for the
+            // Terms of Service / License Agreement statement rendered
+            // next to this button — see this file's own header comment.
+            termsAccepted: true,
+            licenseAccepted: true,
+            marketingOptIn,
+          }),
         });
         const result = await response.json();
 

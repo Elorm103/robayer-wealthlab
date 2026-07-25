@@ -1,0 +1,81 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+
+  <title>Set Your Password | Robayer WealthLab</title>
+  <meta name="description" content="Set a password for your Robayer WealthLab account.">
+  <link rel="canonical" href="https://robayerwealthlab.com/checkout/set-password/">
+  <!-- noindex: a private, token-gated account action page — nothing
+       here is meant to appear in search results, matching
+       /checkout/callback/'s own convention. -->
+  <meta name="robots" content="noindex, nofollow">
+
+  <link rel="icon" type="image/svg+xml" href="/assets/icons/favicon.svg">
+  <link rel="icon" type="image/png" sizes="32x32" href="/assets/icons/favicon-32.png">
+  <link rel="apple-touch-icon" href="/assets/icons/apple-touch-icon.png">
+
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Newsreader:ital,wght@0,600;1,500&family=Space+Grotesk:wght@500&family=Work+Sans:wght@400;500&family=IBM+Plex+Mono:wght@400;500&display=swap" rel="stylesheet">
+
+  <link rel="stylesheet" href="/css/tokens.css">
+  <link rel="stylesheet" href="/css/base.css">
+  <link rel="stylesheet" href="/css/layout.css">
+  <link rel="stylesheet" href="/css/components.css">
+  <link rel="stylesheet" href="/css/utilities.css">
+</head>
+<body>
+  <a href="#main-content" class="skip-link">Skip to main content</a>
+
+  <div data-include="/partials/header.html"></div>
+
+  <main id="main-content">
+    <section class="section" aria-labelledby="set-password-heading">
+      <div class="container content-column">
+        <span class="eyebrow text-center">Your account</span>
+        <h1 id="set-password-heading" class="mt-2 mb-2 text-center">Set your password</h1>
+        <p class="text-secondary text-center mb-5">
+          Optional — this just lets you sign in later to see your
+          purchases in one place. Your download link keeps working
+          either way.
+        </p>
+
+        <form class="card" style="max-width:420px;margin:0 auto;padding:var(--space-5);" data-set-password-form novalidate aria-label="Set password">
+          <div class="field">
+            <label for="new-password" class="field__label">New password</label>
+            <input type="password" id="new-password" name="newPassword" class="field__input" minlength="12" autocomplete="new-password" required>
+          </div>
+          <div class="field">
+            <label for="confirm-password" class="field__label">Confirm password</label>
+            <input type="password" id="confirm-password" name="confirmPassword" class="field__input" minlength="12" autocomplete="new-password" required>
+            <span class="field__hint">At least 12 characters.</span>
+            <span class="field__error" role="alert" hidden></span>
+          </div>
+          <button type="submit" class="btn btn--accent" style="width:100%;">Set password</button>
+        </form>
+
+        <div data-set-password-no-token hidden>
+          <p class="alert alert--error">
+            This link is missing its setup token, so we can't continue.
+            If you followed a link from your email, try copying and
+            pasting the full link into your browser. Still stuck? Email
+            <a href="mailto:hello@robayerwealthlab.com">hello@robayerwealthlab.com</a>.
+          </p>
+        </div>
+      </div>
+    </section>
+  </main>
+
+  <div data-include="/partials/footer.html"></div>
+
+  <script src="/js/includes.js"></script>
+  <script src="/js/components/nav.js"></script>
+  <script src="/js/components/theme-toggle.js"></script>
+  <script src="/js/components/branding.js"></script>
+  <script src="/js/content-inject.js"></script>
+  <script src="/js/components/set-password-form.js"></script>
+  <script src="/js/main.js"></script>
+</body>
+</html>

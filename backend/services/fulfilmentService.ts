@@ -25,6 +25,7 @@ import type { Env } from '../worker/env';
 import type { Logger } from '../utils/logger';
 import { fetchCatalogProduct, isAssetPublished, type DigitalAsset, type DownloadPolicy } from './productCatalogService';
 import { sendEmail } from './emailService';
+import { issuePasswordToken } from './customer/authService';
 
 export interface FulfilPurchaseInput {
   purchaseSessionId: number;
@@ -34,6 +35,18 @@ export interface FulfilPurchaseInput {
   customerEmail: string | null;
   amountPesewas: number;
   currency: string;
+  /**
+   * Version 3.0.2 Milestone M1 — set by commerceService.ts's
+   * customer-provisioning step, which always runs before this is
+   * called. `customerId` is null only if provisioning itself failed or
+   * was skipped (no confirmed email) — fulfilment still proceeds either
+   * way; the download entitlement never depends on a customer record
+   * existing, per the ratified Blueprint's own "email-link access
+   * preserved permanently" decision (ADR-003).
+   */
+  customerId: number | null;
+  /** True only for a newly-created customers row — gates the one-time welcome/password-setup email (Deliverable 7: sent once, never repeated on a later guest purchase under the same email). */
+  isNewCustomer: boolean;
 }
 
 /**
@@ -145,10 +158,20 @@ async function markDelivered(env: Env, purchaseSessionId: number, assetIds: stri
 }
 
 /**
- * Two emails, matching backend/emails/README.md's already-planned
- * template names — reusing services/emailService.ts exactly as every
- * other triggering action already does, never a second email-sending
- * code path. See docs/digital-fulfilment.md's "Email integration."
+ * Two or three emails, matching backend/emails/README.md's
+ * already-planned template names — reusing services/emailService.ts
+ * exactly as every other triggering action already does, never a
+ * second email-sending code path. See docs/digital-fulfilment.md's
+ * "Email integration."
+ *
+ * Milestone M1 adds a third, conditional email: the welcome/
+ * password-setup invite, sent only when this purchase created a new
+ * `customers` row (`input.isNewCustomer`) — never on a second guest
+ * purchase under an email that already has an account, per the
+ * ratified Blueprint's Deliverable 7 ("sent once, never repeated").
+ * Uses `authService.issuePasswordToken()`, the same shared mechanism a
+ * later self-service password reset uses — see that function's own
+ * doc comment.
  */
 async function sendFulfilmentEmails(env: Env, logger: Logger, input: FulfilPurchaseInput, productTitle: string): Promise<void> {
   const amountDisplay = formatAmount(input.amountPesewas, input.currency);
@@ -177,6 +200,23 @@ async function sendFulfilmentEmails(env: Env, logger: Logger, input: FulfilPurch
     entityType: 'purchase_session',
     entityId: input.purchaseSessionId,
   });
+
+  if (input.isNewCustomer && input.customerId) {
+    try {
+      await issuePasswordToken(env, logger, input.customerId, input.customerEmail as string, env.SITE_BASE_URL, 'customer-welcome');
+    } catch (err) {
+      // Same "never let an email failure affect fulfilment" discipline
+      // this whole function already operates under (its caller wraps
+      // everything in a try/catch that only logs) — explicit here too
+      // since this is the one email in this function that isn't itself
+      // already inside sendEmail()'s own never-throws contract.
+      logger.error('fulfilment.welcome_email_failed', {
+        purchaseReference: input.purchaseReference,
+        customerId: input.customerId,
+        error: err instanceof Error ? err.message : String(err),
+      });
+    }
+  }
 }
 
 function formatAmount(amountPesewas: number, currency: string): string {

@@ -43,15 +43,38 @@ export async function handleCreateCheckoutSession(request: Request, env: Env, lo
       code: 'VALIDATION_ERROR',
       message: 'A valid productId is required.',
     },
+    // Milestone M1 (Customer Identity & Guest Checkout) — see
+    // docs/v3.0.2-commerce-architecture-blueprint.md's ratified
+    // Checkout Architecture. Strict `=== true`: this is the same
+    // consent statement rendered next to the Buy button (see
+    // js/components/buy-button.js), never a typed form field — ADR-002's
+    // zero-form checkout is unchanged. marketingOptIn is validated
+    // separately below since it's genuinely optional (any non-`true`
+    // value, including absence, means opted out).
+    termsAccepted: {
+      test: (value) => value === true,
+      code: 'CONSENT_REQUIRED',
+      message: 'Please accept the Terms of Service and License Agreement to continue.',
+    },
+    licenseAccepted: {
+      test: (value) => value === true,
+      code: 'CONSENT_REQUIRED',
+      message: 'Please accept the Terms of Service and License Agreement to continue.',
+    },
   });
   if (!validation.valid) {
     return jsonError(validation.code, validation.message);
   }
 
-  const { productId } = body as { productId: string };
+  const { productId, marketingOptIn } = body as { productId: string; marketingOptIn?: unknown };
 
   try {
-    const result = await createCheckoutSession(env, logger, { productSlug: productId });
+    const result = await createCheckoutSession(env, logger, {
+      productSlug: productId,
+      termsAccepted: true,
+      licenseAccepted: true,
+      marketingOptIn: marketingOptIn === true,
+    });
     return jsonSuccess({ purchaseReference: result.purchaseReference, checkoutUrl: result.checkoutUrl });
   } catch (err) {
     if (err instanceof CommerceError) {

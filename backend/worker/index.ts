@@ -180,6 +180,17 @@ import {
   handleBlogBulkAction,
 } from '../routes/admin/blog';
 import { handleBlogIndex, handleBlogDetail, handleBlogRedirect } from '../routes/blog';
+// Added Version 3.0.2 Milestone M1 (Customer Identity & Guest Checkout)
+// — see docs/v3.0.2-commerce-architecture-blueprint.md. The only
+// customer-facing auth routes in this milestone; no public
+// registration endpoint exists (ADR-006).
+import {
+  handleCustomerLogin,
+  handleCustomerLogout,
+  handleCustomerSession,
+  handleCustomerForgotPassword,
+  handleCustomerSetPassword,
+} from '../routes/customer/auth';
 
 export type { Env };
 
@@ -426,6 +437,18 @@ const ROUTES: Route[] = [
   { pattern: new URLPattern({ pathname: '/blog/' }), method: 'GET', handler: handleBlogIndex },
   { pattern: new URLPattern({ pathname: '/blog/:slug/' }), method: 'GET', handler: handleBlogDetail },
   { pattern: new URLPattern({ pathname: '/blog/:slug' }), method: 'GET', handler: handleBlogRedirect },
+  // Added Version 3.0.2 Milestone M1 (Customer Identity & Guest
+  // Checkout) — see docs/v3.0.2-commerce-architecture-blueprint.md.
+  // No registration/sign-up route exists here or anywhere in this
+  // scope (ADR-006) — every /api/customer/auth/* route below is
+  // either unauthenticated-by-design (login, forgot-password,
+  // set-password — mirroring admin auth's equivalent public flows) or
+  // requires an existing session (logout, session).
+  { pattern: new URLPattern({ pathname: '/api/customer/auth/login' }), method: 'POST', handler: handleCustomerLogin },
+  { pattern: new URLPattern({ pathname: '/api/customer/auth/logout' }), method: 'POST', handler: handleCustomerLogout },
+  { pattern: new URLPattern({ pathname: '/api/customer/auth/session' }), method: 'GET', handler: handleCustomerSession },
+  { pattern: new URLPattern({ pathname: '/api/customer/auth/forgot-password' }), method: 'POST', handler: handleCustomerForgotPassword },
+  { pattern: new URLPattern({ pathname: '/api/customer/auth/set-password' }), method: 'POST', handler: handleCustomerSetPassword },
 ];
 
 export default {

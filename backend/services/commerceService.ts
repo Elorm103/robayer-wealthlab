@@ -36,11 +36,25 @@ import { fetchCatalogProduct, isPurchasable } from './productCatalogService';
 import { getPaymentProvider } from './payments';
 import { formatPurchaseReference } from '../utils/purchaseReference';
 import { fulfilPurchase } from './fulfilmentService';
+import { findOrCreateCustomer } from './customer/identityService';
 
 /** A pending session outlives a genuinely slow checkout, but doesn't sit "pending" forever if the visitor abandons it — see docs/commerce-foundation.md. */
 const PURCHASE_SESSION_TTL_MINUTES = 30;
 
-export type CommerceErrorCode = 'PRODUCT_NOT_FOUND' | 'PRODUCT_NOT_ACTIVE' | 'PAYSTACK_API_ERROR';
+/**
+ * Version 3.0.2 Milestone M1 — the Terms of Service / License Agreement
+ * versions a checkout locks acceptance against. Server-stamped, never
+ * client-supplied (the same "never trust the client for anything that
+ * matters" discipline this file already applies to price/currency) —
+ * see legal/terms-of-use/index.html and legal/license-agreement/index.html.
+ * Bump these constants (and note the change in the M1 documentation)
+ * whenever either document's substance changes; a past purchase's
+ * locked version must never silently drift to match a newer document.
+ */
+const CURRENT_TERMS_VERSION = 'v1.0';
+const CURRENT_LICENSE_VERSION = 'v1.0';
+
+export type CommerceErrorCode = 'PRODUCT_NOT_FOUND' | 'PRODUCT_NOT_ACTIVE' | 'PAYSTACK_API_ERROR' | 'CONSENT_REQUIRED';
 
 /**
  * Thrown for every expected failure in this service. routes/checkout.ts
@@ -60,6 +74,20 @@ export class CommerceError extends Error {
 export interface CreateCheckoutSessionInput {
   /** The Product Platform's `slug` — the wire field is named `productId` (matching the sprint brief's contract); there is no separate numeric product ID in this project's architecture, see docs/commerce-foundation.md. */
   productSlug: unknown;
+  /**
+   * Milestone M1 consent capture — see
+   * docs/v3.0.2-commerce-architecture-blueprint.md's ratified Checkout
+   * Architecture. Both required: `true` means the visitor clicked Buy
+   * with the Terms/License consent statement visibly attached (see
+   * js/components/buy-button.js) — this is a purchase-time consent
+   * record, not a typed form field, so ADR-002's zero-form-checkout
+   * decision is unchanged. `marketingOptIn` is the one genuinely
+   * optional, separately-rendered checkbox — defaults to `false`
+   * (opt-out) if omitted or not strictly `true`.
+   */
+  termsAccepted: unknown;
+  licenseAccepted: unknown;
+  marketingOptIn: unknown;
 }
 
 export interface CreateCheckoutSessionResult {
@@ -84,6 +112,16 @@ export async function createCheckoutSession(
     throw new CommerceError('PRODUCT_NOT_ACTIVE', "This product isn't available for purchase right now.");
   }
 
+  // Server-side re-validation — never trust the client's own gating of
+  // the Buy button (js/components/buy-button.js already blocks the
+  // click client-side, but that is a UX convenience, never the actual
+  // enforcement). Strict `=== true`: anything else (missing, a string,
+  // a falsy value) is treated as not accepted.
+  if (input.termsAccepted !== true || input.licenseAccepted !== true) {
+    throw new CommerceError('CONSENT_REQUIRED', 'Please accept the Terms of Service and License Agreement to continue.');
+  }
+  const marketingOptIn = input.marketingOptIn === true;
+
   // product.price is a plain display number (e.g. 39 for GH₵39) —
   // converted to the smallest currency unit only here, at the one
   // point that actually calls a payment provider. See
@@ -99,6 +137,7 @@ export async function createCheckoutSession(
     productTitle: product.title,
     amountPesewas,
     currency,
+    marketingOptIn,
   });
 
   const provider = getPaymentProvider(env);
@@ -142,6 +181,7 @@ interface InsertPurchaseSessionInput {
   productTitle: string;
   amountPesewas: number;
   currency: string;
+  marketingOptIn: boolean;
 }
 
 /**
@@ -153,6 +193,13 @@ interface InsertPurchaseSessionInput {
  * constraint never treats two NULLs as duplicates, so two purchase
  * sessions being created in the same instant can never collide during
  * the brief window before each gets its real reference.
+ *
+ * Terms/License consent is stamped here too — `termsAccepted`/
+ * `licenseAccepted` were already validated `=== true` by the caller,
+ * so acceptance is unconditional at this point; only the *version*
+ * being agreed to (CURRENT_TERMS_VERSION/CURRENT_LICENSE_VERSION) and
+ * the timestamp are recorded, same snapshot-at-checkout-time discipline
+ * this table already applies to price/title/version.
  */
 async function insertPurchaseSession(env: Env, input: InsertPurchaseSessionInput): Promise<{ id: number; purchaseReference: string }> {
   const now = new Date();
@@ -160,8 +207,9 @@ async function insertPurchaseSession(env: Env, input: InsertPurchaseSessionInput
 
   const inserted = await env.DB.prepare(
     `INSERT INTO purchase_sessions
-       (purchase_reference, product_slug, product_id, product_version, product_title, amount_pesewas, currency, status, provider, expires_at)
-     VALUES (NULL, ?, ?, ?, ?, ?, ?, 'pending', ?, ?)`
+       (purchase_reference, product_slug, product_id, product_version, product_title, amount_pesewas, currency, status, provider, expires_at,
+        terms_accepted_at, terms_version, license_accepted_at, license_version, marketing_opt_in)
+     VALUES (NULL, ?, ?, ?, ?, ?, ?, 'pending', ?, ?, datetime('now'), ?, datetime('now'), ?, ?)`
   )
     .bind(
       input.productSlug,
@@ -171,7 +219,10 @@ async function insertPurchaseSession(env: Env, input: InsertPurchaseSessionInput
       input.amountPesewas,
       input.currency,
       env.PAYMENT_PROVIDER,
-      expiresAt.toISOString()
+      expiresAt.toISOString(),
+      CURRENT_TERMS_VERSION,
+      CURRENT_LICENSE_VERSION,
+      input.marketingOptIn ? 1 : 0
     )
     .run();
 
@@ -224,6 +275,8 @@ interface PurchaseSessionRow {
   currency: string;
   status: string;
   expiresAt: string;
+  /** Milestone M1 — the marketing-consent checkbox state locked at checkout time, seeded into the new customer_profiles row at provisioning. */
+  marketingOptIn: boolean;
 }
 
 /**
@@ -394,6 +447,43 @@ export async function handlePaymentWebhook(env: Env, logger: Logger, input: Hand
   await markTransactionOutcome(env, providerReference, 'success');
   logger.info('verification.passed', { reference: providerReference, productSlug: session.productSlug });
 
+  // Milestone M1 (Customer Identity & Guest Checkout) — "inside the
+  // same verification transaction," per the ratified
+  // docs/v3.0.2-commerce-architecture-blueprint.md's Checkout
+  // Architecture step 5. Runs immediately after verification succeeds
+  // and before fulfilment, so fulfilPurchase() can send the
+  // conditional welcome/password-setup email (only for a newly-created
+  // customer) alongside the existing receipt/download emails in one
+  // pass. Never blocks or fails the verification outcome already
+  // recorded above — mirrors fulfilPurchase()'s own "log, don't throw"
+  // discipline exactly, for the same reason: a provisioning hiccup must
+  // never undo an already-successful payment.
+  let customerId: number | null = null;
+  let isNewCustomer = false;
+  if (verifyResult.customerEmail) {
+    try {
+      const provisioned = await findOrCreateCustomer(env, verifyResult.customerEmail, session.marketingOptIn);
+      customerId = provisioned.customerId;
+      isNewCustomer = provisioned.isNewCustomer;
+      await env.DB.prepare(`UPDATE purchase_sessions SET customer_id = ?, updated_at = datetime('now') WHERE id = ?`)
+        .bind(customerId, session.id)
+        .run();
+      logger.info('customer.provisioned', { purchaseReference: providerReference, customerId, isNewCustomer });
+    } catch (err) {
+      // Same "should not happen, but never let a provisioning failure
+      // undo a real payment" reasoning fulfilmentService.ts already
+      // applies to a missing customer email — logged at error severity,
+      // fulfilment still proceeds (download entitlement/receipt do not
+      // depend on customerId existing).
+      logger.error('customer.provisioning_failed', {
+        purchaseReference: providerReference,
+        error: err instanceof Error ? err.message : String(err),
+      });
+    }
+  } else {
+    logger.error('customer.provisioning_skipped_no_email', { purchaseReference: providerReference });
+  }
+
   // Fulfilment (Version 1.2 Sprint 2.5, Digital Fulfilment Platform)
   // happens only after verification has fully and atomically
   // succeeded — never any earlier. fulfilPurchase() never throws (see
@@ -407,6 +497,8 @@ export async function handlePaymentWebhook(env: Env, logger: Logger, input: Hand
     customerEmail: verifyResult.customerEmail,
     amountPesewas: session.amountPesewas,
     currency: session.currency,
+    customerId,
+    isNewCustomer,
   });
 }
 
@@ -440,12 +532,12 @@ function normalizeVersionField(value: unknown): string | null {
 async function getPurchaseSessionByReference(env: Env, reference: string): Promise<PurchaseSessionRow | null> {
   const row = await env.DB.prepare(
     `SELECT id, product_slug AS productSlug, product_id AS productId, product_version AS productVersion,
-            amount_pesewas AS amountPesewas, currency, status, expires_at AS expiresAt
+            amount_pesewas AS amountPesewas, currency, status, expires_at AS expiresAt, marketing_opt_in AS marketingOptIn
      FROM purchase_sessions WHERE purchase_reference = ?`
   )
     .bind(reference)
-    .first<PurchaseSessionRow>();
-  return row ?? null;
+    .first<Omit<PurchaseSessionRow, 'marketingOptIn'> & { marketingOptIn: number }>();
+  return row ? { ...row, marketingOptIn: row.marketingOptIn === 1 } : null;
 }
 
 interface RecordPaymentTransactionInput {

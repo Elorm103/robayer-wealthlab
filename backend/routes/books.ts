@@ -527,11 +527,34 @@ async function renderBookDetail(env: Env, slug: string): Promise<Response> {
   metaBits.push(product.language === 'en' ? 'English' : escapeHtml(product.language));
   metaBits.push(product.publishedAt ? 'Available now' : isUpcoming ? 'Coming soon' : 'Available now');
 
+  // Version 3.0.2 Milestone M1 (Customer Identity & Guest Checkout) —
+  // see docs/v3.0.2-commerce-architecture-blueprint.md's ratified
+  // Checkout Architecture. Deliberately NOT a required checkbox:
+  // clicking Buy with this statement visibly attached IS the consent
+  // action (js/components/buy-button.js sends termsAccepted/
+  // licenseAccepted: true unconditionally) — ADR-002's zero-added-
+  // friction checkout decision stays intact. The marketing checkbox is
+  // the one genuinely optional, interactive, unchecked-by-default
+  // element; it's page-singleton (id="purchase-marketing-optin",
+  // read by buy-button.js regardless of which of this page's two Buy
+  // buttons is actually clicked — see the closing CTA below, which
+  // reuses the same statement without a second checkbox to avoid a
+  // duplicate element id).
+  const purchaseConsentBlock = `
+    <div class="stack gap-2 mt-3" style="max-width:420px;">
+      <p class="text-secondary text-small mb-0">By purchasing, you agree to our <a href="/legal/terms-of-use/">Terms of Service</a> and <a href="/legal/license-agreement/">License Agreement</a>.</p>
+      <div class="field field--checkbox mb-0">
+        <input type="checkbox" id="purchase-marketing-optin" class="field__input">
+        <label for="purchase-marketing-optin" class="field__label">Send me occasional emails about new guides and money tips (optional)</label>
+      </div>
+    </div>`;
+  const purchaseConsentNote = `<p class="text-secondary text-small mt-3" style="color:rgba(255,255,255,0.7);">By purchasing, you agree to our <a href="/legal/terms-of-use/" style="color:#fff;text-decoration:underline;">Terms of Service</a> and <a href="/legal/license-agreement/" style="color:#fff;text-decoration:underline;">License Agreement</a>.</p>`;
+
   const buyAction = isUpcoming
     ? '<a href="/newsletter/" class="btn btn--accent">Get notified when this launches</a>'
     : priceLabel === null
       ? '<span class="badge badge--warning">Price coming soon</span>'
-      : `<a href="#" class="btn btn--accent" data-buy-button data-product-slug="${escapeHtml(product.slug)}">Buy the guide (${escapeHtml(priceLabel)})</a>`;
+      : `<a href="#" class="btn btn--accent" data-buy-button data-product-slug="${escapeHtml(product.slug)}">Buy the guide (${escapeHtml(priceLabel)})</a>${purchaseConsentBlock}`;
 
   const tagsLine = product.tags
     ? `<p class="text-secondary text-small mb-3">Tags: ${escapeHtml(
@@ -754,6 +777,7 @@ async function renderBookDetail(env: Env, slug: string): Promise<Response> {
         <h2 id="cta-heading" class="mt-2 mb-3" style="color:#fff;">Ready to start with GH&#8373;1?</h2>
         <p class="mb-4" style="color:rgba(255,255,255,0.8);">Instant digital access &bull; Read on any device &bull; Secure checkout via Paystack</p>
         <a href="#" class="btn btn--accent" data-buy-button data-product-slug="${escapeHtml(product.slug)}">Buy the guide (${escapeHtml(priceLabel)})</a>
+        ${purchaseConsentNote}
       </div>
     </section>`
       : '';

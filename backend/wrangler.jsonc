@@ -85,7 +85,8 @@
   "vars": {
     "SITE_BASE_URL": "https://robayerwealthlab.com",
     "PAYMENT_PROVIDER": "paystack",
-    "PAYSTACK_BASE_URL": "https://api.paystack.co"
+    "PAYSTACK_BASE_URL": "https://api.paystack.co",
+    "RESEND_BASE_URL": "https://api.resend.com"
   },
 
   // D1 — structured data (Phase 2 schema: backend/database/schema.sql).

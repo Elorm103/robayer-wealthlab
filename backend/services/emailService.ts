@@ -30,6 +30,12 @@ import secureDownloadTemplate from '../emails/templates/secure-download.html';
 import passwordResetTemplate from '../emails/templates/password-reset.html';
 import adminInviteTemplate from '../emails/templates/admin-invite.html';
 import newsletterCampaignTemplate from '../emails/templates/newsletter-campaign.html';
+// Version 3.0.2 Milestone M1 (Customer Identity & Guest Checkout) — see
+// docs/v3.0.2-commerce-architecture-blueprint.md's Email Architecture
+// (Deliverable 7). Distinct from the admin 'password-reset' template
+// above — different audience, different copy, different link path.
+import customerWelcomeTemplate from '../emails/templates/customer-welcome.html';
+import customerPasswordResetTemplate from '../emails/templates/customer-password-reset.html';
 import type { Env } from '../worker/env';
 import type { Logger } from '../utils/logger';
 import { getEmailSendSettings } from './admin/settingsService';
@@ -43,7 +49,9 @@ export type EmailTemplateName =
   | 'secure-download'
   | 'password-reset'
   | 'admin-invite'
-  | 'newsletter-campaign';
+  | 'newsletter-campaign'
+  | 'customer-welcome'
+  | 'customer-password-reset';
 
 const TEMPLATES: Record<EmailTemplateName, string> = {
   'newsletter-welcome': newsletterWelcomeTemplate,
@@ -55,6 +63,8 @@ const TEMPLATES: Record<EmailTemplateName, string> = {
   'password-reset': passwordResetTemplate,
   'admin-invite': adminInviteTemplate,
   'newsletter-campaign': newsletterCampaignTemplate,
+  'customer-welcome': customerWelcomeTemplate,
+  'customer-password-reset': customerPasswordResetTemplate,
 };
 
 export interface SendEmailOptions {
@@ -221,7 +231,7 @@ async function callResend(
     payload.reply_to = replyTo;
   }
 
-  const response = await fetch('https://api.resend.com/emails', {
+  const response = await fetch(`${env.RESEND_BASE_URL}/emails`, {
     method: 'POST',
     headers: {
       Authorization: `Bearer ${env.RESEND_API_KEY}`,
