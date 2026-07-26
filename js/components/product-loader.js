@@ -416,17 +416,25 @@
         if (ctaEl) {
           ctaEl.setAttribute('href', '/books/' + featured.slug + '/');
           const priceLabel = featured.price === 0 ? 'Free' : formatCurrency(featured.price, featured.currency);
-          // Version 3.4 Milestone M6: the hero's CTA anchor now also
-          // wraps the cover markup (see index.html), so overwriting its
-          // textContent directly would delete the cover along with the
-          // old label. When a nested label element exists, only that
-          // element's text is replaced; otherwise this falls back to the
-          // original behavior for CTA-only banners (e.g. the "Featured
-          // eBook" section further down the homepage).
+          // Version 3.4 Milestone M6 acceptance review: the hero's CTA
+          // anchor now also wraps the cover markup (see index.html), so
+          // overwriting its textContent directly would delete the cover
+          // along with the old label. A nested label is preferred when
+          // present. Beyond that, this deliberately never falls back to
+          // a destructive ctaEl.textContent = ... unless ctaEl has no
+          // element children at all - a production defect found via
+          // live device evidence showed the nested-label lookup coming
+          // back empty on some page loads for a cause never conclusively
+          // isolated (every manual reproduction of the lookup itself
+          // succeeded), so the safe fix is to make it structurally
+          // impossible to destroy real markup: only ever replace the
+          // whole element's content when there is nothing but text to
+          // begin with (the plain, label-less "Featured eBook" section
+          // further down the homepage).
           const labelEl = ctaEl.querySelector('[data-feature-cta-label]');
           if (labelEl) {
             labelEl.textContent = 'Get the guide: ' + priceLabel;
-          } else {
+          } else if (ctaEl.children.length === 0) {
             ctaEl.textContent = 'Get the guide: ' + priceLabel;
           }
         }
