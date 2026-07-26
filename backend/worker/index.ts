@@ -153,6 +153,7 @@ import {
   handleAnalyticsSummary,
   handleAnalyticsTimeseries,
   handleAnalyticsTopProducts,
+  handleAnalyticsActivationSummary,
 } from '../routes/admin/analytics';
 import {
   handleResourcesMeta,
@@ -216,6 +217,16 @@ import { handleAdminReviewsList, handleAdminReviewModerate } from '../routes/adm
 // M4B Required Amendment 1 (docs/v3.2-m4c-amendment-1-resolution.md).
 import { handleValidateCoupon } from '../routes/coupons';
 import { handleAdminCouponsList, handleAdminCouponCreate, handleAdminCouponUpdate } from '../routes/admin/coupons';
+// Version 3.3 Milestone M5C (Activation, Analytics and Customer
+// Reconciliation) — historical guest-purchase account claiming. See
+// docs/v3.3-m5c-customer-reconciliation-architecture.md. A second,
+// still-ADR-006-compliant call site alongside the auth.ts import
+// above — see routes/customer/reconciliation.ts's own header comment.
+import { handleCustomerReconcilePurchases } from '../routes/customer/reconciliation';
+// Version 3.3 Milestone M5C Phase 5 (Review Lifecycle) — the
+// email-linked opt-out action. See routes/customer/reviewReminders.ts.
+import { handleReviewReminderOptOut } from '../routes/customer/reviewReminders';
+import { sendDueReviewReminders } from '../services/customer/reviewReminderService';
 
 export type { Env };
 
@@ -376,6 +387,8 @@ const ROUTES: Route[] = [
   { pattern: new URLPattern({ pathname: '/api/admin/analytics/summary' }), method: 'GET', handler: handleAnalyticsSummary },
   { pattern: new URLPattern({ pathname: '/api/admin/analytics/timeseries' }), method: 'GET', handler: handleAnalyticsTimeseries },
   { pattern: new URLPattern({ pathname: '/api/admin/analytics/top-products' }), method: 'GET', handler: handleAnalyticsTopProducts },
+  // Version 3.3 Milestone M5C — activation/reconciliation/conversion-funnel metrics for the Business Dashboard extension.
+  { pattern: new URLPattern({ pathname: '/api/admin/analytics/activation-summary' }), method: 'GET', handler: handleAnalyticsActivationSummary },
   // Added Version 2.1 Phase 1 (Resources CMS) — see
   // docs/v2.1-architecture-plan.md Section 3. Mirrors Products' exact
   // admin route shape (editor/super_admin writes, every role reads);
@@ -485,6 +498,13 @@ const ROUTES: Route[] = [
   // change-password action (already-logged-in, distinct from
   // set-password's emailed-token flow above).
   { pattern: new URLPattern({ pathname: '/api/customer/auth/change-password' }), method: 'POST', handler: handleCustomerChangePassword },
+  // Version 3.3 Milestone M5C — historical guest-purchase account
+  // claiming. Unauthenticated-by-design, same reasoning as
+  // forgot-password above: there is no session yet at the point this
+  // is called.
+  { pattern: new URLPattern({ pathname: '/api/customer/reconcile-purchases' }), method: 'POST', handler: handleCustomerReconcilePurchases },
+  // Version 3.3 Milestone M5C Phase 5 — the review-reminder email's one-click opt-out link.
+  { pattern: new URLPattern({ pathname: '/api/customer/review-reminders/opt-out' }), method: 'GET', handler: handleReviewReminderOptOut },
   // Milestone M2 (Orders, Receipts & Customer Library) — `/receipts`
   // ordered before `/receipts/:receiptNumber/download`'s more specific
   // pattern is irrelevant here since URLPattern matches by exact
@@ -545,5 +565,34 @@ export default {
       : jsonError('NOT_FOUND', 'Not found.');
 
     return withSecurityHeaders(response, env);
+  },
+
+  /**
+   * Version 3.3 Milestone M5C Phase 5 — this project's first-ever Cron
+   * Trigger (see wrangler.jsonc's `triggers.crons`, previously empty).
+   * Runs services/customer/reviewReminderService.ts's
+   * sendDueReviewReminders().
+   *
+   * Corrected in Milestone M5D.1 (Acceptance Remediation): an earlier
+   * version of this comment claimed the eligibility query alone made
+   * this "idempotent by construction... with no separate lock or
+   * dedupe needed" against Cloudflare's documented at-least-once
+   * Cron Trigger delivery. Sprint M5D's independent acceptance review
+   * (docs/v3.3-m5d-review-reminder-validation-report.md) reproduced
+   * that this was false: a single failed send permanently suppressed
+   * all future reminders for that purchase, and genuinely concurrent
+   * invocations sent duplicate emails. The actual safety now comes from
+   * `sendDueReviewReminders()`'s own atomic per-purchase claim
+   * (`review_reminder_attempts`, migration 0022) — see that service's
+   * own header comment and docs/v3.3-m5d1-retry-idempotency-strategy.md
+   * for the corrected design.
+   */
+  async scheduled(_event: ScheduledController, env: Env, ctx: ExecutionContext): Promise<void> {
+    const logger = createLogger(generateRequestId(), 'scheduled review-reminders');
+    ctx.waitUntil(
+      sendDueReviewReminders(env, logger, env.SITE_BASE_URL).catch((err) => {
+        logger.error('review_reminders.run_failed', { error: err instanceof Error ? err.message : String(err) });
+      })
+    );
   },
 };

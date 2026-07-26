@@ -96,6 +96,22 @@ export async function revokeSession(env: Env, tokenInput: unknown): Promise<Revo
   return row ? { revoked: true, customerId: row.customerId } : { revoked: false };
 }
 
+/**
+ * Version 3.3 Milestone M5C (Activation, Analytics and Customer
+ * Reconciliation) — counts every `customer_sessions` row ever created
+ * for this customer, revoked or not, expired or not. A count of 1
+ * means the session the caller is currently looking at IS this
+ * customer's first-ever login, letting the dashboard show one-time
+ * first-login guidance with zero schema change and zero change to how
+ * sessions themselves are created or validated.
+ */
+export async function countSessionsForCustomer(env: Env, customerId: number): Promise<number> {
+  const row = await env.DB.prepare(`SELECT COUNT(*) AS count FROM customer_sessions WHERE customer_id = ?`)
+    .bind(customerId)
+    .first<{ count: number }>();
+  return row?.count ?? 0;
+}
+
 /** Revokes every active session for a customer — used after a password reset (no "current" session exists yet during that flow — see authService.ts's setPassword()). */
 export async function revokeAllSessions(env: Env, customerId: number): Promise<void> {
   await env.DB.prepare(`UPDATE customer_sessions SET revoked_at = datetime('now') WHERE customer_id = ? AND revoked_at IS NULL`)

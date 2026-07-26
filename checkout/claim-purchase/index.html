@@ -1,0 +1,67 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+
+  <title>Recover a Past Purchase | Robayer WealthLab</title>
+  <meta name="description" content="Bought before but never set up an account? Recover access to your past Robayer WealthLab purchases.">
+  <link rel="canonical" href="https://robayerwealthlab.com/checkout/claim-purchase/">
+  <meta name="robots" content="noindex, nofollow">
+
+  <link rel="icon" type="image/svg+xml" href="/assets/icons/favicon.svg">
+  <link rel="icon" type="image/png" sizes="32x32" href="/assets/icons/favicon-32.png">
+  <link rel="apple-touch-icon" href="/assets/icons/apple-touch-icon.png">
+
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Newsreader:ital,wght@0,600;1,500&family=Space+Grotesk:wght@500&family=Work+Sans:wght@400;500&family=IBM+Plex+Mono:wght@400;500&display=swap" rel="stylesheet">
+
+  <link rel="stylesheet" href="/css/tokens.css">
+  <link rel="stylesheet" href="/css/base.css">
+  <link rel="stylesheet" href="/css/layout.css">
+  <link rel="stylesheet" href="/css/components.css">
+  <link rel="stylesheet" href="/css/utilities.css">
+</head>
+<body>
+  <a href="#main-content" class="skip-link">Skip to main content</a>
+
+  <div data-include="/partials/header.html"></div>
+
+  <main id="main-content">
+    <section class="section" aria-labelledby="claim-purchase-heading">
+      <div class="container content-column">
+        <span class="eyebrow text-center">Your account</span>
+        <h1 id="claim-purchase-heading" class="mt-2 mb-2 text-center">Recover a past purchase</h1>
+        <p class="text-secondary text-center mb-5">
+          Bought something from us a while ago but never got an account
+          set up? Enter the email you paid with. If we find a purchase,
+          we'll email you a link to set a password and access your
+          dashboard, downloads, and receipts.
+        </p>
+
+        <form class="card" style="max-width:420px;margin:0 auto;padding:var(--space-5);" data-claim-purchase-form novalidate aria-label="Recover a past purchase">
+          <div class="field">
+            <label for="claim-purchase-email" class="field__label">Email address</label>
+            <input type="email" id="claim-purchase-email" name="email" class="field__input" autocomplete="email" required>
+          </div>
+          <button type="submit" class="btn btn--accent" style="width:100%;margin-bottom:var(--space-3);">Recover my purchase</button>
+          <p class="text-secondary text-small text-center">
+            Already have a password? <a href="/checkout/sign-in/">Sign in</a> instead.
+          </p>
+        </form>
+      </div>
+    </section>
+  </main>
+
+  <div data-include="/partials/footer.html"></div>
+
+  <script src="/js/includes.js"></script>
+  <script src="/js/components/nav.js"></script>
+  <script src="/js/components/theme-toggle.js"></script>
+  <script src="/js/components/branding.js"></script>
+  <script src="/js/content-inject.js"></script>
+  <script src="/js/components/claim-purchase-form.js"></script>
+  <script src="/js/main.js"></script>
+</body>
+</html>

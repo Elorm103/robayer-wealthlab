@@ -136,7 +136,18 @@
   // disk (see backend/emails/README.md and docs/email-architecture.md).
   "rules": [
     { "type": "Text", "globs": ["**/*.html"], "fallthrough": true }
-  ]
+  ],
+
+  // Version 3.3 Milestone M5C Phase 5 (Review Lifecycle) — this
+  // project's first-ever Cron Trigger. Runs once daily at 06:00 UTC
+  // (Ghana is UTC+0, so this lands early morning local time — a
+  // low-traffic window, though this Worker has no meaningful "peak" to
+  // avoid at its current scale) via worker/index.ts's scheduled()
+  // handler, which calls services/customer/reviewReminderService.ts's
+  // sendDueReviewReminders(). See docs/v3.3-m5c-analytics-architecture.md.
+  "triggers": {
+    "crons": ["0 6 * * *"]
+  }
 
   // Staging environment: intentionally not configured yet. No staging
   // domain/subdomain has been decided (docs/deployment-checklist.md

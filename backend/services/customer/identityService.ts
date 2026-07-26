@@ -5,13 +5,20 @@
  * stage 14 ("Account Creation") and Deliverable 4 (Checkout
  * Architecture, step 5).
  *
- * The one place a `customers` row is ever created in this scope — per
- * docs/v3.0.2-architecture-decision-register.md's ADR-006 ("Purchase-
- * triggered account provisioning only"), there is no public
- * registration endpoint anywhere in Milestone M1. `findOrCreateCustomer`
- * is called exactly once per verified purchase, from
- * `commerceService.handlePaymentWebhook()`, immediately after payment
- * verification succeeds and before fulfilment.
+ * Per docs/v3.0.2-architecture-decision-register.md's ADR-006
+ * ("Purchase-triggered account provisioning only"), there is still no
+ * public registration endpoint anywhere in this project —
+ * `findOrCreateCustomer` is only ever reached from a verified purchase,
+ * never a free-form email with no purchase behind it. As of Version
+ * 3.3 Milestone M5C it has two call sites, not one: the original,
+ * contemporaneous path (`commerceService.handlePaymentWebhook()`,
+ * immediately after payment verification succeeds and before
+ * fulfilment) and a second, historical path
+ * (`reconciliationService.reconcilePurchases()`, for a `purchase_sessions`
+ * row that was verified before a customer row ever existed to link it
+ * to). Both are purchase-triggered, one contemporaneous, one
+ * retroactive — ADR-006's actual protection (no account without a real
+ * payment behind it) holds either way.
  */
 
 import type { Env } from '../../worker/env';

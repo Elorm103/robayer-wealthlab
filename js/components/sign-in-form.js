@@ -68,7 +68,9 @@ function initSignInForm() {
       const result = await response.json();
 
       if (!response.ok || !result.success) {
-        throw new Error((result && result.error && result.error.message) || 'Something went wrong. Please try again.');
+        const error = new Error((result && result.error && result.error.message) || 'Something went wrong. Please try again.');
+        error.code = result && result.error && result.error.code;
+        throw error;
       }
 
       const params = new URLSearchParams(window.location.search);
@@ -77,7 +79,11 @@ function initSignInForm() {
       const message = error instanceof TypeError
         ? 'Could not reach the server. Please check your connection and try again.'
         : error.message;
-      showServerError(form, message);
+      // Version 3.3 Milestone M5C — a distinct, machine-readable code
+      // (rather than parsing the message text) for "this account has
+      // no password set yet," so this specific case can link straight
+      // to the activation flow instead of just describing it in prose.
+      showServerError(form, message, error.code === 'PASSWORD_NOT_SET');
       if (submitButton) {
         submitButton.disabled = false;
         submitButton.textContent = 'Sign in';
@@ -85,13 +91,19 @@ function initSignInForm() {
     }
   });
 
-  function showServerError(formEl, message) {
+  function showServerError(formEl, message, showActivationLink) {
     clearServerError(formEl);
     const alertEl = document.createElement('p');
     alertEl.className = 'alert alert--error';
     alertEl.setAttribute('role', 'alert');
     alertEl.setAttribute('data-server-error', 'true');
     alertEl.textContent = message || 'Something went wrong. Please try again in a moment.';
+    if (showActivationLink) {
+      const link = document.createElement('a');
+      link.href = '/checkout/forgot-password/';
+      link.textContent = ' Send me a setup link.';
+      alertEl.appendChild(link);
+    }
     formEl.insertAdjacentElement('beforebegin', alertEl);
   }
 

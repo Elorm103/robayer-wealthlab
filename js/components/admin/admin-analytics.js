@@ -80,14 +80,16 @@ function initAdminAnalytics() {
     const params = new URLSearchParams({ from: state.from, to: state.to });
 
     try {
-      const [summary, timeseries, topProducts] = await Promise.all([
+      const [summary, timeseries, topProducts, activationSummary] = await Promise.all([
         window.AdminAuth.adminFetch(`${ANALYTICS_API_BASE}/summary?${params.toString()}`),
         window.AdminAuth.adminFetch(`${ANALYTICS_API_BASE}/timeseries?${params.toString()}`),
         window.AdminAuth.adminFetch(`${ANALYTICS_API_BASE}/top-products?${params.toString()}`),
+        window.AdminAuth.adminFetch(`${ANALYTICS_API_BASE}/activation-summary?${params.toString()}`),
       ]);
       renderSummary(summary);
       renderCharts(timeseries);
       renderTopProducts(topProducts.items);
+      renderActivationSummary(activationSummary);
     } catch (error) {
       els.loadError.textContent = error.message || 'Could not load analytics.';
       els.loadError.hidden = false;
@@ -128,6 +130,22 @@ function initAdminAnalytics() {
     label.style.marginLeft = 'var(--space-2)';
     label.textContent = comparisonLabel;
     metaEl.append(badge, label);
+  }
+
+  /** Version 3.3 Milestone M5C — reuses renderKpi() exactly like renderSummary() above; checkoutCompletionRate is the one plain (non-comparison) value here, since it's a ratio at a point in time, not a current-vs-previous count. */
+  function renderActivationSummary(activationSummary) {
+    renderKpi('checkoutStarts', activationSummary.checkoutStarts, (v) => String(v), 'vs previous period');
+    renderKpi('checkoutCompletions', activationSummary.checkoutCompletions, (v) => String(v), 'vs previous period');
+    renderKpi('couponRedemptions', activationSummary.couponRedemptions, (v) => String(v), 'vs previous period');
+    renderKpi('reviewsSubmitted', activationSummary.reviewsSubmitted, (v) => String(v), 'vs previous period');
+    renderKpi('dashboardActiveCustomers', activationSummary.dashboardActiveCustomers, (v) => String(v), 'vs previous period');
+    renderKpi('repeatPurchases', activationSummary.repeatPurchases, (v) => String(v), 'vs previous period');
+    renderKpi('purchasesReconciled', activationSummary.purchasesReconciled, (v) => String(v), 'vs previous period');
+
+    const rateValueEl = root.querySelector('[data-kpi-checkoutCompletionRate-value]');
+    const rateMetaEl = root.querySelector('[data-kpi-checkoutCompletionRate-meta]');
+    rateValueEl.textContent = activationSummary.checkoutCompletionRate === null ? '—' : `${activationSummary.checkoutCompletionRate}%`;
+    rateMetaEl.textContent = 'of checkout starts in this range';
   }
 
   function renderCharts(timeseries) {

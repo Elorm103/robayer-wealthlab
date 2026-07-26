@@ -1,9 +1,11 @@
 -- Robayer WealthLab — Cloudflare D1 Schema
 --
 -- STATUS: this is the live production schema, current as of migration
--- 0020 (Version 3.2 Milestone M4: Commerce & Trust Foundations —
--- Product Reviews + Coupon Engine, extending Milestone M2: Orders,
--- Receipts & Customer Library).
+-- 0022 (Version 3.3 Milestone M5D.1: Acceptance Remediation, extending
+-- Milestone M5: Activation, Analytics and Customer Reconciliation,
+-- extending Milestone M4: Commerce & Trust Foundations — Product
+-- Reviews + Coupon Engine, extending Milestone M2: Orders, Receipts &
+-- Customer Library).
 -- This file is the cumulative, human-readable reference that
 -- backend/database/migrations/*.sql should sum to when applied in
 -- order via `wrangler d1 migrations apply` — it is not itself applied
@@ -927,8 +929,35 @@ CREATE TABLE customer_profiles (
   marketing_opt_in  INTEGER NOT NULL DEFAULT 0, -- seeded from purchase_sessions.marketing_opt_in at provisioning; editable later (Milestone M3)
   preferred_topics  TEXT,
   avatar_media_id   INTEGER REFERENCES media_assets(id),
-  updated_at        TEXT NOT NULL DEFAULT (datetime('now'))
+  updated_at        TEXT NOT NULL DEFAULT (datetime('now')),
+  -- Version 3.3 Milestone M5 (migration 0021) — lets a customer opt out
+  -- of the automated post-purchase review-request email via a one-click
+  -- link. review_reminder_opt_out_token is generated lazily on first
+  -- send, never pre-populated. See services/customer/reviewReminderService.ts.
+  review_reminder_opt_out       INTEGER NOT NULL DEFAULT 0 CHECK (review_reminder_opt_out IN (0, 1)),
+  review_reminder_opt_out_token TEXT
 );
+
+-- Version 3.3 Milestone M5D.1 (Acceptance Remediation, migration 0022)
+-- — the atomic per-purchase claim/status record that fixes the
+-- review-reminder Cron Trigger's idempotency defect found during
+-- Sprint M5D (docs/v3.3-m5d-review-reminder-validation-report.md).
+-- Deliberately separate from email_log (a generic, multi-purpose send
+-- log that legitimately allows the same purchase_session_id + template
+-- pair to recur for other reasons, e.g. a customer-initiated receipt
+-- resend) — see migration 0022's own header comment for the full
+-- reasoning. See services/customer/reviewReminderService.ts.
+CREATE TABLE review_reminder_attempts (
+  id                   INTEGER PRIMARY KEY AUTOINCREMENT,
+  purchase_session_id  INTEGER NOT NULL UNIQUE REFERENCES purchase_sessions(id),
+  status               TEXT NOT NULL DEFAULT 'claimed' CHECK (status IN ('claimed', 'sent', 'failed', 'permanently_failed')),
+  attempt_count        INTEGER NOT NULL DEFAULT 0,
+  claimed_at           TEXT NOT NULL DEFAULT (datetime('now')),
+  completed_at         TEXT,
+  last_email_log_id    INTEGER REFERENCES email_log(id)
+);
+
+CREATE INDEX idx_review_reminder_attempts_status ON review_reminder_attempts(status);
 
 CREATE TABLE customer_sessions (
   id           INTEGER PRIMARY KEY AUTOINCREMENT,

@@ -68,6 +68,30 @@ export async function queueResendResponse(env: MockDbEnv, response: { status: nu
   await queueResponse(env, 'resend_send', response);
 }
 
+/**
+ * Version 3.3 Milestone M5D.1 (Acceptance Remediation) — a PERSISTENT
+ * Resend override, checked before the one-shot `queueResendResponse()`
+ * queue and never auto-consumed (mirrors `queueVerifyResponse()`'s own
+ * peek-based, non-consuming precedent above). Needed because a single
+ * `sendEmail()` call can itself retry once internally
+ * (services/emailService.ts's own `attempt < 2` loop) — a one-shot
+ * queued response only covers the FIRST of those two internal
+ * attempts, so simulating a genuinely transient (both-attempts-fail)
+ * outage, or a failure that persists across multiple SEPARATE
+ * `sendDueReviewReminders()` runs (to test retry-across-scheduled-runs
+ * behavior), requires an override that survives more than one read.
+ * Call `clearResendResponseStickyOverride()` when the test is done
+ * simulating the outage.
+ */
+export async function queueResendResponseStickyOverride(env: MockDbEnv, response: { status: number; body: unknown }): Promise<void> {
+  await queueResponse(env, 'resend_send_sticky', response);
+}
+
+/** Clears a sticky override set by `queueResendResponseStickyOverride()`, so normal (default-success or one-shot-queued) behavior resumes. */
+export async function clearResendResponseStickyOverride(env: MockDbEnv): Promise<void> {
+  await env.DB.prepare(`DELETE FROM test_mock_responses WHERE key = 'resend_send_sticky'`).run();
+}
+
 async function takeConsumedResponse(db: D1Database, key: string): Promise<unknown | null> {
   const row = await db.prepare('SELECT response FROM test_mock_responses WHERE key = ?').bind(key).first<{ response: string }>();
   if (!row) return null;
@@ -102,6 +126,8 @@ export async function outboundMock(request: Request, miniflare: Miniflare): Prom
   }
 
   if (url.hostname === 'api.resend.com' && url.pathname === '/emails' && request.method === 'POST') {
+    const sticky = (await peekResponse(DB, 'resend_send_sticky')) as { status: number; body: unknown } | null;
+    if (sticky) return json(sticky.status, sticky.body) as unknown as MiniflareResponse;
     const queued = (await takeConsumedResponse(DB, 'resend_send')) as { status: number; body: unknown } | null;
     const result = queued ?? { status: 200, body: { id: 'mock-email-id' } };
     return json(result.status, result.body) as unknown as MiniflareResponse;

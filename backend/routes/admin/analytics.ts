@@ -92,3 +92,17 @@ export async function handleAnalyticsTopProducts(request: Request, env: Env, log
   const topProducts = await analyticsService.getTopProducts(env, range);
   return jsonSuccess({ range, items: topProducts });
 }
+
+/** Version 3.3 Milestone M5C — the Business Dashboard's activation/reconciliation/conversion-funnel section. See services/admin/analyticsService.ts's getActivationSummary(). */
+export async function handleAnalyticsActivationSummary(request: Request, env: Env, logger: Logger): Promise<Response> {
+  const auth = await requireAuth(request, env, logger);
+  if (!auth.ok) return auth.response;
+
+  if (await isRateLimited(request, env, READ_RATE_LIMIT)) {
+    return jsonError('RATE_LIMITED', 'Too many requests. Please try again shortly.');
+  }
+
+  const range = parseRange(new URL(request.url).searchParams);
+  const summary = await analyticsService.getActivationSummary(env, range);
+  return jsonSuccess({ range, ...summary });
+}

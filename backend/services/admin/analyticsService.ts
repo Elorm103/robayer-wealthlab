@@ -162,3 +162,112 @@ export async function getTopProducts(env: Env, range: PeriodRange, limit = 10): 
 
   return results;
 }
+
+// ============================================================
+// Activation Analytics — Version 3.3 Milestone M5C (Activation,
+// Analytics and Customer Reconciliation). See
+// docs/v3.3-m5c-analytics-architecture.md. Every metric here reuses an
+// already-existing table and, where one already exists, an already-
+// existing signal (e.g. customer_sessions.last_seen_at) — no new
+// instrumentation, matching the sprint brief's explicit "reuse
+// existing analytics infrastructure where possible."
+// ============================================================
+
+export interface ActivationSummary {
+  checkoutStarts: KpiMetric;
+  checkoutCompletions: KpiMetric;
+  checkoutCompletionRate: number | null;
+  couponRedemptions: KpiMetric;
+  reviewsSubmitted: KpiMetric;
+  dashboardActiveCustomers: KpiMetric;
+  repeatPurchases: KpiMetric;
+  purchasesReconciled: KpiMetric;
+}
+
+/** Every `purchase_sessions` row created in range, regardless of outcome — a checkout "start," matching the same `created_at` moment the row itself is inserted at (see database/schema.sql's purchase_sessions comment). */
+async function checkoutStartsInRange(env: Env, range: PeriodRange): Promise<number> {
+  return countInRange(env, 'purchase_sessions', 'created_at', range);
+}
+
+/** Distinct customers with an authenticated dashboard request (any /api/customer/* page load past the session gate) in range — reuses customer_sessions.last_seen_at, already updated on every authenticated request by sessionService.ts's validateSession(), zero new instrumentation. */
+async function dashboardActiveCustomersInRange(env: Env, range: PeriodRange): Promise<number> {
+  const row = await env.DB.prepare(
+    `SELECT COUNT(DISTINCT customer_id) AS c FROM customer_sessions WHERE last_seen_at >= ? AND last_seen_at < ?`
+  )
+    .bind(range.from, exclusiveEndDate(range.to))
+    .first<{ c: number }>();
+  return row?.c ?? 0;
+}
+
+/**
+ * A verified purchase in range by a customer who already had at least
+ * one earlier verified purchase — a genuine repeat-purchase EVENT, not
+ * a lifetime customer count, so it fits the same current-vs-previous
+ * KpiMetric shape as every other metric here. `verified_at` alone
+ * isn't a safe ordering key — `datetime('now')` has one-second
+ * resolution, so two purchases verified within the same second (a real
+ * possibility at checkout, and the exact case this project's own test
+ * suite caught) would otherwise tie and neither would count as
+ * "later" — `id` (monotonically increasing on insert) breaks the tie.
+ */
+async function repeatPurchasesInRange(env: Env, range: PeriodRange): Promise<number> {
+  const row = await env.DB.prepare(
+    `SELECT COUNT(*) AS c FROM purchase_sessions ps
+     WHERE ps.status = 'verified' AND ps.verified_at >= ? AND ps.verified_at < ? AND ps.customer_id IS NOT NULL
+       AND EXISTS (
+         SELECT 1 FROM purchase_sessions prior
+         WHERE prior.customer_id = ps.customer_id AND prior.status = 'verified'
+           AND (prior.verified_at < ps.verified_at OR (prior.verified_at = ps.verified_at AND prior.id < ps.id))
+       )`
+  )
+    .bind(range.from, exclusiveEndDate(range.to))
+    .first<{ c: number }>();
+  return row?.c ?? 0;
+}
+
+export async function getActivationSummary(env: Env, range: PeriodRange): Promise<ActivationSummary> {
+  const previous = previousPeriod(range);
+
+  const [
+    startsCurrent,
+    startsPrevious,
+    completionsCurrent,
+    completionsPrevious,
+    couponsCurrent,
+    couponsPrevious,
+    reviewsCurrent,
+    reviewsPrevious,
+    dashboardActiveCurrent,
+    dashboardActivePrevious,
+    repeatCurrent,
+    repeatPrevious,
+    reconciledCurrent,
+    reconciledPrevious,
+  ] = await Promise.all([
+    checkoutStartsInRange(env, range),
+    checkoutStartsInRange(env, previous),
+    countInRange(env, 'purchase_sessions', 'verified_at', range, "status = 'verified'"),
+    countInRange(env, 'purchase_sessions', 'verified_at', previous, "status = 'verified'"),
+    countInRange(env, 'coupon_redemptions', 'redeemed_at', range),
+    countInRange(env, 'coupon_redemptions', 'redeemed_at', previous),
+    countInRange(env, 'product_reviews', 'created_at', range),
+    countInRange(env, 'product_reviews', 'created_at', previous),
+    dashboardActiveCustomersInRange(env, range),
+    dashboardActiveCustomersInRange(env, previous),
+    repeatPurchasesInRange(env, range),
+    repeatPurchasesInRange(env, previous),
+    countInRange(env, 'audit_logs', 'created_at', range, "action = 'customer.purchases_reconciled'"),
+    countInRange(env, 'audit_logs', 'created_at', previous, "action = 'customer.purchases_reconciled'"),
+  ]);
+
+  return {
+    checkoutStarts: toMetric(startsCurrent, startsPrevious),
+    checkoutCompletions: toMetric(completionsCurrent, completionsPrevious),
+    checkoutCompletionRate: startsCurrent > 0 ? Math.round((completionsCurrent / startsCurrent) * 1000) / 10 : null,
+    couponRedemptions: toMetric(couponsCurrent, couponsPrevious),
+    reviewsSubmitted: toMetric(reviewsCurrent, reviewsPrevious),
+    dashboardActiveCustomers: toMetric(dashboardActiveCurrent, dashboardActivePrevious),
+    repeatPurchases: toMetric(repeatCurrent, repeatPrevious),
+    purchasesReconciled: toMetric(reconciledCurrent, reconciledPrevious),
+  };
+}

@@ -37,3 +37,8 @@ export function generateCustomerCsrfSecret(): string {
 export function generateCustomerPasswordToken(): string {
   return randomHex();
 }
+
+/** Version 3.3 Milestone M5C — the review-reminder opt-out link's token (customer_profiles.review_reminder_opt_out_token). Same generator, same entropy; see services/customer/reviewReminderService.ts for why this one is long-lived rather than single-use/expiring. */
+export function generateReviewReminderOptOutToken(): string {
+  return randomHex();
+}

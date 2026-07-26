@@ -1,0 +1,52 @@
+-- ============================================================
+-- 0021_activation_and_review_reminders.sql — Version 3.3 Milestone M5
+-- (Activation, Analytics and Customer Reconciliation)
+--
+-- Implements the scope approved in docs/v3.3-m5-recommended-scope.md,
+-- with the M5B-required Platform Fee Engine documentation amendment
+-- resolved separately in docs/v3.3-platform-fee-architecture-clarification.md
+-- (a documentation-only amendment, no schema impact).
+--
+-- Legacy guest-purchase account reconciliation (Sprint M5C Phase 2)
+-- requires NO schema change at all. `purchase_sessions.customer_id`
+-- is already nullable and already supports being set after row
+-- creation (that is exactly what Milestone M1's own auto-provisioning
+-- already does for every post-M1 purchase); reconciliation simply
+-- applies the same UPDATE pattern to older, pre-M1 rows. `customers`,
+-- `customer_profiles`, and `audit_logs` (whose actor_type already
+-- includes 'customer') are all reused unchanged.
+--
+-- The one genuine schema addition this migration makes is for Sprint
+-- M5C Phase 5 (the automated post-purchase review-request email):
+-- two new, nullable/defaulted columns on customer_profiles, letting a
+-- customer opt out of future review-request reminders via a one-click
+-- link in the email itself, the same "always honor the customer's own
+-- stated preference, never re-prompt after an opt-out" discipline
+-- this project's newsletter-unsubscribe design already established
+-- (see services/unsubscribeService.ts's own header comment) — a
+-- parallel, not shared, mechanism, since unsubscribe_tokens is
+-- hard-scoped to newsletter_subscribers, a different entity.
+--
+-- All changes are additive: two new columns, both nullable/defaulted,
+-- no existing row's meaning changes. Zero DROP, zero column removal.
+--
+-- Rollback: `ALTER TABLE customer_profiles DROP COLUMN
+-- review_reminder_opt_out; ALTER TABLE customer_profiles DROP COLUMN
+-- review_reminder_opt_out_token;` — safe at any time, since no other
+-- table references either column and no other migration builds on
+-- top of this one.
+-- ============================================================
+
+ALTER TABLE customer_profiles ADD COLUMN review_reminder_opt_out INTEGER NOT NULL DEFAULT 0 CHECK (review_reminder_opt_out IN (0, 1));
+
+-- Generated lazily, the first time a review-reminder email is ever
+-- sent to this customer (see services/customer/reviewReminderService.ts) —
+-- not pre-populated for every existing row, the same "don't backfill
+-- what isn't needed yet" discipline this project's password-setup
+-- token issuance already follows. A single, stable, long-lived value
+-- per customer (not single-use, not expiring): the opt-out action is
+-- idempotent and low-stakes by design (matching unsubscribeService.ts's
+-- own "always succeeds, never errors" philosophy) — a reused or
+-- forwarded link can, at worst, opt someone out of a reminder email
+-- again, never grant access to anything sensitive.
+ALTER TABLE customer_profiles ADD COLUMN review_reminder_opt_out_token TEXT;

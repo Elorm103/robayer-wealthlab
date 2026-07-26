@@ -129,11 +129,14 @@ const PASSWORD_TOKEN_TTL_MINUTES = 30;
 
 /**
  * Issues a `customer_password_tokens` row and sends the email. Called
- * from two places: `identityService.findOrCreateCustomer()`'s caller
+ * from three places: `identityService.findOrCreateCustomer()`'s caller
  * (`commerceService.ts`, only for a newly-created customer — the
- * "welcome" framing) and `forgotPassword()` below (the "reset" framing)
- * — same mechanism, different email template/copy, per the ratified
- * Blueprint's Email Architecture (Deliverable 7).
+ * "welcome" framing), `forgotPassword()` below (the "reset" framing),
+ * and, as of Version 3.3 Milestone M5C,
+ * `reconciliationService.reconcilePurchases()` (the "historical
+ * purchase claim" framing) — same mechanism, different email
+ * template/copy, per the ratified Blueprint's Email Architecture
+ * (Deliverable 7).
  */
 export async function issuePasswordToken(
   env: Env,
@@ -141,7 +144,7 @@ export async function issuePasswordToken(
   customerId: number,
   email: string,
   siteBaseUrl: string,
-  template: 'customer-welcome' | 'customer-password-reset'
+  template: 'customer-welcome' | 'customer-password-reset' | 'customer-purchase-reconciliation'
 ): Promise<void> {
   const token = generateCustomerPasswordToken();
   const expiresAt = new Date(Date.now() + PASSWORD_TOKEN_TTL_MINUTES * 60_000).toISOString();
@@ -155,6 +158,19 @@ export async function issuePasswordToken(
   if (template === 'customer-welcome') {
     await sendEmail(env, logger, {
       template: 'customer-welcome',
+      to: email,
+      data: { email, setupUrl },
+      entityType: 'customer',
+      entityId: customerId,
+    });
+  } else if (template === 'customer-purchase-reconciliation') {
+    // Version 3.3 Milestone M5C — distinct copy from both 'customer-welcome'
+    // (a fresh checkout, not a recovered historical one) and
+    // 'customer-password-reset' (not a password the customer set and
+    // forgot), so the email accurately explains why they're receiving
+    // it: their past purchase(s) were just linked to a new account.
+    await sendEmail(env, logger, {
+      template: 'customer-purchase-reconciliation',
       to: email,
       data: { email, setupUrl },
       entityType: 'customer',

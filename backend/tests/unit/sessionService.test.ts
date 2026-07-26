@@ -132,4 +132,22 @@ describe('customer sessionService', () => {
     expect((await sessionService.validateSession(env as any, s1.sessionToken)).ok).toBe(true);
     expect((await sessionService.validateSession(env as any, s2.sessionToken)).ok).toBe(false);
   });
+
+  // Version 3.3 Milestone M5C (Activation, Analytics and Customer Reconciliation) — first-login detection.
+
+  it('countSessionsForCustomer is 1 immediately after the first-ever session is created', async () => {
+    await sessionService.createSession(env as any, customerId, { ip: null, userAgent: null });
+    expect(await sessionService.countSessionsForCustomer(env as any, customerId)).toBe(1);
+  });
+
+  it('countSessionsForCustomer counts every session ever created, including revoked ones', async () => {
+    const s1 = await sessionService.createSession(env as any, customerId, { ip: null, userAgent: null });
+    await sessionService.revokeSession(env as any, s1.sessionToken);
+    await sessionService.createSession(env as any, customerId, { ip: null, userAgent: null });
+    expect(await sessionService.countSessionsForCustomer(env as any, customerId)).toBe(2);
+  });
+
+  it('countSessionsForCustomer is 0 for a customer with no sessions yet', async () => {
+    expect(await sessionService.countSessionsForCustomer(env as any, customerId)).toBe(0);
+  });
 });

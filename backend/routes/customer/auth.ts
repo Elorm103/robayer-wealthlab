@@ -21,10 +21,14 @@
  * differs. See services/customer/authService.ts's setPassword().
  *
  * No public registration endpoint exists here or anywhere in this
- * scope — per ADR-006, the only way a `customers` row is ever created
- * is the purchase-triggered find-or-create in
- * services/customer/identityService.ts, called from
- * services/commerceService.ts's webhook handler.
+ * scope — per ADR-006, a `customers` row is only ever created by the
+ * purchase-triggered find-or-create in
+ * services/customer/identityService.ts, reached either from
+ * services/commerceService.ts's webhook handler (a fresh, contemporaneous
+ * purchase) or, as of Version 3.3 Milestone M5C, from
+ * routes/customer/reconciliation.ts (a historical, already-verified
+ * purchase with no customer row yet) — never from a free-form email
+ * with no purchase behind it.
  */
 
 import type { Env } from '../../worker/env';
@@ -35,6 +39,7 @@ import { parseCookies, serializeCookie } from '../../utils/cookies';
 import { requireCustomerAuth, CUSTOMER_SESSION_COOKIE_NAME, CUSTOMER_CSRF_COOKIE_NAME } from '../../middleware/requireCustomerAuth';
 import { requireCustomerCsrf } from '../../middleware/customerCsrf';
 import * as authService from '../../services/customer/authService';
+import * as sessionService from '../../services/customer/sessionService';
 import type { PasswordValidationError } from '../../utils/passwordPolicy';
 
 // Same 5/15min/IP calibration as admin login (routes/admin/auth.ts) —
@@ -105,11 +110,17 @@ export async function handleCustomerLogin(request: Request, env: Env, logger: Lo
   });
 
   if (!result.ok) {
-    const message =
-      result.reason === 'password_not_set'
-        ? "This account hasn't set a password yet. Check your email for a setup link, or request a new one below."
-        : 'Invalid email or password.';
-    return withNoStore(jsonError('INVALID_CREDENTIALS', message));
+    if (result.reason === 'password_not_set') {
+      // Version 3.3 Milestone M5C — a distinct code so the frontend
+      // can render a direct activation link (see js/components/sign-in-form.js)
+      // rather than a generic error. See types/api-contracts.ts's
+      // PASSWORD_NOT_SET entry for why this adds no new enumeration
+      // signal.
+      return withNoStore(
+        jsonError('PASSWORD_NOT_SET', "This account hasn't set a password yet. Check your email for a setup link, or request a new one below.")
+      );
+    }
+    return withNoStore(jsonError('INVALID_CREDENTIALS', 'Invalid email or password.'));
   }
 
   const response = jsonSuccess({ customerId: result.customerId, email: result.email, expiresAt: result.expiresAt });
@@ -160,7 +171,11 @@ export async function handleCustomerSession(request: Request, env: Env, logger: 
   const auth = await requireCustomerAuth(request, env, logger);
   if (!auth.ok) return withNoStore(auth.response);
 
-  return withNoStore(jsonSuccess({ customerId: auth.auth.customerId, email: auth.auth.email }));
+  // Version 3.3 Milestone M5C — see sessionService.ts's countSessionsForCustomer()
+  // for why a count of 1 means this is the customer's first-ever login.
+  const sessionCount = await sessionService.countSessionsForCustomer(env, auth.auth.customerId);
+
+  return withNoStore(jsonSuccess({ customerId: auth.auth.customerId, email: auth.auth.email, isFirstSession: sessionCount <= 1 }));
 }
 
 export async function handleCustomerForgotPassword(request: Request, env: Env, logger: Logger): Promise<Response> {

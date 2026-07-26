@@ -36,6 +36,13 @@ import newsletterCampaignTemplate from '../emails/templates/newsletter-campaign.
 // above — different audience, different copy, different link path.
 import customerWelcomeTemplate from '../emails/templates/customer-welcome.html';
 import customerPasswordResetTemplate from '../emails/templates/customer-password-reset.html';
+// Version 3.3 Milestone M5C (Activation, Analytics and Customer
+// Reconciliation) — see services/customer/reconciliationService.ts.
+// Distinct copy from both templates above: this recovers a historical
+// purchase, not a fresh checkout or a forgotten password.
+import customerPurchaseReconciliationTemplate from '../emails/templates/customer-purchase-reconciliation.html';
+// Version 3.3 Milestone M5C Phase 5 — see services/customer/reviewReminderService.ts.
+import customerReviewReminderTemplate from '../emails/templates/customer-review-reminder.html';
 import type { Env } from '../worker/env';
 import type { Logger } from '../utils/logger';
 import { getEmailSendSettings } from './admin/settingsService';
@@ -51,7 +58,9 @@ export type EmailTemplateName =
   | 'admin-invite'
   | 'newsletter-campaign'
   | 'customer-welcome'
-  | 'customer-password-reset';
+  | 'customer-password-reset'
+  | 'customer-purchase-reconciliation'
+  | 'customer-review-reminder';
 
 const TEMPLATES: Record<EmailTemplateName, string> = {
   'newsletter-welcome': newsletterWelcomeTemplate,
@@ -65,6 +74,8 @@ const TEMPLATES: Record<EmailTemplateName, string> = {
   'newsletter-campaign': newsletterCampaignTemplate,
   'customer-welcome': customerWelcomeTemplate,
   'customer-password-reset': customerPasswordResetTemplate,
+  'customer-purchase-reconciliation': customerPurchaseReconciliationTemplate,
+  'customer-review-reminder': customerReviewReminderTemplate,
 };
 
 export interface SendEmailOptions {

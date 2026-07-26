@@ -121,4 +121,13 @@ export type ApiErrorCode =
   // POST /api/customer/reviews, POST /api/checkout/sessions — added
   // Version 3.2 Milestone M4 (Commerce & Trust Foundations)
   | 'NO_VERIFIED_PURCHASE'
-  | 'COUPON_INVALID';
+  | 'COUPON_INVALID'
+  // POST /api/customer/auth/login — added Version 3.3 Milestone M5C
+  // (Activation, Analytics and Customer Reconciliation). A distinct
+  // code (rather than reusing INVALID_CREDENTIALS) for the
+  // password_not_set case, so the sign-in form can render a direct
+  // activation link instead of a generic error — the message text
+  // already told the user this exact fact before this change, so this
+  // adds no new enumeration signal, only a machine-readable code for
+  // it. See services/customer/authService.ts's login().
+  | 'PASSWORD_NOT_SET';

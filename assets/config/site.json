@@ -50,5 +50,9 @@
     "_comment": "Reference-only, same reason as branding above.",
     "siteName": "Robayer WealthLab",
     "defaultOgImage": "https://robayerwealthlab.com/assets/branding/social/og-image.jpg"
+  },
+  "analytics": {
+    "_comment": "Version 3.3 Milestone M5C (Activation, Analytics and Customer Reconciliation). webAnalyticsToken is the real Cloudflare Web Analytics site-tag token, generated once, manually, from the Cloudflare dashboard (Analytics & Logs > Web Analytics > Add a site) — there is no API to create one, and this project's own principle (docs/v2-analytics-spec.md) is to never fake a data source. Left null until that one-time manual step happens; js/main.js's loadCloudflareWebAnalytics() is a genuine no-op until then, never a fabricated placeholder token. See docs/v3.3-m5c-analytics-architecture.md's Known Limitations.",
+    "webAnalyticsToken": null
   }
 }
