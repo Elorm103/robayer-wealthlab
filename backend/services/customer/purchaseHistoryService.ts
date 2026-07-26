@@ -16,6 +16,7 @@
  */
 
 import type { Env } from '../../worker/env';
+import { resolveAssetsWithDeliveryInfo, type AssetDeliveryInfo } from '../fulfilmentService';
 
 export interface CustomerPurchaseSummary {
   purchaseReference: string;
@@ -24,6 +25,18 @@ export interface CustomerPurchaseSummary {
   status: 'processing' | 'ready' | 'unavailable' | 'refunded';
   createdAt: string;
   receiptNumber: string | null;
+  /**
+   * Version 3.1 Milestone M3 - Customer Library Download actions need
+   * to know which assets exist and their usage/limit/revocation state
+   * without a second round-trip per purchase (docs/v3.1-m3-api-gap-analysis.md,
+   * Gap 1/2). Only populated for `status === 'ready'`, mirroring
+   * `fulfilmentService.getFulfilmentStatus()`'s own established
+   * "never list assets for anything but a genuinely ready purchase"
+   * discipline - never populated for `refunded` either, even though
+   * the receipt itself remains visible, since a refunded purchase must
+   * never be shown with a Download action.
+   */
+  assets: AssetDeliveryInfo[];
 }
 
 export interface ListCustomerPurchasesResult {
@@ -46,6 +59,8 @@ function toCustomerStatus(internal: string): CustomerPurchaseSummary['status'] {
 }
 
 interface PurchaseListRow {
+  purchaseSessionId: number;
+  productSlug: string;
   purchaseReference: string;
   productTitle: string;
   amountPesewas: number;
@@ -58,13 +73,20 @@ interface PurchaseListRow {
 const MAX_LIMIT = 50;
 const DEFAULT_LIMIT = 20;
 
+/** Never populated for anything but a genuinely `ready` purchase - see CustomerPurchaseSummary's own doc comment. */
+async function resolveAssetsIfReady(env: Env, row: PurchaseListRow, status: CustomerPurchaseSummary['status']): Promise<AssetDeliveryInfo[]> {
+  if (status !== 'ready') return [];
+  return resolveAssetsWithDeliveryInfo(env, row.purchaseSessionId, row.productSlug);
+}
+
 export async function listCustomerPurchases(env: Env, customerId: number, pageInput: number, limitInput: number): Promise<ListCustomerPurchasesResult> {
   const page = Number.isInteger(pageInput) && pageInput > 0 ? pageInput : 1;
   const limit = Number.isInteger(limitInput) && limitInput > 0 ? Math.min(limitInput, MAX_LIMIT) : DEFAULT_LIMIT;
   const offset = (page - 1) * limit;
 
   const { results } = await env.DB.prepare(
-    `SELECT ps.purchase_reference AS purchaseReference, ps.product_title AS productTitle,
+    `SELECT ps.id AS purchaseSessionId, ps.product_slug AS productSlug,
+            ps.purchase_reference AS purchaseReference, ps.product_title AS productTitle,
             ps.amount_pesewas AS amountPesewas, ps.currency, ps.status, ps.created_at AS createdAt,
             r.receipt_number AS receiptNumber
      FROM purchase_sessions ps
@@ -78,15 +100,23 @@ export async function listCustomerPurchases(env: Env, customerId: number, pageIn
 
   const totalRow = await env.DB.prepare(`SELECT COUNT(*) AS n FROM purchase_sessions WHERE customer_id = ?`).bind(customerId).first<{ n: number }>();
 
+  const purchases = await Promise.all(
+    results.map(async (row) => {
+      const status = toCustomerStatus(row.status);
+      return {
+        purchaseReference: row.purchaseReference,
+        productTitle: row.productTitle,
+        amountDisplay: formatAmount(row.amountPesewas, row.currency),
+        status,
+        createdAt: row.createdAt,
+        receiptNumber: row.receiptNumber,
+        assets: await resolveAssetsIfReady(env, row, status),
+      };
+    })
+  );
+
   return {
-    purchases: results.map((row) => ({
-      purchaseReference: row.purchaseReference,
-      productTitle: row.productTitle,
-      amountDisplay: formatAmount(row.amountPesewas, row.currency),
-      status: toCustomerStatus(row.status),
-      createdAt: row.createdAt,
-      receiptNumber: row.receiptNumber,
-    })),
+    purchases,
     total: totalRow?.n ?? 0,
     page,
     limit,
@@ -96,7 +126,8 @@ export async function listCustomerPurchases(env: Env, customerId: number, pageIn
 /** Returns `null` both when the reference doesn't exist and when it belongs to a different customer - see this file's own header comment on why that distinction is never surfaced. */
 export async function getCustomerPurchase(env: Env, customerId: number, reference: string): Promise<CustomerPurchaseSummary | null> {
   const row = await env.DB.prepare(
-    `SELECT ps.purchase_reference AS purchaseReference, ps.product_title AS productTitle,
+    `SELECT ps.id AS purchaseSessionId, ps.product_slug AS productSlug,
+            ps.purchase_reference AS purchaseReference, ps.product_title AS productTitle,
             ps.amount_pesewas AS amountPesewas, ps.currency, ps.status, ps.created_at AS createdAt,
             r.receipt_number AS receiptNumber
      FROM purchase_sessions ps
@@ -108,13 +139,16 @@ export async function getCustomerPurchase(env: Env, customerId: number, referenc
 
   if (!row) return null;
 
+  const status = toCustomerStatus(row.status);
+
   return {
     purchaseReference: row.purchaseReference,
     productTitle: row.productTitle,
     amountDisplay: formatAmount(row.amountPesewas, row.currency),
-    status: toCustomerStatus(row.status),
+    status,
     createdAt: row.createdAt,
     receiptNumber: row.receiptNumber,
+    assets: await resolveAssetsIfReady(env, row, status),
   };
 }
 

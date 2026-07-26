@@ -1663,6 +1663,117 @@ button.resource-card {
 }
 
 /* ============================================================
+   DASHBOARD — Version 3.1 Milestone M3 (Checkout Auto-Provisioning &
+   Dashboard MVP). Built entirely from existing tokens/components
+   (.card, .btn, .badge, .field) — see docs/v3.1-m3-ux-strategy.md's
+   own "reuse, do not reinvent" rule. Every new class below reads only
+   semantic tokens, so it adapts to dark mode automatically without
+   needing its own entry in the DARK MODE block further down (the same
+   reason most of this file's existing classes need no dark-mode
+   counterpart either).
+   ============================================================ */
+
+.dashboard-nav {
+  background-color: var(--color-bg-alt);
+  border-bottom: 1px solid var(--color-border);
+  padding-block: var(--space-3);
+}
+
+.dashboard-nav__links {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-4);
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+
+.dashboard-nav__links a {
+  font-family: var(--font-heading);
+  font-size: 0.9rem;
+  color: var(--color-text-secondary);
+  text-decoration: none;
+  padding-block: var(--space-1);
+  border-bottom: 2px solid transparent;
+}
+
+.dashboard-nav__links a:hover,
+.dashboard-nav__links a:focus-visible {
+  color: var(--color-text-primary);
+}
+
+.dashboard-nav__links a[aria-current="page"] {
+  color: var(--color-accent);
+  border-bottom-color: var(--color-accent);
+  font-weight: 500;
+}
+
+.dashboard-nav__account {
+  flex-wrap: wrap;
+}
+
+/* Library / Purchase History / Receipts / Licenses row-cards — a
+   restrained variant of .card, not a new visual language. */
+.library-row {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-3);
+  padding: var(--space-4);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-md);
+  background-color: var(--color-surface);
+}
+
+.library-row + .library-row {
+  margin-top: var(--space-3);
+}
+
+.library-row__meta {
+  min-width: 0;
+}
+
+.library-row__title {
+  font-family: var(--font-heading);
+  margin: 0 0 var(--space-1) 0;
+}
+
+.library-row__actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-2);
+}
+
+.library-row__usage {
+  font-size: 0.85rem;
+  color: var(--color-text-secondary);
+  margin-top: var(--space-1);
+}
+
+.library-empty-state {
+  text-align: center;
+  padding: var(--space-6) var(--space-3);
+  border: 1px dashed var(--color-border-strong);
+  border-radius: var(--radius-md);
+}
+
+.session-row {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-3);
+  padding: var(--space-3) var(--space-4);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-sm);
+}
+
+.session-row + .session-row {
+  margin-top: var(--space-2);
+}
+
+/* ============================================================
    DARK MODE — targeted overrides
    Most components read the semantic tokens defined in tokens.css
    and already adapt automatically under [data-theme="dark"]. These

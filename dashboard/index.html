@@ -1,0 +1,74 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+
+  <title>My Library | Robayer WealthLab</title>
+  <meta name="description" content="Everything you own with Robayer WealthLab, in one place.">
+  <link rel="canonical" href="https://robayerwealthlab.com/dashboard/">
+  <!-- Private, per-account page — never meant to appear in search results. -->
+  <meta name="robots" content="noindex, nofollow">
+
+  <link rel="icon" type="image/svg+xml" href="/assets/icons/favicon.svg">
+  <link rel="icon" type="image/png" sizes="32x32" href="/assets/icons/favicon-32.png">
+  <link rel="apple-touch-icon" href="/assets/icons/apple-touch-icon.png">
+
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Newsreader:ital,wght@0,600;1,500&family=Space+Grotesk:wght@500&family=Work+Sans:wght@400;500&family=IBM+Plex+Mono:wght@400;500&display=swap" rel="stylesheet">
+
+  <link rel="stylesheet" href="/css/tokens.css">
+  <link rel="stylesheet" href="/css/base.css">
+  <link rel="stylesheet" href="/css/layout.css">
+  <link rel="stylesheet" href="/css/components.css">
+  <link rel="stylesheet" href="/css/utilities.css">
+</head>
+<body>
+  <a href="#main-content" class="skip-link">Skip to main content</a>
+
+  <div data-include="/partials/header.html"></div>
+  <div data-include="/partials/dashboard-nav.html"></div>
+
+  <main id="main-content">
+    <section class="section--tight">
+      <div class="container content-column">
+        <span class="eyebrow">Your account</span>
+        <h1 class="mt-2 mb-2">My Library</h1>
+        <p class="text-secondary mb-5">Everything you own, in one place.</p>
+
+        <div data-library-root>
+          <!-- Loading state — honest, static fallback, matching
+               checkout/callback/index.html's own progressive-
+               enhancement pattern. -->
+          <p data-library-loading class="text-secondary">Loading your library&hellip;</p>
+
+          <!-- Populated state -->
+          <div data-library-list hidden></div>
+
+          <!-- Empty state (AR-009) -->
+          <div data-library-empty class="library-empty-state" hidden>
+            <p class="mb-3">Nothing here yet. Browse our guides to get started.</p>
+            <a href="/books/" class="btn btn--accent">Browse our guides</a>
+          </div>
+
+          <!-- Error state -->
+          <p data-library-error class="alert alert--error" role="alert" hidden></p>
+        </div>
+      </div>
+    </section>
+  </main>
+
+  <div data-include="/partials/footer.html"></div>
+
+  <script src="/js/includes.js"></script>
+  <script src="/js/components/nav.js"></script>
+  <script src="/js/components/theme-toggle.js"></script>
+  <script src="/js/components/branding.js"></script>
+  <script src="/js/content-inject.js"></script>
+  <script src="/js/components/dashboard-auth.js"></script>
+  <script src="/js/components/dashboard-shell.js"></script>
+  <script src="/js/components/library-list.js"></script>
+  <script src="/js/main.js"></script>
+</body>
+</html>

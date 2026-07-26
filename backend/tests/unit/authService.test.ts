@@ -6,6 +6,7 @@
 import { describe, it, expect, beforeEach } from 'vitest';
 import { env } from 'cloudflare:test';
 import * as authService from '../../services/customer/authService';
+import * as sessionService from '../../services/customer/sessionService';
 import { findOrCreateCustomer } from '../../services/customer/identityService';
 import { createLogger } from '../../utils/logger';
 
@@ -117,5 +118,67 @@ describe('customer authService', () => {
 
     const tokenRow = await env.DB.prepare('SELECT used_at FROM customer_password_tokens WHERE token = ?').bind(token).first<{ used_at: string | null }>();
     expect(tokenRow?.used_at).toBeTruthy();
+  });
+
+  // Version 3.1 Milestone M3 (Checkout Auto-Provisioning & Dashboard MVP) — change-password for an already-logged-in customer.
+
+  async function setUpLoggedInCustomer(email: string, password: string) {
+    const { customerId } = await findOrCreateCustomer(env as any, email, false);
+    const token = `${email}-setup-token`.padEnd(64, '9').slice(0, 64);
+    await insertToken(customerId, token);
+    await authService.setPassword(env as any, logger, token, password);
+    const session = await sessionService.createSession(env as any, customerId, { ip: null, userAgent: null });
+    const check = await sessionService.validateSession(env as any, session.sessionToken);
+    if (!check.ok) throw new Error('expected session to validate');
+    return { customerId, sessionToken: session.sessionToken, sessionId: check.sessionId };
+  }
+
+  it('changePassword succeeds with the correct current password and a strong new one', async () => {
+    const { customerId, sessionId } = await setUpLoggedInCustomer('change-pw@example.com', 'the-original-password-1');
+
+    const result = await authService.changePassword(env as any, logger, customerId, sessionId, 'the-original-password-1', 'a-new-strong-password-2');
+    expect(result.ok).toBe(true);
+
+    const loginOld = await authService.login(env as any, logger, 'change-pw@example.com', 'the-original-password-1', { ip: null, userAgent: null });
+    expect(loginOld.ok).toBe(false);
+    const loginNew = await authService.login(env as any, logger, 'change-pw@example.com', 'a-new-strong-password-2', { ip: null, userAgent: null });
+    expect(loginNew.ok).toBe(true);
+  });
+
+  it('changePassword rejects an incorrect current password without changing anything', async () => {
+    const { customerId, sessionId } = await setUpLoggedInCustomer('change-pw-wrong@example.com', 'the-real-password-1');
+
+    const result = await authService.changePassword(env as any, logger, customerId, sessionId, 'totally-wrong-current', 'a-new-strong-password-2');
+    expect(result.ok).toBe(false);
+    if (!result.ok) expect(result.reason).toBe('invalid_current_password');
+
+    const loginStillOld = await authService.login(env as any, logger, 'change-pw-wrong@example.com', 'the-real-password-1', { ip: null, userAgent: null });
+    expect(loginStillOld.ok).toBe(true);
+  });
+
+  it('changePassword rejects a weak new password without changing anything', async () => {
+    const { customerId, sessionId } = await setUpLoggedInCustomer('change-pw-weak@example.com', 'the-real-password-1');
+
+    const result = await authService.changePassword(env as any, logger, customerId, sessionId, 'the-real-password-1', 'short');
+    expect(result.ok).toBe(false);
+    if (!result.ok) expect(result.reason).toBe('validation');
+
+    const loginStillOld = await authService.login(env as any, logger, 'change-pw-weak@example.com', 'the-real-password-1', { ip: null, userAgent: null });
+    expect(loginStillOld.ok).toBe(true);
+  });
+
+  it('changePassword revokes every OTHER session but keeps the current one alive', async () => {
+    const { customerId, sessionId } = await setUpLoggedInCustomer('change-pw-sessions@example.com', 'the-original-password-1');
+    const otherSession = await sessionService.createSession(env as any, customerId, { ip: null, userAgent: null });
+
+    const result = await authService.changePassword(env as any, logger, customerId, sessionId, 'the-original-password-1', 'a-new-strong-password-2');
+    expect(result.ok).toBe(true);
+
+    expect((await sessionService.validateSession(env as any, otherSession.sessionToken)).ok).toBe(false);
+    // The current session (identified by sessionId, not a token here) must remain valid — re-derive its token is not possible,
+    // so instead confirm via a fresh login that no unintended global session wipe occurred beyond "every other" session.
+    const stillWorks = await sessionService.listActiveSessions(env as any, customerId, sessionId);
+    expect(stillWorks.some((s) => s.isCurrent)).toBe(true);
+    expect(stillWorks.length).toBe(1);
   });
 });

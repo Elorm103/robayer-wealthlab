@@ -96,9 +96,73 @@ export async function revokeSession(env: Env, tokenInput: unknown): Promise<Revo
   return row ? { revoked: true, customerId: row.customerId } : { revoked: false };
 }
 
-/** Revokes every active session for a customer — used after a password change/reset, mirroring admin's `revokeAllSessions()`. No "except current" variant exists yet in M1 (unlike admin's `revokeAllSessionsExcept`) since the customer dashboard's own session-management UI is a Milestone M3 concern, not M1's. */
+/** Revokes every active session for a customer — used after a password reset (no "current" session exists yet during that flow — see authService.ts's setPassword()). */
 export async function revokeAllSessions(env: Env, customerId: number): Promise<void> {
   await env.DB.prepare(`UPDATE customer_sessions SET revoked_at = datetime('now') WHERE customer_id = ? AND revoked_at IS NULL`)
     .bind(customerId)
     .run();
+}
+
+// ============================================================
+// Account Security (Version 3.1 Milestone M3) — a customer viewing
+// and selectively revoking their own sessions. See
+// docs/v3.1-m3-api-gap-analysis.md's Gap 3.
+// ============================================================
+
+export interface CustomerSessionSummary {
+  id: number;
+  ipCreated: string | null;
+  userAgent: string | null;
+  createdAt: string;
+  lastSeenAt: string;
+  expiresAt: string;
+  isCurrent: boolean;
+}
+
+/** Revokes every OTHER active session for a customer, preserving `exceptSessionId` — used after a change-password (unlike revokeAllSessions(), which a password *reset* uses since no session is logged in yet during that flow). Direct mirror of services/admin/sessionService.ts's own revokeAllSessionsExcept(). */
+export async function revokeAllSessionsExcept(env: Env, customerId: number, exceptSessionId: number): Promise<void> {
+  await env.DB.prepare(`UPDATE customer_sessions SET revoked_at = datetime('now') WHERE customer_id = ? AND id != ? AND revoked_at IS NULL`)
+    .bind(customerId, exceptSessionId)
+    .run();
+}
+
+/** Lists the calling customer's own non-revoked, non-expired sessions — never another customer's. Direct mirror of services/admin/sessionService.ts's own listSessions(). */
+export async function listActiveSessions(env: Env, customerId: number, currentSessionId: number): Promise<CustomerSessionSummary[]> {
+  const now = new Date().toISOString();
+  const { results } = await env.DB.prepare(
+    `SELECT id, ip_created AS ipCreated, user_agent AS userAgent, created_at AS createdAt, last_seen_at AS lastSeenAt, expires_at AS expiresAt
+     FROM customer_sessions
+     WHERE customer_id = ? AND revoked_at IS NULL AND expires_at > ?
+     ORDER BY last_seen_at DESC`
+  )
+    .bind(customerId, now)
+    .all<{ id: number; ipCreated: string | null; userAgent: string | null; createdAt: string; lastSeenAt: string; expiresAt: string }>();
+
+  return results.map((row) => ({ ...row, isCurrent: row.id === currentSessionId }));
+}
+
+export type RevokeByIdResult = { ok: true } | { ok: false; reason: 'not_found' };
+
+/**
+ * Revokes one of the calling customer's own sessions by id — verifies
+ * the target session's `customer_id` matches the caller's own id
+ * BEFORE revoking, the same IDOR check
+ * `services/admin/sessionService.ts`'s own `revokeSessionById()`
+ * already established (the one genuinely new authorization shape M3
+ * introduces per docs/v3.1-m3-security-review.md - every other M1/M2
+ * customer endpoint filters by customerId alone, never a second
+ * resource's own id needing its own ownership check). This function
+ * itself has no special-case guard against revoking the *current*
+ * session (unlike the admin equivalent, that guard now lives one layer
+ * up in routes/customer/sessions.ts's handleRevokeCustomerSession(),
+ * added during the M3C Acceptance Review — the Security Review's
+ * Session handling section explicitly required it and the initial
+ * UI-only enforcement was confirmed insufficient by a direct API call).
+ */
+export async function revokeSessionById(env: Env, customerId: number, sessionId: number): Promise<RevokeByIdResult> {
+  const result = await env.DB.prepare(`UPDATE customer_sessions SET revoked_at = datetime('now') WHERE id = ? AND customer_id = ? AND revoked_at IS NULL`)
+    .bind(sessionId, customerId)
+    .run();
+
+  return result.meta.changes === 1 ? { ok: true } : { ok: false, reason: 'not_found' };
 }

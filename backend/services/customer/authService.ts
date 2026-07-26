@@ -235,3 +235,73 @@ export async function setPassword(env: Env, logger: Logger, tokenInput: unknown,
 
   return { ok: true };
 }
+
+// ============================================================
+// Change password (already logged in) — Version 3.1 Milestone M3
+// (Checkout Auto-Provisioning & Dashboard MVP). See
+// docs/v3.1-m3-api-gap-analysis.md's Gap 4.
+//
+// Distinct from setPassword() above: that flow redeems an emailed,
+// single-use token (no prior session exists yet). This flow instead
+// re-authenticates a specific irreversible action with the customer's
+// CURRENT password, exactly as admin authService.ts's own
+// changePassword() already established for admins — an already-logged-in
+// customer changing their password should never need an email
+// round-trip, but must still prove they are the account owner right
+// now, not merely that a session cookie exists.
+// ============================================================
+
+export type ChangePasswordResult =
+  | { ok: true }
+  | { ok: false; reason: 'invalid_current_password' }
+  | { ok: false; reason: 'validation'; errors: PasswordValidationError[] };
+
+/**
+ * Verifies `currentPasswordInput` against the stored hash, then
+ * applies `newPasswordInput` if it passes the same strength policy
+ * every other password-set path already enforces. On success, revokes
+ * every OTHER active session for this customer (mirroring setPassword()'s
+ * "a password change invalidates prior logins" rule) while preserving
+ * `currentSessionId` — the one call site that needs the "except"
+ * variant, since here (unlike setPassword()) the customer IS actively
+ * logged in during the flow and must not be signed out of the very
+ * request that changed their own password.
+ */
+export async function changePassword(
+  env: Env,
+  logger: Logger,
+  customerId: number,
+  currentSessionId: number,
+  currentPasswordInput: unknown,
+  newPasswordInput: unknown
+): Promise<ChangePasswordResult> {
+  const row = await env.DB.prepare(`SELECT password_hash AS passwordHash, email FROM customers WHERE id = ? AND status = 'active' AND deleted_at IS NULL`)
+    .bind(customerId)
+    .first<{ passwordHash: string | null; email: string }>();
+
+  const hasPassword = !!row?.passwordHash;
+  const currentValid =
+    typeof currentPasswordInput === 'string' &&
+    currentPasswordInput.length > 0 &&
+    (await verifyPassword(currentPasswordInput, hasPassword ? (row!.passwordHash as string) : DUMMY_PASSWORD_HASH));
+
+  if (!row || !hasPassword || !currentValid) {
+    logger.info('customer.change_password_failed', { customerId, reason: 'invalid_current_password' });
+    return { ok: false, reason: 'invalid_current_password' };
+  }
+
+  const strengthErrors = validatePasswordStrength(newPasswordInput, { email: row.email });
+  if (strengthErrors.length > 0) return { ok: false, reason: 'validation', errors: strengthErrors };
+
+  const newHash = await hashPassword(newPasswordInput as string);
+
+  await env.DB.prepare(`UPDATE customers SET password_hash = ?, updated_at = datetime('now') WHERE id = ?`)
+    .bind(newHash, customerId)
+    .run();
+
+  await sessionService.revokeAllSessionsExcept(env, customerId, currentSessionId);
+
+  logger.info('customer.password_changed', { customerId });
+
+  return { ok: true };
+}

@@ -114,4 +114,7 @@ export type ApiErrorCode =
   | 'RECIPIENT_CAP_EXCEEDED'
   // /api/customer/purchases/*, /api/customer/receipts/*, /api/purchases/:reference/receipt-download
   // — added Version 3.0.2 Milestone M2 (Orders, Receipts & Customer Library)
-  | 'RECEIPT_NOT_FOUND';
+  | 'RECEIPT_NOT_FOUND'
+  // POST /api/customer/sessions/:sessionId/revoke — added Version 3.1
+  // Milestone M3, M3C Acceptance Review fix (see routes/customer/sessions.ts)
+  | 'CANNOT_REVOKE_CURRENT_SESSION';

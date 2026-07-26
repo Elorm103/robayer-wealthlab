@@ -1,0 +1,27 @@
+<!--
+  Robayer WealthLab: Dashboard Navigation Partial — Version 3.1
+  Milestone M3 (Checkout Auto-Provisioning & Dashboard MVP).
+
+  Direct sibling of partials/header.html/footer.html, included via the
+  same data-include mechanism (js/includes.js). Populated by
+  js/components/dashboard-shell.js once js/components/dashboard-auth.js's
+  requireSession() confirms a valid session — never rendered against an
+  unauthenticated request, since every /dashboard/* page's own auth
+  guard redirects to /checkout/sign-in/ before this partial's content
+  would ever matter.
+-->
+<nav class="dashboard-nav" aria-label="Account dashboard">
+  <div class="container cluster cluster--between">
+    <ul class="dashboard-nav__links" data-dashboard-nav-links>
+      <li><a href="/dashboard/" data-dashboard-nav-link="library">My Library</a></li>
+      <li><a href="/dashboard/purchases/" data-dashboard-nav-link="purchases">Purchase History</a></li>
+      <li><a href="/dashboard/receipts/" data-dashboard-nav-link="receipts">Receipts</a></li>
+      <li><a href="/dashboard/licenses/" data-dashboard-nav-link="licenses">Licenses</a></li>
+      <li><a href="/dashboard/security/" data-dashboard-nav-link="security">Account Security</a></li>
+    </ul>
+    <div class="dashboard-nav__account cluster gap-3">
+      <span class="text-small text-secondary" data-dashboard-nav-email>&nbsp;</span>
+      <button type="button" class="btn btn--secondary" data-dashboard-nav-logout>Log out</button>
+    </div>
+  </div>
+</nav>

@@ -64,4 +64,72 @@ describe('customer sessionService', () => {
     expect((await sessionService.validateSession(env as any, s1.sessionToken)).ok).toBe(false);
     expect((await sessionService.validateSession(env as any, s2.sessionToken)).ok).toBe(false);
   });
+
+  // Version 3.1 Milestone M3 (Checkout Auto-Provisioning & Dashboard MVP) — Account Security's own-sessions list/revoke.
+
+  it('listActiveSessions returns only this customer\'s own active sessions, correctly flagging the current one', async () => {
+    const s1 = await sessionService.createSession(env as any, customerId, { ip: '1.1.1.1', userAgent: 'agent-1' });
+    const s2 = await sessionService.createSession(env as any, customerId, { ip: '2.2.2.2', userAgent: 'agent-2' });
+    const check1 = await sessionService.validateSession(env as any, s1.sessionToken);
+    if (!check1.ok) throw new Error('expected session to validate');
+
+    const sessions = await sessionService.listActiveSessions(env as any, customerId, check1.sessionId);
+    expect(sessions.length).toBe(2);
+    const currentEntry = sessions.find((s) => s.isCurrent);
+    expect(currentEntry).toBeTruthy();
+    expect(sessions.filter((s) => !s.isCurrent).length).toBe(1);
+    void s2;
+  });
+
+  it('listActiveSessions never returns a revoked session', async () => {
+    const s1 = await sessionService.createSession(env as any, customerId, { ip: null, userAgent: null });
+    await sessionService.revokeSession(env as any, s1.sessionToken);
+    const s2 = await sessionService.createSession(env as any, customerId, { ip: null, userAgent: null });
+    const check2 = await sessionService.validateSession(env as any, s2.sessionToken);
+    if (!check2.ok) throw new Error('expected session to validate');
+
+    const sessions = await sessionService.listActiveSessions(env as any, customerId, check2.sessionId);
+    expect(sessions.length).toBe(1);
+    expect(sessions[0].isCurrent).toBe(true);
+  });
+
+  it('revokeSessionById revokes exactly the targeted session, ownership-checked', async () => {
+    const s1 = await sessionService.createSession(env as any, customerId, { ip: null, userAgent: null });
+    const s2 = await sessionService.createSession(env as any, customerId, { ip: null, userAgent: null });
+    const check1 = await sessionService.validateSession(env as any, s1.sessionToken);
+    if (!check1.ok) throw new Error('expected session to validate');
+
+    const result = await sessionService.revokeSessionById(env as any, customerId, check1.sessionId);
+    expect(result.ok).toBe(true);
+
+    expect((await sessionService.validateSession(env as any, s1.sessionToken)).ok).toBe(false);
+    expect((await sessionService.validateSession(env as any, s2.sessionToken)).ok).toBe(true);
+  });
+
+  it('revokeSessionById refuses to revoke a session belonging to a DIFFERENT customer (the one new authorization shape M3 introduces, per docs/v3.1-m3-security-review.md)', async () => {
+    const otherCustomer = await findOrCreateCustomer(env as any, `session-test-other-${Date.now()}@example.com`, false);
+    const victimSession = await sessionService.createSession(env as any, otherCustomer.customerId, { ip: null, userAgent: null });
+    const victimCheck = await sessionService.validateSession(env as any, victimSession.sessionToken);
+    if (!victimCheck.ok) throw new Error('expected session to validate');
+
+    // customerId (the beforeEach-seeded customer) attempts to revoke a session that belongs to otherCustomer.
+    const result = await sessionService.revokeSessionById(env as any, customerId, victimCheck.sessionId);
+    expect(result.ok).toBe(false);
+    if (!result.ok) expect(result.reason).toBe('not_found');
+
+    // The victim's session must still be fully valid — the cross-customer attempt had zero effect.
+    expect((await sessionService.validateSession(env as any, victimSession.sessionToken)).ok).toBe(true);
+  });
+
+  it('revokeAllSessionsExcept revokes every other session but preserves the named one', async () => {
+    const s1 = await sessionService.createSession(env as any, customerId, { ip: null, userAgent: null });
+    const s2 = await sessionService.createSession(env as any, customerId, { ip: null, userAgent: null });
+    const check1 = await sessionService.validateSession(env as any, s1.sessionToken);
+    if (!check1.ok) throw new Error('expected session to validate');
+
+    await sessionService.revokeAllSessionsExcept(env as any, customerId, check1.sessionId);
+
+    expect((await sessionService.validateSession(env as any, s1.sessionToken)).ok).toBe(true);
+    expect((await sessionService.validateSession(env as any, s2.sessionToken)).ok).toBe(false);
+  });
 });

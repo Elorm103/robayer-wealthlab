@@ -45,6 +45,8 @@ const LOGIN_RATE_LIMIT = { endpoint: 'customer-login', limit: 5, windowSeconds: 
 // harassment vector even without any credential risk.
 const FORGOT_PASSWORD_RATE_LIMIT = { endpoint: 'customer-forgot-password', limit: 3, windowSeconds: 15 * 60 };
 const SET_PASSWORD_RATE_LIMIT = { endpoint: 'customer-set-password', limit: 10, windowSeconds: 15 * 60 };
+// Version 3.1 Milestone M3 — same calibration as SET_PASSWORD_RATE_LIMIT, this is the equally-sensitive already-logged-in equivalent.
+const CHANGE_PASSWORD_RATE_LIMIT = { endpoint: 'customer-change-password', limit: 10, windowSeconds: 15 * 60 };
 
 function validationErrorResponse(errors: PasswordValidationError[]): Response {
   const body = {
@@ -194,4 +196,39 @@ export async function handleCustomerSetPassword(request: Request, env: Env, logg
   }
 
   return withNoStore(jsonSuccess({ passwordSet: true }));
+}
+
+/**
+ * Version 3.1 Milestone M3 (Checkout Auto-Provisioning & Dashboard
+ * MVP) — the Account Security page's "change password" action for an
+ * already-logged-in customer. Distinct from set-password above (which
+ * redeems an emailed token, no session required); this route requires
+ * an active session AND the customer's current password, then revokes
+ * every other session while keeping this one alive. See
+ * services/customer/authService.ts's changePassword() for the full
+ * reasoning.
+ */
+export async function handleCustomerChangePassword(request: Request, env: Env, logger: Logger): Promise<Response> {
+  const auth = await requireCustomerAuth(request, env, logger);
+  if (!auth.ok) return withNoStore(auth.response);
+  const csrfFailure = await requireCustomerCsrf(request, env, logger, auth.auth);
+  if (csrfFailure) return withNoStore(csrfFailure);
+
+  if (await isRateLimited(request, env, CHANGE_PASSWORD_RATE_LIMIT)) {
+    return withNoStore(jsonError('RATE_LIMITED', 'Too many attempts. Please try again shortly.'));
+  }
+
+  const body = await readJsonBody(request);
+  if (!body) return withNoStore(jsonError('VALIDATION_ERROR', 'Invalid request body.'));
+
+  const result = await authService.changePassword(env, logger, auth.auth.customerId, auth.auth.sessionId, body.currentPassword, body.newPassword);
+
+  if (!result.ok) {
+    if (result.reason === 'invalid_current_password') {
+      return withNoStore(jsonError('INVALID_CREDENTIALS', 'Your current password is incorrect.'));
+    }
+    return withNoStore(validationErrorResponse(result.errors));
+  }
+
+  return withNoStore(jsonSuccess({ passwordChanged: true }));
 }

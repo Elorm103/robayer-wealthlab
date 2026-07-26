@@ -1,0 +1,86 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+
+  <title>Account Security | Robayer WealthLab</title>
+  <meta name="description" content="Manage your Robayer WealthLab account security.">
+  <link rel="canonical" href="https://robayerwealthlab.com/dashboard/security/">
+  <meta name="robots" content="noindex, nofollow">
+
+  <link rel="icon" type="image/svg+xml" href="/assets/icons/favicon.svg">
+  <link rel="icon" type="image/png" sizes="32x32" href="/assets/icons/favicon-32.png">
+  <link rel="apple-touch-icon" href="/assets/icons/apple-touch-icon.png">
+
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Newsreader:ital,wght@0,600;1,500&family=Space+Grotesk:wght@500&family=Work+Sans:wght@400;500&family=IBM+Plex+Mono:wght@400;500&display=swap" rel="stylesheet">
+
+  <link rel="stylesheet" href="/css/tokens.css">
+  <link rel="stylesheet" href="/css/base.css">
+  <link rel="stylesheet" href="/css/layout.css">
+  <link rel="stylesheet" href="/css/components.css">
+  <link rel="stylesheet" href="/css/utilities.css">
+</head>
+<body>
+  <a href="#main-content" class="skip-link">Skip to main content</a>
+
+  <div data-include="/partials/header.html"></div>
+  <div data-include="/partials/dashboard-nav.html"></div>
+
+  <main id="main-content">
+    <section class="section--tight">
+      <div class="container content-column">
+        <span class="eyebrow">Your account</span>
+        <h1 class="mt-2 mb-2">Account Security</h1>
+        <p class="text-secondary mb-5">Your email, password, and active sessions — should feel as trustworthy as a bank's account-security page.</p>
+
+        <div data-account-security-root>
+
+          <h2 class="mb-3">Profile</h2>
+          <p class="mb-5">Signed in as <strong data-account-email>&nbsp;</strong></p>
+
+          <h2 class="mb-3">Change password</h2>
+          <p class="text-secondary text-small mb-3">Changing your password signs you out of every other device — this one stays signed in.</p>
+          <form class="card" style="max-width:480px;padding:var(--space-5);" data-password-form novalidate aria-label="Change password">
+            <div class="field">
+              <label for="account-current-password" class="field__label">Current password</label>
+              <input type="password" id="account-current-password" name="currentPassword" class="field__input" autocomplete="current-password" required>
+            </div>
+            <div class="field">
+              <label for="account-new-password" class="field__label">New password</label>
+              <input type="password" id="account-new-password" name="newPassword" class="field__input" autocomplete="new-password" required>
+            </div>
+            <div class="field">
+              <label for="account-new-password-confirm" class="field__label">Confirm new password</label>
+              <input type="password" id="account-new-password-confirm" name="newPasswordConfirm" class="field__input" autocomplete="new-password" required>
+            </div>
+            <p data-password-error class="alert alert--error" role="alert" hidden></p>
+            <p data-password-success class="alert alert--success" role="status" hidden>Password changed.</p>
+            <button type="submit" class="btn btn--accent">Change password</button>
+          </form>
+
+          <h2 class="mt-5 mb-3">Active sessions</h2>
+          <p data-sessions-loading class="text-secondary">Loading your sessions&hellip;</p>
+          <div data-sessions-list hidden></div>
+          <p data-sessions-error class="alert alert--error" role="alert" hidden></p>
+
+        </div>
+      </div>
+    </section>
+  </main>
+
+  <div data-include="/partials/footer.html"></div>
+
+  <script src="/js/includes.js"></script>
+  <script src="/js/components/nav.js"></script>
+  <script src="/js/components/theme-toggle.js"></script>
+  <script src="/js/components/branding.js"></script>
+  <script src="/js/content-inject.js"></script>
+  <script src="/js/components/dashboard-auth.js"></script>
+  <script src="/js/components/dashboard-shell.js"></script>
+  <script src="/js/components/account-security.js"></script>
+  <script src="/js/main.js"></script>
+</body>
+</html>

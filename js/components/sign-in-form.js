@@ -1,15 +1,18 @@
 /**
  * Robayer WealthLab: Sign-In Form Component — Version 3.0.2 Milestone
- * M1 (Customer Identity & Guest Checkout).
+ * M1 (Customer Identity & Guest Checkout), updated Version 3.1
+ * Milestone M3 (Checkout Auto-Provisioning & Dashboard MVP).
  *
  * Progressive enhancement for the form on /checkout/sign-in/. POSTs to
  * POST /api/customer/auth/login (sets the customer_session/customer_csrf
- * cookies on success), then redirects to the confirmation page's
- * generic "your account" destination. M1 ships no dashboard to land
- * on yet (that's Milestone M3 — see docs/v3.0.2-sprint-readiness-report.md);
- * a successful sign-in redirects to the homepage with a confirmation
- * message rather than a Library page that doesn't exist yet, an
- * honest reflection of what's actually built in this milestone.
+ * cookies on success), then redirects to the dashboard's My Library
+ * page — M3 ships that dashboard, closing the gap this file's own
+ * header comment previously flagged ("M1 ships no dashboard to land
+ * on yet"). A `?redirect=` param (set by
+ * js/components/dashboard-auth.js when it sends an unauthenticated
+ * visitor here from a specific /dashboard/* page) is honored if
+ * present and safe, so a customer returns to the exact page they were
+ * trying to reach rather than always landing on My Library.
  *
  * Same progressive-enhancement, honest-failure pattern as every other
  * form on this site (js/components/newsletter-form.js,
@@ -17,6 +20,23 @@
  */
 
 const LOGIN_API_URL = '/api/customer/auth/login';
+const DEFAULT_POST_LOGIN_PATH = '/dashboard/';
+
+/**
+ * Only a value starting with the literal path `/dashboard/` is ever
+ * used as a redirect target — never a scheme, never `//` (which
+ * browsers resolve as a full cross-origin URL). Mirrors
+ * js/components/admin/admin-auth.js's own `sanitizeNextPath()` exactly,
+ * the fix for a real open-redirect (CWE-601) that file's own header
+ * comment documents finding — applied here from the start rather than
+ * introducing the same class of bug fresh.
+ */
+function sanitizeRedirectPath(rawRedirect) {
+  if (typeof rawRedirect === 'string' && /^\/dashboard\/(?!\/)/.test(rawRedirect)) {
+    return rawRedirect;
+  }
+  return DEFAULT_POST_LOGIN_PATH;
+}
 
 function initSignInForm() {
   const form = document.querySelector('[data-sign-in-form]:not([data-bound])');
@@ -51,7 +71,8 @@ function initSignInForm() {
         throw new Error((result && result.error && result.error.message) || 'Something went wrong. Please try again.');
       }
 
-      window.location.href = '/?signed-in=1';
+      const params = new URLSearchParams(window.location.search);
+      window.location.href = sanitizeRedirectPath(params.get('redirect'));
     } catch (error) {
       const message = error instanceof TypeError
         ? 'Could not reach the server. Please check your connection and try again.'

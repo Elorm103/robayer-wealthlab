@@ -191,6 +191,7 @@ import {
   handleCustomerSession,
   handleCustomerForgotPassword,
   handleCustomerSetPassword,
+  handleCustomerChangePassword,
 } from '../routes/customer/auth';
 // Version 3.0.2 Milestone M2 (Orders, Receipts & Customer Library) —
 // the Customer Library's data layer. See
@@ -202,6 +203,10 @@ import {
   handleDownloadCustomerReceipt,
   handleListCustomerLicenses,
 } from '../routes/customer/purchases';
+// Version 3.1 Milestone M3 (Checkout Auto-Provisioning & Dashboard
+// MVP) — Account Security's own-sessions list/revoke. See
+// docs/v3.1-m3-api-gap-analysis.md's Gap 3.
+import { handleListCustomerSessions, handleRevokeCustomerSession } from '../routes/customer/sessions';
 
 export type { Env };
 
@@ -467,6 +472,10 @@ const ROUTES: Route[] = [
   { pattern: new URLPattern({ pathname: '/api/customer/auth/session' }), method: 'GET', handler: handleCustomerSession },
   { pattern: new URLPattern({ pathname: '/api/customer/auth/forgot-password' }), method: 'POST', handler: handleCustomerForgotPassword },
   { pattern: new URLPattern({ pathname: '/api/customer/auth/set-password' }), method: 'POST', handler: handleCustomerSetPassword },
+  // Version 3.1 Milestone M3 — the Account Security page's own
+  // change-password action (already-logged-in, distinct from
+  // set-password's emailed-token flow above).
+  { pattern: new URLPattern({ pathname: '/api/customer/auth/change-password' }), method: 'POST', handler: handleCustomerChangePassword },
   // Milestone M2 (Orders, Receipts & Customer Library) — `/receipts`
   // ordered before `/receipts/:receiptNumber/download`'s more specific
   // pattern is irrelevant here since URLPattern matches by exact
@@ -477,6 +486,9 @@ const ROUTES: Route[] = [
   { pattern: new URLPattern({ pathname: '/api/customer/receipts' }), method: 'GET', handler: handleListCustomerReceipts },
   { pattern: new URLPattern({ pathname: '/api/customer/receipts/:receiptNumber/download' }), method: 'GET', handler: handleDownloadCustomerReceipt },
   { pattern: new URLPattern({ pathname: '/api/customer/licenses' }), method: 'GET', handler: handleListCustomerLicenses },
+  // Version 3.1 Milestone M3 — Account Security's own-sessions list/revoke.
+  { pattern: new URLPattern({ pathname: '/api/customer/sessions' }), method: 'GET', handler: handleListCustomerSessions },
+  { pattern: new URLPattern({ pathname: '/api/customer/sessions/:sessionId/revoke' }), method: 'POST', handler: handleRevokeCustomerSession },
 ];
 
 export default {

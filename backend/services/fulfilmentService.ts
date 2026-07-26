@@ -336,3 +336,71 @@ export async function getFulfilmentStatus(env: Env, purchaseReference: string): 
     receiptNumber,
   };
 }
+
+// ============================================================
+// Asset + delivery info for the Customer Library — Version 3.1
+// Milestone M3 (Checkout Auto-Provisioning & Dashboard MVP). See
+// docs/v3.1-m3-api-gap-analysis.md's Gap 1/2.
+// ============================================================
+
+export interface AssetDeliveryInfo {
+  assetId: string;
+  displayName: string;
+  fileType: string;
+  /** True once services/orders/revocationService.ts has revoked this entitlement (e.g. after a refund) — the Library must show this distinctly, never offer a Download action for it. */
+  revoked: boolean;
+  downloadsUsed: number;
+  /** Null = unlimited, mirrors deliveries.max_downloads' own nullability. */
+  maxDownloads: number | null;
+  lastDownloadAt: string | null;
+}
+
+interface DeliveryUsageRow {
+  assetId: string;
+  status: string;
+  downloadsUsed: number;
+  maxDownloads: number | null;
+  lastDownloadAt: string | null;
+}
+
+/**
+ * Every published asset for a product, joined against this specific
+ * purchase's own `deliveries` row (if fulfilment has run) for its
+ * usage/limit/revocation state. Deliberately a separate function from
+ * `getFulfilmentStatus()`'s own `assets` field, which stays narrower
+ * (assetId/displayName/fileType only) to avoid changing the
+ * already-tested, already-live guest-facing `GET /api/purchases/:reference`
+ * response shape - this richer shape is for the customer-authenticated
+ * Library only (`purchaseHistoryService.ts`), per
+ * docs/v3.1-m3-api-gap-analysis.md's explicit "don't touch the guest
+ * contract" reasoning.
+ */
+export async function resolveAssetsWithDeliveryInfo(env: Env, purchaseSessionId: number, productSlug: string): Promise<AssetDeliveryInfo[]> {
+  const product = await fetchCatalogProduct(env, productSlug);
+  if (!product) return [];
+
+  const publishedAssets = product.digitalAssets.filter(isAssetPublished);
+  if (publishedAssets.length === 0) return [];
+
+  const { results } = await env.DB.prepare(
+    `SELECT asset_id AS assetId, status, downloads_used AS downloadsUsed, max_downloads AS maxDownloads, last_download_at AS lastDownloadAt
+     FROM deliveries WHERE purchase_session_id = ?`
+  )
+    .bind(purchaseSessionId)
+    .all<DeliveryUsageRow>();
+
+  const deliveryByAsset = new Map(results.map((row) => [row.assetId, row]));
+
+  return publishedAssets.map((asset) => {
+    const delivery = deliveryByAsset.get(asset.assetId);
+    return {
+      assetId: asset.assetId,
+      displayName: asset.displayName,
+      fileType: asset.fileType,
+      revoked: delivery?.status === 'revoked',
+      downloadsUsed: delivery?.downloadsUsed ?? 0,
+      maxDownloads: delivery?.maxDownloads ?? null,
+      lastDownloadAt: delivery?.lastDownloadAt ?? null,
+    };
+  });
+}
