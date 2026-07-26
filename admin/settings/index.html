@@ -40,6 +40,58 @@
           The stored settings schema version doesn't match what this deployment expects. See System Information below, and check the implementation report before changing settings.
         </p>
 
+        <!-- Version 3.4 Milestone M6: the homepage hero's headline,
+             subheading, eyebrow, and both CTA buttons (text + destination)
+             are genuinely admin editable here, backed by site_settings
+             ('hero_content'). The featured book itself (cover, title,
+             price) is not edited here - that already comes from whichever
+             product is flagged "featured" in Products. -->
+        <section class="card mb-4">
+          <h2 class="editor-section-title">Homepage hero</h2>
+
+          <div class="settings-field">
+            <div>
+              <p class="settings-field__label">Hero copy</p>
+              <p class="text-small text-secondary">Shown on the homepage above the featured book. Changes appear on the next page load, no deployment needed.</p>
+            </div>
+            <span class="settings-source-tag" data-source="site_settings">site_settings</span>
+          </div>
+          <div class="field">
+            <label class="field__label" for="setting-hero-eyebrow">Eyebrow</label>
+            <input class="field__input" type="text" id="setting-hero-eyebrow" data-setting="heroContent.eyebrow" maxlength="200">
+          </div>
+          <div class="field">
+            <label class="field__label" for="setting-hero-headline">Headline</label>
+            <input class="field__input" type="text" id="setting-hero-headline" data-setting="heroContent.headline" maxlength="200">
+          </div>
+          <div class="field">
+            <label class="field__label" for="setting-hero-subheading">Subheading</label>
+            <textarea class="field__textarea" id="setting-hero-subheading" data-setting="heroContent.subheading" maxlength="500"></textarea>
+          </div>
+          <div class="editor-field-row">
+            <div class="field">
+              <label class="field__label" for="setting-hero-primary-cta-text">Primary button text</label>
+              <input class="field__input" type="text" id="setting-hero-primary-cta-text" data-setting="heroContent.primaryCtaText" maxlength="200">
+            </div>
+            <div class="field">
+              <label class="field__label" for="setting-hero-primary-cta-href">Primary button destination</label>
+              <input class="field__input" type="text" id="setting-hero-primary-cta-href" data-setting="heroContent.primaryCtaHref" placeholder="/resources/">
+              <span class="field__hint">A site path starting with / (or mailto:/tel:).</span>
+            </div>
+          </div>
+          <div class="editor-field-row">
+            <div class="field">
+              <label class="field__label" for="setting-hero-secondary-cta-text">Secondary button text</label>
+              <input class="field__input" type="text" id="setting-hero-secondary-cta-text" data-setting="heroContent.secondaryCtaText" maxlength="200">
+            </div>
+            <div class="field">
+              <label class="field__label" for="setting-hero-secondary-cta-href">Secondary button destination</label>
+              <input class="field__input" type="text" id="setting-hero-secondary-cta-href" data-setting="heroContent.secondaryCtaHref" placeholder="/contact/">
+              <span class="field__hint">A site path starting with / (or mailto:/tel:).</span>
+            </div>
+          </div>
+        </section>
+
         <section class="card mb-4">
           <h2 class="editor-section-title">Platform</h2>
 
@@ -146,6 +198,7 @@
 
   <script src="/js/includes.js"></script>
   <script src="/js/components/theme-toggle.js"></script>
+  <script src="/js/components/branding.js"></script>
   <script src="/js/components/admin/admin-auth.js"></script>
   <script src="/js/components/admin/admin-shell.js"></script>
   <script src="/js/components/admin/admin-settings.js"></script>

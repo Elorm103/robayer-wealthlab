@@ -46,6 +46,30 @@ import customerReviewReminderTemplate from '../emails/templates/customer-review-
 import type { Env } from '../worker/env';
 import type { Logger } from '../utils/logger';
 import { getEmailSendSettings } from './admin/settingsService';
+import { getPublicBranding } from './admin/brandingService';
+
+const STATIC_DEFAULT_LOGO_PATH = '/assets/branding/logo/logo-mark.png';
+const STATIC_DEFAULT_LOGO_ALT = 'Robayer WealthLab';
+
+/**
+ * Version 3.4 Milestone M6 (CMS Completion) - resolves the logo every
+ * transactional email uses into an absolute URL, same "admin can
+ * replace the logo with no code change" behavior js/components/branding.js
+ * already gives the website. Prefers the branding CMS's dedicated
+ * "email" slot; falls back to "primary" (the same logo the website
+ * itself defaults to) if "email" was never explicitly assigned; falls
+ * back to the static bundled asset if neither slot has ever been set.
+ * Email clients cannot resolve a relative path, so this always returns
+ * an absolute URL built from env.SITE_BASE_URL.
+ */
+async function resolveEmailLogo(env: Env): Promise<{ url: string; alt: string }> {
+  const branding = await getPublicBranding(env);
+  const asset = branding.email ?? branding.primary;
+  if (!asset) {
+    return { url: `${env.SITE_BASE_URL}${STATIC_DEFAULT_LOGO_PATH}`, alt: STATIC_DEFAULT_LOGO_ALT };
+  }
+  return { url: new URL(asset.url, env.SITE_BASE_URL).toString(), alt: asset.altText || STATIC_DEFAULT_LOGO_ALT };
+}
 
 export type EmailTemplateName =
   | 'newsletter-welcome'
@@ -174,6 +198,7 @@ function bodyWithoutMeta(template: string): string {
 function renderTemplate(
   templateName: EmailTemplateName,
   data: Record<string, string>,
+  logo: { url: string; alt: string },
   rawBody?: string,
   subjectOverride?: string
 ): { subject: string; html: string } {
@@ -195,7 +220,9 @@ function renderTemplate(
     .replace(/\{\{SUBJECT\}\}/g, subject)
     .replace(/\{\{PREHEADER\}\}/g, preheader)
     .replace(/\{\{BODY_CONTENT\}\}/g, bodyContent)
-    .replace(/\{\{FOOTER_EXTRA\}\}/g, footerExtra);
+    .replace(/\{\{FOOTER_EXTRA\}\}/g, footerExtra)
+    .replace(/\{\{LOGO_URL\}\}/g, escapeHtml(logo.url))
+    .replace(/\{\{LOGO_ALT\}\}/g, escapeHtml(logo.alt));
 
   return { subject, html };
 }
@@ -325,7 +352,8 @@ export async function sendEmail(
     return { sent: false, permanentFailure: false, status: 'skipped', emailLogId };
   }
 
-  const { subject, html } = renderTemplate(options.template, options.data, options.rawBody, options.subjectOverride);
+  const logo = await resolveEmailLogo(env);
+  const { subject, html } = renderTemplate(options.template, options.data, logo, options.rawBody, options.subjectOverride);
 
   let attempt = 0;
   let lastStatus = 0;

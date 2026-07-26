@@ -18,6 +18,17 @@
  * header/footer partials and don't exist in the DOM until those load,
  * and partials:loaded always fires after DOMContentLoaded, so page-native
  * [data-content] elements are covered too.
+ *
+ * Version 3.4 Milestone M6 (CMS Completion): the same [data-content] /
+ * [data-content-href] mechanism above is reused for a second source,
+ * GET /api/hero (the homepage hero's admin-editable headline/subheading/
+ * CTA copy - see backend/routes/hero.ts), under the "hero" dot-path
+ * namespace (e.g. data-content="hero.headline"). This is intentionally
+ * not a separate fetch-and-populate script: the two sources differ only
+ * in where their data comes from (a static deploy-time config file
+ * versus a D1-backed, admin-editable table), not in how a matched
+ * element gets updated, so they share applyContent()/resolvePath()
+ * rather than duplicating that logic.
  */
 
 (function () {
@@ -50,5 +61,17 @@
     }
   }
 
+  async function initHeroContent() {
+    try {
+      const response = await fetch('/api/hero');
+      const body = await response.json();
+      if (!response.ok || !body.success) return;
+      applyContent({ hero: body.data });
+    } catch (error) {
+      console.error(error);
+    }
+  }
+
   document.addEventListener('partials:loaded', initContentInject);
+  document.addEventListener('partials:loaded', initHeroContent);
 })();

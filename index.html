@@ -84,13 +84,21 @@
     <section class="hero hero--split bg-paper">
       <div class="container">
         <div class="hero__content" data-reveal>
+          <!-- Version 3.4 Milestone M6: headline/subheading/CTA copy below
+               is genuinely admin editable (site_settings key hero_content,
+               via GET/PATCH /api/admin/settings), fetched client-side by
+               js/content-inject.js's initHeroContent() and applied through
+               the same [data-content]/[data-content-href] mechanism the
+               site.json config already uses. The text/hrefs already in
+               this markup are the static fallback shown if that fetch
+               fails, same fail-safe pattern as site.json's own fields. -->
           <div class="hero__text">
-            <span class="eyebrow hero__eyebrow">Financial education for Ghana</span>
-            <h1 class="hero__title">Financial education built for everyday Ghanaians.</h1>
-            <p class="hero__subtitle">Practical, honest guidance on saving, investing, and growing money, grounded in treasury bills, mobile money, and the Ghana Stock Exchange, not advice imported from somewhere else.</p>
+            <span class="eyebrow hero__eyebrow" data-content="hero.eyebrow">Financial education for Ghana</span>
+            <h1 class="hero__title" data-content="hero.headline">Financial education built for everyday Ghanaians.</h1>
+            <p class="hero__subtitle" data-content="hero.subheading">Practical, honest guidance on saving, investing, and growing money, grounded in treasury bills, mobile money, and the Ghana Stock Exchange, not advice imported from somewhere else.</p>
             <div class="hero__actions">
-              <a href="/resources/" class="btn btn--primary">Explore Free Resources</a>
-              <a href="/contact/" class="btn btn--secondary">Get in Touch</a>
+              <a href="/resources/" class="btn btn--primary" data-content="hero.primaryCtaText" data-content-href="hero.primaryCtaHref">Explore Free Resources</a>
+              <a href="/contact/" class="btn btn--secondary" data-content="hero.secondaryCtaText" data-content-href="hero.secondaryCtaHref">Get in Touch</a>
             </div>
             <div class="hero__signature">
               <img
@@ -108,33 +116,43 @@
               </div>
             </div>
           </div>
-          <!-- Hero visual — the flagship book, the hero's one focal
+          <!-- Hero visual - the flagship book, the hero's one focal
                element. Always shows whichever product is currently
-               flagged "featured" in the admin panel — title, subtitle,
+               flagged "featured" in the admin panel - title, subtitle,
                cover, and CTA are all filled by product-loader.js's
                initFeatureBanners() (identical [data-feature-*] hooks to
                the Featured eBook section below), never hand-edited here.
                The cover shows the real uploaded image when the product
                has one; otherwise the honest typographic placeholder
                already used everywhere else on the site (never fabricated
-               artwork) — see [data-feature-cover-img]/[data-feature-placeholder]
-               below. The cover itself stays purely decorative
-               (aria-hidden, no link of its own — see the "Explore Free
-               Resources"/"Get in Touch" CTAs and this file's own git
-               history for why a link on the cover was removed), but a
-               small "Get the guide" link now sits beneath it as the
-               book's own CTA, with real, matching visible text as its
-               accessible name. -->
+               artwork) - see [data-feature-cover-img]/[data-feature-placeholder]
+               below.
+
+               Version 3.4 Milestone M6: the cover and the CTA now share
+               ONE anchor (data-feature-cta moved here, to the wrapper),
+               with the cover staying aria-hidden inside it and only the
+               visible label span providing the accessible name. This is
+               deliberately not the same shape as the link that was
+               removed per this file's git history: that earlier version
+               had two separate links (cover + adjacent CTA) pointing at
+               the same destination, which is what Lighthouse flagged as
+               a redundant link. A single anchor wrapping both pieces has
+               only one accessible name and one destination, so the
+               previously diagnosed problem does not reoccur. See
+               product-loader.js's initFeatureBanners() for how the href
+               and label text are set without duplicating that logic. -->
           <div class="hero__visual" data-feature-banner>
-            <div class="book-card__cover book-card__cover--hero" aria-hidden="true">
-              <img class="book-card__cover-image" data-feature-cover-img alt="" hidden>
-              <span class="book-card__cover-placeholder-text" data-feature-placeholder>
-                <span class="book-card__cover-placeholder-eyebrow">Robayer WealthLab</span>
-                <span class="book-card__cover-placeholder-title" data-feature-title>Small Cedis, Big Wealth</span>
-                <span class="book-card__cover-placeholder-subtitle" data-feature-subtitle>How Ordinary Ghanaians Can Build Real Wealth Starting With GH₵1</span>
-              </span>
-            </div>
-            <a href="/books/starting-to-invest-with-gh100/" class="hero__book-cta" data-feature-cta>Get the guide →</a>
+            <a href="/books/starting-to-invest-with-gh100/" class="hero__visual-link" data-feature-cta>
+              <div class="book-card__cover book-card__cover--hero" aria-hidden="true">
+                <img class="book-card__cover-image" data-feature-cover-img alt="" hidden>
+                <span class="book-card__cover-placeholder-text" data-feature-placeholder>
+                  <span class="book-card__cover-placeholder-eyebrow">Robayer WealthLab</span>
+                  <span class="book-card__cover-placeholder-title" data-feature-title>Small Cedis, Big Wealth</span>
+                  <span class="book-card__cover-placeholder-subtitle" data-feature-subtitle>How Ordinary Ghanaians Can Build Real Wealth Starting With GH₵1</span>
+                </span>
+              </div>
+              <span class="hero__book-cta" data-feature-cta-label>Get the guide →</span>
+            </a>
           </div>
         </div>
       </div>

@@ -416,7 +416,19 @@
         if (ctaEl) {
           ctaEl.setAttribute('href', '/books/' + featured.slug + '/');
           const priceLabel = featured.price === 0 ? 'Free' : formatCurrency(featured.price, featured.currency);
-          ctaEl.textContent = 'Get the guide: ' + priceLabel;
+          // Version 3.4 Milestone M6: the hero's CTA anchor now also
+          // wraps the cover markup (see index.html), so overwriting its
+          // textContent directly would delete the cover along with the
+          // old label. When a nested label element exists, only that
+          // element's text is replaced; otherwise this falls back to the
+          // original behavior for CTA-only banners (e.g. the "Featured
+          // eBook" section further down the homepage).
+          const labelEl = ctaEl.querySelector('[data-feature-cta-label]');
+          if (labelEl) {
+            labelEl.textContent = 'Get the guide: ' + priceLabel;
+          } else {
+            ctaEl.textContent = 'Get the guide: ' + priceLabel;
+          }
         }
         // Real uploaded cover takes over from the typographic
         // placeholder when the featured product has one — missing

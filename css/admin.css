@@ -168,10 +168,13 @@
   min-width: 0;
 }
 
+/* Version 3.4 Milestone M6 - bumped from 40px to the 44px touch-target
+   floor. Sparse, standalone controls (not part of a dense toolbar), so
+   there is no adjacent-control crowding risk from the size increase. */
 .admin-topbar__menu-toggle {
   display: none;
-  width: 40px;
-  height: 40px;
+  width: 44px;
+  height: 44px;
   align-items: center;
   justify-content: center;
   flex-shrink: 0;
@@ -180,8 +183,8 @@
 
 .admin-topbar__sidebar-toggle {
   display: none;
-  width: 40px;
-  height: 40px;
+  width: 44px;
+  height: 44px;
   align-items: center;
   justify-content: center;
   flex-shrink: 0;
@@ -381,13 +384,15 @@
 /* ============================================================
    NOTIFICATION AREA
    ============================================================ */
+/* Version 3.4 Milestone M6 - bumped from 40px to the 44px touch-target
+   floor; the unread dot is positioned from top/right so it is unaffected. */
 .notification-bell {
   position: relative;
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  width: 40px;
-  height: 40px;
+  width: 44px;
+  height: 44px;
   border-radius: var(--radius-sm);
   color: var(--color-text-secondary);
 }
@@ -471,6 +476,15 @@
   flex-direction: column;
 }
 
+/* Version 3.4 Milestone M6 acceptance review - same [hidden]-defeated-by-
+   display fix as .btn[hidden] above; this list starts hidden in the
+   dashboard's static HTML until admin-dashboard.js's renderRecentActivity()
+   decides whether to show it or the empty state, so without this it
+   renders as a visible empty box on every page load. */
+.admin-activity-list[hidden] {
+  display: none;
+}
+
 .admin-activity-item {
   display: flex;
   align-items: center;
@@ -492,8 +506,20 @@
   background-color: var(--color-surface);
   border: 0.5px solid var(--color-border);
   border-radius: var(--radius-md);
-  overflow: hidden;
+  overflow-x: auto;
   box-shadow: var(--shadow-1);
+}
+
+/* Version 3.4 Milestone M6 - a narrow viewport has nowhere to put a
+   wide table's overflow otherwise (overflow-x: auto above gives it a
+   scroll affordance instead of the old overflow: hidden, which just
+   clipped columns off with no way to reach them). A long unbroken
+   value in a cell, e.g. a customer's email address, still needs its
+   own wrap rule since overflow-x scroll alone won't force a break
+   inside a table cell that hasn't hit its column's natural width yet. */
+.admin-table-wrap .table td,
+.admin-table-wrap .table th {
+  overflow-wrap: anywhere;
 }
 
 .admin-table-wrap .table {
@@ -607,6 +633,16 @@
 /* ============================================================
    PAGINATION
    ============================================================ */
+/* Version 3.4 Milestone M6 acceptance review - same [hidden]-defeated-by-
+   display fix as .btn[hidden] elsewhere in this codebase. Every admin
+   listing page (blog, consultations, contacts, coupons, orders, products,
+   resources, reviews) sets els.pagination.hidden = !hasItems when its
+   list is empty; without this guard the Previous/Next controls stay
+   visible and clickable even with nothing to page through. */
+.pagination[hidden] {
+  display: none;
+}
+
 .pagination {
   display: flex;
   align-items: center;
@@ -623,12 +659,15 @@
   gap: var(--space-2);
 }
 
+/* Version 3.4 Milestone M6 - bumped from 36px to the 44px touch-target
+   floor; a standalone control with gap-separated siblings (.pagination__controls
+   uses --space-2 gap), so no crowding risk from the size increase. */
 .pagination__button {
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  width: 36px;
-  height: 36px;
+  width: 44px;
+  height: 44px;
   border-radius: var(--radius-sm);
   border: 1px solid var(--color-border-strong);
   color: var(--color-text-primary);
@@ -1129,12 +1168,15 @@
   overflow: hidden;
 }
 
+/* Version 3.4 Milestone M6 - bumped from 36px to the 44px touch-target
+   floor. This is a 2-button segmented control (grid/list view), so the
+   increase only widens the shared border, no other layout is affected. */
 .media-view-toggle__button {
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  width: 36px;
-  height: 36px;
+  width: 44px;
+  height: 44px;
   color: var(--color-text-secondary);
 }
 
@@ -1280,6 +1322,14 @@
   background-color: var(--color-bg-alt);
   border-radius: var(--radius-sm);
   overflow: hidden;
+}
+
+/* Version 3.4 Milestone M6 acceptance review - admin-media.js toggles this
+   element's hidden property to true when the previewed item is a document,
+   not an image; without this guard it stays visible alongside the document
+   card it is meant to be replaced by. */
+.media-preview__image-wrap[hidden] {
+  display: none;
 }
 
 .media-preview__image {

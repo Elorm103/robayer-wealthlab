@@ -110,6 +110,7 @@ import {
 import { handleMediaFile } from '../routes/media';
 import { handleGetBranding, handleUpdateBranding } from '../routes/admin/branding';
 import { handleGetPublicBranding } from '../routes/branding';
+import { handleGetPublicHero } from '../routes/hero';
 import {
   handleProductsMeta,
   handleProductsList,
@@ -330,6 +331,7 @@ const ROUTES: Route[] = [
   { pattern: new URLPattern({ pathname: '/api/admin/branding' }), method: 'GET', handler: handleGetBranding },
   { pattern: new URLPattern({ pathname: '/api/admin/branding' }), method: 'PATCH', handler: handleUpdateBranding },
   { pattern: new URLPattern({ pathname: '/api/branding' }), method: 'GET', handler: handleGetPublicBranding },
+  { pattern: new URLPattern({ pathname: '/api/hero' }), method: 'GET', handler: handleGetPublicHero },
   // Added Version 2.0 Phase 2 (Products Module) — see
   // docs/products-module-implementation.md. `/api/admin/products/meta` and
   // `/api/admin/products/bulk` are ordered before `/api/admin/products/:id`

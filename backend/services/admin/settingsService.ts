@@ -65,8 +65,36 @@ export interface MaintenanceModeValue {
   message: string;
 }
 
+/**
+ * Version 3.4 Milestone M6 (CMS Completion) - the generic hero copy
+ * that surrounds the featured-product block. The featured product's
+ * own title/cover/price are already CMS-driven through the Products
+ * admin and productCatalogService.ts; this covers only the surrounding
+ * headline/subheading/buttons that were previously hardcoded directly
+ * in index.html.
+ */
+export interface HeroContentValue {
+  eyebrow: string;
+  headline: string;
+  subheading: string;
+  primaryCtaText: string;
+  primaryCtaHref: string;
+  secondaryCtaText: string;
+  secondaryCtaHref: string;
+}
+
 const DEFAULTS = {
   maintenance_mode: { enabled: false, message: '' } as MaintenanceModeValue,
+  hero_content: {
+    eyebrow: 'Financial education for Ghana',
+    headline: 'Financial education built for everyday Ghanaians.',
+    subheading:
+      'Practical, honest guidance on saving, investing, and growing money, grounded in treasury bills, mobile money, and the Ghana Stock Exchange, not advice imported from somewhere else.',
+    primaryCtaText: 'Explore Free Resources',
+    primaryCtaHref: '/resources/',
+    secondaryCtaText: 'Get in Touch',
+    secondaryCtaHref: '/contact/',
+  } as HeroContentValue,
   default_max_downloads: null as number | null,
   default_download_expires_days: null as number | null,
   email_sender_name: 'Robayer WealthLab',
@@ -111,6 +139,7 @@ function resolve<K extends SettingsKey>(raw: Map<string, unknown>, key: K): (typ
 
 export interface EditableSettingsView {
   maintenanceMode: SettingsField<MaintenanceModeValue>;
+  heroContent: SettingsField<HeroContentValue>;
   defaultMaxDownloads: SettingsField<number | null>;
   defaultDownloadExpiresDays: SettingsField<number | null>;
   emailSenderName: SettingsField<string>;
@@ -128,6 +157,7 @@ export async function getEditableSettings(env: Env): Promise<EditableSettingsVie
 
   return {
     maintenanceMode: field(resolve(raw, 'maintenance_mode'), 'site_settings', true),
+    heroContent: field(resolve(raw, 'hero_content'), 'site_settings', true),
     defaultMaxDownloads: field(resolve(raw, 'default_max_downloads'), 'site_settings', true),
     defaultDownloadExpiresDays: field(resolve(raw, 'default_download_expires_days'), 'site_settings', true),
     emailSenderName: field(resolve(raw, 'email_sender_name'), 'site_settings', true),
@@ -182,6 +212,23 @@ export async function getMaintenanceMode(env: Env): Promise<MaintenanceModeValue
   }
 }
 
+/**
+ * Resolves just `hero_content` for the public, unauthenticated
+ * GET /api/hero endpoint the homepage's client-side JS fetches on
+ * every load - same single-row-lookup shape as getMaintenanceMode()
+ * above, kept separate from getEditableSettings() so the public
+ * endpoint never risks exposing any of the other five settings.
+ */
+export async function getHeroContent(env: Env): Promise<HeroContentValue> {
+  const row = await env.DB.prepare(`SELECT value FROM site_settings WHERE key = 'hero_content'`).first<{ value: string }>();
+  if (!row) return DEFAULTS.hero_content;
+  try {
+    return JSON.parse(row.value) as HeroContentValue;
+  } catch {
+    return DEFAULTS.hero_content;
+  }
+}
+
 // ============================================================
 // Validation — every editable setting has explicit server-side
 // validation; nothing here trusts client-side checks.
@@ -211,6 +258,58 @@ function validateMaintenanceMode(value: unknown, errors: SettingsValidationError
     return undefined;
   }
   return { enabled: v.enabled, message: v.message };
+}
+
+const MAX_HERO_TEXT_LENGTH = 200;
+const MAX_HERO_SUBHEADING_LENGTH = 500;
+// Internal navigation only (relative paths) or a small allowlist of
+// external protocols that are safe to redirect a visitor to - never an
+// admin-supplied arbitrary absolute URL, which would make this field a
+// stored-XSS/open-redirect vector for whoever can edit site settings.
+const HERO_HREF_PATTERN = /^\/[a-zA-Z0-9\-/_#?=&.]*$|^(mailto|tel):[^\s]+$/;
+
+function validateHeroText(value: unknown, fieldName: string, maxLength: number, errors: SettingsValidationError[]): string | undefined {
+  if (typeof value !== 'string' || value.trim().length === 0 || value.length > maxLength) {
+    errors.push({ field: fieldName, message: `${fieldName} must be text, 1-${maxLength} characters.` });
+    return undefined;
+  }
+  return value.trim();
+}
+
+function validateHeroHref(value: unknown, fieldName: string, errors: SettingsValidationError[]): string | undefined {
+  if (typeof value !== 'string' || !HERO_HREF_PATTERN.test(value)) {
+    errors.push({ field: fieldName, message: `${fieldName} must be a relative site path (starting with /), or a mailto:/tel: link.` });
+    return undefined;
+  }
+  return value;
+}
+
+function validateHeroContent(value: unknown, errors: SettingsValidationError[]): HeroContentValue | undefined {
+  if (typeof value !== 'object' || value === null) {
+    errors.push({ field: 'heroContent', message: 'Hero content must be an object.' });
+    return undefined;
+  }
+  const v = value as Record<string, unknown>;
+  const errorCountBefore = errors.length;
+
+  const eyebrow = validateHeroText(v.eyebrow, 'heroContent.eyebrow', MAX_HERO_TEXT_LENGTH, errors);
+  const headline = validateHeroText(v.headline, 'heroContent.headline', MAX_HERO_TEXT_LENGTH, errors);
+  const subheading = validateHeroText(v.subheading, 'heroContent.subheading', MAX_HERO_SUBHEADING_LENGTH, errors);
+  const primaryCtaText = validateHeroText(v.primaryCtaText, 'heroContent.primaryCtaText', MAX_HERO_TEXT_LENGTH, errors);
+  const primaryCtaHref = validateHeroHref(v.primaryCtaHref, 'heroContent.primaryCtaHref', errors);
+  const secondaryCtaText = validateHeroText(v.secondaryCtaText, 'heroContent.secondaryCtaText', MAX_HERO_TEXT_LENGTH, errors);
+  const secondaryCtaHref = validateHeroHref(v.secondaryCtaHref, 'heroContent.secondaryCtaHref', errors);
+
+  if (errors.length > errorCountBefore) return undefined;
+  return {
+    eyebrow: eyebrow!,
+    headline: headline!,
+    subheading: subheading!,
+    primaryCtaText: primaryCtaText!,
+    primaryCtaHref: primaryCtaHref!,
+    secondaryCtaText: secondaryCtaText!,
+    secondaryCtaHref: secondaryCtaHref!,
+  };
 }
 
 function validateOptionalPositiveInt(value: unknown, fieldName: string, max: number, errors: SettingsValidationError[]): number | null | undefined {
@@ -284,6 +383,7 @@ export type UpdateSettingsResult = { ok: true } | { ok: false; errors: SettingsV
 
 const PATCH_KEY_MAP: Record<string, SettingsKey> = {
   maintenanceMode: 'maintenance_mode',
+  heroContent: 'hero_content',
   defaultMaxDownloads: 'default_max_downloads',
   defaultDownloadExpiresDays: 'default_download_expires_days',
   emailSenderName: 'email_sender_name',
@@ -304,6 +404,9 @@ export async function updateSettings(env: Env, logger: Logger, actorId: number, 
     switch (dbKey) {
       case 'maintenance_mode':
         value = validateMaintenanceMode(rawValue, errors);
+        break;
+      case 'hero_content':
+        value = validateHeroContent(rawValue, errors);
         break;
       case 'default_max_downloads':
         value = validateOptionalPositiveInt(rawValue, 'defaultMaxDownloads', 1000, errors);

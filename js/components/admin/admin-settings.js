@@ -65,6 +65,14 @@ function initAdminSettings() {
   // ============================================================
 
   function renderEditable(settings) {
+    root.querySelector('#setting-hero-eyebrow').value = settings.heroContent.value.eyebrow;
+    root.querySelector('#setting-hero-headline').value = settings.heroContent.value.headline;
+    root.querySelector('#setting-hero-subheading').value = settings.heroContent.value.subheading;
+    root.querySelector('#setting-hero-primary-cta-text').value = settings.heroContent.value.primaryCtaText;
+    root.querySelector('#setting-hero-primary-cta-href').value = settings.heroContent.value.primaryCtaHref;
+    root.querySelector('#setting-hero-secondary-cta-text').value = settings.heroContent.value.secondaryCtaText;
+    root.querySelector('#setting-hero-secondary-cta-href').value = settings.heroContent.value.secondaryCtaHref;
+
     root.querySelector('#setting-maintenance-enabled').checked = settings.maintenanceMode.value.enabled;
     root.querySelector('#setting-maintenance-message').value = settings.maintenanceMode.value.message;
     root.querySelector('#setting-default-max-downloads').value = settings.defaultMaxDownloads.value ?? '';
@@ -101,6 +109,15 @@ function initAdminSettings() {
     const replyToRaw = root.querySelector('#setting-reply-to').value.trim();
 
     const patch = {
+      heroContent: {
+        eyebrow: root.querySelector('#setting-hero-eyebrow').value.trim(),
+        headline: root.querySelector('#setting-hero-headline').value.trim(),
+        subheading: root.querySelector('#setting-hero-subheading').value.trim(),
+        primaryCtaText: root.querySelector('#setting-hero-primary-cta-text').value.trim(),
+        primaryCtaHref: root.querySelector('#setting-hero-primary-cta-href').value.trim(),
+        secondaryCtaText: root.querySelector('#setting-hero-secondary-cta-text').value.trim(),
+        secondaryCtaHref: root.querySelector('#setting-hero-secondary-cta-href').value.trim(),
+      },
       maintenanceMode: {
         enabled: root.querySelector('#setting-maintenance-enabled').checked,
         message: root.querySelector('#setting-maintenance-message').value,

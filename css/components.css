@@ -513,6 +513,16 @@
                    dropdown at 320px, Version 1.1 Sprint 3) */
 }
 
+/* Version 3.4 Milestone M6 acceptance review - same [hidden]-defeated-by-
+   display fix as .btn[hidden] elsewhere in this codebase. Two live cases
+   depend on this: the investment growth calculator's inflation-rate field
+   (hidden until "apply inflation" is checked) and the Media Library
+   preview modal's alt-text field (hidden for non-image documents). Both
+   would otherwise always render regardless of their hidden property. */
+.field[hidden] {
+  display: none;
+}
+
 .field__label {
   font-family: var(--font-heading);
   font-weight: var(--weight-medium);
@@ -586,6 +596,15 @@
   border-radius: var(--radius-sm);
   font-size: 0.75rem;
   font-weight: var(--weight-medium);
+}
+
+/* Version 3.4 Milestone M6 acceptance review - same [hidden]-defeated-by-
+   display fix as .btn[hidden] in this file; the newsletter campaign
+   editor's status badge starts hidden and empty in its static HTML until
+   the campaign data loads, so without this it renders as a visible empty
+   pill on every page load. */
+.badge[hidden] {
+  display: none;
 }
 
 .badge--success { background-color: var(--color-success-tint); color: var(--color-success); }
@@ -673,7 +692,13 @@
 
 .footer__grid {
   display: grid;
-  grid-template-columns: repeat(3, 1fr);
+  /* Version 3.4 Milestone M6 - was repeat(3, 1fr) as the unqualified
+     default, which the 768-1199px tablet band inherited unintentionally
+     (no rule in that range overrode it). With 5 real column groups,
+     3 columns auto-flows as 3 then 2, leaving a visible empty gap
+     under the third column. 2 columns divides more evenly (2/2/1) and
+     matches how this same content already looks fine at other widths. */
+  grid-template-columns: repeat(2, 1fr);
   gap: var(--space-5);
   margin-bottom: var(--space-5);
 }
@@ -918,10 +943,33 @@
   object-fit: cover;
 }
 
-/* The book's own CTA — deliberately understated (small text link, not
+/* Version 3.4 Milestone M6 acceptance review - same [hidden]-defeated-by-
+   display fix as .btn[hidden] elsewhere in this codebase. This image
+   starts hidden with no src in the hero's static HTML until
+   product-loader.js's initFeatureBanners() confirms a real cover image
+   exists; without this it renders as a visible broken-image box during
+   that load window regardless of the hidden attribute. */
+.book-card__cover-image[hidden] {
+  display: none;
+}
+
+/* Version 3.4 Milestone M6 - the cover and CTA now share one anchor
+   (see index.html); this reproduces the column layout .hero__visual
+   used to provide directly when it had two separate children. */
+.hero__visual-link {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: var(--space-3);
+  text-decoration: none;
+  color: inherit;
+}
+
+/* The book's own CTA - deliberately understated (small text label, not
    a second primary button) since the two .hero__actions buttons above
    already carry the hero's main asks; this one is specific to the
-   featured book itself. */
+   featured book itself. Now a span (not its own <a>), since the whole
+   .hero__visual-link anchor is what is clickable. */
 .hero__book-cta {
   font-family: var(--font-heading);
   font-weight: var(--weight-medium);
@@ -929,7 +977,7 @@
   color: var(--color-accent);
 }
 
-.hero__book-cta:hover {
+.hero__visual-link:hover .hero__book-cta {
   text-decoration: underline;
 }
 
@@ -1021,6 +1069,30 @@
   text-align: center;
   padding: var(--space-4);
   gap: var(--space-2);
+  /* Version 3.4 Milestone M6 - this box has a fixed aspect ratio
+     (.book-card__cover's 3/4), but the title/subtitle text inside it
+     comes from an admin-editable product title with no length limit
+     enforced anywhere upstream. Without a clip, a long title pushes
+     past the box's own fixed height and bleeds over the card below
+     it. overflow: hidden here is the container-level backstop; the
+     title itself also gets a line-clamp below so a long title is
+     truncated with an ellipsis rather than cut off mid-word. */
+  overflow: hidden;
+}
+
+/* The [hidden] attribute alone loses to the display:flex rule above
+   (author stylesheet always beats the UA stylesheet, regardless of
+   specificity) - same fix as .btn[hidden]/.field__error[hidden]/
+   .alert[hidden] elsewhere in this file. Without this,
+   product-loader.js's initFeatureBanners() correctly sets this
+   element's hidden property to true once a real cover image loads,
+   but it stays visibly rendered anyway, in normal document flow right
+   after the real cover image, overlapping the hero text that follows
+   it. This was the missing instance of an already-established fix in
+   this codebase, found via production evidence in Version 3.4
+   Milestone M6's acceptance review. */
+.book-card__cover-placeholder-text[hidden] {
+  display: none;
 }
 
 .book-card__cover-placeholder-eyebrow {
@@ -1037,12 +1109,23 @@
   font-weight: 600;
   color: var(--color-navy, #16233d);
   line-height: 1.15;
+  /* Version 3.4 Milestone M6 - clamp to 3 lines with an ellipsis
+     rather than letting a long admin-entered title keep growing past
+     the cover box's own fixed aspect-ratio height. */
+  display: -webkit-box;
+  -webkit-line-clamp: 3;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
 }
 
 .book-card__cover-placeholder-subtitle {
   font-size: 0.9rem;
   color: rgba(22, 35, 61, 0.75);
   max-width: 26ch;
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
 }
 
 .book-card__title {
@@ -1591,6 +1674,15 @@ a.resource-card {
   gap: var(--space-3);
   padding-block: var(--space-2);
   border-top: 0.5px solid var(--color-border);
+}
+
+/* Version 3.4 Milestone M6 acceptance review - same [hidden]-defeated-by-
+   display fix as .btn[hidden] elsewhere in this codebase. The investment
+   growth calculator's inflation-adjusted result row is hidden whenever a
+   calculation runs without inflation applied; without this it would show
+   stale or blank data regardless. */
+.calculator-result__row[hidden] {
+  display: none;
 }
 
 .calculator-result__row:first-child {

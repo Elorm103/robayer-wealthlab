@@ -48,7 +48,12 @@ export const SLOT_IS_WIRED: Record<BrandingSlot, boolean> = {
   dark: true,
   favicon: true,
   og: false, // OG tags are static per-page HTML on a non-Worker-rendered homepage; a client-side swap would never reach social-preview crawlers, which don't execute JS
-  email: false, // no transactional email template currently includes a logo image
+  // Version 3.4 Milestone M6 (CMS Completion) - services/emailService.ts
+  // resolves this slot (falling back to `primary` if unset) into an
+  // absolute logo URL substituted into backend/emails/layouts/base.html's
+  // {{LOGO_URL}}/{{LOGO_ALT}} placeholders at send time, for every
+  // transactional email.
+  email: true,
   appIcon: false, // no app manifest/PWA icon consumer exists in this codebase yet
 };
 
