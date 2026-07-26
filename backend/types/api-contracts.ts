@@ -117,4 +117,8 @@ export type ApiErrorCode =
   | 'RECEIPT_NOT_FOUND'
   // POST /api/customer/sessions/:sessionId/revoke — added Version 3.1
   // Milestone M3, M3C Acceptance Review fix (see routes/customer/sessions.ts)
-  | 'CANNOT_REVOKE_CURRENT_SESSION';
+  | 'CANNOT_REVOKE_CURRENT_SESSION'
+  // POST /api/customer/reviews, POST /api/checkout/sessions — added
+  // Version 3.2 Milestone M4 (Commerce & Trust Foundations)
+  | 'NO_VERIFIED_PURCHASE'
+  | 'COUPON_INVALID';

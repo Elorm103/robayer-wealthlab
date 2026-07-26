@@ -38,6 +38,7 @@ import { formatPurchaseReference } from '../utils/purchaseReference';
 import { fulfilPurchase } from './fulfilmentService';
 import { findOrCreateCustomer } from './customer/identityService';
 import { createOrderArtifacts } from './orders/orderService';
+import { validateCoupon, redeemCoupon, checkFirstPurchaseOnlyViolation } from './couponService';
 
 /** A pending session outlives a genuinely slow checkout, but doesn't sit "pending" forever if the visitor abandons it — see docs/commerce-foundation.md. */
 const PURCHASE_SESSION_TTL_MINUTES = 30;
@@ -55,7 +56,7 @@ const PURCHASE_SESSION_TTL_MINUTES = 30;
 const CURRENT_TERMS_VERSION = 'v1.0';
 const CURRENT_LICENSE_VERSION = 'v1.0';
 
-export type CommerceErrorCode = 'PRODUCT_NOT_FOUND' | 'PRODUCT_NOT_ACTIVE' | 'PAYSTACK_API_ERROR' | 'CONSENT_REQUIRED';
+export type CommerceErrorCode = 'PRODUCT_NOT_FOUND' | 'PRODUCT_NOT_ACTIVE' | 'PAYSTACK_API_ERROR' | 'CONSENT_REQUIRED' | 'COUPON_INVALID';
 
 /**
  * Thrown for every expected failure in this service. routes/checkout.ts
@@ -89,6 +90,12 @@ export interface CreateCheckoutSessionInput {
   termsAccepted: unknown;
   licenseAccepted: unknown;
   marketingOptIn: unknown;
+  /**
+   * Version 3.2 Milestone M4 (Commerce & Trust Foundations) — a code,
+   * never a price. `null`/absent means no coupon. See
+   * docs/v3.2-m4c-amendment-2-coupon-security-review.md.
+   */
+  couponCode: string | null;
 }
 
 export interface CreateCheckoutSessionResult {
@@ -128,8 +135,28 @@ export async function createCheckoutSession(
   // point that actually calls a payment provider. See
   // docs/paystack-integration.md's "Currency: subunits, not display
   // prices" for why this conversion is isolated to one place.
-  const amountPesewas = Math.round((product.price as number) * 100);
+  const originalAmountPesewas = Math.round((product.price as number) * 100);
   const currency = product.currency as string;
+
+  // Version 3.2 Milestone M4 (Commerce & Trust Foundations) — the
+  // discount, if any, is computed and validated here, BEFORE any
+  // amount is locked or sent to the payment provider. couponId/
+  // discountPesewas are then locked onto the purchase_sessions row
+  // alongside the already-discounted amountPesewas, so the existing
+  // webhook amount-verification check (unchanged) automatically
+  // compares against the correct, discounted value. See
+  // docs/v3.2-m4c-amendment-2-coupon-security-review.md.
+  let couponId: number | null = null;
+  let discountPesewas = 0;
+  if (input.couponCode) {
+    const couponResult = await validateCoupon(env, input.couponCode, product.slug, originalAmountPesewas);
+    if (!couponResult.valid) {
+      throw new CommerceError('COUPON_INVALID', 'This coupon is invalid or could not be applied.');
+    }
+    couponId = couponResult.couponId;
+    discountPesewas = couponResult.discountPesewas;
+  }
+  const amountPesewas = originalAmountPesewas - discountPesewas;
 
   const session = await insertPurchaseSession(env, {
     productSlug: product.slug,
@@ -139,6 +166,8 @@ export async function createCheckoutSession(
     amountPesewas,
     currency,
     marketingOptIn,
+    couponId,
+    discountPesewas,
   });
 
   const provider = getPaymentProvider(env);
@@ -170,7 +199,7 @@ export async function createCheckoutSession(
 
   await attachCheckoutResult(env, session.id, checkout);
 
-  logger.info('checkout.session_created', { purchaseReference: session.purchaseReference, productSlug: product.slug, amountPesewas });
+  logger.info('checkout.session_created', { purchaseReference: session.purchaseReference, productSlug: product.slug, amountPesewas, couponId, discountPesewas });
 
   return { purchaseReference: session.purchaseReference, checkoutUrl: checkout.checkoutUrl };
 }
@@ -183,6 +212,9 @@ interface InsertPurchaseSessionInput {
   amountPesewas: number;
   currency: string;
   marketingOptIn: boolean;
+  /** Version 3.2 Milestone M4 — both purely additive/nullable-or-defaulted; see migration 0020's own header comment. */
+  couponId: number | null;
+  discountPesewas: number;
 }
 
 /**
@@ -209,8 +241,8 @@ async function insertPurchaseSession(env: Env, input: InsertPurchaseSessionInput
   const inserted = await env.DB.prepare(
     `INSERT INTO purchase_sessions
        (purchase_reference, product_slug, product_id, product_version, product_title, amount_pesewas, currency, status, provider, expires_at,
-        terms_accepted_at, terms_version, license_accepted_at, license_version, marketing_opt_in)
-     VALUES (NULL, ?, ?, ?, ?, ?, ?, 'pending', ?, ?, datetime('now'), ?, datetime('now'), ?, ?)`
+        terms_accepted_at, terms_version, license_accepted_at, license_version, marketing_opt_in, coupon_id, discount_pesewas)
+     VALUES (NULL, ?, ?, ?, ?, ?, ?, 'pending', ?, ?, datetime('now'), ?, datetime('now'), ?, ?, ?, ?)`
   )
     .bind(
       input.productSlug,
@@ -223,7 +255,9 @@ async function insertPurchaseSession(env: Env, input: InsertPurchaseSessionInput
       expiresAt.toISOString(),
       CURRENT_TERMS_VERSION,
       CURRENT_LICENSE_VERSION,
-      input.marketingOptIn ? 1 : 0
+      input.marketingOptIn ? 1 : 0,
+      input.couponId,
+      input.discountPesewas
     )
     .run();
 
@@ -280,6 +314,9 @@ interface PurchaseSessionRow {
   marketingOptIn: boolean;
   /** Milestone M1 — the License Agreement version accepted at checkout time. Milestone M2 copies this onto the licenses row it creates, rather than capturing a fresh value. */
   licenseVersion: string | null;
+  /** Version 3.2 Milestone M4 — both locked at checkout-session creation time; amountPesewas above already reflects the discount. */
+  couponId: number | null;
+  discountPesewas: number;
 }
 
 /**
@@ -487,6 +524,21 @@ export async function handlePaymentWebhook(env: Env, logger: Logger, input: Hand
     logger.error('customer.provisioning_skipped_no_email', { purchaseReference: providerReference });
   }
 
+  // Version 3.2 Milestone M4 (Commerce & Trust Foundations) — coupon
+  // redemption happens here, only now that a real payment has been
+  // confirmed (verifySessionAtomic() already succeeded above) - never
+  // at checkout-session creation, where a customer could abandon the
+  // checkout and never pay. Same "never block or undo a real payment"
+  // discipline as customer provisioning above: redeemCoupon() never
+  // throws and never reverses this already-successful verification.
+  // See docs/v3.2-m4c-amendment-2-coupon-security-review.md.
+  if (session.couponId) {
+    await redeemCoupon(env, logger, session.couponId, session.id, verifyResult.customerEmail ?? '', session.discountPesewas);
+    if (customerId) {
+      await checkFirstPurchaseOnlyViolation(env, logger, session.couponId, customerId, session.id);
+    }
+  }
+
   // Milestone M2 (Orders, Receipts & Customer Library) — order_items /
   // licenses / receipts creation, immediately after customer
   // provisioning and before fulfilment, per the ratified Blueprint's
@@ -502,6 +554,11 @@ export async function handlePaymentWebhook(env: Env, logger: Logger, input: Hand
     taxBehavior: product.taxBehavior,
     licenseTermsVersion: session.licenseVersion,
     customerId,
+    // Version 3.2 Milestone M4 — the discount applied at checkout time
+    // (0 if no coupon), so the receipt can show the original subtotal
+    // and the discount as separate line items rather than only the
+    // already-discounted total. See services/orders/orderService.ts.
+    discountPesewas: session.discountPesewas,
   });
   if (!orderArtifacts) {
     logger.error('order.artifacts_missing', { purchaseReference: providerReference });
@@ -556,7 +613,7 @@ async function getPurchaseSessionByReference(env: Env, reference: string): Promi
   const row = await env.DB.prepare(
     `SELECT id, product_slug AS productSlug, product_id AS productId, product_version AS productVersion,
             amount_pesewas AS amountPesewas, currency, status, expires_at AS expiresAt, marketing_opt_in AS marketingOptIn,
-            license_version AS licenseVersion
+            license_version AS licenseVersion, coupon_id AS couponId, discount_pesewas AS discountPesewas
      FROM purchase_sessions WHERE purchase_reference = ?`
   )
     .bind(reference)

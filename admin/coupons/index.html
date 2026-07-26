@@ -1,0 +1,142 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+
+  <title>Coupons | Robayer WealthLab Admin</title>
+  <meta name="description" content="Create and manage discount coupons.">
+  <link rel="canonical" href="https://robayerwealthlab.com/admin/coupons/">
+  <meta name="robots" content="noindex, nofollow">
+
+  <link rel="icon" type="image/svg+xml" href="/assets/icons/favicon.svg">
+  <link rel="icon" type="image/png" sizes="32x32" href="/assets/icons/favicon-32.png">
+  <link rel="apple-touch-icon" href="/assets/icons/apple-touch-icon.png">
+
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Newsreader:ital,wght@0,600;1,500&family=Space+Grotesk:wght@500&family=Work+Sans:wght@400;500&family=IBM+Plex+Mono:wght@400;500&display=swap" rel="stylesheet">
+
+  <link rel="stylesheet" href="/css/tokens.css">
+  <link rel="stylesheet" href="/css/base.css">
+  <link rel="stylesheet" href="/css/layout.css">
+  <link rel="stylesheet" href="/css/components.css">
+  <link rel="stylesheet" href="/css/utilities.css">
+  <link rel="stylesheet" href="/css/admin.css">
+</head>
+<body>
+  <a href="#main-content" class="skip-link">Skip to main content</a>
+
+  <div class="admin-shell" data-sidebar-collapsed="false">
+    <div class="admin-include" data-include="/partials/admin-sidebar.html"></div>
+
+    <div class="admin-main">
+      <div class="admin-include" data-include="/partials/admin-topbar.html"></div>
+
+      <main class="admin-content" id="main-content" data-coupons-root>
+        <p class="alert alert--error" role="alert" data-coupons-load-error hidden></p>
+        <p class="alert alert--success" role="status" data-coupons-action-success hidden></p>
+
+        <div class="toolbar">
+          <div class="toolbar__group">
+            <span class="text-small text-secondary" data-coupons-result-count></span>
+          </div>
+          <div class="toolbar__group">
+            <button type="button" class="btn btn--primary" data-coupons-new-toggle>New coupon</button>
+          </div>
+        </div>
+
+        <div class="mb-4" data-coupons-form-panel hidden style="border:1px solid var(--color-border);border-radius:var(--radius-md);padding:var(--space-4);">
+          <form data-coupon-form class="stack gap-3">
+            <p class="alert alert--error" role="alert" data-coupon-form-error hidden></p>
+            <div class="drawer__field-row">
+              <div class="field">
+                <label class="field__label" for="coupon-code">Coupon code</label>
+                <input type="text" id="coupon-code" name="code" class="field__input" maxlength="32" placeholder="e.g. LAUNCH20" required>
+              </div>
+              <div class="field">
+                <label class="field__label" for="coupon-product">Applies to</label>
+                <select id="coupon-product" name="productSlug" class="field__select">
+                  <option value="">All products</option>
+                </select>
+              </div>
+            </div>
+            <div class="drawer__field-row">
+              <div class="field">
+                <label class="field__label" for="coupon-discount-type">Discount type</label>
+                <select id="coupon-discount-type" name="discountType" class="field__select">
+                  <option value="percentage">Percentage off</option>
+                  <option value="fixed">Fixed amount off (pesewas)</option>
+                </select>
+              </div>
+              <div class="field">
+                <label class="field__label" for="coupon-discount-value">Discount value</label>
+                <input type="number" id="coupon-discount-value" name="discountValue" class="field__input" min="1" step="1" required>
+              </div>
+            </div>
+            <div class="drawer__field-row">
+              <div class="field">
+                <label class="field__label" for="coupon-max-redemptions">Max redemptions (optional)</label>
+                <input type="number" id="coupon-max-redemptions" name="maxRedemptions" class="field__input" min="1" step="1">
+              </div>
+              <div class="field">
+                <label class="field__label" for="coupon-expires-at">Expires (optional)</label>
+                <input type="date" id="coupon-expires-at" name="expiresAt" class="field__input">
+              </div>
+            </div>
+            <div class="field field--checkbox mb-0">
+              <input type="checkbox" id="coupon-first-purchase-only" class="field__input">
+              <label for="coupon-first-purchase-only" class="field__label">First purchase only (best-effort — see coupon security review)</label>
+            </div>
+            <div class="toolbar__group">
+              <button type="submit" class="btn btn--primary">Create coupon</button>
+              <button type="button" class="btn btn--secondary" data-coupons-new-cancel>Cancel</button>
+            </div>
+          </form>
+        </div>
+
+        <div class="empty-state" data-coupons-empty hidden>
+          <svg class="icon empty-state__icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M20.6 12.6L12 21.2a2 2 0 0 1-2.8 0l-8.4-8.4a2 2 0 0 1 0-2.8L9.4 1.4a2 2 0 0 1 1.4-.6H18a2 2 0 0 1 2 2v7.2a2 2 0 0 1-.6 1.4z"/></svg>
+          <p class="empty-state__title">No coupons yet</p>
+          <p class="empty-state__body">Create one above to offer a discount at checkout.</p>
+        </div>
+
+        <div class="admin-table-wrap" data-coupons-table-wrap hidden>
+          <table class="table" aria-label="Coupons">
+            <thead>
+              <tr>
+                <th scope="col">Code</th>
+                <th scope="col">Applies to</th>
+                <th scope="col">Discount</th>
+                <th scope="col">Redemptions</th>
+                <th scope="col">Expires</th>
+                <th scope="col">Status</th>
+                <th scope="col">Actions</th>
+              </tr>
+            </thead>
+            <tbody data-coupons-table-body></tbody>
+          </table>
+        </div>
+
+        <div class="pagination" data-coupons-pagination>
+          <span data-coupons-pagination-label></span>
+          <div class="pagination__controls">
+            <button type="button" class="pagination__button" data-coupons-pagination-prev aria-label="Previous page">
+              <svg class="icon" width="16" height="16" viewBox="0 0 24 24" aria-hidden="true"><path d="M15 18l-6-6 6-6"/></svg>
+            </button>
+            <button type="button" class="pagination__button" data-coupons-pagination-next aria-label="Next page">
+              <svg class="icon" width="16" height="16" viewBox="0 0 24 24" aria-hidden="true"><path d="M9 6l6 6-6 6"/></svg>
+            </button>
+          </div>
+        </div>
+      </main>
+    </div>
+  </div>
+
+  <script src="/js/includes.js"></script>
+  <script src="/js/components/theme-toggle.js"></script>
+  <script src="/js/components/admin/admin-auth.js"></script>
+  <script src="/js/components/admin/admin-shell.js"></script>
+  <script src="/js/components/admin/admin-coupons.js"></script>
+</body>
+</html>

@@ -38,6 +38,7 @@ import type { RouteParams } from '../worker/index';
 import * as productService from '../services/productService';
 import { isPubliclyListedStatus } from '../services/productService';
 import type { ProductRecord } from '../services/productService';
+import { listPublicReviews } from '../services/reviewService';
 
 const SITE_NAME = 'Robayer WealthLab';
 const SITE_ORIGIN = 'https://robayerwealthlab.com';
@@ -56,6 +57,18 @@ function formatGHS(amount: number): string {
   const rounded = Math.round(amount * 100) / 100;
   const withSeparators = Math.abs(rounded).toFixed(2).replace(/\B(?=(\d{3})+(?!\d))/g, ',');
   return `GH₵${withSeparators}`;
+}
+
+// Version 3.2 Milestone M4 (Reviews & Coupons) — same server-side date
+// formatting convention as routes/blog.ts's own formatDate().
+function formatReviewDate(isoDate: string): string {
+  const d = new Date(isoDate.includes('T') ? isoDate : isoDate.replace(' ', 'T') + 'Z');
+  return d.toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric', timeZone: 'UTC' });
+}
+
+function renderStars(rating: number): string {
+  const full = Math.round(rating);
+  return '&#9733;'.repeat(full) + '&#9734;'.repeat(5 - full);
 }
 
 /**
@@ -540,12 +553,29 @@ async function renderBookDetail(env: Env, slug: string): Promise<Response> {
   // buttons is actually clicked — see the closing CTA below, which
   // reuses the same statement without a second checkbox to avoid a
   // duplicate element id).
+  //
+  // Version 3.2 Milestone M4 (Reviews & Coupons) — the coupon code
+  // input follows the exact same page-singleton pattern
+  // (id="purchase-coupon-code"): one field, read by buy-button.js
+  // regardless of which Buy button is clicked. "Apply" calls the
+  // public, non-mutating /api/coupons/validate preview endpoint (see
+  // routes/coupons.ts) purely to show the discount before checkout —
+  // the actual discount is always re-validated and locked server-side
+  // inside createCheckoutSession(), never trusted from this preview.
   const purchaseConsentBlock = `
     <div class="stack gap-2 mt-3" style="max-width:420px;">
       <p class="text-secondary text-small mb-0">By purchasing, you agree to our <a href="/legal/terms-of-use/">Terms of Service</a> and <a href="/legal/license-agreement/">License Agreement</a>.</p>
       <div class="field field--checkbox mb-0">
         <input type="checkbox" id="purchase-marketing-optin" class="field__input">
         <label for="purchase-marketing-optin" class="field__label">Send me occasional emails about new guides and money tips (optional)</label>
+      </div>
+      <div class="field mb-0">
+        <label class="field__label" for="purchase-coupon-code">Have a coupon?</label>
+        <div style="display:flex;gap:var(--space-2);">
+          <input type="text" id="purchase-coupon-code" class="field__input" placeholder="Enter code" autocomplete="off" style="flex:1;">
+          <button type="button" class="btn btn--secondary" data-apply-coupon>Apply</button>
+        </div>
+        <p class="text-small mt-1 mb-0" data-coupon-feedback hidden></p>
       </div>
     </div>`;
   const purchaseConsentNote = `<p class="text-secondary text-small mt-3" style="color:rgba(255,255,255,0.7);">By purchasing, you agree to our <a href="/legal/terms-of-use/" style="color:#fff;text-decoration:underline;">Terms of Service</a> and <a href="/legal/license-agreement/" style="color:#fff;text-decoration:underline;">License Agreement</a>.</p>`;
@@ -565,6 +595,45 @@ async function renderBookDetail(env: Env, slug: string): Promise<Response> {
           .join(', ')
       )}</p>`
     : '';
+
+  // Version 3.2 Milestone M4 (Reviews & Coupons) — approved reviews
+  // only, no reviewer identity exposed (see reviewService.listPublicReviews()'s
+  // own header comment). The "write a review" form itself is rendered
+  // client-side (js/components/product-reviews.js) into the
+  // [data-product-reviews-root] container below, since it needs to
+  // check the visitor's own customer-session state — not something
+  // this server-rendered page has at request time (no cookie forwarded
+  // into this handler's own logic beyond routing).
+  const reviewsResult = await listPublicReviews(env, slug);
+  const reviewsHtml =
+    !isUpcoming && priceLabel !== null
+      ? `
+    <section class="section bg-sand" aria-labelledby="reviews-heading" id="reviews">
+      <div class="container content-column">
+        <span class="eyebrow">Reader reviews</span>
+        <h2 id="reviews-heading" class="mt-2 mb-4">${
+          reviewsResult.count > 0
+            ? `${renderStars(reviewsResult.averageRating ?? 0)} ${escapeHtml(String(reviewsResult.averageRating))} out of 5 (${reviewsResult.count} review${reviewsResult.count === 1 ? '' : 's'})`
+            : 'Reader reviews'
+        }</h2>
+        ${
+          reviewsResult.count === 0
+            ? '<p class="text-secondary mb-4">No reviews yet — be the first to share what you thought.</p>'
+            : `<div class="stack gap-3 mb-4">${reviewsResult.reviews
+                .map(
+                  (r) => `
+          <div class="rounded-lg bg-paper" style="padding:var(--space-3);">
+            <p class="mb-1"><span aria-hidden="true">${renderStars(r.rating)}</span><span class="sr-only">Rating: ${r.rating} out of 5</span></p>
+            <p class="mb-1">${escapeHtml(r.body)}</p>
+            <p class="text-secondary text-small mb-0">${formatReviewDate(r.createdAt)}</p>
+          </div>`
+                )
+                .join('\n')}</div>`
+        }
+        <div data-product-reviews-root data-product-slug="${escapeHtml(product.slug)}"></div>
+      </div>
+    </section>`
+      : '';
 
   const relatedItems = product.relations.filter((r) => r.relationType === 'related');
   const relatedSection =
@@ -821,7 +890,7 @@ async function renderBookDetail(env: Env, slug: string): Promise<Response> {
         ${intro || (product.description ?? `<p>${escapeHtml(product.shortDescription ?? '')}</p>`)}
       </div>
     </section>
-${whyHtml}${learnHtml}${TRUST_SIGNALS}${audienceHtml}${insideHtml}${otherSectionsHtml}${galleryHtml}${ABOUT_AUTHOR}${faqHtml}${relatedSection}
+${whyHtml}${learnHtml}${TRUST_SIGNALS}${audienceHtml}${insideHtml}${otherSectionsHtml}${galleryHtml}${ABOUT_AUTHOR}${faqHtml}${reviewsHtml}${relatedSection}
     <section class="section--tight">
       <div class="container content-column">
         <p class="alert alert--warning">Robayer WealthLab provides financial education, not licensed financial advice. This guide is for informational purposes only. Always do your own research and consider your personal circumstances before making investment decisions.</p>
@@ -852,6 +921,17 @@ ${NEWSLETTER_BAND}`;
       "priceCurrency": "GHS",
       "price": ${JSON.stringify(String((product.pricePesewas ?? 0) / 100))},
       "availability": "https://schema.org/InStock"
+    }${
+      // Version 3.2 Milestone M4 — only emitted when real reviews exist;
+      // schema.org disallows a fabricated/empty aggregateRating.
+      reviewsResult.count > 0
+        ? `,
+    "aggregateRating": {
+      "@type": "AggregateRating",
+      "ratingValue": ${JSON.stringify(String(reviewsResult.averageRating))},
+      "reviewCount": ${JSON.stringify(String(reviewsResult.count))}
+    }`
+        : ''
     }
   }
   </script>`
@@ -912,7 +992,7 @@ ${NEWSLETTER_BAND}`;
     extraHead: breadcrumbJsonLd + bookJsonLd + faqJsonLd,
     breadcrumb,
     bodyContent: body,
-    scripts: ['/js/components/buy-button.js', '/js/components/founder-bio.js', '/js/main.js'],
+    scripts: ['/js/components/buy-button.js', '/js/components/founder-bio.js', '/js/components/product-reviews.js', '/js/main.js'],
   });
 
   return htmlResponse(html, 200);

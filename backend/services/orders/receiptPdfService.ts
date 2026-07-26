@@ -44,6 +44,8 @@ export interface ReceiptPdfInput {
   customerEmail: string | null;
   lineItems: ReceiptLineItem[];
   subtotalPesewas: number;
+  /** Version 3.2 Milestone M4 (Commerce & Trust Foundations) - the coupon discount applied, 0 if none. */
+  discountPesewas: number;
   taxBreakdown: TaxBreakdownEntry[];
   taxPesewas: number;
   totalPesewas: number;
@@ -88,6 +90,12 @@ export async function renderReceiptPdf(input: ReceiptPdfInput): Promise<Uint8Arr
   y -= 4;
 
   drawLine(`Subtotal: ${formatMoney(input.subtotalPesewas, input.currency)}`);
+  // Version 3.2 Milestone M4 - only drawn when a coupon was actually
+  // applied, to avoid a redundant "discount: 0.00" line on every
+  // ordinary receipt.
+  if (input.discountPesewas > 0) {
+    drawLine(`Discount: -${formatMoney(input.discountPesewas, input.currency)}`);
+  }
   if (input.taxBreakdown.length === 0) {
     drawLine('Tax: not applicable', { color: muted });
   } else {
@@ -121,7 +129,8 @@ export async function getOrCreateReceiptPdf(env: Env, logger: Logger, receiptId:
   const receipt = await env.DB.prepare(
     `SELECT receipt_number AS receiptNumber, pdf_storage_key AS pdfStorageKey, issued_at AS issuedAt,
             purchase_session_id AS purchaseSessionId, line_items AS lineItems, subtotal_pesewas AS subtotalPesewas,
-            tax_breakdown AS taxBreakdown, tax_pesewas AS taxPesewas, total_pesewas AS totalPesewas, currency
+            discount_pesewas AS discountPesewas, tax_breakdown AS taxBreakdown, tax_pesewas AS taxPesewas,
+            total_pesewas AS totalPesewas, currency
      FROM receipts WHERE id = ?`
   )
     .bind(receiptId)
@@ -132,6 +141,7 @@ export async function getOrCreateReceiptPdf(env: Env, logger: Logger, receiptId:
       purchaseSessionId: number;
       lineItems: string;
       subtotalPesewas: number;
+      discountPesewas: number;
       taxBreakdown: string;
       taxPesewas: number;
       totalPesewas: number;
@@ -153,6 +163,7 @@ export async function getOrCreateReceiptPdf(env: Env, logger: Logger, receiptId:
       customerEmail: purchaseRow?.customerEmail ?? null,
       lineItems: JSON.parse(receipt.lineItems) as ReceiptLineItem[],
       subtotalPesewas: receipt.subtotalPesewas,
+      discountPesewas: receipt.discountPesewas,
       taxBreakdown: JSON.parse(receipt.taxBreakdown) as TaxBreakdownEntry[],
       taxPesewas: receipt.taxPesewas,
       totalPesewas: receipt.totalPesewas,

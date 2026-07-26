@@ -145,4 +145,80 @@ describe('createOrderArtifacts', () => {
     const { results } = await env.DB.prepare('SELECT receipt_number AS receiptNumber FROM receipts WHERE receipt_number IS NULL').all();
     expect(results.length).toBe(0);
   });
+
+  // Version 3.2 Milestone M4 (Reviews & Coupons), added at M4E closeout to
+  // close the gap M4D's independent Testing Assessment identified: the
+  // discount-threading arithmetic added to this function for coupons was
+  // verified correct by code inspection during M4D but had zero automated
+  // regression coverage - a real risk given this exact file's own prior
+  // history (the M2C MAR closeout rounding-drift fix, in the test above).
+  it('M4E closeout: recovers the original pre-discount subtotal, stores the discount as its own receipt column, and keeps total equal to the actual (discounted) charged amount', async () => {
+    // amountPesewas is already the post-discount, actually-charged amount
+    // (a 3900 product with a 390 discount charges 3510) - the same
+    // convention commerceService.ts's createCheckoutSession() locks in.
+    const purchaseSessionId = await seedPurchaseSession({ amountPesewas: 3510 });
+
+    const result = await createOrderArtifacts(env as any, logger, {
+      purchaseSessionId,
+      productId: 'prod-test-guide',
+      productTitle: 'Test Guide',
+      amountPesewas: 3510,
+      currency: 'GHS',
+      taxBehavior: 'inclusive',
+      licenseTermsVersion: 'v1.0',
+      customerId: null,
+      discountPesewas: 390,
+    });
+
+    expect(result).not.toBeNull();
+
+    const orderItem = await env.DB.prepare('SELECT unit_price_pesewas AS unitPricePesewas FROM order_items WHERE id = ?').bind(result!.orderItemId).first<any>();
+    // unitPricePesewas is an informational per-seat display value derived
+    // from the ORIGINAL (pre-discount) price, quantity 1 here, so it
+    // equals the recovered original amount directly.
+    expect(orderItem.unitPricePesewas).toBe(3900);
+
+    const receipt = await env.DB.prepare(
+      'SELECT line_items AS lineItems, subtotal_pesewas AS subtotalPesewas, discount_pesewas AS discountPesewas, tax_pesewas AS taxPesewas, total_pesewas AS totalPesewas FROM receipts WHERE id = ?'
+    )
+      .bind(result!.receiptId)
+      .first<any>();
+
+    // subtotal recovers the ORIGINAL, pre-discount price (amount + discount) -
+    // standard invoice convention: the discount is its own line, never
+    // baked into a silently-reduced unit price.
+    expect(receipt.subtotalPesewas).toBe(3900);
+    expect(receipt.discountPesewas).toBe(390);
+    // total is unaffected by M4 - it always equals the actual charged
+    // amount, exactly the pre-existing M2 invariant this test protects.
+    expect(receipt.totalPesewas).toBe(3510);
+    expect(receipt.taxPesewas).toBe(0); // no tax configuration in this test environment
+
+    const lineItems = JSON.parse(receipt.lineItems);
+    expect(lineItems[0].lineTotalPesewas).toBe(3900); // the line item shows the original price, not the discounted one
+  });
+
+  it('M4E closeout: discountPesewas defaults to 0 and behaves byte-for-byte identically to a non-coupon purchase when omitted', async () => {
+    const purchaseSessionId = await seedPurchaseSession({ amountPesewas: 3900 });
+
+    const result = await createOrderArtifacts(env as any, logger, {
+      purchaseSessionId,
+      productId: 'prod-test-guide',
+      productTitle: 'Test Guide',
+      amountPesewas: 3900,
+      currency: 'GHS',
+      taxBehavior: 'inclusive',
+      licenseTermsVersion: 'v1.0',
+      customerId: null,
+      // discountPesewas deliberately omitted - the overwhelming majority
+      // of purchases (no coupon applied) must be completely unaffected.
+    });
+
+    const receipt = await env.DB.prepare('SELECT subtotal_pesewas AS subtotalPesewas, discount_pesewas AS discountPesewas, total_pesewas AS totalPesewas FROM receipts WHERE id = ?')
+      .bind(result!.receiptId)
+      .first<any>();
+    expect(receipt.discountPesewas).toBe(0);
+    expect(receipt.subtotalPesewas).toBe(3900);
+    expect(receipt.totalPesewas).toBe(3900);
+  });
 });

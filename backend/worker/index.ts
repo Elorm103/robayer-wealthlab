@@ -207,6 +207,15 @@ import {
 // MVP) — Account Security's own-sessions list/revoke. See
 // docs/v3.1-m3-api-gap-analysis.md's Gap 3.
 import { handleListCustomerSessions, handleRevokeCustomerSession } from '../routes/customer/sessions';
+// Version 3.2 Milestone M4 (Commerce & Trust Foundations) — Product
+// Reviews. See docs/v3.2-m4-scope-recommendation.md.
+import { handleListPublicReviews } from '../routes/reviews';
+import { handleListCustomerOwnReviews, handleSubmitReview } from '../routes/customer/reviews';
+import { handleAdminReviewsList, handleAdminReviewModerate } from '../routes/admin/reviews';
+// Version 3.2 Milestone M4 — Coupon Engine, schema corrected per the
+// M4B Required Amendment 1 (docs/v3.2-m4c-amendment-1-resolution.md).
+import { handleValidateCoupon } from '../routes/coupons';
+import { handleAdminCouponsList, handleAdminCouponCreate, handleAdminCouponUpdate } from '../routes/admin/coupons';
 
 export type { Env };
 
@@ -489,6 +498,21 @@ const ROUTES: Route[] = [
   // Version 3.1 Milestone M3 — Account Security's own-sessions list/revoke.
   { pattern: new URLPattern({ pathname: '/api/customer/sessions' }), method: 'GET', handler: handleListCustomerSessions },
   { pattern: new URLPattern({ pathname: '/api/customer/sessions/:sessionId/revoke' }), method: 'POST', handler: handleRevokeCustomerSession },
+
+  // Version 3.2 Milestone M4 (Commerce & Trust Foundations) — Product
+  // Reviews. See docs/v3.2-m4-scope-recommendation.md.
+  { pattern: new URLPattern({ pathname: '/api/products/:slug/reviews' }), method: 'GET', handler: handleListPublicReviews },
+  { pattern: new URLPattern({ pathname: '/api/customer/reviews' }), method: 'GET', handler: handleListCustomerOwnReviews },
+  { pattern: new URLPattern({ pathname: '/api/customer/reviews' }), method: 'POST', handler: handleSubmitReview },
+  { pattern: new URLPattern({ pathname: '/api/admin/reviews' }), method: 'GET', handler: handleAdminReviewsList },
+  { pattern: new URLPattern({ pathname: '/api/admin/reviews/:id/moderate' }), method: 'POST', handler: handleAdminReviewModerate },
+
+  // Version 3.2 Milestone M4 — Coupon Engine, schema corrected per the
+  // M4B Required Amendment 1.
+  { pattern: new URLPattern({ pathname: '/api/coupons/validate' }), method: 'POST', handler: handleValidateCoupon },
+  { pattern: new URLPattern({ pathname: '/api/admin/coupons' }), method: 'GET', handler: handleAdminCouponsList },
+  { pattern: new URLPattern({ pathname: '/api/admin/coupons' }), method: 'POST', handler: handleAdminCouponCreate },
+  { pattern: new URLPattern({ pathname: '/api/admin/coupons/:id' }), method: 'PATCH', handler: handleAdminCouponUpdate },
 ];
 
 export default {

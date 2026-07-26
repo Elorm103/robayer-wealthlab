@@ -1,16 +1,19 @@
 /**
  * Robayer WealthLab: Buy Button Component (Version 1.2 Sprint 2.3,
  * Commerce Foundation; extended Version 3.0.2 Milestone M1, Customer
- * Identity & Guest Checkout)
+ * Identity & Guest Checkout; extended Version 3.2 Milestone M4,
+ * Reviews & Coupons)
  *
  * Progressive enhancement for any link/button marked [data-buy-button]
  * with a [data-product-slug]. On click: disables the button, shows a
  * loading state, POSTs `{ productId, termsAccepted, licenseAccepted,
- * marketingOptIn }` to the Cloudflare Worker's checkout endpoint
- * (never price/currency/title; the Worker loads those itself from the
- * Product Platform, see docs/commerce-foundation.md), then redirects
- * the visitor to the checkout URL the Worker returns. This is the one
- * place on the site that actually starts a purchase; see
+ * marketingOptIn, couponCode }` to the Cloudflare Worker's checkout
+ * endpoint (never price/currency/title; the Worker loads those itself
+ * from the Product Platform, see docs/commerce-foundation.md — the
+ * discount a coupon produces is likewise always computed server-side,
+ * see docs/v3.2-m4c-amendment-2-coupon-security-review.md), then
+ * redirects the visitor to the checkout URL the Worker returns. This
+ * is the one place on the site that actually starts a purchase; see
  * docs/commerce-foundation.md's "Frontend" section.
  *
  * Milestone M1 consent capture — see
@@ -23,6 +26,15 @@
  * the one genuinely optional, separately-rendered, unchecked-by-default
  * checkbox on the page, if present.
  *
+ * Milestone M4 coupon entry — `#purchase-coupon-code` is the same
+ * page-singleton pattern as the marketing checkbox: one field, read
+ * regardless of which of this page's two Buy buttons is clicked. Its
+ * own "Apply" button calls the public, non-mutating
+ * /api/coupons/validate preview endpoint purely to show the discount
+ * before checkout starts — this file never computes or trusts a
+ * discount amount itself; createCheckoutSession() re-validates and
+ * locks the real discount server-side independently.
+ *
  * The Worker never verifies payment or grants anything from this
  * request; it only prepares a checkout session and hands back a URL
  * to redirect to (Sprint 2.4 handles what happens after the visitor
@@ -34,6 +46,91 @@
 
 // Relative: see js/components/newsletter-form.js's equivalent constant.
 const CHECKOUT_API_URL = '/api/checkout/sessions';
+const COUPON_VALIDATE_API_URL = '/api/coupons/validate';
+
+function formatPesewas(pesewas) {
+  const symbol = 'GH₵';
+  const rounded = Math.round(pesewas) / 100;
+  const withSeparators = Math.abs(rounded).toFixed(2).replace(/\B(?=(\d{3})+(?!\d))/g, ',');
+  return symbol + withSeparators;
+}
+
+function couponReasonMessage(reason) {
+  const messages = {
+    not_found: "We couldn't find that coupon code.",
+    inactive: 'This coupon is no longer active.',
+    not_started: "This coupon isn't active yet.",
+    expired: 'This coupon has expired.',
+    product_mismatch: "This coupon doesn't apply to this guide.",
+    redemption_limit_reached: 'This coupon has already been fully redeemed.',
+  };
+  return messages[reason] || 'This coupon could not be applied.';
+}
+
+function initCouponInput() {
+  const applyButton = document.querySelector('[data-apply-coupon]:not([data-bound])');
+  if (!applyButton) return;
+  applyButton.setAttribute('data-bound', 'true');
+
+  const codeInput = document.querySelector('#purchase-coupon-code');
+  const feedbackEl = document.querySelector('[data-coupon-feedback]');
+  const buyButton = document.querySelector('[data-buy-button]');
+  if (!codeInput || !feedbackEl || !buyButton) return;
+
+  const productSlug = buyButton.getAttribute('data-product-slug');
+  const defaultButtonLabel = applyButton.textContent;
+
+  applyButton.addEventListener('click', async () => {
+    const couponCode = codeInput.value.trim();
+    if (!couponCode) return;
+
+    applyButton.disabled = true;
+    applyButton.textContent = 'Checking…';
+    feedbackEl.hidden = true;
+
+    try {
+      const response = await fetch(COUPON_VALIDATE_API_URL, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ productId: productSlug, couponCode }),
+      });
+      const result = await response.json();
+
+      if (!response.ok || !result.success) {
+        throw new Error((result && result.error && result.error.message) || 'Could not check this coupon right now.');
+      }
+
+      if (!result.data.valid) {
+        feedbackEl.textContent = couponReasonMessage(result.data.reason);
+        feedbackEl.hidden = false;
+        codeInput.setAttribute('data-coupon-applied', 'false');
+      } else {
+        feedbackEl.textContent = `Coupon applied: -${formatPesewas(result.data.discountPesewas)}. New total: ${formatPesewas(result.data.finalAmountPesewas)}.`;
+        feedbackEl.hidden = false;
+        codeInput.setAttribute('data-coupon-applied', 'true');
+      }
+    } catch (error) {
+      feedbackEl.textContent = error instanceof TypeError
+        ? 'Could not reach the server. Please check your connection and try again.'
+        : error.message;
+      feedbackEl.hidden = false;
+      codeInput.setAttribute('data-coupon-applied', 'false');
+    } finally {
+      applyButton.disabled = false;
+      applyButton.textContent = defaultButtonLabel;
+    }
+  });
+
+  // Editing the code after a preview invalidates that preview — the
+  // stale "Coupon applied" message would otherwise keep showing next
+  // to a code that no longer matches it. createCheckoutSession() would
+  // still re-validate correctly either way; this is purely about not
+  // showing the visitor a misleading preview.
+  codeInput.addEventListener('input', () => {
+    codeInput.removeAttribute('data-coupon-applied');
+    feedbackEl.hidden = true;
+  });
+}
 
 function initBuyButtons() {
   const buttons = document.querySelectorAll('[data-buy-button]:not([data-bound])');
@@ -67,12 +164,21 @@ function initBuyButtons() {
       const marketingCheckbox = document.querySelector('#purchase-marketing-optin');
       const marketingOptIn = !!(marketingCheckbox && marketingCheckbox.checked);
 
+      // Same page-singleton pattern (Version 3.2 Milestone M4) — the
+      // coupon code field, if the page rendered one. Sent whenever the
+      // visitor typed something, whether or not they clicked "Apply"
+      // first: createCheckoutSession() re-validates it from scratch
+      // either way, so an un-previewed code is never silently dropped.
+      const couponInput = document.querySelector('#purchase-coupon-code');
+      const couponCode = couponInput && couponInput.value.trim() ? couponInput.value.trim() : null;
+
       try {
         const response = await fetch(CHECKOUT_API_URL, {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({
             productId: productSlug,
+            couponCode,
             // Sending Buy at all IS the acceptance action for the
             // Terms of Service / License Agreement statement rendered
             // next to this button — see this file's own header comment.
@@ -137,3 +243,5 @@ function initBuyButtons() {
 
 document.addEventListener('partials:loaded', initBuyButtons);
 document.addEventListener('DOMContentLoaded', initBuyButtons);
+document.addEventListener('partials:loaded', initCouponInput);
+document.addEventListener('DOMContentLoaded', initCouponInput);

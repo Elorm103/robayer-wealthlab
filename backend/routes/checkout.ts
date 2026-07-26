@@ -5,10 +5,17 @@
  * response. No D1 write or payment-provider call happens directly in
  * this file — see backend/routes/README.md's "routes stay thin" rule.
  *
- * Accepts only `{ productId: "<slug>" }`. Never accepts price,
- * currency, or title from the client — see docs/commerce-foundation.md's
- * "Pricing" section for why, and productCatalogService.ts for where
- * those values actually come from.
+ * Accepts `{ productId: "<slug>" }` plus, since Version 3.2 Milestone
+ * M4 (Commerce & Trust Foundations), an optional `couponCode`. Never
+ * accepts price, currency, title, or a discount amount from the
+ * client — see docs/commerce-foundation.md's "Pricing" section for
+ * why, and productCatalogService.ts for where those values actually
+ * come from. `couponCode` is a code, not a price: the discount it
+ * produces is always computed server-side inside
+ * services/commerceService.ts's createCheckoutSession(), from the
+ * coupon's own stored data, before any amount is locked — this
+ * invariant is unchanged by M4, only extended. See
+ * docs/v3.2-m4c-amendment-2-coupon-security-review.md.
  */
 
 import type { Env } from '../worker/env';
@@ -66,7 +73,7 @@ export async function handleCreateCheckoutSession(request: Request, env: Env, lo
     return jsonError(validation.code, validation.message);
   }
 
-  const { productId, marketingOptIn } = body as { productId: string; marketingOptIn?: unknown };
+  const { productId, marketingOptIn, couponCode } = body as { productId: string; marketingOptIn?: unknown; couponCode?: unknown };
 
   try {
     const result = await createCheckoutSession(env, logger, {
@@ -74,6 +81,13 @@ export async function handleCreateCheckoutSession(request: Request, env: Env, lo
       termsAccepted: true,
       licenseAccepted: true,
       marketingOptIn: marketingOptIn === true,
+      // Version 3.2 Milestone M4 (Commerce & Trust Foundations) — an
+      // optional coupon code. Never a price/amount: the discount is
+      // always computed server-side by createCheckoutSession() itself,
+      // from the coupon's own stored data, preserving this route's
+      // existing "never accepts price from the client" invariant
+      // unchanged. See docs/v3.2-m4c-amendment-2-coupon-security-review.md.
+      couponCode: typeof couponCode === 'string' ? couponCode : null,
     });
     return jsonSuccess({ purchaseReference: result.purchaseReference, checkoutUrl: result.checkoutUrl });
   } catch (err) {

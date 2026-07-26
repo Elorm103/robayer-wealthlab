@@ -1,8 +1,9 @@
 -- Robayer WealthLab — Cloudflare D1 Schema
 --
 -- STATUS: this is the live production schema, current as of migration
--- 0019 (Version 3.0.2 Milestone M2: Orders, Receipts & Customer
--- Library, extending Milestone M1: Customer Identity & Guest Checkout).
+-- 0020 (Version 3.2 Milestone M4: Commerce & Trust Foundations —
+-- Product Reviews + Coupon Engine, extending Milestone M2: Orders,
+-- Receipts & Customer Library).
 -- This file is the cumulative, human-readable reference that
 -- backend/database/migrations/*.sql should sum to when applied in
 -- order via `wrangler d1 migrations apply` — it is not itself applied
@@ -204,7 +205,17 @@ CREATE TABLE purchase_sessions (
   terms_version        TEXT,
   license_accepted_at  TEXT,
   license_version      TEXT,
-  marketing_opt_in     INTEGER NOT NULL DEFAULT 0
+  marketing_opt_in     INTEGER NOT NULL DEFAULT 0,
+
+  -- Version 3.2 Milestone M4 (migration 0020) — coupon_id/discount_pesewas
+  -- are snapshotted at checkout-session creation time, when the
+  -- discount is computed and locked into amount_pesewas above (which
+  -- keeps its exact existing meaning: the actual charged amount,
+  -- verified against Paystack's own confirmation). The original,
+  -- pre-discount price is always recoverable as amount_pesewas +
+  -- discount_pesewas, never stored redundantly.
+  coupon_id            INTEGER REFERENCES coupons(id),
+  discount_pesewas     INTEGER NOT NULL DEFAULT 0 CHECK (discount_pesewas >= 0)
 );
 
 CREATE INDEX idx_purchase_sessions_status ON purchase_sessions(status);
@@ -1025,5 +1036,77 @@ CREATE TABLE receipt_download_tokens (
 );
 
 CREATE INDEX idx_receipt_download_tokens_receipt ON receipt_download_tokens(receipt_id);
+
+-- ============================================================
+-- Version 3.2 Milestone M4 (Commerce & Trust Foundations) — migration
+-- 0020. See that migration's own header comment for the full
+-- reasoning, including the Amendment 1 correction to the coupon
+-- schema (platform-scope only; no platform_users/marketplace
+-- dependency).
+-- ============================================================
+
+-- Customer reviews + star ratings, purchase-gated (purchase_session_id
+-- must belong to the reviewing customer, enforced in reviewService.ts).
+-- One review per (product, customer) — a repurchase edits the
+-- existing row rather than creating a second.
+CREATE TABLE product_reviews (
+  id                  INTEGER PRIMARY KEY AUTOINCREMENT,
+  product_id          INTEGER NOT NULL REFERENCES products(id),
+  customer_id         INTEGER NOT NULL REFERENCES customers(id),
+  purchase_session_id INTEGER NOT NULL REFERENCES purchase_sessions(id),
+  rating              INTEGER NOT NULL CHECK (rating BETWEEN 1 AND 5),
+  body                TEXT NOT NULL,
+  status              TEXT NOT NULL DEFAULT 'pending' CHECK (status IN ('pending', 'approved', 'rejected')),
+  moderated_by        INTEGER REFERENCES admin_users(id),
+  moderated_at        TEXT,
+  created_at          TEXT NOT NULL DEFAULT (datetime('now')),
+  updated_at          TEXT NOT NULL DEFAULT (datetime('now')),
+
+  UNIQUE(product_id, customer_id)
+);
+
+CREATE INDEX idx_product_reviews_product ON product_reviews(product_id);
+CREATE INDEX idx_product_reviews_customer ON product_reviews(customer_id);
+CREATE INDEX idx_product_reviews_status ON product_reviews(status);
+
+-- Platform-wide coupons only (see migration 0020's header comment for
+-- why this is deliberately simpler than the original V3.0 marketplace
+-- design). redemptions_count is incremented only at payment
+-- verification, never at checkout-session creation.
+CREATE TABLE coupons (
+  id                  INTEGER PRIMARY KEY AUTOINCREMENT,
+  code                TEXT NOT NULL UNIQUE,
+  product_id          INTEGER REFERENCES products(id),
+  discount_type       TEXT NOT NULL CHECK (discount_type IN ('percentage', 'fixed')),
+  discount_value      INTEGER NOT NULL CHECK (discount_value > 0),
+  max_redemptions     INTEGER,
+  redemptions_count   INTEGER NOT NULL DEFAULT 0,
+  first_purchase_only INTEGER NOT NULL DEFAULT 0,
+  starts_at           TEXT,
+  expires_at          TEXT,
+  status              TEXT NOT NULL DEFAULT 'active' CHECK (status IN ('active', 'disabled', 'expired')),
+  created_by          INTEGER NOT NULL REFERENCES admin_users(id),
+  created_at          TEXT NOT NULL DEFAULT (datetime('now')),
+  updated_at          TEXT NOT NULL DEFAULT (datetime('now'))
+);
+
+CREATE INDEX idx_coupons_code ON coupons(code);
+CREATE INDEX idx_coupons_product ON coupons(product_id);
+CREATE INDEX idx_coupons_status ON coupons(status);
+
+-- One row per successful redemption, written only at payment
+-- verification. One coupon per purchase (no stacking).
+CREATE TABLE coupon_redemptions (
+  id                   INTEGER PRIMARY KEY AUTOINCREMENT,
+  coupon_id            INTEGER NOT NULL REFERENCES coupons(id),
+  purchase_session_id  INTEGER NOT NULL REFERENCES purchase_sessions(id),
+  customer_email       TEXT NOT NULL,
+  discount_pesewas     INTEGER NOT NULL CHECK (discount_pesewas >= 0),
+  redeemed_at          TEXT NOT NULL DEFAULT (datetime('now')),
+
+  UNIQUE(purchase_session_id)
+);
+
+CREATE INDEX idx_coupon_redemptions_coupon ON coupon_redemptions(coupon_id);
 
 CREATE INDEX idx_customer_password_tokens_customer ON customer_password_tokens(customer_id);
