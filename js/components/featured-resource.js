@@ -34,7 +34,15 @@
 
         if (titleEl) titleEl.textContent = resource.title;
         if (descriptionEl && resource.shortDescription) descriptionEl.textContent = resource.shortDescription;
-        if (ctaEl) ctaEl.setAttribute('href', resource.destinationUrl);
+        if (ctaEl) {
+          ctaEl.setAttribute('href', resource.destinationUrl);
+          // Version 3.5.2 (Homepage Unification) - cta_text is a real,
+          // nullable Resource column (0024_resource_cta_text.sql); null
+          // means "no admin override yet," so the static label already
+          // in the markup ("Send Me the Guide") stays as the honest
+          // default, same fallback convention as every other field here.
+          if (resource.ctaText) ctaEl.textContent = resource.ctaText;
+        }
 
         // Real uploaded cover takes over from the flat placeholder color
         // block when the resource has one — this resource has none

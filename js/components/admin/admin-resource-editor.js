@@ -54,6 +54,7 @@ function initResourceEditor() {
 
     tags: root.querySelector('[data-re-tags]'),
     featured: root.querySelector('[data-re-featured]'),
+    ctaText: root.querySelector('[data-re-cta-text]'),
 
     statusBadge: root.querySelector('[data-re-status-badge]'),
     status: root.querySelector('[data-re-status]'),
@@ -149,6 +150,7 @@ function initResourceEditor() {
 
     els.tags.value = resource.tags || '';
     els.featured.checked = Boolean(resource.featured);
+    els.ctaText.value = resource.ctaText || '';
 
     els.status.value = resource.status;
 
@@ -442,6 +444,7 @@ function initResourceEditor() {
       seoTitle: els.seoTitle.value.trim() || null,
       seoDescription: els.seoDescription.value.trim() || null,
       seoCanonicalUrl: els.seoCanonical.value.trim() || null,
+      ctaText: els.ctaText.value.trim() || null,
     };
   }
 

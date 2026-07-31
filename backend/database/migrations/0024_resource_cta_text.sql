@@ -1,0 +1,27 @@
+-- ============================================================
+-- 0024_resource_cta_text.sql — Version 3.5.2 (Homepage Unification,
+-- Featured Sections & Product Synchronization)
+--
+-- Adds a single, genuinely-missing field to the existing `resources`
+-- table: the acceptance criteria for the homepage's Featured Resource
+-- banner explicitly requires "CTA text" to be admin-editable, and
+-- until this migration it was static markup in index.html
+-- ("Send Me the Guide") with no per-resource override anywhere.
+-- `title`, `category`, `description`, cover, publish/unpublish
+-- (`status`), and `destination` (already served by the existing
+-- `seo_canonical_url` column, reused rather than duplicated per
+-- Version 3.5.1's own precedent) were all already real, editable
+-- Resource fields — this migration closes the one remaining gap
+-- rather than introducing a parallel content model.
+--
+-- cta_text — nullable. NULL means "use the caller's own static
+--   default label" (see js/components/featured-resource.js), the
+--   same fallback convention this table already uses for
+--   short_description/cover/etc. on every public-facing surface.
+--
+-- Rollback: `ALTER TABLE resources DROP COLUMN cta_text;` — safe at
+-- any time; no other table references this column, and every reader
+-- already treats a missing/null value as "use the default label."
+-- ============================================================
+
+ALTER TABLE resources ADD COLUMN cta_text TEXT;

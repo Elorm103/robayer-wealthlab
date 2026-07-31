@@ -441,6 +441,7 @@ interface PublicFeaturedResource {
   category: string;
   coverImage: string | null;
   destinationUrl: string;
+  ctaText: string | null;
 }
 
 function toPublicFeaturedShape(resource: ResourceRecord): PublicFeaturedResource {
@@ -449,6 +450,7 @@ function toPublicFeaturedShape(resource: ResourceRecord): PublicFeaturedResource
     title: resource.title,
     shortDescription: resource.shortDescription,
     category: resource.category,
+    ctaText: resource.ctaText,
     coverImage: resource.coverPublicUrl,
     // seo_canonical_url is already a real, admin-editable field (the
     // Resources editor's own SEO section) — reused here as the

@@ -51,6 +51,7 @@ function toApiShape(resource: ResourceRecord) {
     seoTitle: resource.seoTitle,
     seoDescription: resource.seoDescription,
     seoCanonicalUrl: resource.seoCanonicalUrl,
+    ctaText: resource.ctaText,
     featured: resource.featured,
     downloadCount: resource.downloadCount,
     publishedAt: resource.publishedAt,
@@ -96,6 +97,7 @@ function parseResourceInput(body: Record<string, unknown>): ResourceInput {
     seoTitle: typeof body.seoTitle === 'string' ? body.seoTitle : body.seoTitle === null ? null : undefined,
     seoDescription: typeof body.seoDescription === 'string' ? body.seoDescription : body.seoDescription === null ? null : undefined,
     seoCanonicalUrl: typeof body.seoCanonicalUrl === 'string' ? body.seoCanonicalUrl : body.seoCanonicalUrl === null ? null : undefined,
+    ctaText: typeof body.ctaText === 'string' ? body.ctaText : body.ctaText === null ? null : undefined,
     featured: typeof body.featured === 'boolean' ? body.featured : undefined,
   };
 }

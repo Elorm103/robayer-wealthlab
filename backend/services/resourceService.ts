@@ -64,6 +64,7 @@ export interface ResourceRecord {
   seoTitle: string | null;
   seoDescription: string | null;
   seoCanonicalUrl: string | null;
+  ctaText: string | null;
   featured: boolean;
   downloadCount: number;
   publishedAt: string | null;
@@ -95,6 +96,7 @@ interface ResourceRow {
   seo_title: string | null;
   seo_description: string | null;
   seo_canonical_url: string | null;
+  cta_text: string | null;
   featured: number;
   download_count: number;
   published_at: string | null;
@@ -111,7 +113,7 @@ const RESOURCE_SELECT_COLUMNS = `
   r.file_media_id, file.public_url AS file_public_url, file.original_filename AS file_original_filename,
   r.cover_media_id, cover.public_url AS cover_public_url,
   r.thumbnail_media_id, thumb.public_url AS thumbnail_public_url,
-  r.seo_title, r.seo_description, r.seo_canonical_url,
+  r.seo_title, r.seo_description, r.seo_canonical_url, r.cta_text,
   r.featured, r.download_count, r.published_at,
   r.created_by, r.updated_by, r.created_at, r.updated_at, r.deleted_at
 `;
@@ -145,6 +147,7 @@ function fromRow(row: ResourceRow): ResourceRecord {
     seoTitle: row.seo_title,
     seoDescription: row.seo_description,
     seoCanonicalUrl: row.seo_canonical_url,
+    ctaText: row.cta_text,
     featured: row.featured === 1,
     downloadCount: row.download_count,
     publishedAt: row.published_at,
@@ -279,6 +282,7 @@ export interface ResourceInput {
   seoTitle?: string | null;
   seoDescription?: string | null;
   seoCanonicalUrl?: string | null;
+  ctaText?: string | null;
   featured?: boolean;
 }
 
@@ -348,9 +352,9 @@ export async function createResource(env: Env, logger: Logger, actorId: number, 
   const insert = await env.DB.prepare(
     `INSERT INTO resources (
        resource_id, slug, title, short_description, description, category, format, status, tags,
-       file_media_id, cover_media_id, thumbnail_media_id, seo_title, seo_description, seo_canonical_url,
+       file_media_id, cover_media_id, thumbnail_media_id, seo_title, seo_description, seo_canonical_url, cta_text,
        featured, published_at, created_by, updated_by
-     ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ${publishedAtClause}, ?, ?)`
+     ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ${publishedAtClause}, ?, ?)`
   )
     .bind(
       resourceId,
@@ -368,6 +372,7 @@ export async function createResource(env: Env, logger: Logger, actorId: number, 
       input.seoTitle ?? null,
       input.seoDescription ?? null,
       input.seoCanonicalUrl ?? null,
+      input.ctaText ?? null,
       input.featured ? 1 : 0,
       actorId,
       actorId
@@ -404,7 +409,7 @@ export async function updateResource(env: Env, logger: Logger, actorId: number, 
   await env.DB.prepare(
     `UPDATE resources SET
        slug = ?, title = ?, short_description = ?, description = ?, category = ?, format = ?, status = ?, tags = ?,
-       file_media_id = ?, cover_media_id = ?, thumbnail_media_id = ?, seo_title = ?, seo_description = ?, seo_canonical_url = ?,
+       file_media_id = ?, cover_media_id = ?, thumbnail_media_id = ?, seo_title = ?, seo_description = ?, seo_canonical_url = ?, cta_text = ?,
        featured = ?, updated_by = ?, updated_at = datetime('now')${publishedAtClause}
      WHERE id = ?`
   )
@@ -423,6 +428,7 @@ export async function updateResource(env: Env, logger: Logger, actorId: number, 
       input.seoTitle ?? null,
       input.seoDescription ?? null,
       input.seoCanonicalUrl ?? null,
+      input.ctaText ?? null,
       input.featured ? 1 : 0,
       actorId,
       id
