@@ -202,19 +202,32 @@
     </section>
 
     <!-- ============================================================
-         FREE GUIDE PROMO
-         Links to /free-guide/ — the new lead-magnet landing page.
-         Placed before Services/eBook as the lowest-friction first ask.
+         FREE GUIDE PROMO ("Featured Resource")
+         Version 3.5.1 (Homepage CMS Completion): the title/description/
+         cover/destination below now come from the real, already-
+         published Resource ("The 7 Money Mistakes...", see
+         backend/routes/resources.ts's GET /api/resources/featured),
+         filled in by js/components/featured-resource.js — the exact
+         same fetch-fill-fallback pattern product-loader.js already
+         uses for the Featured eBook section below. The text/link
+         already here is the honest static fallback if that fetch ever
+         fails, same convention as the hero copy above. Editable from
+         Admin → Resources → "The 7 Money Mistakes..." → mark it
+         Featured; title/short description/cover/publish state all
+         flow from there, with no duplicate content or second data
+         model.
          ============================================================ -->
-    <section class="section section--spacious bg-navy" aria-labelledby="free-guide-heading" data-reveal>
+    <section class="section section--spacious bg-navy" aria-labelledby="free-guide-heading" data-featured-resource data-reveal>
       <div class="container feature-banner">
-        <div class="book-card__cover book-card__cover--compact book-card__cover--green" aria-hidden="true"></div>
+        <div class="book-card__cover book-card__cover--compact book-card__cover--green" aria-hidden="true">
+          <img class="book-card__cover-image" data-featured-resource-cover-img alt="" hidden>
+        </div>
         <div>
           <span class="eyebrow feature-banner__eyebrow">Free Financial Guide</span>
-          <h2 id="free-guide-heading" class="mt-2 mb-2 feature-banner__title">The 7 Money Mistakes That Keep Many Ghanaians Broke</h2>
-          <p class="mb-4 feature-banner__copy">Discover the seven money mistakes keeping many Ghanaians from building wealth, and one practical fix for each.</p>
+          <h2 id="free-guide-heading" class="mt-2 mb-2 feature-banner__title" data-featured-resource-title>The 7 Money Mistakes That Keep Many Ghanaians Broke</h2>
+          <p class="mb-4 feature-banner__copy" data-featured-resource-description>Discover the seven money mistakes keeping many Ghanaians from building wealth, and one practical fix for each.</p>
           <div class="hero__actions">
-            <a href="/free-guide/" class="btn btn--accent">Send Me the Guide</a>
+            <a href="/free-guide/" class="btn btn--accent" data-featured-resource-cta>Send Me the Guide</a>
             <a href="/free-guide/" class="btn btn--secondary">See What's Inside</a>
           </div>
         </div>
@@ -273,12 +286,28 @@
          the *_title/_description/_cta slots with the real featured
          product's data. The text already here doubles as the honest
          fallback if JS/fetch ever fails — never a blank or broken banner.
-         Cover placeholder: a professionally designed eBook mockup is
-         pending (see README TODOs) — Sika Gold block stands in for now.
+
+         Version 3.5.1 (Homepage Product Consistency) — root cause found
+         for "changing the flagship product's cover updates the Hero but
+         not this section": product-loader.js's initFeatureBanners()
+         already correctly fetches and binds a cover image for EVERY
+         [data-feature-banner] element on the page (the Hero's own visual
+         further up this file uses the identical mechanism and has always
+         worked), but this section's cover <div> was never given the
+         [data-feature-cover-img]/[data-feature-placeholder] children the
+         binding code looks for — so it silently had nothing to attach
+         the real cover to and permanently showed the flat placeholder
+         color instead. Not a cache, duplicate-API, or stale-data problem
+         at all: no JS change was needed, only adding the same markup
+         the Hero's visual already carries. See product-loader.js's
+         initFeatureBanners() for the shared, single-source binding logic
+         both sections now use identically.
          ============================================================ -->
     <section class="section section--spacious bg-navy" aria-labelledby="featured-book-heading" data-feature-banner data-reveal>
       <div class="container feature-banner">
-        <div class="book-card__cover book-card__cover--compact" aria-hidden="true"></div>
+        <div class="book-card__cover book-card__cover--compact" aria-hidden="true">
+          <img class="book-card__cover-image" data-feature-cover-img alt="" hidden>
+        </div>
         <div>
           <span class="eyebrow feature-banner__eyebrow">Featured eBook</span>
           <h2 id="featured-book-heading" class="mt-2 mb-2 feature-banner__title" data-feature-title>Starting to invest with GH₵100</h2>
@@ -403,6 +432,7 @@
   <script src="/js/content-inject.js?v=m6"></script>
   <script src="/js/components/founder-bio.js"></script>
   <script src="/js/components/product-loader.js?v=m62"></script>
+  <script src="/js/components/featured-resource.js"></script>
   <script src="/js/components/countdown.js"></script>
   <script src="/js/components/newsletter-form.js"></script>
   <script src="/js/components/scroll-reveal.js"></script>

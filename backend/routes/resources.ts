@@ -31,6 +31,7 @@
 import type { Env } from '../worker/env';
 import type { Logger } from '../utils/logger';
 import type { RouteParams } from '../worker/index';
+import { jsonSuccess } from '../utils/responses';
 import * as resourceService from '../services/resourceService';
 import { isPubliclyVisibleStatus } from '../services/resourceService';
 import type { ResourceRecord } from '../services/resourceService';
@@ -412,6 +413,72 @@ async function handleResourceDownload(env: Env, slug: string): Promise<Response>
   // and every browser/fetch client correctly resolves a relative
   // `Location` against the response's own origin per RFC 7231.
   return new Response(null, { status: 302, headers: { Location: resource.filePublicUrl } });
+}
+
+// ============================================================
+// GET /api/resources/featured — Version 3.5.1 (Homepage CMS
+// Completion). Public, unauthenticated, read-only: the homepage's
+// post-load JS (js/components/featured-resource.js) fetches this to
+// fill in the "Featured Resource" banner's title/description/cover/
+// link — the exact same [data-content]-style pattern already
+// established by routes/hero.ts's GET /api/hero for the hero copy.
+//
+// Deliberately not a new data model: this reads the real `resources`
+// table through the same resourceService.listResources() this file's
+// own renderResourcesIndex() already calls to build /resources/'s own
+// featured banner. Before this milestone, the homepage's "The 7 Money
+// Mistakes..." banner was hand-typed HTML with no connection to the
+// resource of the same name that has existed, published, in the
+// database the entire time — this endpoint is what lets the homepage
+// finally reference that one real resource instead of duplicating its
+// content.
+// ============================================================
+
+interface PublicFeaturedResource {
+  slug: string;
+  title: string;
+  shortDescription: string | null;
+  category: string;
+  coverImage: string | null;
+  destinationUrl: string;
+}
+
+function toPublicFeaturedShape(resource: ResourceRecord): PublicFeaturedResource {
+  return {
+    slug: resource.slug,
+    title: resource.title,
+    shortDescription: resource.shortDescription,
+    category: resource.category,
+    coverImage: resource.coverPublicUrl,
+    // seo_canonical_url is already a real, admin-editable field (the
+    // Resources editor's own SEO section) — reused here as the
+    // "destination link" rather than adding a new column, per this
+    // milestone's "prefer reusing, no duplicate data model" directive.
+    // Falls back to the resource's own anchor on /resources/ if no
+    // canonical URL has been set.
+    destinationUrl: resource.seoCanonicalUrl || `/resources/#${resource.slug}`,
+  };
+}
+
+export async function handleGetFeaturedResource(_request: Request, env: Env, _logger: Logger): Promise<Response> {
+  const result = await resourceService.listResources(env, {
+    search: null,
+    status: 'published',
+    category: null,
+    format: null,
+    featured: true,
+    showDeleted: false,
+    sort: 'newest',
+    page: 1,
+    pageSize: 1,
+  });
+
+  const featured = result.items[0] ?? null;
+  const response = jsonSuccess({ resource: featured ? toPublicFeaturedShape(featured) : null });
+  // Same reasoning as routes/hero.ts: an admin edit must be visible on
+  // the visitor's very next page load, never delayed by a cache TTL.
+  response.headers.set('Cache-Control', 'no-store');
+  return response;
 }
 
 // ============================================================

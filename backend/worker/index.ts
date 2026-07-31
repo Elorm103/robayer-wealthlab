@@ -176,7 +176,7 @@ import {
   handleResourceRestore,
   handleResourcesBulkAction,
 } from '../routes/admin/resources';
-import { handleResourcesIndex, handleResourceDownloadRoute } from '../routes/resources';
+import { handleResourcesIndex, handleResourceDownloadRoute, handleGetFeaturedResource } from '../routes/resources';
 import { handleFreeGuideIndex } from '../routes/free-guide';
 import {
   handleBlogMeta,
@@ -348,6 +348,8 @@ const ROUTES: Route[] = [
   { pattern: new URLPattern({ pathname: '/api/admin/branding' }), method: 'PATCH', handler: handleUpdateBranding },
   { pattern: new URLPattern({ pathname: '/api/branding' }), method: 'GET', handler: handleGetPublicBranding },
   { pattern: new URLPattern({ pathname: '/api/hero' }), method: 'GET', handler: handleGetPublicHero },
+  // Version 3.5.1 (Homepage CMS Completion) - see routes/resources.ts's own header comment on this endpoint.
+  { pattern: new URLPattern({ pathname: '/api/resources/featured' }), method: 'GET', handler: handleGetFeaturedResource },
   // Added Version 2.0 Phase 2 (Products Module) — see
   // docs/products-module-implementation.md. `/api/admin/products/meta` and
   // `/api/admin/products/bulk` are ordered before `/api/admin/products/:id`
