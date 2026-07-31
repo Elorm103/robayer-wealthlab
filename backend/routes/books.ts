@@ -105,7 +105,7 @@ const HEAD_ASSETS = `
   <link rel="stylesheet" href="/css/tokens.css">
   <link rel="stylesheet" href="/css/base.css">
   <link rel="stylesheet" href="/css/layout.css">
-  <link rel="stylesheet" href="/css/components.css">
+  <link rel="stylesheet" href="/css/components.css?v=m65">
   <link rel="stylesheet" href="/css/utilities.css">
 `;
 
@@ -676,32 +676,54 @@ async function renderBookDetail(env: Env, slug: string): Promise<Response> {
   // defect in place.
   const purchaseConsentBlock = `
     <div class="stack gap-2 mt-3" style="max-width:420px;">
-      <div class="field mb-0">
+      <div class="field mb-0" data-guest-email-field>
         <label class="field__label" for="purchase-email">Email address</label>
         <input type="email" id="purchase-email" class="field__input" placeholder="you@example.com" autocomplete="email" required>
         <p class="field__hint mt-1 mb-0">We'll send your receipt and ebook download link here.</p>
       </div>
+      <p class="mb-0" data-logged-in-email-display hidden style="display:flex;align-items:center;gap:var(--space-2);">
+        <svg class="icon" width="18" height="18" viewBox="0 0 24 24" aria-hidden="true" style="color:var(--color-success);flex-shrink:0;"><path d="M20 6L9 17l-5-5"/></svg>
+        <span>Purchasing as <strong data-logged-in-email></strong>. <a href="#" data-logged-in-not-you>Not you?</a></span>
+      </p>
       <p class="text-secondary text-small mb-0">By purchasing, you agree to our <a href="/legal/terms-of-use/">Terms of Service</a> and <a href="/legal/license-agreement/">License Agreement</a>.</p>
       <div class="field field--checkbox mb-0">
         <input type="checkbox" id="purchase-marketing-optin" class="field__input">
         <label for="purchase-marketing-optin" class="field__label">Send me occasional emails about new guides and money tips (optional)</label>
       </div>
       <div class="field mb-0">
-        <label class="field__label" for="purchase-coupon-code">Have a coupon?</label>
-        <div style="display:flex;gap:var(--space-2);">
-          <input type="text" id="purchase-coupon-code" class="field__input" placeholder="Enter code" autocomplete="off" style="flex:1;">
-          <button type="button" class="btn btn--secondary" data-apply-coupon>Apply</button>
+        <button type="button" class="text-small" style="background:none;border:none;padding:0;color:var(--color-accent);cursor:pointer;text-decoration:underline;" data-coupon-toggle aria-expanded="false" aria-controls="purchase-coupon-panel">Have a coupon?</button>
+        <div id="purchase-coupon-panel" class="mt-2" data-coupon-panel hidden>
+          <label for="purchase-coupon-code" class="field__label">Coupon code</label>
+          <div style="display:flex;gap:var(--space-2);">
+            <input type="text" id="purchase-coupon-code" class="field__input" placeholder="Enter code" autocomplete="off" style="flex:1;">
+            <button type="button" class="btn btn--secondary" data-apply-coupon>Apply</button>
+          </div>
+          <p class="text-small mt-1 mb-0" data-coupon-feedback hidden></p>
         </div>
-        <p class="text-small mt-1 mb-0" data-coupon-feedback hidden></p>
       </div>
     </div>`;
   const purchaseConsentNote = `<p class="text-secondary text-small mt-3" style="color:rgba(255,255,255,0.7);">By purchasing, you agree to our <a href="/legal/terms-of-use/" style="color:#fff;text-decoration:underline;">Terms of Service</a> and <a href="/legal/license-agreement/" style="color:#fff;text-decoration:underline;">License Agreement</a>.</p>`;
+
+  // Version 3.5.1 (Book Detail UX Polish) - a customer who already owns
+  // this product should never be offered the chance to buy it again.
+  // [data-purchase-owned-state] is rendered hidden and only revealed by
+  // js/components/book-purchase-state.js after it confirms real
+  // ownership via the customer's own existing purchase history
+  // (GET /api/customer/purchases) - the same ownership signal the
+  // Customer Library and review-eligibility check already trust,
+  // reused here rather than a new check invented for this page.
+  const ownedActionsBlock = `
+    <div class="book-card__actions" data-purchase-owned-state hidden>
+      <a href="#" class="btn btn--accent" data-owned-read-action target="_blank" rel="noopener">Read eBook</a>
+      <a href="#" class="btn btn--secondary" data-owned-download-action>Download PDF</a>
+      <a href="#reviews" class="btn btn--secondary">Leave a Review</a>
+    </div>`;
 
   const buyAction = isUpcoming
     ? '<a href="/newsletter/" class="btn btn--accent">Get notified when this launches</a>'
     : priceLabel === null
       ? '<span class="badge badge--warning">Price coming soon</span>'
-      : `<div class="book-card__actions"><a href="#" class="btn btn--accent" data-buy-button data-product-slug="${escapeHtml(product.slug)}">Buy Now (${escapeHtml(chargeableLabel ?? '')})</a><a href="/dashboard/" class="btn btn--secondary">View My Library</a></div>${purchaseConsentBlock}`;
+      : `<div data-purchase-default-state><div class="book-card__actions"><a href="#" class="btn btn--accent" data-buy-button data-product-slug="${escapeHtml(product.slug)}">Buy Now (${escapeHtml(chargeableLabel ?? '')})</a><a href="/dashboard/" class="btn btn--secondary">View My Library</a></div>${purchaseConsentBlock}</div>${ownedActionsBlock}`;
 
   const tagsLine = product.tags
     ? `<p class="text-secondary text-small mb-3">Tags: ${escapeHtml(
@@ -962,8 +984,13 @@ async function renderBookDetail(env: Env, slug: string): Promise<Response> {
       <div class="container content-column text-center">
         <h2 id="cta-heading" class="mt-2 mb-3" style="color:#fff;">Ready to start with GH&#8373;1?</h2>
         <p class="mb-4" style="color:rgba(255,255,255,0.8);">Instant digital access &bull; Read on any device &bull; Secure checkout via Paystack</p>
-        <a href="#" class="btn btn--accent" data-buy-button data-product-slug="${escapeHtml(product.slug)}">Buy Now (${escapeHtml(chargeableLabel ?? '')})</a>
-        ${purchaseConsentNote}
+        <div data-purchase-default-state>
+          <a href="#" class="btn btn--accent" data-buy-button data-product-slug="${escapeHtml(product.slug)}">Buy Now (${escapeHtml(chargeableLabel ?? '')})</a>
+          ${purchaseConsentNote}
+        </div>
+        <div data-purchase-owned-state hidden>
+          <a href="/dashboard/" class="btn btn--accent">Go to My Library</a>
+        </div>
       </div>
     </section>`
       : '';
@@ -984,7 +1011,7 @@ async function renderBookDetail(env: Env, slug: string): Promise<Response> {
             <span class="eyebrow hero__eyebrow">${productLabel}</span>
             ${
               !isUpcoming && reviewsResult.count > 0
-                ? `<p class="star-rating mb-2"><span class="star-rating__stars" aria-hidden="true">${renderStars(reviewsResult.averageRating ?? 0)}</span><span class="sr-only">Rating: ${reviewsResult.averageRating} out of 5</span><span class="star-rating__count">${escapeHtml(String(reviewsResult.averageRating))} (${reviewsResult.count} review${reviewsResult.count === 1 ? '' : 's'})</span></p>`
+                ? `<a class="star-rating mb-2" href="#reviews" style="text-decoration:none;color:inherit;cursor:pointer;"><span class="star-rating__stars" aria-hidden="true">${renderStars(reviewsResult.averageRating ?? 0)}</span><span class="sr-only">Rating: ${reviewsResult.averageRating} out of 5. Jump to reviews.</span><span class="star-rating__count" aria-hidden="true">${escapeHtml(String(reviewsResult.averageRating))} (${reviewsResult.count} review${reviewsResult.count === 1 ? '' : 's'})</span></a>`
                 : ''
             }
             <h1 class="hero__title">${escapeHtml(product.title)}</h1>
@@ -1114,7 +1141,7 @@ ${NEWSLETTER_BAND}`;
     extraHead: breadcrumbJsonLd + bookJsonLd + faqJsonLd,
     breadcrumb,
     bodyContent: body,
-    scripts: ['/js/components/buy-button.js?v=m63', '/js/components/founder-bio.js', '/js/components/product-reviews.js', '/js/components/countdown.js', '/js/main.js'],
+    scripts: ['/js/components/buy-button.js?v=m64', '/js/components/founder-bio.js', '/js/components/product-reviews.js', '/js/components/countdown.js', '/js/components/book-purchase-state.js', '/js/main.js'],
   });
 
   return htmlResponse(html, 200);

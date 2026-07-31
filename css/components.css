@@ -1222,6 +1222,19 @@
   gap: var(--space-2);
 }
 
+/* Version 3.5.1 (Book Detail UX Polish) - the countdown reads as part
+   of the same tight cluster as the price/savings lines above it when
+   it only has .price-block's own --space-1 gap separating them (the
+   same rhythm used between every other line in the block, e.g. the
+   struck-through price and the "Now" label). A clearly larger gap
+   right before the countdown, and only there, gives the section the
+   brief's own intended reading order - regular price, sale price,
+   savings, then the countdown as its own distinct beat underneath -
+   without changing the block's structure, only its spacing. */
+.price-block > .countdown {
+  margin-top: var(--space-3);
+}
+
 .countdown[hidden] {
   display: none;
 }

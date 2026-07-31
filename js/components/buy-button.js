@@ -136,6 +136,34 @@ function initCouponInput() {
   });
 }
 
+/**
+ * Version 3.5.1 (Book Detail UX Polish) - the coupon field used to sit
+ * permanently visible next to the Buy button regardless of whether a
+ * visitor had a code, adding visual weight to what is, for most
+ * visitors, dead space. Collapsed behind a "Have a coupon?" toggle;
+ * the panel itself and everything inside it (the code input, Apply
+ * button, feedback message) is completely unchanged - this only
+ * changes whether it starts visible.
+ */
+function initCouponToggle() {
+  const toggle = document.querySelector('[data-coupon-toggle]:not([data-bound])');
+  if (!toggle) return;
+  toggle.setAttribute('data-bound', 'true');
+
+  const panel = document.querySelector('[data-coupon-panel]');
+  if (!panel) return;
+
+  toggle.addEventListener('click', () => {
+    const expanded = toggle.getAttribute('aria-expanded') === 'true';
+    toggle.setAttribute('aria-expanded', String(!expanded));
+    panel.hidden = expanded;
+    if (!expanded) {
+      const codeInput = panel.querySelector('#purchase-coupon-code');
+      if (codeInput) codeInput.focus();
+    }
+  });
+}
+
 function initBuyButtons() {
   const buttons = document.querySelectorAll('[data-buy-button]:not([data-bound])');
 
@@ -271,3 +299,5 @@ document.addEventListener('partials:loaded', initBuyButtons);
 document.addEventListener('DOMContentLoaded', initBuyButtons);
 document.addEventListener('partials:loaded', initCouponInput);
 document.addEventListener('DOMContentLoaded', initCouponInput);
+document.addEventListener('partials:loaded', initCouponToggle);
+document.addEventListener('DOMContentLoaded', initCouponToggle);

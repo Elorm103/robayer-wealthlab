@@ -20,6 +20,17 @@ import { resolveAssetsWithDeliveryInfo, type AssetDeliveryInfo } from '../fulfil
 
 export interface CustomerPurchaseSummary {
   purchaseReference: string;
+  /**
+   * Version 3.5.1 (Homepage CMS Completion & Product Consistency
+   * Audit) - added so a page that already knows a product's slug (the
+   * book detail page) can check real ownership without matching on
+   * `productTitle` text, which is a point-in-time snapshot that a
+   * later product rename would silently break. Reuses the same
+   * `product_slug` column this file's own SQL already selects for
+   * `resolveAssetsIfReady()` - previously computed and then discarded
+   * before reaching the response.
+   */
+  productSlug: string;
   productTitle: string;
   amountDisplay: string;
   status: 'processing' | 'ready' | 'unavailable' | 'refunded';
@@ -105,6 +116,7 @@ export async function listCustomerPurchases(env: Env, customerId: number, pageIn
       const status = toCustomerStatus(row.status);
       return {
         purchaseReference: row.purchaseReference,
+        productSlug: row.productSlug,
         productTitle: row.productTitle,
         amountDisplay: formatAmount(row.amountPesewas, row.currency),
         status,
@@ -143,6 +155,7 @@ export async function getCustomerPurchase(env: Env, customerId: number, referenc
 
   return {
     purchaseReference: row.purchaseReference,
+    productSlug: row.productSlug,
     productTitle: row.productTitle,
     amountDisplay: formatAmount(row.amountPesewas, row.currency),
     status,
