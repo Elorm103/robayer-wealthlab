@@ -1313,6 +1313,32 @@
   margin-top: var(--space-2);
 }
 
+/* Version 3.5.1 (Book Detail UX Polish) - same [hidden]-defeated-by-
+   display fix as .btn[hidden] elsewhere in this file. The owned-state
+   actions block (Read eBook/Download PDF/Leave a Review) reuses this
+   class for its own button row layout, so toggling [hidden] on it via
+   js/components/book-purchase-state.js was silently doing nothing
+   without this override. */
+.book-card__actions[hidden] {
+  display: none;
+}
+
+/* Version 3.5.1 (Book Detail UX Polish) - the logged-in "Purchasing as"
+   row needs the same icon+text flex layout .purchase-logged-in-row
+   below provides, but was originally set via an inline style="display:
+   flex" attribute, which beats even this file's own [hidden] overrides
+   (inline style always outranks an attribute-selector rule). Moved to
+   a real class so the [hidden] override below can actually win. */
+.purchase-logged-in-row {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+}
+
+.purchase-logged-in-row[hidden] {
+  display: none;
+}
+
 /* ============================================================
    BLOG CARD
    ============================================================ */

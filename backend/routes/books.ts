@@ -681,7 +681,7 @@ async function renderBookDetail(env: Env, slug: string): Promise<Response> {
         <input type="email" id="purchase-email" class="field__input" placeholder="you@example.com" autocomplete="email" required>
         <p class="field__hint mt-1 mb-0">We'll send your receipt and ebook download link here.</p>
       </div>
-      <p class="mb-0" data-logged-in-email-display hidden style="display:flex;align-items:center;gap:var(--space-2);">
+      <p class="mb-0 purchase-logged-in-row" data-logged-in-email-display hidden>
         <svg class="icon" width="18" height="18" viewBox="0 0 24 24" aria-hidden="true" style="color:var(--color-success);flex-shrink:0;"><path d="M20 6L9 17l-5-5"/></svg>
         <span>Purchasing as <strong data-logged-in-email></strong>. <a href="#" data-logged-in-not-you>Not you?</a></span>
       </p>
