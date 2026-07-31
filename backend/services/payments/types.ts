@@ -41,6 +41,21 @@ export interface CreateCheckoutSessionRequest {
   productVersion: string | null;
   /** Where the provider should send the visitor back to after checkout completes (success or cancel). */
   callbackUrl: string;
+  /**
+   * Version 3.4.3 Milestone M6.3 — the real buyer-provided email,
+   * collected on this site's own checkout form before the provider is
+   * ever contacted. Previously this field did not exist and each
+   * provider invented its own synthetic placeholder instead; a real
+   * production mobile money purchase proved that assumption wrong
+   * (Paystack's own hosted page does not prompt for/return a different
+   * email for that channel), so a real email now has to originate here.
+   * Still not blindly trusted as the final answer: verifyPayment()'s
+   * own `customerEmail` (provider-confirmed) is preferred wherever the
+   * provider offers one, and this value is only ever a fallback for a
+   * channel where the provider doesn't. See docs/commerce-foundation.md's
+   * email-collection note.
+   */
+  customerEmail: string;
 }
 
 export interface CreateCheckoutSessionResult {

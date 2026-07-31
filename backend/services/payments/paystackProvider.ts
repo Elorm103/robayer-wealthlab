@@ -49,21 +49,28 @@ interface PaystackVerifyResponse {
 
 export const paystackProvider: PaymentProvider = {
   async createCheckoutSession(request: CreateCheckoutSessionRequest, env: Env): Promise<CreateCheckoutSessionResult> {
-    // Paystack's initialize endpoint requires an `email` field, but this
-    // sprint's frontend sends nothing but the product identifier — no
-    // email is collected before checkout (see docs/commerce-foundation.md's
-    // "Pricing"/"Frontend" sections, matching the sprint brief's "frontend
-    // sends only productId, nothing else"). Rather than inventing a way
-    // to collect one, a synthetic placeholder scoped to this exact
-    // purchase reference is sent instead — it is never treated as a
-    // real customer email anywhere in this codebase. Paystack's own
-    // hosted checkout page prompts the buyer for their real email during
-    // payment; Sprint 2.4 reads the provider-confirmed email back from
-    // the verify response rather than ever trusting one collected
-    // client-side before payment. This is a stricter security posture
-    // than collecting-then-trusting a client email, not a workaround.
-    const placeholderEmail = `checkout+${request.purchaseReference}@robayerwealthlab.com`;
-
+    // Version 3.4.3 Milestone M6.3 (Production Authentication & Email
+    // Recovery) — this used to send a synthetic `checkout+<ref>@...`
+    // placeholder here on the assumption that Paystack's own hosted
+    // checkout page would prompt the buyer for their real email during
+    // payment, and that verifyPayment() reading the provider-confirmed
+    // email back from the verify response would always end up with a
+    // real one. A real, live production purchase disproved that: for
+    // the mobile_money channel (the dominant channel in this market),
+    // Paystack's hosted page never prompts for or changes the email —
+    // it simply echoes back whatever was submitted at initialize time.
+    // The placeholder was therefore never replaced by anything real for
+    // that entire channel, and every downstream email-dependent flow
+    // (confirmation, receipt, delivery, password setup, forgot
+    // password, recover purchase) silently broke for every customer who
+    // paid that way. `request.customerEmail` is now the real,
+    // buyer-provided email collected on this site's own checkout form
+    // (see js/components/buy-button.js) — sent here as-is. This is not
+    // a weaker trust posture than before: commerceService.ts still
+    // prefers verifyPayment()'s provider-confirmed email whenever the
+    // provider actually offers a different one (e.g. a card payment
+    // where Paystack's page does let the buyer edit it); this is only
+    // ever the value a channel with no such prompt falls back to.
     let response: Response;
     try {
       response = await fetch(`${env.PAYSTACK_BASE_URL}/transaction/initialize`, {
@@ -73,7 +80,7 @@ export const paystackProvider: PaymentProvider = {
           'Content-Type': 'application/json',
         },
         body: JSON.stringify({
-          email: placeholderEmail,
+          email: request.customerEmail,
           amount: request.amountPesewas,
           currency: request.currency,
           reference: request.purchaseReference,

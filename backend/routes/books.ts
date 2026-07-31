@@ -660,8 +660,27 @@ async function renderBookDetail(env: Env, slug: string): Promise<Response> {
   // routes/coupons.ts) purely to show the discount before checkout —
   // the actual discount is always re-validated and locked server-side
   // inside createCheckoutSession(), never trusted from this preview.
+  //
+  // Version 3.4.3 Milestone M6.3 (Production Authentication & Email
+  // Recovery) — id="purchase-email", same page-singleton pattern as
+  // the two fields below, but required (not optional/skippable): a
+  // real, live production purchase proved that relying on the payment
+  // provider's own hosted page to collect an email left every
+  // mobile_money customer completely unreachable afterward - no
+  // confirmation, no receipt, no ebook delivery email, no way to ever
+  // set a password, sign in, or leave a review. See
+  // js/components/buy-button.js's click handler and
+  // backend/services/payments/paystackProvider.ts's header comment for
+  // the full root-cause trace. This is the one field ADR-002's
+  // "zero-form checkout" could not stay zero-form without leaving that
+  // defect in place.
   const purchaseConsentBlock = `
     <div class="stack gap-2 mt-3" style="max-width:420px;">
+      <div class="field mb-0">
+        <label class="field__label" for="purchase-email">Email address</label>
+        <input type="email" id="purchase-email" class="field__input" placeholder="you@example.com" autocomplete="email" required>
+        <p class="field__hint mt-1 mb-0">We'll send your receipt and ebook download link here.</p>
+      </div>
       <p class="text-secondary text-small mb-0">By purchasing, you agree to our <a href="/legal/terms-of-use/">Terms of Service</a> and <a href="/legal/license-agreement/">License Agreement</a>.</p>
       <div class="field field--checkbox mb-0">
         <input type="checkbox" id="purchase-marketing-optin" class="field__input">

@@ -33,6 +33,7 @@
 import type { Env } from '../worker/env';
 import type { Logger } from '../utils/logger';
 import { fetchCatalogProduct, isPurchasable } from './productCatalogService';
+import { isValidEmail } from '../utils/validation';
 import { getPaymentProvider } from './payments';
 import { formatPurchaseReference } from '../utils/purchaseReference';
 import { fulfilPurchase } from './fulfilmentService';
@@ -56,7 +57,7 @@ const PURCHASE_SESSION_TTL_MINUTES = 30;
 const CURRENT_TERMS_VERSION = 'v1.0';
 const CURRENT_LICENSE_VERSION = 'v1.0';
 
-export type CommerceErrorCode = 'PRODUCT_NOT_FOUND' | 'PRODUCT_NOT_ACTIVE' | 'PAYSTACK_API_ERROR' | 'CONSENT_REQUIRED' | 'COUPON_INVALID';
+export type CommerceErrorCode = 'PRODUCT_NOT_FOUND' | 'PRODUCT_NOT_ACTIVE' | 'PAYSTACK_API_ERROR' | 'CONSENT_REQUIRED' | 'COUPON_INVALID' | 'VALIDATION_ERROR';
 
 /**
  * Thrown for every expected failure in this service. routes/checkout.ts
@@ -96,6 +97,19 @@ export interface CreateCheckoutSessionInput {
    * docs/v3.2-m4c-amendment-2-coupon-security-review.md.
    */
   couponCode: string | null;
+  /**
+   * Version 3.4.3 Milestone M6.3 (Production Authentication & Email
+   * Recovery) — a real, buyer-provided email is now required before
+   * checkout starts, not left to the payment provider's own hosted
+   * page to collect. A live production purchase proved that
+   * assumption false for the mobile_money channel: Paystack never
+   * prompts for/returns a different email there, so relying on it
+   * alone meant zero real customers were ever reachable by email,
+   * could ever set a password, sign in, or leave a review. See
+   * services/payments/paystackProvider.ts's updated header comment for
+   * the full trace.
+   */
+  customerEmail: unknown;
 }
 
 export interface CreateCheckoutSessionResult {
@@ -129,6 +143,17 @@ export async function createCheckoutSession(
     throw new CommerceError('CONSENT_REQUIRED', 'Please accept the Terms of Service and License Agreement to continue.');
   }
   const marketingOptIn = input.marketingOptIn === true;
+
+  // Version 3.4.3 Milestone M6.3 — a real email is now required before
+  // a payment provider is ever contacted (see CreateCheckoutSessionInput's
+  // own doc comment for why). Same "never trust the client's own
+  // gating" discipline as termsAccepted/licenseAccepted above: routes/
+  // checkout.ts already checks this shape, but the actual enforcement
+  // lives here.
+  if (!isValidEmail(input.customerEmail)) {
+    throw new CommerceError('VALIDATION_ERROR', 'A valid email address is required to continue.');
+  }
+  const customerEmail = (input.customerEmail as string).trim().toLowerCase();
 
   // product.effectivePrice is a plain display number (e.g. 39 for
   // GH₵39) — converted to the smallest currency unit only here, at the
@@ -175,6 +200,7 @@ export async function createCheckoutSession(
     marketingOptIn,
     couponId,
     discountPesewas,
+    customerEmail,
   });
 
   const provider = getPaymentProvider(env);
@@ -186,6 +212,7 @@ export async function createCheckoutSession(
         purchaseReference: session.purchaseReference,
         amountPesewas,
         currency,
+        customerEmail,
         productTitle: product.title,
         productId: product.id,
         productSlug: product.slug,
@@ -222,6 +249,16 @@ interface InsertPurchaseSessionInput {
   /** Version 3.2 Milestone M4 — both purely additive/nullable-or-defaulted; see migration 0020's own header comment. */
   couponId: number | null;
   discountPesewas: number;
+  /**
+   * Version 3.4.3 Milestone M6.3 — stored immediately at checkout
+   * creation, before payment, so a pending/abandoned session and any
+   * support lookup have a real email from the very start. Still
+   * overwritten by the provider-confirmed email at verification time
+   * whenever the provider actually offers one (see
+   * verifySessionAtomic()'s own comment) — this is the floor, not the
+   * final answer.
+   */
+  customerEmail: string;
 }
 
 /**
@@ -248,8 +285,8 @@ async function insertPurchaseSession(env: Env, input: InsertPurchaseSessionInput
   const inserted = await env.DB.prepare(
     `INSERT INTO purchase_sessions
        (purchase_reference, product_slug, product_id, product_version, product_title, amount_pesewas, currency, status, provider, expires_at,
-        terms_accepted_at, terms_version, license_accepted_at, license_version, marketing_opt_in, coupon_id, discount_pesewas)
-     VALUES (NULL, ?, ?, ?, ?, ?, ?, 'pending', ?, ?, datetime('now'), ?, datetime('now'), ?, ?, ?, ?)`
+        terms_accepted_at, terms_version, license_accepted_at, license_version, marketing_opt_in, coupon_id, discount_pesewas, customer_email)
+     VALUES (NULL, ?, ?, ?, ?, ?, ?, 'pending', ?, ?, datetime('now'), ?, datetime('now'), ?, ?, ?, ?, ?)`
   )
     .bind(
       input.productSlug,
@@ -264,7 +301,8 @@ async function insertPurchaseSession(env: Env, input: InsertPurchaseSessionInput
       CURRENT_LICENSE_VERSION,
       input.marketingOptIn ? 1 : 0,
       input.couponId,
-      input.discountPesewas
+      input.discountPesewas,
+      input.customerEmail
     )
     .run();
 
@@ -708,9 +746,16 @@ async function verifySessionAtomic(
   customerEmail: string | null,
   providerStatus: string
 ): Promise<boolean> {
+  // Version 3.4.3 Milestone M6.3 — COALESCE, not a blind overwrite: a
+  // real customer email is already stored on this row from checkout
+  // creation time (see insertPurchaseSession()). The provider-confirmed
+  // email is still preferred whenever the provider actually offers one
+  // (e.g. a card payment where the buyer edited it on Paystack's own
+  // page), but a channel that echoes back nothing (or the same value
+  // unchanged) must never wipe out the real email already on file.
   const result = await env.DB.prepare(
     `UPDATE purchase_sessions
-     SET status = 'verified', customer_email = ?, provider_status = ?, verified_at = datetime('now'), updated_at = datetime('now')
+     SET status = 'verified', customer_email = COALESCE(?, customer_email), provider_status = ?, verified_at = datetime('now'), updated_at = datetime('now')
      WHERE id = ? AND status = 'pending'`
   )
     .bind(customerEmail, providerStatus, id)

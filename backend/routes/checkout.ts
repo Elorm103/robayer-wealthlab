@@ -25,6 +25,7 @@ import { isRateLimited } from '../middleware/rateLimit';
 import { validateBody } from '../middleware/validate';
 import { isPlausibleSlug } from '../services/productCatalogService';
 import { createCheckoutSession, CommerceError } from '../services/commerceService';
+import { isValidEmail } from '../utils/validation';
 
 // Slightly more generous than the form endpoints (newsletter/contact/
 // consultation: 5/min) since a visitor legitimately retrying checkout
@@ -68,12 +69,24 @@ export async function handleCreateCheckoutSession(request: Request, env: Env, lo
       code: 'CONSENT_REQUIRED',
       message: 'Please accept the Terms of Service and License Agreement to continue.',
     },
+    // Version 3.4.3 Milestone M6.3 (Production Authentication & Email
+    // Recovery) — a real, buyer-provided email is now required before
+    // checkout starts. See services/commerceService.ts's
+    // CreateCheckoutSessionInput doc comment for the full root-cause
+    // trace: relying on the payment provider's own hosted page to
+    // collect this meant zero real customers were ever reachable for
+    // the mobile_money channel.
+    email: {
+      test: isValidEmail,
+      code: 'VALIDATION_ERROR',
+      message: 'A valid email address is required to continue.',
+    },
   });
   if (!validation.valid) {
     return jsonError(validation.code, validation.message);
   }
 
-  const { productId, marketingOptIn, couponCode } = body as { productId: string; marketingOptIn?: unknown; couponCode?: unknown };
+  const { productId, marketingOptIn, couponCode, email } = body as { productId: string; marketingOptIn?: unknown; couponCode?: unknown; email: string };
 
   try {
     const result = await createCheckoutSession(env, logger, {
@@ -81,6 +94,7 @@ export async function handleCreateCheckoutSession(request: Request, env: Env, lo
       termsAccepted: true,
       licenseAccepted: true,
       marketingOptIn: marketingOptIn === true,
+      customerEmail: email,
       // Version 3.2 Milestone M4 (Commerce & Trust Foundations) — an
       // optional coupon code. Never a price/amount: the discount is
       // always computed server-side by createCheckoutSession() itself,

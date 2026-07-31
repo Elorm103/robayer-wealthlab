@@ -7,14 +7,18 @@
  * Progressive enhancement for any link/button marked [data-buy-button]
  * with a [data-product-slug]. On click: disables the button, shows a
  * loading state, POSTs `{ productId, termsAccepted, licenseAccepted,
- * marketingOptIn, couponCode }` to the Cloudflare Worker's checkout
- * endpoint (never price/currency/title; the Worker loads those itself
- * from the Product Platform, see docs/commerce-foundation.md — the
- * discount a coupon produces is likewise always computed server-side,
- * see docs/v3.2-m4c-amendment-2-coupon-security-review.md), then
- * redirects the visitor to the checkout URL the Worker returns. This
- * is the one place on the site that actually starts a purchase; see
- * docs/commerce-foundation.md's "Frontend" section.
+ * marketingOptIn, couponCode, email }` to the Cloudflare Worker's
+ * checkout endpoint (never price/currency/title; the Worker loads those
+ * itself from the Product Platform, see docs/commerce-foundation.md —
+ * the discount a coupon produces is likewise always computed
+ * server-side, see docs/v3.2-m4c-amendment-2-coupon-security-review.md),
+ * then redirects the visitor to the checkout URL the Worker returns.
+ * This is the one place on the site that actually starts a purchase;
+ * see docs/commerce-foundation.md's "Frontend" section.
+ *
+ * `email` (Version 3.4.3 Milestone M6.3) — the one required field this
+ * "zero-form checkout" now has. See this file's click handler for the
+ * full root-cause explanation of why it was added.
  *
  * Milestone M1 consent capture — see
  * docs/v3.0.2-commerce-architecture-blueprint.md's ratified Checkout
@@ -172,6 +176,27 @@ function initBuyButtons() {
       const couponInput = document.querySelector('#purchase-coupon-code');
       const couponCode = couponInput && couponInput.value.trim() ? couponInput.value.trim() : null;
 
+      // Version 3.4.3 Milestone M6.3 (Production Authentication & Email
+      // Recovery) — same page-singleton pattern as the marketing
+      // checkbox and coupon field above. Required, unlike those two: a
+      // real production purchase proved that leaving email collection
+      // entirely to the payment provider's own hosted page meant zero
+      // real customers were ever reachable for the mobile_money channel
+      // (the dominant channel in this market) — see
+      // backend/services/payments/paystackProvider.ts's updated header
+      // comment for the full trace. Validated here only as an honest,
+      // fast fail before a network round-trip; createCheckoutSession()
+      // re-validates it server-side regardless, per this file's own
+      // "never trust the client's own gating" convention.
+      const emailInput = document.querySelector('#purchase-email');
+      const email = emailInput ? emailInput.value.trim() : '';
+      if (!emailInput || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
+        showError(button, 'Please enter a valid email address to continue.');
+        setLoading(button, false, defaultLabel);
+        if (emailInput) emailInput.focus();
+        return;
+      }
+
       try {
         const response = await fetch(CHECKOUT_API_URL, {
           method: 'POST',
@@ -179,6 +204,7 @@ function initBuyButtons() {
           body: JSON.stringify({
             productId: productSlug,
             couponCode,
+            email,
             // Sending Buy at all IS the acceptance action for the
             // Terms of Service / License Agreement statement rendered
             // next to this button — see this file's own header comment.
