@@ -5,7 +5,7 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
 
   <title>Dashboard | Robayer WealthLab Admin</title>
-  <meta name="description" content="Robayer WealthLab admin dashboard.">
+  <meta name="description" content="Robayer WealthLab executive dashboard: business health, revenue, orders, customers, and alerts, from real production data.">
   <link rel="canonical" href="https://robayerwealthlab.com/admin/">
   <meta name="robots" content="noindex, nofollow">
 
@@ -22,7 +22,7 @@
   <link rel="stylesheet" href="/css/layout.css">
   <link rel="stylesheet" href="/css/components.css?v=m62">
   <link rel="stylesheet" href="/css/utilities.css">
-  <link rel="stylesheet" href="/css/admin.css?v=m62">
+  <link rel="stylesheet" href="/css/admin.css?v=m63">
 </head>
 <body>
   <a href="#main-content" class="skip-link">Skip to main content</a>
@@ -36,100 +36,414 @@
       <main class="admin-content" id="main-content" data-dashboard-root>
         <p class="alert alert--error" role="alert" data-dashboard-error hidden></p>
 
-        <div class="grid grid--3 mb-5">
+        <!-- ============================================================
+             Phase 1 — Executive Health Panel
+             ============================================================ -->
+        <section class="card mb-5" aria-labelledby="health-heading" data-health-section>
+          <div class="cluster cluster--between mb-3">
+            <h2 class="text-lg" id="health-heading">System Health</h2>
+            <span class="badge" data-health-overall-badge>Checking&hellip;</span>
+          </div>
+          <ul class="health-grid" data-health-grid aria-live="polite">
+            <li class="health-item"><span class="skeleton skeleton--text" aria-hidden="true"></span></li>
+          </ul>
+          <p class="text-secondary text-small mt-3">
+            <span data-health-version>Version &mdash;</span> &bull;
+            <span data-health-environment>&mdash;</span> &bull;
+            Schema <span data-health-schema>&mdash;</span>
+          </p>
+        </section>
+
+        <!-- ============================================================
+             Phase 6 — Business Alerts (kept near the top: "what needs
+             my attention today" is one of this dashboard's stated
+             30-second questions).
+             ============================================================ -->
+        <section class="card mb-5" aria-labelledby="alerts-heading" data-alerts-section>
+          <h2 class="text-lg mb-3" id="alerts-heading">Needs your attention</h2>
+          <ul class="alert-list" data-alerts-list hidden></ul>
+          <div class="empty-state empty-state--compact" data-alerts-empty hidden>
+            <svg class="icon empty-state__icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M20 6L9 17l-5-5"/></svg>
+            <p class="empty-state__title">Nothing needs attention</p>
+            <p class="empty-state__body text-small">Every real, computed check came back clean.</p>
+          </div>
+        </section>
+
+        <!-- ============================================================
+             Phase 11 — Executive Actions
+             ============================================================ -->
+        <section class="mb-5" aria-labelledby="quick-actions-heading">
+          <h2 class="text-lg mb-3" id="quick-actions-heading">Quick actions</h2>
+          <div class="quick-actions">
+            <a class="btn btn--secondary" href="/admin/products/new/">Create Product</a>
+            <a class="btn btn--secondary" href="/admin/media/">Upload Media</a>
+            <a class="btn btn--secondary" href="/admin/blog/new/">Publish Blog</a>
+            <a class="btn btn--secondary" href="/admin/coupons/">Create Coupon</a>
+            <a class="btn btn--secondary" href="/admin/newsletter/new/">Send Newsletter</a>
+            <a class="btn btn--secondary" href="/admin/orders/">View Orders</a>
+            <a class="btn btn--secondary" href="/admin/analytics/">View Analytics</a>
+            <a class="btn btn--secondary" href="/admin/branding/">Open Branding</a>
+          </div>
+        </section>
+
+        <!-- ============================================================
+             Phase 2 — Executive KPI Cards
+             ============================================================ -->
+        <h2 class="text-lg mb-3">Revenue &amp; orders</h2>
+        <div class="grid grid--4 mb-5">
           <div class="stat-card">
-            <p class="stat-card__label">
-              <svg class="icon stat-card__icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M12 1v22M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"/></svg>
-              Revenue
-            </p>
-            <p class="stat-card__value" data-stat-revenue-value>
-              <span class="skeleton skeleton--title" aria-hidden="true"></span>
-            </p>
-            <p class="stat-card__meta" data-stat-revenue-meta></p>
+            <p class="stat-card__label">Today's revenue</p>
+            <p class="stat-card__value" data-kpi-revenue-today><span class="skeleton skeleton--title" aria-hidden="true"></span></p>
+            <p class="stat-card__meta" data-kpi-revenue-today-meta></p>
+          </div>
+          <div class="stat-card">
+            <p class="stat-card__label">Yesterday's revenue</p>
+            <p class="stat-card__value" data-kpi-revenue-yesterday><span class="skeleton skeleton--title" aria-hidden="true"></span></p>
+          </div>
+          <div class="stat-card">
+            <p class="stat-card__label">This month's revenue</p>
+            <p class="stat-card__value" data-kpi-revenue-month><span class="skeleton skeleton--title" aria-hidden="true"></span></p>
+            <p class="stat-card__meta" data-kpi-revenue-month-meta></p>
+          </div>
+          <div class="stat-card">
+            <p class="stat-card__label">Lifetime revenue</p>
+            <p class="stat-card__value" data-kpi-revenue-lifetime><span class="skeleton skeleton--title" aria-hidden="true"></span></p>
           </div>
 
           <div class="stat-card">
-            <p class="stat-card__label">
-              <svg class="icon stat-card__icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M6 2l1.5 5M18 2l-1.5 5M4 7h16l-1.5 12a2 2 0 0 1-2 1.8H7.5A2 2 0 0 1 5.5 19L4 7z"/></svg>
-              Orders
-            </p>
-            <p class="stat-card__value" data-stat-orders-value>
-              <span class="skeleton skeleton--title" aria-hidden="true"></span>
-            </p>
-            <p class="stat-card__meta" data-stat-orders-meta></p>
+            <p class="stat-card__label">Orders today</p>
+            <p class="stat-card__value" data-kpi-orders-today><span class="skeleton skeleton--title" aria-hidden="true"></span></p>
+          </div>
+          <div class="stat-card">
+            <p class="stat-card__label">Orders this month</p>
+            <p class="stat-card__value" data-kpi-orders-month><span class="skeleton skeleton--title" aria-hidden="true"></span></p>
+          </div>
+          <div class="stat-card">
+            <p class="stat-card__label">Completed orders</p>
+            <p class="stat-card__value" data-kpi-orders-completed><span class="skeleton skeleton--title" aria-hidden="true"></span></p>
+          </div>
+          <div class="stat-card">
+            <p class="stat-card__label">Pending orders</p>
+            <p class="stat-card__value" data-kpi-orders-pending><span class="skeleton skeleton--title" aria-hidden="true"></span></p>
           </div>
 
           <div class="stat-card">
-            <p class="stat-card__label">
-              <svg class="icon stat-card__icon" viewBox="0 0 24 24" aria-hidden="true"><rect x="2" y="4" width="20" height="16" rx="2"/><path d="M2 6l10 7 10-7"/></svg>
-              Subscribers
-            </p>
-            <p class="stat-card__value" data-stat-subscribers-value>
-              <span class="skeleton skeleton--title" aria-hidden="true"></span>
-            </p>
-            <p class="stat-card__meta" data-stat-subscribers-meta></p>
+            <p class="stat-card__label">Refunds</p>
+            <p class="stat-card__value" data-kpi-refunds><span class="skeleton skeleton--title" aria-hidden="true"></span></p>
           </div>
-
           <div class="stat-card">
-            <p class="stat-card__label">
-              <svg class="icon stat-card__icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M21 11.5a8.4 8.4 0 0 1-.9 3.8 8.5 8.5 0 0 1-7.6 4.7 8.4 8.4 0 0 1-3.8-.9L3 21l1.9-5.7a8.4 8.4 0 0 1-.9-3.8 8.5 8.5 0 0 1 4.7-7.6 8.4 8.4 0 0 1 3.8-.9h.5a8.48 8.48 0 0 1 8 8v.5z"/></svg>
-              Consultations
-            </p>
-            <p class="stat-card__value" data-stat-consultations-value>
-              <span class="skeleton skeleton--title" aria-hidden="true"></span>
-            </p>
-            <p class="stat-card__meta" data-stat-consultations-meta></p>
+            <p class="stat-card__label">Conversion rate</p>
+            <p class="stat-card__value" data-kpi-conversion><span class="skeleton skeleton--title" aria-hidden="true"></span></p>
+            <p class="stat-card__meta" data-kpi-conversion-meta></p>
           </div>
-
           <div class="stat-card">
-            <p class="stat-card__label">
-              <svg class="icon stat-card__icon" viewBox="0 0 24 24" aria-hidden="true"><rect x="2" y="4" width="20" height="16" rx="2"/><path d="M2 6l10 7 10-7"/></svg>
-              Contacts
-            </p>
-            <p class="stat-card__value" data-stat-contacts-value>
-              <span class="skeleton skeleton--title" aria-hidden="true"></span>
-            </p>
-            <p class="stat-card__meta" data-stat-contacts-meta></p>
+            <p class="stat-card__label">Returning customers</p>
+            <p class="stat-card__value" data-kpi-returning><span class="skeleton skeleton--title" aria-hidden="true"></span></p>
           </div>
-
           <div class="stat-card">
-            <p class="stat-card__label">
-              <svg class="icon stat-card__icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M21 8l-9-5-9 5 9 5 9-5z"/><path d="M3 8v8l9 5 9-5V8"/></svg>
-              Products
-            </p>
-            <p class="stat-card__value" data-stat-products-value>
-              <span class="skeleton skeleton--title" aria-hidden="true"></span>
-            </p>
-            <p class="stat-card__meta" data-stat-products-meta></p>
+            <p class="stat-card__label">Average order value</p>
+            <p class="stat-card__value" data-kpi-aov><span class="skeleton skeleton--title" aria-hidden="true"></span></p>
           </div>
         </div>
 
-        <div class="grid grid--2">
+        <h2 class="text-lg mb-3">Content &amp; growth</h2>
+        <div class="grid grid--4 mb-5">
+          <div class="stat-card">
+            <p class="stat-card__label">Newsletter subscribers</p>
+            <p class="stat-card__value" data-kpi-subscribers><span class="skeleton skeleton--title" aria-hidden="true"></span></p>
+          </div>
+          <div class="stat-card">
+            <p class="stat-card__label">New subscribers today</p>
+            <p class="stat-card__value" data-kpi-subscribers-today><span class="skeleton skeleton--title" aria-hidden="true"></span></p>
+          </div>
+          <div class="stat-card">
+            <p class="stat-card__label">Published books</p>
+            <p class="stat-card__value" data-kpi-books><span class="skeleton skeleton--title" aria-hidden="true"></span></p>
+          </div>
+          <div class="stat-card">
+            <p class="stat-card__label">Published resources</p>
+            <p class="stat-card__value" data-kpi-resources><span class="skeleton skeleton--title" aria-hidden="true"></span></p>
+          </div>
+          <div class="stat-card">
+            <p class="stat-card__label">Published blog posts</p>
+            <p class="stat-card__value" data-kpi-blog><span class="skeleton skeleton--title" aria-hidden="true"></span></p>
+          </div>
+          <div class="stat-card">
+            <p class="stat-card__label">Published reviews</p>
+            <p class="stat-card__value" data-kpi-reviews><span class="skeleton skeleton--title" aria-hidden="true"></span></p>
+          </div>
+          <div class="stat-card">
+            <p class="stat-card__label">Average rating</p>
+            <p class="stat-card__value" data-kpi-rating><span class="skeleton skeleton--title" aria-hidden="true"></span></p>
+          </div>
+          <div class="stat-card">
+            <p class="stat-card__label">Active coupons</p>
+            <p class="stat-card__value" data-kpi-coupons-active><span class="skeleton skeleton--title" aria-hidden="true"></span></p>
+          </div>
+          <div class="stat-card">
+            <p class="stat-card__label">Expired coupons</p>
+            <p class="stat-card__value" data-kpi-coupons-expired><span class="skeleton skeleton--title" aria-hidden="true"></span></p>
+          </div>
+          <div class="stat-card">
+            <p class="stat-card__label">Draft content</p>
+            <p class="stat-card__value" data-kpi-draft><span class="skeleton skeleton--title" aria-hidden="true"></span></p>
+          </div>
+        </div>
+
+        <!-- ============================================================
+             Phase 3 — Sales Analytics
+             ============================================================ -->
+        <div class="cluster cluster--between mb-3">
+          <h2 class="text-lg">Sales analytics</h2>
+          <div class="toolbar__group">
+            <button type="button" class="media-filter-chip" aria-pressed="false" data-charts-preset="7">Last 7 days</button>
+            <button type="button" class="media-filter-chip" aria-pressed="true" data-charts-preset="30">Last 30 days</button>
+            <button type="button" class="media-filter-chip" aria-pressed="false" data-charts-preset="90">Last 90 days</button>
+          </div>
+        </div>
+        <div class="grid grid--2 mb-5">
+          <div class="card">
+            <h3 class="text-body-lg mb-3">Daily revenue</h3>
+            <div data-chart-revenue></div>
+          </div>
+          <div class="card">
+            <h3 class="text-body-lg mb-3">Sales by payment channel</h3>
+            <div data-chart-channel></div>
+          </div>
+        </div>
+        <div class="grid grid--2 mb-5">
+          <div class="card">
+            <h3 class="text-body-lg mb-3">Top selling products</h3>
+            <div class="admin-table-wrap" data-top-products-wrap>
+              <table class="table" aria-label="Top selling products">
+                <thead><tr><th scope="col">Product</th><th scope="col">Orders</th><th scope="col">Revenue</th></tr></thead>
+                <tbody data-top-products-body></tbody>
+              </table>
+            </div>
+            <p class="text-secondary text-small" data-top-products-empty hidden>No verified orders in this range.</p>
+          </div>
+          <div class="card">
+            <h3 class="text-body-lg mb-3">Coupon usage</h3>
+            <div class="admin-table-wrap" data-coupon-usage-wrap>
+              <table class="table" aria-label="Coupon usage">
+                <thead><tr><th scope="col">Code</th><th scope="col">Redemptions</th><th scope="col">Discount given</th></tr></thead>
+                <tbody data-coupon-usage-body></tbody>
+              </table>
+            </div>
+            <p class="text-secondary text-small" data-coupon-usage-empty hidden>No coupons redeemed in this range.</p>
+          </div>
+        </div>
+
+        <!-- ============================================================
+             Phase 4 + 8 — Customer Analytics & Experience Metrics
+             ============================================================ -->
+        <h2 class="text-lg mb-3">Customer analytics <span class="text-secondary text-small" data-customer-range-label></span></h2>
+        <div class="grid grid--4 mb-5">
+          <div class="stat-card">
+            <p class="stat-card__label">New customers</p>
+            <p class="stat-card__value" data-cust-new><span class="skeleton skeleton--title" aria-hidden="true"></span></p>
+          </div>
+          <div class="stat-card">
+            <p class="stat-card__label">Returning (this range)</p>
+            <p class="stat-card__value" data-cust-returning><span class="skeleton skeleton--title" aria-hidden="true"></span></p>
+          </div>
+          <div class="stat-card">
+            <p class="stat-card__label">Password recoveries</p>
+            <p class="stat-card__value" data-cust-recoveries><span class="skeleton skeleton--title" aria-hidden="true"></span></p>
+          </div>
+          <div class="stat-card">
+            <p class="stat-card__label">Review submission rate</p>
+            <p class="stat-card__value" data-cust-review-rate><span class="skeleton skeleton--title" aria-hidden="true"></span></p>
+          </div>
+          <div class="stat-card">
+            <p class="stat-card__label">Customer lifetime value</p>
+            <p class="stat-card__value" data-cust-clv><span class="skeleton skeleton--title" aria-hidden="true"></span></p>
+          </div>
+          <div class="stat-card">
+            <p class="stat-card__label">Repeat purchase rate</p>
+            <p class="stat-card__value" data-cust-repeat-rate><span class="skeleton skeleton--title" aria-hidden="true"></span></p>
+          </div>
+          <div class="stat-card">
+            <p class="stat-card__label">Avg. time to purchase</p>
+            <p class="stat-card__value" data-cust-time-to-purchase><span class="skeleton skeleton--title" aria-hidden="true"></span></p>
+          </div>
+          <div class="stat-card">
+            <p class="stat-card__label">Avg. time to first review</p>
+            <p class="stat-card__value" data-cust-time-to-review><span class="skeleton skeleton--title" aria-hidden="true"></span></p>
+          </div>
+        </div>
+        <div class="card mb-5">
+          <h3 class="text-body-lg mb-3">Most downloaded products</h3>
+          <div class="admin-table-wrap" data-most-downloaded-wrap>
+            <table class="table" aria-label="Most downloaded products">
+              <thead><tr><th scope="col">Product</th><th scope="col">Downloads</th></tr></thead>
+              <tbody data-most-downloaded-body></tbody>
+            </table>
+          </div>
+          <p class="text-secondary text-small" data-most-downloaded-empty hidden>No downloads recorded in this range.</p>
+          <p class="text-secondary text-small mt-3">Top referrers are not shown here: this platform does not currently record a referrer field anywhere, so no honest number can be shown for it.</p>
+        </div>
+
+        <!-- ============================================================
+             Phase 7 + 10 — Revenue Intelligence & Financial Dashboard
+             ============================================================ -->
+        <h2 class="text-lg mb-3">Revenue intelligence &amp; financials</h2>
+        <div class="grid grid--3 mb-5">
+          <div class="card">
+            <h3 class="text-body-lg mb-2">Best selling book</h3>
+            <p data-ri-best-seller>&mdash;</p>
+          </div>
+          <div class="card">
+            <h3 class="text-body-lg mb-2">Highest revenue day</h3>
+            <p data-ri-best-day>&mdash;</p>
+          </div>
+          <div class="card">
+            <h3 class="text-body-lg mb-2">Fastest growing product</h3>
+            <p data-ri-fastest-growing>&mdash;</p>
+          </div>
+          <div class="card">
+            <h3 class="text-body-lg mb-2">Gross revenue (lifetime)</h3>
+            <p data-fin-gross>&mdash;</p>
+          </div>
+          <div class="card">
+            <h3 class="text-body-lg mb-2">Net revenue (lifetime)</h3>
+            <p data-fin-net>&mdash;</p>
+          </div>
+          <div class="card">
+            <h3 class="text-body-lg mb-2">Revenue lost to coupons</h3>
+            <p data-ri-coupon-loss>&mdash;</p>
+          </div>
+          <div class="card">
+            <h3 class="text-body-lg mb-2">Average discount</h3>
+            <p data-ri-avg-discount>&mdash;</p>
+          </div>
+          <div class="card">
+            <h3 class="text-body-lg mb-2">Most discounted product</h3>
+            <p data-fin-most-discounted>&mdash;</p>
+          </div>
+          <div class="card">
+            <h3 class="text-body-lg mb-2">Simple sales forecast</h3>
+            <p data-ri-forecast>&mdash;</p>
+          </div>
+        </div>
+        <div class="card mb-5">
+          <h3 class="text-body-lg mb-3">Revenue by month (last 12 months)</h3>
+          <div data-chart-monthly-revenue></div>
+        </div>
+
+        <!-- ============================================================
+             Phase 9 — Publishing Dashboard
+             ============================================================ -->
+        <h2 class="text-lg mb-3">Publishing dashboard</h2>
+        <div class="grid grid--4 mb-5">
+          <div class="stat-card">
+            <p class="stat-card__label">Books</p>
+            <p class="stat-card__value" data-pub-books><span class="skeleton skeleton--title" aria-hidden="true"></span></p>
+            <p class="stat-card__meta" data-pub-books-meta></p>
+          </div>
+          <div class="stat-card">
+            <p class="stat-card__label">Resources</p>
+            <p class="stat-card__value" data-pub-resources><span class="skeleton skeleton--title" aria-hidden="true"></span></p>
+            <p class="stat-card__meta" data-pub-resources-meta></p>
+          </div>
+          <div class="stat-card">
+            <p class="stat-card__label">Blog posts</p>
+            <p class="stat-card__value" data-pub-blog><span class="skeleton skeleton--title" aria-hidden="true"></span></p>
+            <p class="stat-card__meta" data-pub-blog-meta></p>
+          </div>
+          <div class="stat-card">
+            <p class="stat-card__label">Media assets</p>
+            <p class="stat-card__value" data-pub-media><span class="skeleton skeleton--title" aria-hidden="true"></span></p>
+          </div>
+          <div class="stat-card">
+            <p class="stat-card__label">Broken media references</p>
+            <p class="stat-card__value" data-pub-broken-media><span class="skeleton skeleton--title" aria-hidden="true"></span></p>
+          </div>
+          <div class="stat-card">
+            <p class="stat-card__label">Products missing covers</p>
+            <p class="stat-card__value" data-pub-missing-covers><span class="skeleton skeleton--title" aria-hidden="true"></span></p>
+          </div>
+          <div class="stat-card">
+            <p class="stat-card__label">Products missing metadata</p>
+            <p class="stat-card__value" data-pub-missing-metadata><span class="skeleton skeleton--title" aria-hidden="true"></span></p>
+          </div>
+          <div class="stat-card">
+            <p class="stat-card__label">Products missing SEO</p>
+            <p class="stat-card__value" data-pub-missing-seo><span class="skeleton skeleton--title" aria-hidden="true"></span></p>
+          </div>
+        </div>
+
+        <!-- ============================================================
+             Phase 5 — Operational Monitoring
+             ============================================================ -->
+        <h2 class="text-lg mb-3">Operational monitoring</h2>
+        <div class="grid grid--2 mb-5">
           <div class="admin-table-wrap" style="padding: var(--space-4);">
             <div class="cluster cluster--between mb-3">
-              <h2 class="text-lg">Recent activity</h2>
-              <span class="badge" data-system-status>Checking&hellip;</span>
+              <h3 class="text-body-lg">Recent orders</h3>
+              <a class="text-small" href="/admin/orders/">View all &rarr;</a>
             </div>
-            <ul class="admin-activity-list" data-recent-activity-list hidden></ul>
-            <div class="empty-state empty-state--compact" data-recent-activity-empty hidden>
-              <svg class="icon empty-state__icon" viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="10"/><path d="M12 6v6l4 2"/></svg>
-              <p class="empty-state__title">No activity yet</p>
-              <p class="empty-state__body text-small">Security and account events will appear here as they happen.</p>
-            </div>
+            <ul class="admin-activity-list" data-feed-orders></ul>
           </div>
-
-          <div class="card">
-            <h2 class="text-lg mb-3">Getting started</h2>
-            <p class="text-secondary text-small mb-3">
-              Every section in the sidebar — Products, Media Library,
-              Resources, Blog, Newsletter, Orders, Consultations,
-              Contacts, Analytics, Settings, and Users — is live and
-              backed by real data.
-            </p>
-            <p class="text-secondary text-small">
-              Signed in as an authenticated admin — every action here is
-              recorded to the audit log.
-            </p>
+          <div class="admin-table-wrap" style="padding: var(--space-4);">
+            <div class="cluster cluster--between mb-3">
+              <h3 class="text-body-lg">Recent reviews</h3>
+              <a class="text-small" href="/admin/reviews/">View all &rarr;</a>
+            </div>
+            <ul class="admin-activity-list" data-feed-reviews></ul>
+          </div>
+          <div class="admin-table-wrap" style="padding: var(--space-4);">
+            <div class="cluster cluster--between mb-3">
+              <h3 class="text-body-lg">Recent contact messages</h3>
+              <a class="text-small" href="/admin/contacts/">View all &rarr;</a>
+            </div>
+            <ul class="admin-activity-list" data-feed-contacts></ul>
+          </div>
+          <div class="admin-table-wrap" style="padding: var(--space-4);">
+            <div class="cluster cluster--between mb-3">
+              <h3 class="text-body-lg">Recent consultations</h3>
+              <a class="text-small" href="/admin/consultations/">View all &rarr;</a>
+            </div>
+            <ul class="admin-activity-list" data-feed-consultations></ul>
+          </div>
+          <div class="admin-table-wrap" style="padding: var(--space-4);">
+            <div class="cluster cluster--between mb-3">
+              <h3 class="text-body-lg">Recent newsletter signups</h3>
+              <a class="text-small" href="/admin/newsletter/">View all &rarr;</a>
+            </div>
+            <ul class="admin-activity-list" data-feed-newsletter></ul>
+          </div>
+          <div class="admin-table-wrap" style="padding: var(--space-4);">
+            <div class="cluster cluster--between mb-3">
+              <h3 class="text-body-lg">Recent admin logins</h3>
+              <a class="text-small" href="/admin/users/">View all &rarr;</a>
+            </div>
+            <ul class="admin-activity-list" data-feed-logins></ul>
+          </div>
+          <div class="admin-table-wrap" style="padding: var(--space-4);">
+            <div class="cluster cluster--between mb-3">
+              <h3 class="text-body-lg">Recent failed logins</h3>
+            </div>
+            <ul class="admin-activity-list" data-feed-failed-logins></ul>
+          </div>
+          <div class="admin-table-wrap" style="padding: var(--space-4);">
+            <div class="cluster cluster--between mb-3">
+              <h3 class="text-body-lg">Recent password resets</h3>
+            </div>
+            <ul class="admin-activity-list" data-feed-password-resets></ul>
+          </div>
+          <div class="admin-table-wrap" style="padding: var(--space-4);">
+            <div class="cluster cluster--between mb-3">
+              <h3 class="text-body-lg">Recent admin activity</h3>
+            </div>
+            <ul class="admin-activity-list" data-feed-admin-activity></ul>
+          </div>
+          <div class="admin-table-wrap" style="padding: var(--space-4);">
+            <div class="cluster cluster--between mb-3">
+              <h3 class="text-body-lg">Recent product changes</h3>
+              <a class="text-small" href="/admin/products/">View all &rarr;</a>
+            </div>
+            <ul class="admin-activity-list" data-feed-product-changes></ul>
           </div>
         </div>
       </main>
@@ -141,6 +455,7 @@
   <script src="/js/components/branding.js"></script>
   <script src="/js/components/admin/admin-auth.js"></script>
   <script src="/js/components/admin/admin-shell.js"></script>
-  <script src="/js/components/admin/admin-dashboard.js"></script>
+  <script src="/js/components/admin/timeseries-chart.js"></script>
+  <script src="/js/components/admin/admin-dashboard.js?v=m63"></script>
 </body>
 </html>

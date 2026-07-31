@@ -1,8 +1,8 @@
 {
   "name": "robayer-wealthlab-backend",
-  "version": "0.1.0",
+  "version": "3.5.0",
   "private": true,
-  "description": "Cloudflare Worker API for Robayer WealthLab (Version 1.2 Sprint 3: newsletter, contact, consultation).",
+  "description": "Cloudflare Worker API for Robayer WealthLab.",
   "type": "module",
   "scripts": {
     "dev": "wrangler dev",

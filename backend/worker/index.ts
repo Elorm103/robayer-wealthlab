@@ -97,6 +97,14 @@ import {
   handleResumeCampaign,
 } from '../routes/admin/newsletterCampaigns';
 import { handleAdminDashboardSummary } from '../routes/admin/dashboard';
+import {
+  handleDashboardHealth,
+  handleDashboardExecutiveSummary,
+  handleDashboardCharts,
+  handleDashboardCustomerInsights,
+  handleDashboardOperational,
+  handleDashboardAlerts,
+} from '../routes/admin/executiveDashboard';
 import { handleHealth } from '../routes/health';
 import {
   handleMediaUpload,
@@ -228,6 +236,7 @@ import { handleCustomerReconcilePurchases } from '../routes/customer/reconciliat
 // email-linked opt-out action. See routes/customer/reviewReminders.ts.
 import { handleReviewReminderOptOut } from '../routes/customer/reviewReminders';
 import { sendDueReviewReminders } from '../services/customer/reviewReminderService';
+import { record as recordAuditEvent } from '../services/admin/auditService';
 
 export type { Env };
 
@@ -303,6 +312,13 @@ const ROUTES: Route[] = [
   // source; every other admin module route remains out of scope until
   // its own phase.
   { pattern: new URLPattern({ pathname: '/api/admin/dashboard/summary' }), method: 'GET', handler: handleAdminDashboardSummary },
+  // Version 3.5 (Executive Dashboard & Business Intelligence).
+  { pattern: new URLPattern({ pathname: '/api/admin/dashboard/health' }), method: 'GET', handler: handleDashboardHealth },
+  { pattern: new URLPattern({ pathname: '/api/admin/dashboard/executive-summary' }), method: 'GET', handler: handleDashboardExecutiveSummary },
+  { pattern: new URLPattern({ pathname: '/api/admin/dashboard/charts' }), method: 'GET', handler: handleDashboardCharts },
+  { pattern: new URLPattern({ pathname: '/api/admin/dashboard/customer-insights' }), method: 'GET', handler: handleDashboardCustomerInsights },
+  { pattern: new URLPattern({ pathname: '/api/admin/dashboard/operational' }), method: 'GET', handler: handleDashboardOperational },
+  { pattern: new URLPattern({ pathname: '/api/admin/dashboard/alerts' }), method: 'GET', handler: handleDashboardAlerts },
   // Same-Origin Routing Proof of Concept (docs/v2-same-origin-routing-poc.md)
   // — the first thing verified through the new robayerwealthlab.com/api/*
   // Workers Route, before anything that touches real state.
@@ -591,10 +607,39 @@ export default {
    */
   async scheduled(_event: ScheduledController, env: Env, ctx: ExecutionContext): Promise<void> {
     const logger = createLogger(generateRequestId(), 'scheduled review-reminders');
+    // Version 3.5 Milestone (Executive Dashboard) - a real, queryable
+    // "did the Cron actually run today" signal for the dashboard's
+    // Business Health panel. Unconditional: written whether the run
+    // found zero due reminders (still a real, successful execution) or
+    // threw (still worth knowing the Cron fired, even if the job
+    // itself failed) - the alternative (only logging on a non-empty
+    // result) would make an ordinary quiet day indistinguishable from
+    // the Cron trigger never firing at all, which is exactly the
+    // failure mode this signal exists to catch.
     ctx.waitUntil(
-      sendDueReviewReminders(env, logger, env.SITE_BASE_URL).catch((err) => {
-        logger.error('review_reminders.run_failed', { error: err instanceof Error ? err.message : String(err) });
-      })
+      sendDueReviewReminders(env, logger, env.SITE_BASE_URL)
+        .then((result) =>
+          recordAuditEvent(env, logger, {
+            actorType: 'system',
+            actorId: null,
+            action: 'cron.heartbeat',
+            entityType: 'review_reminders',
+            entityId: null,
+            metadata: { ok: true, eligible: result.eligible, claimed: result.claimed, sent: result.sent },
+          })
+        )
+        .catch((err) => {
+          const message = err instanceof Error ? err.message : String(err);
+          logger.error('review_reminders.run_failed', { error: message });
+          return recordAuditEvent(env, logger, {
+            actorType: 'system',
+            actorId: null,
+            action: 'cron.heartbeat',
+            entityType: 'review_reminders',
+            entityId: null,
+            metadata: { ok: false, error: message },
+          });
+        })
     );
   },
 };

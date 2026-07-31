@@ -113,5 +113,73 @@ window.AdminCharts = (function () {
     return `Time series chart, ${points[0].date} to ${points[points.length - 1].date}, ${total} total`;
   }
 
-  return { renderTimeseries };
+  /**
+   * Version 3.5 (Executive Dashboard) - a horizontal bar chart for
+   * categorical data (e.g. sales by payment channel) that a
+   * time-series line chart cannot represent honestly, since there is
+   * no date axis. Same dependency-free inline-SVG approach as
+   * renderTimeseries() above, for the same reason (real data volume
+   * here is a handful of categories, not thousands of points).
+   * @param {HTMLElement} container
+   * @param {{label: string, value: number}[]} bars
+   * @param {{color?: string, formatValue?: (n: number) => string}} [options]
+   */
+  function renderBarChart(container, bars, options) {
+    container.innerHTML = '';
+
+    if (!bars || bars.length === 0) {
+      const empty = document.createElement('p');
+      empty.className = 'text-secondary text-small';
+      empty.textContent = 'No data in this range.';
+      container.appendChild(empty);
+      return;
+    }
+
+    const color = (options && options.color) || 'var(--color-accent)';
+    const formatValue = (options && options.formatValue) || String;
+    const maxValue = Math.max(1, ...bars.map((b) => b.value));
+
+    const list = document.createElement('div');
+    list.setAttribute('role', 'img');
+    list.setAttribute('aria-label', `Bar chart: ${bars.map((b) => `${b.label} ${formatValue(b.value)}`).join(', ')}`);
+    list.style.display = 'flex';
+    list.style.flexDirection = 'column';
+    list.style.gap = '10px';
+
+    bars.forEach((bar) => {
+      const row = document.createElement('div');
+
+      const labelRow = document.createElement('div');
+      labelRow.style.display = 'flex';
+      labelRow.style.justifyContent = 'space-between';
+      labelRow.style.fontSize = '0.8125rem';
+      labelRow.style.marginBottom = '4px';
+      const labelEl = document.createElement('span');
+      labelEl.textContent = bar.label;
+      const valueEl = document.createElement('span');
+      valueEl.style.fontVariantNumeric = 'tabular-nums';
+      valueEl.textContent = formatValue(bar.value);
+      labelRow.append(labelEl, valueEl);
+
+      const track = document.createElement('div');
+      track.style.height = '8px';
+      track.style.borderRadius = '4px';
+      track.style.backgroundColor = 'var(--color-border)';
+      track.style.overflow = 'hidden';
+
+      const fill = document.createElement('div');
+      fill.style.height = '100%';
+      fill.style.borderRadius = '4px';
+      fill.style.backgroundColor = color;
+      fill.style.width = `${Math.max(2, (bar.value / maxValue) * 100)}%`;
+
+      track.appendChild(fill);
+      row.append(labelRow, track);
+      list.appendChild(row);
+    });
+
+    container.appendChild(list);
+  }
+
+  return { renderTimeseries, renderBarChart };
 })();

@@ -468,6 +468,107 @@
 }
 
 /* ============================================================
+   EXECUTIVE DASHBOARD — Version 3.5 (Executive Dashboard &
+   Business Intelligence). Health panel, business alerts, and quick
+   actions — everything else on the page reuses .stat-card/.card/
+   .table/.admin-table-wrap/.admin-activity-list/.empty-state
+   unchanged, per the milestone brief's "do not redesign the admin
+   panel" instruction.
+   ============================================================ */
+.health-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+  gap: var(--space-3);
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+
+.health-item {
+  display: flex;
+  align-items: flex-start;
+  gap: var(--space-2);
+  padding: var(--space-2) var(--space-3);
+  border: 0.5px solid var(--color-border);
+  border-radius: var(--radius-sm);
+  background-color: var(--color-bg-alt);
+}
+
+.health-item__dot {
+  flex-shrink: 0;
+  width: 10px;
+  height: 10px;
+  border-radius: 50%;
+  margin-top: 5px;
+  background-color: var(--color-text-secondary);
+}
+
+.health-item__dot--healthy { background-color: var(--color-success); }
+.health-item__dot--warning { background-color: var(--color-warning); }
+.health-item__dot--error   { background-color: var(--color-error); }
+
+.health-item__body {
+  min-width: 0;
+}
+
+.health-item__label {
+  font-weight: var(--weight-medium);
+  font-size: var(--text-small);
+  color: var(--color-text-heading);
+}
+
+.health-item__detail {
+  font-size: 0.75rem;
+  color: var(--color-text-secondary);
+  overflow-wrap: break-word;
+}
+
+.alert-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+}
+
+.alert-list__item {
+  display: flex;
+  align-items: flex-start;
+  gap: var(--space-2);
+  padding: var(--space-2) var(--space-3);
+  border-radius: var(--radius-sm);
+  font-size: var(--text-small);
+}
+
+.alert-list__item--warning {
+  background-color: var(--color-warning-tint);
+  color: var(--color-warning);
+}
+
+.alert-list__item--critical {
+  background-color: var(--color-error-tint);
+  color: var(--color-error);
+}
+
+.quick-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-2);
+}
+
+/* Touch targets stay >= 44px (Phase 12) - .btn already sets this via
+   its own padding, so no override needed here; this rule exists only
+   to guarantee wrapped buttons never sit closer than 8px apart on
+   narrow viewports, matching the milestone's explicit touch-target
+   spacing requirement. */
+@media (max-width: 599px) {
+  .quick-actions .btn {
+    flex: 1 1 calc(50% - var(--space-2));
+  }
+}
+
+/* ============================================================
    RECENT ACTIVITY LIST (dashboard-specific, but a generic enough
    shape other modules may reuse for their own recent-activity lists)
    ============================================================ */
