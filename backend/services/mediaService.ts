@@ -459,6 +459,11 @@ async function findMediaUsage(env: Env, id: number): Promise<MediaUsageReference
       sql: `SELECT COUNT(*) AS n FROM product_gallery WHERE media_id = ?`,
     },
     {
+      table: 'product_files',
+      label: 'a product downloadable file',
+      sql: `SELECT COUNT(*) AS n FROM product_files WHERE media_id = ?`,
+    },
+    {
       table: 'blog_posts',
       label: 'a blog post cover',
       sql: `SELECT COUNT(*) AS n FROM blog_posts WHERE deleted_at IS NULL AND cover_media_id = ?`,
