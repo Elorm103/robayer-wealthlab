@@ -1114,7 +1114,7 @@ ${NEWSLETTER_BAND}`;
     extraHead: breadcrumbJsonLd + bookJsonLd + faqJsonLd,
     breadcrumb,
     bodyContent: body,
-    scripts: ['/js/components/buy-button.js', '/js/components/founder-bio.js', '/js/components/product-reviews.js', '/js/components/countdown.js', '/js/main.js'],
+    scripts: ['/js/components/buy-button.js?v=m63', '/js/components/founder-bio.js', '/js/components/product-reviews.js', '/js/components/countdown.js', '/js/main.js'],
   });
 
   return htmlResponse(html, 200);
