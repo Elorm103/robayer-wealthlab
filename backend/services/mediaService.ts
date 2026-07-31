@@ -422,12 +422,77 @@ export async function replaceMedia(env: Env, logger: Logger, id: number, actorId
   return { ok: true, media: record! };
 }
 
-export type SoftDeleteResult = { ok: true } | { ok: false; reason: 'not_found' | 'already_deleted' };
+export interface MediaUsageReference {
+  table: string;
+  label: string;
+  count: number;
+}
+
+/**
+ * Version 3.4.2 Milestone M6.2 - checks every real foreign-key reference
+ * to a media asset before it is ever allowed to be deleted. Added after a
+ * production incident: an in-use cover image was soft-deleted with no
+ * check at all, leaving a product's cover_media_id pointing at a
+ * deleted row. Every save attempt on that product then failed validation
+ * ("Media asset <id> could not be found") with no way to tell, from the
+ * error alone, that the actual fix was to delete the media, not to keep
+ * retrying the same save. Checking usage before deletion prevents this
+ * dangling-reference state from ever being created in the first place,
+ * rather than only detecting it after the fact.
+ *
+ * Deliberately does not check the branding CMS slots in `site_settings`
+ * (`branding_logo_primary` and friends): those store a media id inside a
+ * JSON-encoded value, not a real foreign key, so a reference there is
+ * looser by design (already handled by `brandingService.ts`'s own
+ * `stale` flag, which is the correct place for that specific case).
+ */
+async function findMediaUsage(env: Env, id: number): Promise<MediaUsageReference[]> {
+  const checks: Array<{ table: string; label: string; sql: string }> = [
+    {
+      table: 'products',
+      label: 'a product (cover, thumbnail, preview, or Open Graph image)',
+      sql: `SELECT COUNT(*) AS n FROM products WHERE deleted_at IS NULL AND (cover_media_id = ? OR thumbnail_media_id = ? OR preview_media_id = ? OR og_media_id = ?)`,
+    },
+    {
+      table: 'product_gallery',
+      label: 'a product gallery',
+      sql: `SELECT COUNT(*) AS n FROM product_gallery WHERE media_id = ?`,
+    },
+    {
+      table: 'blog_posts',
+      label: 'a blog post cover',
+      sql: `SELECT COUNT(*) AS n FROM blog_posts WHERE deleted_at IS NULL AND cover_media_id = ?`,
+    },
+    {
+      table: 'resources',
+      label: 'a resource (file, cover, or thumbnail)',
+      sql: `SELECT COUNT(*) AS n FROM resources WHERE deleted_at IS NULL AND (file_media_id = ? OR cover_media_id = ? OR thumbnail_media_id = ?)`,
+    },
+  ];
+
+  const usages: MediaUsageReference[] = [];
+  for (const check of checks) {
+    const bindingCount = (check.sql.match(/\?/g) ?? []).length;
+    const row = await env.DB.prepare(check.sql)
+      .bind(...Array(bindingCount).fill(id))
+      .first<{ n: number }>();
+    if (row && row.n > 0) usages.push({ table: check.table, label: check.label, count: row.n });
+  }
+  return usages;
+}
+
+export type SoftDeleteResult =
+  | { ok: true }
+  | { ok: false; reason: 'not_found' | 'already_deleted' }
+  | { ok: false; reason: 'in_use'; usages: MediaUsageReference[] };
 
 export async function softDeleteMedia(env: Env, logger: Logger, id: number, actorId: number): Promise<SoftDeleteResult> {
   const existing = await getMediaById(env, id);
   if (!existing) return { ok: false, reason: 'not_found' };
   if (existing.deletedAt) return { ok: false, reason: 'already_deleted' };
+
+  const usages = await findMediaUsage(env, id);
+  if (usages.length > 0) return { ok: false, reason: 'in_use', usages };
 
   await env.DB.prepare(`UPDATE media_assets SET deleted_at = datetime('now'), updated_at = datetime('now') WHERE id = ?`).bind(id).run();
 

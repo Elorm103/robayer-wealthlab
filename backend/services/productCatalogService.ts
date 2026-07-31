@@ -22,6 +22,7 @@
  */
 
 import type { Env } from '../worker/env';
+import { computeSaleState } from './productService';
 
 /**
  * A Digital Asset — one downloadable file associated with a product.
@@ -66,6 +67,17 @@ export interface CatalogProduct {
   title: string;
   status: string;
   price: number | null;
+  /**
+   * Version 3.4.2 Milestone M6.2 (Dynamic Pricing) - the price checkout
+   * must actually charge right now: the live sale price while a sale is
+   * active, otherwise the same as `price`. Computed here, at the one
+   * place this file's own header comment already establishes as "the
+   * only place price legitimately comes from for a checkout request" -
+   * commerceService.ts reads this, never `price` directly, so a sale's
+   * start/end dates are honored down to the second regardless of when
+   * within that window the request happens to land.
+   */
+  effectivePrice: number | null;
   currency: string | null;
   /** e.g. "1.0" — null for products that haven't set one (see content/SCHEMA.md's Product entry). Also locked into checkout metadata for verification. */
   version: string | null;
@@ -102,6 +114,10 @@ interface ProductRow {
   title: string;
   status: string;
   price_pesewas: number | null;
+  sale_price_pesewas: number | null;
+  sale_enabled: number;
+  sale_starts_at: string | null;
+  sale_ends_at: string | null;
   currency: string;
   version: string | null;
   max_downloads: number | null;
@@ -126,7 +142,8 @@ export async function fetchCatalogProduct(env: Env, slugInput: unknown): Promise
   const slug = slugInput;
 
   const productRow = await env.DB.prepare(
-    `SELECT product_id, slug, title, status, price_pesewas, currency, version, max_downloads, download_expires_days, tax_behavior
+    `SELECT product_id, slug, title, status, price_pesewas, sale_price_pesewas, sale_enabled, sale_starts_at, sale_ends_at,
+            currency, version, max_downloads, download_expires_days, tax_behavior
      FROM products WHERE slug = ? AND deleted_at IS NULL`
   )
     .bind(slug)
@@ -168,6 +185,17 @@ export async function fetchCatalogProduct(env: Env, slugInput: unknown): Promise
     // itself); D1 stores the integer form instead, so the conversion
     // happens once, here, at the boundary.
     price: productRow.price_pesewas === null ? null : productRow.price_pesewas / 100,
+    effectivePrice: (() => {
+      const sale = computeSaleState({
+        pricePesewas: productRow.price_pesewas,
+        salePricePesewas: productRow.sale_price_pesewas,
+        saleEnabled: productRow.sale_enabled === 1,
+        saleStartsAt: productRow.sale_starts_at,
+        saleEndsAt: productRow.sale_ends_at,
+      });
+      const effectivePesewas = sale.isActive ? sale.effectivePricePesewas : productRow.price_pesewas;
+      return effectivePesewas === null ? null : effectivePesewas / 100;
+    })(),
     currency: productRow.currency,
     version: productRow.version,
     digitalAssets,

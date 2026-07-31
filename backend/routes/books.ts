@@ -36,9 +36,9 @@ import type { Env } from '../worker/env';
 import type { Logger } from '../utils/logger';
 import type { RouteParams } from '../worker/index';
 import * as productService from '../services/productService';
-import { isPubliclyListedStatus } from '../services/productService';
+import { isPubliclyListedStatus, computeSaleState } from '../services/productService';
 import type { ProductRecord } from '../services/productService';
-import { listPublicReviews } from '../services/reviewService';
+import { listPublicReviews, getReviewSummary } from '../services/reviewService';
 
 const SITE_NAME = 'Robayer WealthLab';
 const SITE_ORIGIN = 'https://robayerwealthlab.com';
@@ -214,13 +214,15 @@ const NEWSLETTER_BAND = `
 
 // ============================================================
 // Product card — mirrors js/components/product-loader.js's
-// renderCard() exactly (same CSS classes, same data attributes), so
-// js/components/content-filters.js's pill/search filtering works
-// unmodified against server-rendered cards.
+// renderCard() exactly (same CSS classes, same data attributes,
+// same sale-pricing/star-rating markup as of Version 3.4.2
+// Milestone M6.2), so js/components/content-filters.js's
+// pill/search filtering works unmodified against server-rendered
+// cards, and a customer sees an identical card whether it was
+// rendered here or client-side by product-loader.js.
 // ============================================================
-function renderProductCard(product: Omit<ProductRecord, 'files' | 'gallery' | 'relations'>): string {
+async function renderProductCard(env: Env, product: Omit<ProductRecord, 'files' | 'gallery' | 'relations'>): Promise<string> {
   const isUpcoming = product.status === 'coming-soon';
-  const priceLabel = isUpcoming ? null : product.pricePesewas === null ? null : product.pricePesewas === 0 ? 'Free' : formatGHS(product.pricePesewas / 100);
   const href = `/books/${product.slug}/`;
 
   const cardClasses = ['book-card'];
@@ -237,17 +239,62 @@ function renderProductCard(product: Omit<ProductRecord, 'files' | 'gallery' | 'r
     ? ` style="background-image:url('${escapeHtml(product.coverPublicUrl)}');background-size:cover;background-position:center;"`
     : '';
 
-  const cta = isUpcoming
+  const priceLabel = isUpcoming || product.pricePesewas === null ? null : product.pricePesewas === 0 ? 'Free' : formatGHS(product.pricePesewas / 100);
+  const sale = computeSaleState(product);
+
+  let priceBlockHtml = '';
+  if (!isUpcoming && priceLabel !== null) {
+    if (product.pricePesewas === 0) {
+      priceBlockHtml = '<p class="book-card__price">Free</p>';
+    } else if (!sale.isActive) {
+      priceBlockHtml = `<div class="price-block" data-sale-scope><p class="book-card__price" data-regular-price-only>${escapeHtml(priceLabel)}</p></div>`;
+    } else {
+      const saleLabel = formatGHS((sale.effectivePricePesewas as number) / 100);
+      const savedLabel = formatGHS((sale.amountSavedPesewas as number) / 100);
+      priceBlockHtml = `
+      <div class="price-block" data-sale-scope>
+        <p class="book-card__price price-block__regular-strike" data-sale-only>${escapeHtml(priceLabel)}</p>
+        <p class="book-card__price" data-regular-price-only hidden>${escapeHtml(priceLabel)}</p>
+        <p class="price-block__now-label" data-sale-only>Now</p>
+        <p class="price-block__sale-price" data-sale-only>${escapeHtml(saleLabel)}</p>
+        <div class="price-block__meta" data-sale-only>
+          <span class="price-block__saved">Save ${escapeHtml(savedLabel)}</span>
+          ${sale.discountPercent ? `<span class="price-block__discount-badge">${sale.discountPercent}% OFF</span>` : ''}
+        </div>
+        ${
+          sale.saleEndsAt
+            ? `<div class="countdown" data-sale-only data-sale-ends-at="${escapeHtml(sale.saleEndsAt)}">
+          <div class="countdown__unit"><span class="countdown__value" data-countdown-days>00</span><span class="countdown__label">Days</span></div>
+          <div class="countdown__unit"><span class="countdown__value" data-countdown-hours>00</span><span class="countdown__label">Hrs</span></div>
+          <div class="countdown__unit"><span class="countdown__value" data-countdown-minutes>00</span><span class="countdown__label">Min</span></div>
+          <div class="countdown__unit"><span class="countdown__value" data-countdown-seconds>00</span><span class="countdown__label">Sec</span></div>
+        </div>`
+            : ''
+        }
+      </div>`;
+    }
+  }
+
+  const reviewSummary = await getReviewSummary(env, product.id);
+  const starRatingHtml =
+    reviewSummary.count > 0 && reviewSummary.averageRating !== null
+      ? `<p class="star-rating"><span class="star-rating__stars" aria-hidden="true">${renderStars(reviewSummary.averageRating)}</span><span class="sr-only">Rating: ${reviewSummary.averageRating} out of 5</span><span class="star-rating__count">${escapeHtml(reviewSummary.averageRating.toFixed(1))} (${reviewSummary.count} review${reviewSummary.count === 1 ? '' : 's'})</span></p>`
+      : '';
+
+  const actions = isUpcoming
     ? '<a href="/newsletter/" class="btn btn--secondary">Get notified</a>'
-    : `<a href="${href}" class="btn btn--primary">Get the guide</a>`;
+    : `<a href="${href}" class="btn btn--primary">Buy Now</a><a href="${href}" class="btn btn--secondary">Learn More</a>`;
 
   return `<div class="${cardClasses.join(' ')}" data-topic="${escapeHtml(product.topic)}" data-product-type="${escapeHtml(product.productType)}" data-category="${escapeHtml(product.topic)}" data-title="${escapeHtml(product.title)}">
   <div class="book-card__cover"${coverStyle}></div>
+  ${product.topic ? `<span class="book-card__category">${escapeHtml(product.topic.replace(/-/g, ' '))}</span>` : ''}
   ${badges.join('\n  ')}
   <p class="book-card__title">${escapeHtml(product.title)}</p>
-  ${priceLabel ? `<p class="book-card__price">${escapeHtml(priceLabel)}</p>` : ''}
-  ${product.shortDescription ? `<p class="book-card__description">${escapeHtml(product.shortDescription)}</p>` : ''}
-  ${cta}
+  ${product.subtitle ? `<p class="book-card__description">${escapeHtml(product.subtitle)}</p>` : ''}
+  ${product.author ? `<p class="book-card__author">${escapeHtml(product.author)}</p>` : ''}
+  ${starRatingHtml}
+  ${priceBlockHtml}
+  <div class="book-card__actions">${actions}</div>
 </div>`;
 }
 
@@ -269,8 +316,19 @@ async function renderBooksIndex(env: Env): Promise<Response> {
     pageSize: 100,
   });
 
-  const cardsHtml = result.items.length > 0 ? result.items.map(renderProductCard).join('\n') : '';
+  const cardsHtml = result.items.length > 0 ? (await Promise.all(result.items.map((p) => renderProductCard(env, p)))).join('\n') : '';
   const featured = result.items.find((p) => p.featured && p.status === 'active');
+
+  // Version 3.4.2 Milestone M6.2 - the featured banner's own CTA price
+  // must reflect an active sale exactly like every book-card and the
+  // book detail page's own Buy button, or a customer could see "on
+  // sale" everywhere else but the regular price here.
+  const featuredSale = featured ? computeSaleState(featured) : null;
+  const featuredChargeablePesewas = featured
+    ? featuredSale!.isActive
+      ? featuredSale!.effectivePricePesewas
+      : featured.pricePesewas
+    : null;
 
   const featuredSection = featured
     ? `
@@ -281,7 +339,7 @@ async function renderBooksIndex(env: Env): Promise<Response> {
           <span class="eyebrow feature-banner__eyebrow">Featured eBook</span>
           <h2 id="featured-book-heading" class="mt-2 mb-2 feature-banner__title">${escapeHtml(featured.title)}</h2>
           <p class="mb-4 feature-banner__copy">${escapeHtml(featured.shortDescription ?? featured.subtitle ?? '')}</p>
-          <a href="/books/${escapeHtml(featured.slug)}/" class="btn btn--accent">Get the guide${featured.pricePesewas !== null ? ` (${formatGHS(featured.pricePesewas / 100)})` : ''}</a>
+          <a href="/books/${escapeHtml(featured.slug)}/" class="btn btn--accent">Get the guide${featuredChargeablePesewas !== null ? ` (${formatGHS(featuredChargeablePesewas / 100)})` : ''}</a>
         </div>
       </div>
     </section>`
@@ -529,6 +587,46 @@ async function renderBookDetail(env: Env, slug: string): Promise<Response> {
 
   const isUpcoming = product.status === 'coming-soon';
   const priceLabel = product.pricePesewas === null ? null : product.pricePesewas === 0 ? 'Free' : formatGHS(product.pricePesewas / 100);
+
+  // Version 3.4.2 Milestone M6.2 (Dynamic Pricing) - the one place this
+  // page decides whether a sale is active, reusing the exact same
+  // computeSaleState() checkout itself calls (via productCatalogService.ts),
+  // so the price this page displays and the price a customer is actually
+  // charged can never disagree.
+  const sale = computeSaleState(product);
+  // What the Buy button must actually charge - the sale price while
+  // active, the regular price otherwise. Never priceLabel directly:
+  // that stays the always-visible "regular price" display value.
+  const chargeableAmountPesewas = sale.isActive ? sale.effectivePricePesewas : product.pricePesewas;
+  const chargeableLabel = chargeableAmountPesewas === null ? null : chargeableAmountPesewas === 0 ? 'Free' : formatGHS(chargeableAmountPesewas / 100);
+
+  const priceBlockHtml =
+    priceLabel === null
+      ? ''
+      : !sale.isActive
+        ? `<p class="book-card__price text-body-lg mb-3" data-regular-price-only>${escapeHtml(priceLabel)}</p>`
+        : `
+          <div class="price-block mb-3" data-sale-scope>
+            <p class="book-card__price price-block__regular-strike" data-sale-only>${escapeHtml(priceLabel)}</p>
+            <p class="book-card__price text-body-lg" data-regular-price-only hidden>${escapeHtml(priceLabel)}</p>
+            <p class="price-block__now-label" data-sale-only>Now</p>
+            <p class="price-block__sale-price" data-sale-only>${escapeHtml(formatGHS((sale.effectivePricePesewas as number) / 100))}</p>
+            <div class="price-block__meta" data-sale-only>
+              <span class="price-block__saved">Save ${escapeHtml(formatGHS((sale.amountSavedPesewas as number) / 100))}</span>
+              ${sale.discountPercent ? `<span class="price-block__discount-badge">${sale.discountPercent}% OFF</span>` : ''}
+            </div>
+            ${
+              sale.saleEndsAt
+                ? `<div class="countdown" data-sale-only data-sale-ends-at="${escapeHtml(sale.saleEndsAt)}">
+                     <p class="countdown__heading" style="width:100%;">Offer Ends In</p>
+                     <div class="countdown__unit"><span class="countdown__value" data-countdown-days>00</span><span class="countdown__label">Days</span></div>
+                     <div class="countdown__unit"><span class="countdown__value" data-countdown-hours>00</span><span class="countdown__label">Hrs</span></div>
+                     <div class="countdown__unit"><span class="countdown__value" data-countdown-minutes>00</span><span class="countdown__label">Min</span></div>
+                     <div class="countdown__unit"><span class="countdown__value" data-countdown-seconds>00</span><span class="countdown__label">Sec</span></div>
+                   </div>`
+                : ''
+            }
+          </div>`;
   // 'ebook' displays as "Digital Guide" here (and "Digital Wealth Guide"
   // in the hero eyebrow above) rather than the raw labelize() output
   // "Ebook" — a display-only mapping; product.productType itself, the
@@ -584,7 +682,7 @@ async function renderBookDetail(env: Env, slug: string): Promise<Response> {
     ? '<a href="/newsletter/" class="btn btn--accent">Get notified when this launches</a>'
     : priceLabel === null
       ? '<span class="badge badge--warning">Price coming soon</span>'
-      : `<a href="#" class="btn btn--accent" data-buy-button data-product-slug="${escapeHtml(product.slug)}">Buy the guide (${escapeHtml(priceLabel)})</a>${purchaseConsentBlock}`;
+      : `<div class="book-card__actions"><a href="#" class="btn btn--accent" data-buy-button data-product-slug="${escapeHtml(product.slug)}">Buy Now (${escapeHtml(chargeableLabel ?? '')})</a><a href="/dashboard/" class="btn btn--secondary">View My Library</a></div>${purchaseConsentBlock}`;
 
   const tagsLine = product.tags
     ? `<p class="text-secondary text-small mb-3">Tags: ${escapeHtml(
@@ -648,7 +746,7 @@ async function renderBookDetail(env: Env, slug: string): Promise<Response> {
             await Promise.all(
               relatedItems.map(async (r) => {
                 const relatedProduct = await productService.getProductBySlug(env, r.relatedProductSlug);
-                return relatedProduct ? renderProductCard(relatedProduct) : '';
+                return relatedProduct ? renderProductCard(env, relatedProduct) : '';
               })
             )
           )
@@ -845,7 +943,7 @@ async function renderBookDetail(env: Env, slug: string): Promise<Response> {
       <div class="container content-column text-center">
         <h2 id="cta-heading" class="mt-2 mb-3" style="color:#fff;">Ready to start with GH&#8373;1?</h2>
         <p class="mb-4" style="color:rgba(255,255,255,0.8);">Instant digital access &bull; Read on any device &bull; Secure checkout via Paystack</p>
-        <a href="#" class="btn btn--accent" data-buy-button data-product-slug="${escapeHtml(product.slug)}">Buy the guide (${escapeHtml(priceLabel)})</a>
+        <a href="#" class="btn btn--accent" data-buy-button data-product-slug="${escapeHtml(product.slug)}">Buy Now (${escapeHtml(chargeableLabel ?? '')})</a>
         ${purchaseConsentNote}
       </div>
     </section>`
@@ -865,11 +963,16 @@ async function renderBookDetail(env: Env, slug: string): Promise<Response> {
         <div class="hero__content">
           <div>
             <span class="eyebrow hero__eyebrow">${productLabel}</span>
+            ${
+              !isUpcoming && reviewsResult.count > 0
+                ? `<p class="star-rating mb-2"><span class="star-rating__stars" aria-hidden="true">${renderStars(reviewsResult.averageRating ?? 0)}</span><span class="sr-only">Rating: ${reviewsResult.averageRating} out of 5</span><span class="star-rating__count">${escapeHtml(String(reviewsResult.averageRating))} (${reviewsResult.count} review${reviewsResult.count === 1 ? '' : 's'})</span></p>`
+                : ''
+            }
             <h1 class="hero__title">${escapeHtml(product.title)}</h1>
             <p class="hero__subtitle">${escapeHtml(product.subtitle ?? product.shortDescription ?? '')}</p>
             <p class="text-secondary text-small mb-2">${metaBits.map(escapeHtml).join(' &bull; ')}</p>
             ${tagsLine}
-            ${priceLabel !== null ? `<p class="book-card__price text-body-lg mb-3">${escapeHtml(priceLabel)}</p>` : ''}
+            ${priceBlockHtml}
             <div class="hero__actions">${buyAction}</div>
             <p class="text-secondary text-small mt-3">Written specifically for Ghana &bull; Instant digital access &bull; Secure checkout via Paystack</p>
             ${
@@ -919,7 +1022,7 @@ ${NEWSLETTER_BAND}`;
       "@type": "Offer",
       "url": ${JSON.stringify(`${SITE_ORIGIN}/books/${product.slug}/`)},
       "priceCurrency": "GHS",
-      "price": ${JSON.stringify(String((product.pricePesewas ?? 0) / 100))},
+      "price": ${JSON.stringify(String((chargeableAmountPesewas ?? 0) / 100))},
       "availability": "https://schema.org/InStock"
     }${
       // Version 3.2 Milestone M4 — only emitted when real reviews exist;
@@ -992,7 +1095,7 @@ ${NEWSLETTER_BAND}`;
     extraHead: breadcrumbJsonLd + bookJsonLd + faqJsonLd,
     breadcrumb,
     bodyContent: body,
-    scripts: ['/js/components/buy-button.js', '/js/components/founder-bio.js', '/js/components/product-reviews.js', '/js/main.js'],
+    scripts: ['/js/components/buy-button.js', '/js/components/founder-bio.js', '/js/components/product-reviews.js', '/js/components/countdown.js', '/js/main.js'],
   });
 
   return htmlResponse(html, 200);

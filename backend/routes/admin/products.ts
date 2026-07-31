@@ -32,7 +32,7 @@ import { requireRole } from '../../middleware/requireRole';
 import { requireCsrf } from '../../middleware/csrf';
 import * as productService from '../../services/productService';
 import type { ProductInput, ProductRecord, LifecycleAction } from '../../services/productService';
-import { TOPICS, PRODUCT_TYPES, PRODUCT_STATUSES } from '../../services/productService';
+import { TOPICS, PRODUCT_TYPES, PRODUCT_STATUSES, computeSaleState } from '../../services/productService';
 
 const EDITOR_ROLES = ['super_admin', 'editor'] as const;
 
@@ -64,6 +64,26 @@ function toApiShape(product: ProductRecord) {
     status: product.status,
     price: fromPesewas(product.pricePesewas),
     compareAtPrice: fromPesewas(product.compareAtPricePesewas),
+    salePrice: fromPesewas(product.salePricePesewas),
+    saleEnabled: product.saleEnabled,
+    saleStartsAt: product.saleStartsAt,
+    saleEndsAt: product.saleEndsAt,
+    // Version 3.4.2 Milestone M6.2 - the editor's own live discount/
+    // amount-saved/countdown preview (Phase 9) uses this same computed
+    // shape the public storefront uses, so what the admin sees while
+    // editing is provably the same calculation a customer would see,
+    // not a separate, potentially-drifting client-side reimplementation.
+    saleState: (() => {
+      const s = computeSaleState(product);
+      return {
+        isActive: s.isActive,
+        effectivePrice: fromPesewas(s.effectivePricePesewas),
+        regularPrice: fromPesewas(s.regularPricePesewas),
+        discountPercent: s.discountPercent,
+        amountSaved: fromPesewas(s.amountSavedPesewas),
+        saleEndsAt: s.saleEndsAt,
+      };
+    })(),
     currency: product.currency,
     pricingModel: product.pricingModel,
     taxBehavior: product.taxBehavior,
@@ -126,13 +146,17 @@ function toApiListShape(product: Omit<ProductRecord, 'files' | 'gallery' | 'rela
     createdAt: product.createdAt,
     updatedAt: product.updatedAt,
     deletedAt: product.deletedAt,
+    onSale: computeSaleState(product).isActive,
   };
 }
 
 /** Parses the mutable subset of ProductInput out of a JSON body — every field optional-safe, never throwing on a missing/wrong-typed field (returns undefined so validateProductInput's own required-field checks catch it). */
-function parseProductInput(body: Record<string, unknown>): { input: ProductInput; priceInvalid: boolean; compareAtPriceInvalid: boolean } {
+function parseProductInput(
+  body: Record<string, unknown>
+): { input: ProductInput; priceInvalid: boolean; compareAtPriceInvalid: boolean; salePriceInvalid: boolean } {
   const price = toPesewas(body.price);
   const compareAtPrice = toPesewas(body.compareAtPrice);
+  const salePrice = toPesewas(body.salePrice);
 
   const input: ProductInput = {
     slug: typeof body.slug === 'string' ? body.slug.trim().toLowerCase() : '',
@@ -145,6 +169,10 @@ function parseProductInput(body: Record<string, unknown>): { input: ProductInput
     status: typeof body.status === 'string' ? body.status : undefined,
     pricePesewas: Number.isNaN(price) ? undefined : price,
     compareAtPricePesewas: Number.isNaN(compareAtPrice) ? undefined : compareAtPrice,
+    salePricePesewas: Number.isNaN(salePrice) ? undefined : salePrice,
+    saleEnabled: typeof body.saleEnabled === 'boolean' ? body.saleEnabled : undefined,
+    saleStartsAt: typeof body.saleStartsAt === 'string' ? body.saleStartsAt : body.saleStartsAt === null ? null : undefined,
+    saleEndsAt: typeof body.saleEndsAt === 'string' ? body.saleEndsAt : body.saleEndsAt === null ? null : undefined,
     currency: typeof body.currency === 'string' ? body.currency : undefined,
     taxBehavior: typeof body.taxBehavior === 'string' ? body.taxBehavior : undefined,
     sku: typeof body.sku === 'string' ? body.sku.trim() || null : body.sku === null ? null : undefined,
@@ -167,7 +195,7 @@ function parseProductInput(body: Record<string, unknown>): { input: ProductInput
     seoCanonicalUrl: typeof body.seoCanonicalUrl === 'string' ? body.seoCanonicalUrl : body.seoCanonicalUrl === null ? null : undefined,
   };
 
-  return { input, priceInvalid: Number.isNaN(price), compareAtPriceInvalid: Number.isNaN(compareAtPrice) };
+  return { input, priceInvalid: Number.isNaN(price), compareAtPriceInvalid: Number.isNaN(compareAtPrice), salePriceInvalid: Number.isNaN(salePrice) };
 }
 
 async function readJsonBody(request: Request): Promise<Record<string, unknown> | null> {
@@ -280,9 +308,10 @@ export async function handleProductCreate(request: Request, env: Env, logger: Lo
   const body = await readJsonBody(request);
   if (!body) return jsonError('VALIDATION_ERROR', 'Invalid request body.');
 
-  const { input, priceInvalid, compareAtPriceInvalid } = parseProductInput(body);
+  const { input, priceInvalid, compareAtPriceInvalid, salePriceInvalid } = parseProductInput(body);
   if (priceInvalid) return jsonError('VALIDATION_ERROR', 'Price must be a non-negative number.');
   if (compareAtPriceInvalid) return jsonError('VALIDATION_ERROR', 'Compare-at price must be a non-negative number.');
+  if (salePriceInvalid) return jsonError('VALIDATION_ERROR', 'Sale price must be a non-negative number.');
 
   const errors = await productService.validateProductInput(env, input, null);
   if (errors.length > 0) return validationErrorResponse(errors);
@@ -309,9 +338,10 @@ export async function handleProductUpdate(request: Request, env: Env, logger: Lo
   const body = await readJsonBody(request);
   if (!body) return jsonError('VALIDATION_ERROR', 'Invalid request body.');
 
-  const { input, priceInvalid, compareAtPriceInvalid } = parseProductInput(body);
+  const { input, priceInvalid, compareAtPriceInvalid, salePriceInvalid } = parseProductInput(body);
   if (priceInvalid) return jsonError('VALIDATION_ERROR', 'Price must be a non-negative number.');
   if (compareAtPriceInvalid) return jsonError('VALIDATION_ERROR', 'Compare-at price must be a non-negative number.');
+  if (salePriceInvalid) return jsonError('VALIDATION_ERROR', 'Sale price must be a non-negative number.');
 
   const errors = await productService.validateProductInput(env, input, id);
   if (errors.length > 0) return validationErrorResponse(errors);

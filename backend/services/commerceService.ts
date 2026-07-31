@@ -130,12 +130,19 @@ export async function createCheckoutSession(
   }
   const marketingOptIn = input.marketingOptIn === true;
 
-  // product.price is a plain display number (e.g. 39 for GH₵39) —
-  // converted to the smallest currency unit only here, at the one
-  // point that actually calls a payment provider. See
+  // product.effectivePrice is a plain display number (e.g. 39 for
+  // GH₵39) — converted to the smallest currency unit only here, at the
+  // one point that actually calls a payment provider. See
   // docs/paystack-integration.md's "Currency: subunits, not display
   // prices" for why this conversion is isolated to one place.
-  const originalAmountPesewas = Math.round((product.price as number) * 100);
+  //
+  // Version 3.4.2 Milestone M6.2 (Dynamic Pricing) - reads
+  // effectivePrice, not price: productCatalogService.ts's own
+  // fetchCatalogProduct() already computes whether a sale is active
+  // right now and returns whichever price actually applies, so this is
+  // the one and only place that decision needs to be honored for
+  // checkout to charge the sale price during a sale.
+  const originalAmountPesewas = Math.round((product.effectivePrice as number) * 100);
   const currency = product.currency as string;
 
   // Version 3.2 Milestone M4 (Commerce & Trust Foundations) — the

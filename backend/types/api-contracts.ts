@@ -91,6 +91,10 @@ export type ApiErrorCode =
   | 'ALREADY_DELETED'
   | 'NOT_DELETED'
   | 'FILE_REJECTED'
+  // Version 3.4.2 Milestone M6.2 - blocks deleting media still referenced
+  // by a product, blog post, or resource, rather than allowing a
+  // dangling reference to be created.
+  | 'MEDIA_IN_USE'
   // /api/admin/products/* — added Version 2.0 Phase 2 (Products Module)
   | 'SLUG_TAKEN'
   | 'SKU_TAKEN'

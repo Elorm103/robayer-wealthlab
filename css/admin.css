@@ -1442,6 +1442,15 @@
   gap: var(--space-3);
 }
 
+/* [hidden]-defeated-by-display fix, same convention as every other
+   instance in this codebase (see css/components.css's .price-block__
+   discount-badge[hidden]) - Version 3.4.2 Milestone M6.2's sale-pricing
+   fields toggle [hidden] on this class based on the "Enable sale
+   pricing" checkbox. */
+.editor-field-row[hidden] {
+  display: none;
+}
+
 @media (max-width: 599px) {
   .editor-field-row {
     grid-template-columns: 1fr;

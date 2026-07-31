@@ -60,6 +60,13 @@ function initProductEditor() {
     taxBehavior: root.querySelector('[data-pe-tax-behavior]'),
     sku: root.querySelector('[data-pe-sku]'),
 
+    saleEnabled: root.querySelector('[data-pe-sale-enabled]'),
+    salePrice: root.querySelector('[data-pe-sale-price]'),
+    saleStarts: root.querySelector('[data-pe-sale-starts]'),
+    saleEnds: root.querySelector('[data-pe-sale-ends]'),
+    saleFieldRows: root.querySelectorAll('[data-pe-sale-fields]'),
+    saleDiscountPreview: root.querySelector('[data-pe-sale-discount-preview]'),
+
     filesList: root.querySelector('[data-pe-files-list]'),
     addFileButton: root.querySelector('[data-pe-add-file]'),
     filesHint: root.querySelector('[data-pe-files-hint]'),
@@ -93,6 +100,9 @@ function initProductEditor() {
     livePreviewTitle: root.querySelector('[data-pe-live-title]'),
     livePreviewSubtitle: root.querySelector('[data-pe-live-subtitle]'),
     livePreviewPrice: root.querySelector('[data-pe-live-price]'),
+    livePreviewSalePrice: root.querySelector('[data-pe-live-sale-price]'),
+    livePreviewSaleMeta: root.querySelector('[data-pe-live-sale-meta]'),
+    livePreviewCountdown: root.querySelector('[data-pe-live-countdown]'),
 
     dangerZone: root.querySelector('[data-pe-danger-zone]'),
     duplicateButton: root.querySelector('[data-pe-duplicate]'),
@@ -181,6 +191,12 @@ function initProductEditor() {
     els.comparePrice.value = product.compareAtPrice ?? '';
     els.taxBehavior.value = product.taxBehavior || 'inclusive';
     els.sku.value = product.sku || '';
+
+    els.saleEnabled.checked = Boolean(product.saleEnabled);
+    els.salePrice.value = product.salePrice ?? '';
+    els.saleStarts.value = isoToDatetimeLocal(product.saleStartsAt);
+    els.saleEnds.value = isoToDatetimeLocal(product.saleEndsAt);
+    updateSaleFieldsVisibility();
 
     els.seoTitle.value = product.seoTitle || '';
     els.seoDescription.value = product.seoDescription || '';
@@ -661,8 +677,109 @@ function initProductEditor() {
   // ============================================================
 
   function bindLivePreviewListeners() {
-    [els.title, els.subtitle, els.topic, els.price].forEach((el) => el.addEventListener('input', updateLivePreview));
+    [els.title, els.subtitle, els.topic, els.price, els.salePrice, els.saleStarts, els.saleEnds].forEach((el) =>
+      el.addEventListener('input', updateLivePreview)
+    );
     els.topic.addEventListener('change', updateLivePreview);
+    els.saleEnabled.addEventListener('change', () => {
+      updateSaleFieldsVisibility();
+      updateLivePreview();
+    });
+  }
+
+  function updateSaleFieldsVisibility() {
+    els.saleFieldRows.forEach((row) => {
+      row.hidden = !els.saleEnabled.checked;
+    });
+  }
+
+  /** "YYYY-MM-DDTHH:mm" (local, no timezone) <-> a UTC ISO 8601 string - datetime-local inputs only ever speak the former. */
+  function isoToDatetimeLocal(iso) {
+    if (!iso) return '';
+    const d = new Date(iso);
+    if (Number.isNaN(d.getTime())) return '';
+    const pad = (n) => String(n).padStart(2, '0');
+    return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}T${pad(d.getHours())}:${pad(d.getMinutes())}`;
+  }
+
+  function datetimeLocalToIso(value) {
+    if (!value) return null;
+    const d = new Date(value);
+    return Number.isNaN(d.getTime()) ? null : d.toISOString();
+  }
+
+  function formatCountdownPreview(ms) {
+    const totalSeconds = Math.max(0, Math.floor(ms / 1000));
+    const days = Math.floor(totalSeconds / 86400);
+    const hours = Math.floor((totalSeconds % 86400) / 3600);
+    const minutes = Math.floor((totalSeconds % 3600) / 60);
+    const seconds = totalSeconds % 60;
+    return `${days}d ${hours}h ${minutes}m ${seconds}s`;
+  }
+
+  let previewCountdownInterval = null;
+
+  /**
+   * Local-only mirror of services/productService.ts's computeSaleState()
+   * - purely so the admin sees a real discount/amount-saved/countdown
+   * preview before saving. The server always recomputes this from
+   * scratch on every request (public API, checkout, admin GET); this
+   * function's output is never sent anywhere and never trusted as the
+   * actual sale state.
+   */
+  function updateSalePreview(regularPricePesewas) {
+    if (previewCountdownInterval) {
+      clearInterval(previewCountdownInterval);
+      previewCountdownInterval = null;
+    }
+
+    const saleEnabled = els.saleEnabled.checked;
+    const salePriceRaw = els.salePrice.value.trim();
+    const salePricePesewas = salePriceRaw === '' ? null : Math.round(Number(salePriceRaw) * 100);
+    const startsIso = datetimeLocalToIso(els.saleStarts.value);
+    const endsIso = datetimeLocalToIso(els.saleEnds.value);
+
+    let active = saleEnabled && regularPricePesewas !== null && salePricePesewas !== null && salePricePesewas < regularPricePesewas;
+    const now = Date.now();
+    if (active && startsIso && now < new Date(startsIso).getTime()) active = false;
+    if (active && endsIso && now >= new Date(endsIso).getTime()) active = false;
+
+    if (!saleEnabled || !active) {
+      els.saleDiscountPreview.textContent = !saleEnabled
+        ? 'Sale disabled'
+        : 'Not active right now (check price, dates, and sale price).';
+      els.livePreviewSalePrice.hidden = true;
+      els.livePreviewSaleMeta.hidden = true;
+      els.livePreviewCountdown.hidden = true;
+      return;
+    }
+
+    const amountSaved = regularPricePesewas - salePricePesewas;
+    const discountPercent = Math.round((amountSaved / regularPricePesewas) * 100);
+
+    els.saleDiscountPreview.textContent = `${discountPercent}% off, save GHS ${(amountSaved / 100).toFixed(2)}`;
+    els.livePreviewSalePrice.hidden = false;
+    els.livePreviewSalePrice.textContent = `Now GHS ${(salePricePesewas / 100).toFixed(2)}`;
+    els.livePreviewSaleMeta.hidden = false;
+    els.livePreviewSaleMeta.textContent = `Save GHS ${(amountSaved / 100).toFixed(2)} (${discountPercent}% OFF)`;
+
+    if (endsIso) {
+      els.livePreviewCountdown.hidden = false;
+      const tick = () => {
+        const remaining = new Date(endsIso).getTime() - Date.now();
+        if (remaining <= 0) {
+          els.livePreviewCountdown.textContent = 'Sale ended';
+          clearInterval(previewCountdownInterval);
+          previewCountdownInterval = null;
+          return;
+        }
+        els.livePreviewCountdown.textContent = `Offer ends in ${formatCountdownPreview(remaining)}`;
+      };
+      tick();
+      previewCountdownInterval = setInterval(tick, 1000);
+    } else {
+      els.livePreviewCountdown.hidden = true;
+    }
   }
 
   function updateLivePreview() {
@@ -670,6 +787,7 @@ function initProductEditor() {
     els.livePreviewSubtitle.textContent = els.subtitle.value.trim();
     els.livePreviewTopic.textContent = els.topic.value ? labelize(els.topic.value) : ' ';
     const price = els.price.value.trim();
+    const regularPricePesewas = price === '' ? null : Math.round(Number(price) * 100);
     els.livePreviewPrice.textContent = price === '' ? 'Not yet priced' : `GHS ${Number(price).toFixed(2)}`;
 
     const coverRef = state.mediaRefs.cover;
@@ -679,6 +797,8 @@ function initProductEditor() {
     } else {
       els.livePreviewCover.hidden = true;
     }
+
+    updateSalePreview(regularPricePesewas);
   }
 
   // ============================================================
@@ -706,6 +826,8 @@ function initProductEditor() {
   function gatherProductInput() {
     const priceRaw = els.price.value.trim();
     const compareRaw = els.comparePrice.value.trim();
+    const saleEnabled = els.saleEnabled.checked;
+    const salePriceRaw = els.salePrice.value.trim();
     return {
       slug: els.slug.value.trim().toLowerCase(),
       title: els.title.value.trim(),
@@ -717,6 +839,15 @@ function initProductEditor() {
       status: els.status.value,
       price: priceRaw === '' ? null : Number(priceRaw),
       compareAtPrice: compareRaw === '' ? null : Number(compareRaw),
+      // Always a clean, consistent trio when the sale checkbox is off -
+      // never leftover values from a field the admin unchecked without
+      // clearing, which could otherwise fail an unrelated validation
+      // (e.g. a stale sale price left over from a since-lowered regular
+      // price) despite the sale itself being disabled.
+      salePrice: saleEnabled && salePriceRaw !== '' ? Number(salePriceRaw) : null,
+      saleEnabled: saleEnabled,
+      saleStartsAt: saleEnabled ? datetimeLocalToIso(els.saleStarts.value) : null,
+      saleEndsAt: saleEnabled ? datetimeLocalToIso(els.saleEnds.value) : null,
       taxBehavior: els.taxBehavior.value,
       sku: els.sku.value.trim() || null,
       version: els.version.value.trim() || null,
@@ -809,7 +940,18 @@ function initProductEditor() {
       els.savedAt.hidden = false;
     } catch (error) {
       if (error.fields && error.fields.length > 0) {
-        error.fields.forEach((f) => showFieldError(mapValidationField(f.field), f.message));
+        error.fields.forEach((f) => {
+          const message = f.field === 'media' ? `${f.message} Please choose a different image below.` : f.message;
+          showFieldError(mapValidationField(f.field), message);
+          // Version 3.4.2 Milestone M6.2 - a "media" validation error means
+          // one of the four picker slots (cover/thumbnail/preview/og) still
+          // holds a media id that no longer exists (deleted after it was
+          // selected, in this same open editor session). Without this, the
+          // stale id stays in state.mediaRefs and every retry resubmits the
+          // exact same dead reference, so Save keeps failing identically
+          // with no way for the admin to tell which picker needs reselecting.
+          if (f.field === 'media') clearDeadMediaReference(f.message);
+        });
       } else {
         els.loadError.textContent = error.message || 'Could not save this product.';
         els.loadError.hidden = false;
@@ -817,6 +959,20 @@ function initProductEditor() {
     } finally {
       els.saveButton.disabled = false;
     }
+  }
+
+  /** Parses the numeric id out of "Media asset <id> could not be found." and clears whichever picker slot(s) currently reference it, so a retry does not resend the same dead id. */
+  function clearDeadMediaReference(message) {
+    const match = message.match(/Media asset (\d+) could not be found/);
+    if (!match) return;
+    const deadId = Number(match[1]);
+    for (const slot of Object.keys(state.mediaRefs)) {
+      if (state.mediaRefs[slot] && state.mediaRefs[slot].mediaId === deadId) {
+        state.mediaRefs[slot] = null;
+        renderMediaRef(slot);
+      }
+    }
+    updateLivePreview();
   }
 
   /** productService.ts's validation errors use the internal pesewas-based field names for price — mapped back to the form's own field-error slots. */

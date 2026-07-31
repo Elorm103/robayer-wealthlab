@@ -20,9 +20,9 @@
   <link rel="stylesheet" href="/css/tokens.css">
   <link rel="stylesheet" href="/css/base.css">
   <link rel="stylesheet" href="/css/layout.css">
-  <link rel="stylesheet" href="/css/components.css?v=m6">
+  <link rel="stylesheet" href="/css/components.css?v=m62">
   <link rel="stylesheet" href="/css/utilities.css">
-  <link rel="stylesheet" href="/css/admin.css?v=m6">
+  <link rel="stylesheet" href="/css/admin.css?v=m62">
 </head>
 <body>
   <a href="#main-content" class="skip-link">Skip to main content</a>
@@ -149,6 +149,35 @@
                 </div>
               </div>
               <p class="field__hint">Currency is fixed to GHS (Ghana Cedis) — the only currency this store's Paystack integration supports.</p>
+
+              <div class="field field--checkbox">
+                <input type="checkbox" id="pe-sale-enabled" data-pe-sale-enabled>
+                <label class="field__label" for="pe-sale-enabled">Enable sale pricing</label>
+              </div>
+              <div class="editor-field-row" data-pe-sale-fields hidden>
+                <div class="field">
+                  <label class="field__label" for="pe-sale-price">Sale price (GHS)</label>
+                  <input class="field__input" type="number" min="0" step="0.01" id="pe-sale-price" data-pe-sale-price>
+                  <span class="field__error" data-pe-error-field="salePricePesewas" hidden></span>
+                </div>
+                <div class="field">
+                  <span class="field__label">Discount preview</span>
+                  <p data-pe-sale-discount-preview>&mdash;</p>
+                </div>
+              </div>
+              <div class="editor-field-row" data-pe-sale-fields hidden>
+                <div class="field">
+                  <label class="field__label" for="pe-sale-starts">Sale starts (optional)</label>
+                  <input class="field__input" type="datetime-local" id="pe-sale-starts" data-pe-sale-starts>
+                  <span class="field__hint">Leave blank to start immediately on save.</span>
+                  <span class="field__error" data-pe-error-field="saleStartsAt" hidden></span>
+                </div>
+                <div class="field">
+                  <label class="field__label" for="pe-sale-ends">Sale ends</label>
+                  <input class="field__input" type="datetime-local" id="pe-sale-ends" data-pe-sale-ends>
+                  <span class="field__error" data-pe-error-field="saleEndsAt" hidden></span>
+                </div>
+              </div>
             </section>
 
             <section class="card" data-pe-files-section>
@@ -294,6 +323,9 @@
                   <h3 data-pe-live-title>Untitled product</h3>
                   <p class="text-small" data-pe-live-subtitle></p>
                   <p data-pe-live-price>&mdash;</p>
+                  <p class="text-small" data-pe-live-sale-price hidden></p>
+                  <p class="text-small text-secondary" data-pe-live-sale-meta hidden></p>
+                  <p class="text-small text-secondary" data-pe-live-countdown hidden></p>
                 </div>
               </div>
             </section>
@@ -352,6 +384,6 @@
   <script src="/js/components/branding.js"></script>
   <script src="/js/components/admin/admin-auth.js"></script>
   <script src="/js/components/admin/admin-shell.js"></script>
-  <script src="/js/components/admin/admin-product-editor.js"></script>
+  <script src="/js/components/admin/admin-product-editor.js?v=m62"></script>
 </body>
 </html>

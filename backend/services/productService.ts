@@ -87,6 +87,10 @@ export interface ProductRecord {
   status: string;
   pricePesewas: number | null;
   compareAtPricePesewas: number | null;
+  salePricePesewas: number | null;
+  saleEnabled: boolean;
+  saleStartsAt: string | null;
+  saleEndsAt: string | null;
   currency: string;
   pricingModel: string;
   taxBehavior: string;
@@ -136,6 +140,10 @@ interface ProductRow {
   status: string;
   price_pesewas: number | null;
   compare_at_price_pesewas: number | null;
+  sale_price_pesewas: number | null;
+  sale_enabled: number;
+  sale_starts_at: string | null;
+  sale_ends_at: string | null;
   currency: string;
   pricing_model: string;
   tax_behavior: string;
@@ -172,6 +180,7 @@ interface ProductRow {
 const PRODUCT_SELECT_COLUMNS = `
   p.id, p.product_id, p.slug, p.title, p.subtitle, p.short_description, p.description,
   p.topic, p.product_type, p.status, p.price_pesewas, p.compare_at_price_pesewas, p.currency,
+  p.sale_price_pesewas, p.sale_enabled, p.sale_starts_at, p.sale_ends_at,
   p.pricing_model, p.tax_behavior, p.sku, p.version, p.language, p.estimated_reading_time, p.author,
   p.cover_media_id, cover.public_url AS cover_public_url,
   p.thumbnail_media_id, thumb.public_url AS thumbnail_public_url,
@@ -204,6 +213,10 @@ function fromRow(row: ProductRow): Omit<ProductRecord, 'files' | 'gallery' | 're
     status: row.status,
     pricePesewas: row.price_pesewas,
     compareAtPricePesewas: row.compare_at_price_pesewas,
+    salePricePesewas: row.sale_price_pesewas,
+    saleEnabled: row.sale_enabled === 1,
+    saleStartsAt: row.sale_starts_at,
+    saleEndsAt: row.sale_ends_at,
     currency: row.currency,
     pricingModel: row.pricing_model,
     taxBehavior: row.tax_behavior,
@@ -235,6 +248,72 @@ function fromRow(row: ProductRow): Omit<ProductRecord, 'files' | 'gallery' | 're
     createdAt: row.created_at,
     updatedAt: row.updated_at,
     deletedAt: row.deleted_at,
+  };
+}
+
+export interface SaleState {
+  /** Whether the sale is genuinely in effect right now - the single source of truth every other field here follows from. */
+  isActive: boolean;
+  /** What a customer actually pays right now: salePricePesewas when isActive, otherwise pricePesewas. This, not either raw column, is what checkout must charge. */
+  effectivePricePesewas: number | null;
+  /** The price to show struck through next to the effective price - only meaningful when isActive. */
+  regularPricePesewas: number | null;
+  discountPercent: number | null;
+  amountSavedPesewas: number | null;
+  saleEndsAt: string | null;
+}
+
+const INACTIVE_SALE_STATE: SaleState = {
+  isActive: false,
+  effectivePricePesewas: null,
+  regularPricePesewas: null,
+  discountPercent: null,
+  amountSavedPesewas: null,
+  saleEndsAt: null,
+};
+
+/**
+ * The one place "is this product's sale active right now" is decided,
+ * computed live from the four sale_* columns rather than a flag flipped
+ * by a background job. This is deliberate: a Cron sweep that flips
+ * sale_enabled at the sale's end time would work most of the time, but
+ * would leave a stale "on sale" price visible for however long it takes
+ * that Cron to next run if it is ever delayed or misses a beat, and
+ * checkout charging whatever price is on the row at that moment would
+ * inherit the same staleness. Computing live at every call site (the
+ * public API, the storefront's countdown, and commerceService.ts's
+ * checkout price) means a sale genuinely cannot outlive its own end
+ * date, or fail to appear the instant its start date arrives, with no
+ * dependency on a scheduled task firing on time.
+ *
+ * `now` is a parameter, not read internally, purely so this stays a
+ * pure function callers (and tests) can exercise deterministically
+ * rather than one more implicit `new Date()` scattered through the
+ * codebase.
+ */
+export function computeSaleState(
+  product: Pick<ProductRecord, 'pricePesewas' | 'salePricePesewas' | 'saleEnabled' | 'saleStartsAt' | 'saleEndsAt'>,
+  now: Date = new Date()
+): SaleState {
+  if (
+    !product.saleEnabled ||
+    product.salePricePesewas === null ||
+    product.pricePesewas === null ||
+    product.salePricePesewas >= product.pricePesewas
+  ) {
+    return INACTIVE_SALE_STATE;
+  }
+  if (product.saleStartsAt && now.getTime() < new Date(product.saleStartsAt).getTime()) return INACTIVE_SALE_STATE;
+  if (product.saleEndsAt && now.getTime() >= new Date(product.saleEndsAt).getTime()) return INACTIVE_SALE_STATE;
+
+  const amountSaved = product.pricePesewas - product.salePricePesewas;
+  return {
+    isActive: true,
+    effectivePricePesewas: product.salePricePesewas,
+    regularPricePesewas: product.pricePesewas,
+    discountPercent: Math.round((amountSaved / product.pricePesewas) * 100),
+    amountSavedPesewas: amountSaved,
+    saleEndsAt: product.saleEndsAt,
   };
 }
 
@@ -457,6 +536,10 @@ export interface ProductInput {
   status?: string;
   pricePesewas?: number | null;
   compareAtPricePesewas?: number | null;
+  salePricePesewas?: number | null;
+  saleEnabled?: boolean;
+  saleStartsAt?: string | null;
+  saleEndsAt?: string | null;
   currency?: string;
   taxBehavior?: string;
   sku?: string | null;
@@ -523,6 +606,53 @@ export async function validateProductInput(
   // A product can only genuinely be "active" (for sale) with a real price — matches the legacy JSON model's own validateProduct() rule.
   if (input.status === 'active' && (input.pricePesewas === undefined || input.pricePesewas === null)) {
     errors.push({ field: 'pricePesewas', message: 'Price is required before a product can be published as active.' });
+  }
+
+  // Version 3.4.2 Milestone M6.2 (Phase 9) - same scope as the price
+  // rule directly above (active only, not coming-soon): a real,
+  // live "coming-soon" product in this catalog has no cover yet and
+  // its card already degrades gracefully with no image (see
+  // routes/books.ts's renderProductCard coverStyle handling), so that
+  // teaser state deliberately does not require one. "active" is the
+  // fully-published, purchasable state a cover-less page would look
+  // broken in.
+  if (input.status === 'active' && (input.coverMediaId === undefined || input.coverMediaId === null)) {
+    errors.push({ field: 'media', message: 'A cover image is required before a product can be published as active.' });
+  }
+
+  // Version 3.4.2 Milestone M6.2 (Dynamic Pricing) - a sale is only ever
+  // meaningful relative to a real regular price, so every check below
+  // requires pricePesewas to already be a valid, present number; if it
+  // is not, the error above already covers it and piling on a second,
+  // confusing "sale price vs an invalid regular price" message would
+  // not help the admin fix anything faster.
+  const hasValidRegularPrice = typeof input.pricePesewas === 'number' && Number.isInteger(input.pricePesewas) && input.pricePesewas >= 0;
+
+  if (input.salePricePesewas !== undefined && input.salePricePesewas !== null) {
+    if (!Number.isInteger(input.salePricePesewas) || input.salePricePesewas < 0) {
+      errors.push({ field: 'salePricePesewas', message: 'Sale price must be a non-negative whole number.' });
+    } else if (hasValidRegularPrice && input.salePricePesewas >= (input.pricePesewas as number)) {
+      errors.push({ field: 'salePricePesewas', message: 'Sale price must be lower than the regular price.' });
+    }
+  }
+  if (input.saleEnabled) {
+    if (input.salePricePesewas === undefined || input.salePricePesewas === null) {
+      errors.push({ field: 'salePricePesewas', message: 'A sale price is required to enable a sale.' });
+    }
+    if (!hasValidRegularPrice) {
+      errors.push({ field: 'pricePesewas', message: 'A regular price is required before a sale can be enabled.' });
+    }
+  }
+  const parsedStart = input.saleStartsAt ? new Date(input.saleStartsAt) : null;
+  const parsedEnd = input.saleEndsAt ? new Date(input.saleEndsAt) : null;
+  if (input.saleStartsAt && (!parsedStart || Number.isNaN(parsedStart.getTime()))) {
+    errors.push({ field: 'saleStartsAt', message: 'Sale start date is not a valid date.' });
+  }
+  if (input.saleEndsAt && (!parsedEnd || Number.isNaN(parsedEnd.getTime()))) {
+    errors.push({ field: 'saleEndsAt', message: 'Sale end date is not a valid date.' });
+  }
+  if (parsedStart && parsedEnd && !Number.isNaN(parsedStart.getTime()) && !Number.isNaN(parsedEnd.getTime()) && parsedEnd.getTime() <= parsedStart.getTime()) {
+    errors.push({ field: 'saleEndsAt', message: 'Sale end date must be after the sale start date.' });
   }
 
   if (input.seoTitle && input.seoTitle.length > SEO_TITLE_MAX) {
@@ -621,11 +751,12 @@ export async function createProduct(
   const insert = await env.DB.prepare(
     `INSERT INTO products (
        product_id, slug, title, subtitle, short_description, description, topic, product_type, status,
-       price_pesewas, compare_at_price_pesewas, currency, tax_behavior, sku, version, language,
+       price_pesewas, compare_at_price_pesewas, sale_price_pesewas, sale_enabled, sale_starts_at, sale_ends_at,
+       currency, tax_behavior, sku, version, language,
        estimated_reading_time, author, cover_media_id, thumbnail_media_id, preview_media_id, og_media_id,
        featured, bestseller, new_release, tags, max_downloads, download_expires_days,
        seo_title, seo_description, seo_canonical_url, created_by, updated_by
-     ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`
+     ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`
   )
     .bind(
       productId,
@@ -639,6 +770,10 @@ export async function createProduct(
       status,
       input.pricePesewas ?? null,
       input.compareAtPricePesewas ?? null,
+      input.salePricePesewas ?? null,
+      input.saleEnabled ? 1 : 0,
+      input.saleStartsAt ?? null,
+      input.saleEndsAt ?? null,
       input.currency ?? 'GHS',
       input.taxBehavior ?? 'inclusive',
       input.sku ?? null,
@@ -703,7 +838,8 @@ export async function updateProduct(
   await env.DB.prepare(
     `UPDATE products SET
        slug = ?, title = ?, subtitle = ?, short_description = ?, description = ?, topic = ?, product_type = ?, status = ?,
-       price_pesewas = ?, compare_at_price_pesewas = ?, currency = ?, tax_behavior = ?, sku = ?, version = ?,
+       price_pesewas = ?, compare_at_price_pesewas = ?, sale_price_pesewas = ?, sale_enabled = ?, sale_starts_at = ?, sale_ends_at = ?,
+       currency = ?, tax_behavior = ?, sku = ?, version = ?,
        language = ?, estimated_reading_time = ?, author = ?, cover_media_id = ?, thumbnail_media_id = ?,
        preview_media_id = ?, og_media_id = ?, featured = ?, bestseller = ?, new_release = ?, tags = ?,
        max_downloads = ?, download_expires_days = ?, seo_title = ?, seo_description = ?, seo_canonical_url = ?,
@@ -721,6 +857,10 @@ export async function updateProduct(
       nextStatus,
       input.pricePesewas ?? null,
       input.compareAtPricePesewas ?? null,
+      input.salePricePesewas ?? null,
+      input.saleEnabled ? 1 : 0,
+      input.saleStartsAt ?? null,
+      input.saleEndsAt ?? null,
       input.currency ?? 'GHS',
       input.taxBehavior ?? 'inclusive',
       input.sku ?? null,

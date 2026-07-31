@@ -1146,6 +1146,161 @@
 }
 
 /* ============================================================
+   PRICE BLOCK - Version 3.4.2 Milestone M6.2 (Dynamic Pricing)
+   Shared between product cards and the book detail page. Every part
+   that only makes sense while a sale is active carries [data-sale-only]
+   (hidden by the [hidden] rules below once a countdown expires - see
+   js/components/countdown.js); the plain regular-price-only line
+   carries [data-regular-price-only] and starts hidden whenever a sale
+   is active, shown again once the sale ends.
+   ============================================================ */
+.price-block {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-1);
+}
+
+.price-block__regular-strike {
+  font-family: var(--font-mono);
+  font-size: var(--text-small);
+  color: var(--color-text-secondary);
+  text-decoration: line-through;
+}
+
+.price-block__now-label {
+  font-size: 0.7rem;
+  font-weight: var(--weight-semibold);
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--color-error);
+}
+
+.price-block__sale-price {
+  font-family: var(--font-mono);
+  font-size: var(--text-h4);
+  font-weight: var(--weight-semibold);
+  color: var(--color-error);
+}
+
+.price-block__meta {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--space-2);
+}
+
+.price-block__saved {
+  font-size: var(--text-small);
+  color: var(--color-success);
+  font-weight: var(--weight-medium);
+}
+
+.price-block__discount-badge {
+  display: inline-flex;
+  align-items: center;
+  padding: 2px var(--space-2);
+  border-radius: var(--radius-sm);
+  background-color: var(--color-error-tint);
+  color: var(--color-error);
+  font-size: 0.7rem;
+  font-weight: var(--weight-semibold);
+  letter-spacing: 0.04em;
+}
+
+/* [hidden]-defeated-by-display fix, same convention as every other
+   instance in this file (see .btn[hidden]) - both of these are toggled
+   at runtime, one by countdown.js on expiry, one server-side/client-side
+   based on whether a sale is active at render time. */
+.price-block__discount-badge[hidden],
+.price-block__saved[hidden] {
+  display: none;
+}
+
+/* ---------- Countdown ---------- */
+.countdown {
+  display: flex;
+  gap: var(--space-2);
+}
+
+.countdown[hidden] {
+  display: none;
+}
+
+.countdown__unit {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  min-width: 2.5rem;
+  padding: var(--space-1) var(--space-2);
+  border-radius: var(--radius-sm);
+  background-color: var(--color-bg-inverse);
+  color: var(--color-text-on-dark);
+}
+
+.countdown__value {
+  font-family: var(--font-mono);
+  font-size: var(--text-body-lg);
+  font-weight: var(--weight-semibold);
+  line-height: 1.1;
+}
+
+.countdown__label {
+  font-size: 0.65rem;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  color: var(--color-stone-grey);
+}
+
+.countdown__heading {
+  font-size: var(--text-small);
+  font-weight: var(--weight-medium);
+  color: var(--color-text-secondary);
+  margin-bottom: var(--space-1);
+}
+
+/* ---------- Star rating (cards + book detail header) ---------- */
+.star-rating {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-1);
+  font-size: var(--text-small);
+}
+
+.star-rating__stars {
+  color: var(--color-sika-gold);
+  letter-spacing: 1px;
+}
+
+.star-rating__count {
+  color: var(--color-text-secondary);
+}
+
+/* ---------- Card category badge + author byline ---------- */
+.book-card__category {
+  display: inline-flex;
+  align-self: flex-start;
+  padding: 2px var(--space-2);
+  border-radius: var(--radius-sm);
+  background-color: var(--color-info-tint);
+  color: var(--color-info);
+  font-size: 0.7rem;
+  font-weight: var(--weight-medium);
+  text-transform: capitalize;
+}
+
+.book-card__author {
+  font-size: var(--text-small);
+  color: var(--color-text-secondary);
+}
+
+.book-card__actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-2);
+  margin-top: var(--space-2);
+}
+
+/* ============================================================
    BLOG CARD
    ============================================================ */
 .blog-card {

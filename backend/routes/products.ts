@@ -20,10 +20,19 @@ import type { RouteParams } from '../worker/index';
 import { jsonError, jsonSuccess } from '../utils/responses';
 import * as productService from '../services/productService';
 import type { ProductRecord } from '../services/productService';
-import { isPubliclyListedStatus } from '../services/productService';
+import { isPubliclyListedStatus, computeSaleState } from '../services/productService';
+import { getReviewSummary } from '../services/reviewService';
 
 /** Never exposes internal `id`, `createdBy`/`updatedBy`, or the raw `sku` — only what a public page legitimately renders. */
-function toPublicShape(product: Omit<ProductRecord, 'files' | 'gallery' | 'relations'>) {
+async function toPublicShape(env: Env, product: Omit<ProductRecord, 'files' | 'gallery' | 'relations'>) {
+  // Version 3.4.2 Milestone M6.2 (Dynamic Pricing) - `price` keeps its
+  // existing, already-relied-upon meaning (the regular price), so
+  // nothing already reading it needs to change. The sale fields below
+  // are additive; anything that should reflect an active sale (product
+  // cards, the book detail page, checkout) reads `salePrice` explicitly
+  // rather than `price` silently changing meaning underneath it.
+  const sale = computeSaleState(product);
+  const reviewSummary = await getReviewSummary(env, product.id);
   return {
     id: product.productId,
     slug: product.slug,
@@ -36,6 +45,11 @@ function toPublicShape(product: Omit<ProductRecord, 'files' | 'gallery' | 'relat
     status: product.status,
     price: product.pricePesewas === null ? null : product.pricePesewas / 100,
     compareAtPrice: product.compareAtPricePesewas === null ? null : product.compareAtPricePesewas / 100,
+    onSale: sale.isActive,
+    salePrice: sale.isActive ? (sale.effectivePricePesewas as number) / 100 : null,
+    discountPercent: sale.discountPercent,
+    amountSaved: sale.isActive ? (sale.amountSavedPesewas as number) / 100 : null,
+    saleEndsAt: sale.saleEndsAt,
     currency: product.currency,
     version: product.version,
     language: product.language,
@@ -48,6 +62,8 @@ function toPublicShape(product: Omit<ProductRecord, 'files' | 'gallery' | 'relat
     bestseller: product.bestseller,
     newRelease: product.newRelease,
     tags: product.tags ? product.tags.split(',').map((t) => t.trim()).filter(Boolean) : [],
+    rating: reviewSummary.averageRating,
+    reviewCount: reviewSummary.count,
     seo: {
       title: product.seoTitle,
       description: product.seoDescription,
@@ -59,9 +75,9 @@ function toPublicShape(product: Omit<ProductRecord, 'files' | 'gallery' | 'relat
   };
 }
 
-function toPublicDetailShape(product: ProductRecord) {
+async function toPublicDetailShape(env: Env, product: ProductRecord) {
   return {
-    ...toPublicShape(product),
+    ...(await toPublicShape(env, product)),
     gallery: product.gallery.map((g) => g.publicUrl),
     // Files are named/typed for display (e.g. "Ebook.pdf, 2.1 MB") but
     // never expose a storageKey or a direct download URL — a real
@@ -112,7 +128,8 @@ export async function handlePublicProductsList(request: Request, env: Env, _logg
     pageSize,
   });
 
-  return jsonSuccess({ items: result.items.map(toPublicShape), total: result.total, page: result.page, pageSize: result.pageSize });
+  const items = await Promise.all(result.items.map((item) => toPublicShape(env, item)));
+  return jsonSuccess({ items, total: result.total, page: result.page, pageSize: result.pageSize });
 }
 
 export async function handlePublicProductGet(_request: Request, env: Env, _logger: Logger, params: RouteParams): Promise<Response> {
@@ -124,5 +141,5 @@ export async function handlePublicProductGet(_request: Request, env: Env, _logge
     return jsonError('PRODUCT_NOT_FOUND', 'This product could not be found.');
   }
 
-  return jsonSuccess(toPublicDetailShape(product));
+  return jsonSuccess(await toPublicDetailShape(env, product));
 }

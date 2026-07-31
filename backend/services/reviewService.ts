@@ -142,6 +142,30 @@ export async function listPublicReviews(env: Env, productSlug: string): Promise<
   return { reviews: results, averageRating, count };
 }
 
+export interface ReviewSummary {
+  averageRating: number | null;
+  count: number;
+}
+
+/**
+ * Version 3.4.2 Milestone M6.2 (Product Cards) - a single-aggregate-query
+ * summary for product cards and the book detail header, which only ever
+ * need the star rating and count, never the review bodies. Kept
+ * separate from listPublicReviews() above rather than having callers
+ * throw away its full review list, since a product grid calling this
+ * once per card would otherwise also be pulling every review's full
+ * text for every product on the page.
+ */
+export async function getReviewSummary(env: Env, productId: number): Promise<ReviewSummary> {
+  const row = await env.DB.prepare(
+    `SELECT COUNT(*) AS count, AVG(rating) AS avg FROM product_reviews WHERE product_id = ? AND status = 'approved'`
+  )
+    .bind(productId)
+    .first<{ count: number; avg: number | null }>();
+  const count = row?.count ?? 0;
+  return { count, averageRating: count > 0 && row?.avg != null ? Math.round(row.avg * 10) / 10 : null };
+}
+
 // ============================================================
 // Admin moderation
 // ============================================================

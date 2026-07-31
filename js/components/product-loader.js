@@ -250,13 +250,67 @@
   // markup on /books/index.html exactly. Powers Homepage / Books /
   // future category pages / related products / search results — no
   // duplicated markup once a real page actually calls this.
+  /** Renders the shared star-rating markup - identical convention to routes/books.ts's own renderStars() (Unicode stars, rounded to the nearest whole star), so a customer sees the same rating shape on a card and on the book detail page. */
+  function renderStarRating(product) {
+    if (typeof product.rating !== 'number' || !product.reviewCount) return '';
+    const full = Math.round(product.rating);
+    const stars = '★'.repeat(full) + '☆'.repeat(5 - full);
+    return (
+      '<p class="star-rating">' +
+      '<span class="star-rating__stars" aria-hidden="true">' + stars + '</span>' +
+      '<span class="sr-only">Rating: ' + product.rating + ' out of 5</span>' +
+      '<span class="star-rating__count">' + product.rating.toFixed(1) + ' (' + product.reviewCount + (product.reviewCount === 1 ? ' review' : ' reviews') + ')</span>' +
+      '</p>'
+    );
+  }
+
+  /**
+   * Version 3.4.2 Milestone M6.2 - the full regular/sale price block:
+   * struck-through regular price + "NOW" sale price when a sale is
+   * active (with the discount badge and amount-saved line), a plain
+   * price otherwise. `product.onSale`/`salePrice`/`discountPercent`/
+   * `amountSaved`/`saleEndsAt` all come directly from GET /api/products
+   * — see services/productService.ts's computeSaleState(), the one
+   * place this is actually decided; this function only ever displays
+   * what the server already computed, never recomputes it.
+   */
+  function renderPriceBlock(product, isUpcoming) {
+    if (isUpcoming) return '';
+    if (product.price === 0) return '<p class="book-card__price">Free</p>';
+
+    const regularLabel = formatCurrency(product.price, product.currency);
+    if (!product.onSale) {
+      return '<div class="price-block" data-sale-scope><p class="book-card__price" data-regular-price-only>' + escapeHtml(regularLabel) + '</p></div>';
+    }
+
+    const saleLabel = formatCurrency(product.salePrice, product.currency);
+    const savedLabel = formatCurrency(product.amountSaved, product.currency);
+    const countdown = product.saleEndsAt
+      ? '<div class="countdown" data-sale-only data-sale-ends-at="' + escapeHtml(product.saleEndsAt) + '">' +
+        '<div class="countdown__unit"><span class="countdown__value" data-countdown-days>00</span><span class="countdown__label">Days</span></div>' +
+        '<div class="countdown__unit"><span class="countdown__value" data-countdown-hours>00</span><span class="countdown__label">Hrs</span></div>' +
+        '<div class="countdown__unit"><span class="countdown__value" data-countdown-minutes>00</span><span class="countdown__label">Min</span></div>' +
+        '<div class="countdown__unit"><span class="countdown__value" data-countdown-seconds>00</span><span class="countdown__label">Sec</span></div>' +
+        '</div>'
+      : '';
+
+    return (
+      '<div class="price-block" data-sale-scope>' +
+      '<p class="book-card__price price-block__regular-strike" data-sale-only>' + escapeHtml(regularLabel) + '</p>' +
+      '<p class="book-card__price" data-regular-price-only hidden>' + escapeHtml(regularLabel) + '</p>' +
+      '<p class="price-block__now-label" data-sale-only>Now</p>' +
+      '<p class="price-block__sale-price" data-sale-only>' + escapeHtml(saleLabel) + '</p>' +
+      '<div class="price-block__meta" data-sale-only>' +
+      '<span class="price-block__saved">Save ' + escapeHtml(savedLabel) + '</span>' +
+      (product.discountPercent ? '<span class="price-block__discount-badge">' + product.discountPercent + '% OFF</span>' : '') +
+      '</div>' +
+      countdown +
+      '</div>'
+    );
+  }
+
   function renderCard(product) {
     const isUpcoming = product.status === 'coming-soon';
-    const priceLabel = isUpcoming
-      ? null
-      : product.price === 0
-        ? 'Free'
-        : formatCurrency(product.price, product.currency);
     const href = '/books/' + product.slug + '/'; // Matches the real Books URL convention (not a placeholder /store/ route).
     const cardClasses = ['book-card'];
     if (product.featured) cardClasses.push('book-card--featured');
@@ -277,9 +331,9 @@
       ? ' style="background-image:url(\'' + escapeHtml(cardImage) + '\');background-size:cover;background-position:center;"'
       : '';
 
-    const cta = isUpcoming
+    const actions = isUpcoming
       ? '<a href="/newsletter/" class="btn btn--secondary">Get notified</a>'
-      : '<a href="' + href + '" class="btn btn--primary">Get the guide</a>';
+      : '<a href="' + href + '" class="btn btn--primary">Buy Now</a><a href="' + href + '" class="btn btn--secondary">Learn More</a>';
 
     return (
       // data-category aliases data-topic and data-title exposes the
@@ -291,11 +345,14 @@
       // own vocabulary.
       '<div class="' + cardClasses.join(' ') + '" data-topic="' + escapeHtml(product.topic || '') + '" data-product-type="' + escapeHtml(product.productType || '') + '" data-category="' + escapeHtml(product.topic || '') + '" data-title="' + escapeHtml(product.title || '') + '">' +
       '<div class="book-card__cover"' + coverStyle + '></div>' +
+      (product.topic ? '<span class="book-card__category">' + escapeHtml(product.topic.replace(/-/g, ' ')) + '</span>' : '') +
       badges.join('') +
       '<p class="book-card__title">' + escapeHtml(product.title) + '</p>' +
-      (priceLabel ? '<p class="book-card__price">' + escapeHtml(priceLabel) + '</p>' : '') +
-      (product.shortDescription ? '<p class="book-card__description">' + escapeHtml(product.shortDescription) + '</p>' : '') +
-      cta +
+      (product.subtitle ? '<p class="book-card__description">' + escapeHtml(product.subtitle) + '</p>' : '') +
+      (product.author ? '<p class="book-card__author">' + escapeHtml(product.author) + '</p>' : '') +
+      renderStarRating(product) +
+      renderPriceBlock(product, isUpcoming) +
+      '<div class="book-card__actions">' + actions + '</div>' +
       '</div>'
     );
   }
@@ -378,6 +435,12 @@
           return; // Neither opt-in — leave existing markup as-is (today's default, unchanged from Sprint 2.1).
         }
         grid.innerHTML = filtered.map(renderCard).join('');
+        // Version 3.4.2 Milestone M6.2 - countdown.js listens for this to
+        // pick up newly-inserted sale countdowns; DOMContentLoaded/
+        // partials:loaded may already have fired by the time this async
+        // render completes, so a dedicated event is the only reliable
+        // signal for "cards with countdowns now exist in the DOM."
+        document.dispatchEvent(new Event('products:rendered'));
       });
     });
   }
@@ -415,7 +478,14 @@
         if (descriptionEl && featured.shortDescription) descriptionEl.textContent = featured.shortDescription;
         if (ctaEl) {
           ctaEl.setAttribute('href', '/books/' + featured.slug + '/');
-          const priceLabel = featured.price === 0 ? 'Free' : formatCurrency(featured.price, featured.currency);
+          // Version 3.4.2 Milestone M6.2 - the chargeable amount (sale
+          // price while a sale is active, regular price otherwise),
+          // never featured.price directly - matches every book-card's
+          // and the book detail page's own Buy button, so a customer
+          // never sees "on sale" everywhere else but the regular price
+          // here.
+          const chargeableAmount = featured.onSale ? featured.salePrice : featured.price;
+          const priceLabel = chargeableAmount === 0 ? 'Free' : formatCurrency(chargeableAmount, featured.currency);
           // Version 3.4 Milestone M6 acceptance review: the hero's CTA
           // anchor now also wraps the cover markup (see index.html), so
           // overwriting its textContent directly would delete the cover

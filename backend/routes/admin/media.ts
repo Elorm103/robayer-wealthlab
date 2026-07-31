@@ -282,6 +282,10 @@ export async function handleMediaDelete(request: Request, env: Env, logger: Logg
   const result = await mediaService.softDeleteMedia(env, logger, id, auth.auth.adminId);
   if (!result.ok) {
     if (result.reason === 'not_found') return jsonError('MEDIA_NOT_FOUND', 'This media item could not be found.');
+    if (result.reason === 'in_use') {
+      const places = result.usages.map((u) => `${u.label} (${u.count})`).join(', ');
+      return jsonError('MEDIA_IN_USE', `This image is still in use by ${places}. Remove it from there first, or replace it instead of deleting it.`);
+    }
     return jsonError('ALREADY_DELETED', 'This media item has already been deleted.');
   }
 
