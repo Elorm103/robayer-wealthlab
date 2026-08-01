@@ -184,6 +184,50 @@ export async function getReviewSummary(env: Env, productId: number): Promise<Rev
   return { count, averageRating: count > 0 && row?.avg != null ? Math.round(row.avg * 10) / 10 : null };
 }
 
+/**
+ * Version 4.2.5 (Hero Cover Flicker Root Cause) - the same summary as
+ * getReviewSummary() above, but for every product in one query instead
+ * of one round trip per product. routes/products.ts's public list
+ * endpoint used to call getReviewSummary() once per item inside a
+ * Promise.all, which is still N sequential-cost D1 round trips (D1
+ * doesn't give Promise.all true intra-request parallelism the way a
+ * connection-pooled Postgres would) - production tracing showed this
+ * as a real, measurable contributor to that endpoint's response time.
+ * Returns a Map so a missing product (zero approved reviews - GROUP BY
+ * never emits a row for it) still resolves to the same { count: 0,
+ * averageRating: null } shape callers already expect.
+ */
+export async function getReviewSummaries(env: Env, productIds: number[]): Promise<Map<number, ReviewSummary>> {
+  const summaries = new Map<number, ReviewSummary>();
+  if (productIds.length === 0) return summaries;
+
+  // Every requested id gets a default zero-review entry up front, since
+  // the GROUP BY query below only ever emits a row for a product that
+  // has at least one approved review - without this, a caller's
+  // `.get(id)` would come back `undefined` for a zero-review product
+  // and could mistakenly treat that as "not fetched yet."
+  productIds.forEach((id) => summaries.set(id, { count: 0, averageRating: null }));
+
+  const placeholders = productIds.map(() => '?').join(',');
+  const { results } = await env.DB.prepare(
+    `SELECT product_id AS productId, COUNT(*) AS count, AVG(rating) AS avg
+     FROM product_reviews
+     WHERE product_id IN (${placeholders}) AND status = 'approved'
+     GROUP BY product_id`
+  )
+    .bind(...productIds)
+    .all<{ productId: number; count: number; avg: number | null }>();
+
+  results.forEach((row) => {
+    summaries.set(row.productId, {
+      count: row.count,
+      averageRating: row.count > 0 && row.avg != null ? Math.round(row.avg * 10) / 10 : null,
+    });
+  });
+
+  return summaries;
+}
+
 // ============================================================
 // Admin moderation
 // ============================================================

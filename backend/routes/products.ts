@@ -21,10 +21,21 @@ import { jsonError, jsonSuccess } from '../utils/responses';
 import * as productService from '../services/productService';
 import type { ProductRecord } from '../services/productService';
 import { isPubliclyListedStatus, computeSaleState } from '../services/productService';
-import { getReviewSummary } from '../services/reviewService';
+import { getReviewSummary, getReviewSummaries, type ReviewSummary } from '../services/reviewService';
 
-/** Never exposes internal `id`, `createdBy`/`updatedBy`, or the raw `sku` — only what a public page legitimately renders. */
-async function toPublicShape(env: Env, product: Omit<ProductRecord, 'files' | 'gallery' | 'relations' | 'bundleItems'>) {
+/**
+ * Never exposes internal `id`, `createdBy`/`updatedBy`, or the raw `sku`
+ * - only what a public page legitimately renders. `reviewSummary` is
+ * optional: pass a pre-fetched one (see handlePublicProductsList's
+ * batched getReviewSummaries()) to avoid a per-item D1 round trip when
+ * shaping a list; omitted for the single-product detail path below,
+ * which only ever needs the one query anyway.
+ */
+async function toPublicShape(
+  env: Env,
+  product: Omit<ProductRecord, 'files' | 'gallery' | 'relations' | 'bundleItems'>,
+  reviewSummary?: ReviewSummary
+) {
   // Version 3.4.2 Milestone M6.2 (Dynamic Pricing) - `price` keeps its
   // existing, already-relied-upon meaning (the regular price), so
   // nothing already reading it needs to change. The sale fields below
@@ -32,7 +43,7 @@ async function toPublicShape(env: Env, product: Omit<ProductRecord, 'files' | 'g
   // cards, the book detail page, checkout) reads `salePrice` explicitly
   // rather than `price` silently changing meaning underneath it.
   const sale = computeSaleState(product);
-  const reviewSummary = await getReviewSummary(env, product.id);
+  const resolvedReviewSummary = reviewSummary ?? (await getReviewSummary(env, product.id));
   return {
     id: product.productId,
     slug: product.slug,
@@ -62,8 +73,8 @@ async function toPublicShape(env: Env, product: Omit<ProductRecord, 'files' | 'g
     bestseller: product.bestseller,
     newRelease: product.newRelease,
     tags: product.tags ? product.tags.split(',').map((t) => t.trim()).filter(Boolean) : [],
-    rating: reviewSummary.averageRating,
-    reviewCount: reviewSummary.count,
+    rating: resolvedReviewSummary.averageRating,
+    reviewCount: resolvedReviewSummary.count,
     seo: {
       title: product.seoTitle,
       description: product.seoDescription,
@@ -128,7 +139,8 @@ export async function handlePublicProductsList(request: Request, env: Env, _logg
     pageSize,
   });
 
-  const items = await Promise.all(result.items.map((item) => toPublicShape(env, item)));
+  const reviewSummaries = await getReviewSummaries(env, result.items.map((item) => item.id));
+  const items = await Promise.all(result.items.map((item) => toPublicShape(env, item, reviewSummaries.get(item.id))));
   return jsonSuccess({ items, total: result.total, page: result.page, pageSize: result.pageSize });
 }
 
