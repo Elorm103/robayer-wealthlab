@@ -313,12 +313,28 @@
          initFeatureBanners() for the shared, single-source binding logic
          both sections now use identically.
          ============================================================ -->
-    <section class="section section--spacious bg-navy" aria-labelledby="featured-book-heading" data-feature-banner data-reveal>
+    <!-- Version 4.2.4: two fixes matching the Hero's own architecture -
+         (1) data-reveal moved off this <section> onto the text column
+         only, so the cover is never part of the scroll-reveal fade
+         (same root cause and fix as the Hero, see
+         docs/v4.2.1-hero-cover-flicker-instrumentation-report.md);
+         (2) added the [data-feature-placeholder] typographic fallback
+         this cover box never actually had - the V3.5.1 comment above
+         describes intending to add it alongside [data-feature-cover-img]
+         but the placeholder span itself was never written, so this
+         section showed a bare, textless gold box during any load
+         window instead of Hero's honest "cover pending" text. -->
+    <section class="section section--spacious bg-navy" aria-labelledby="featured-book-heading" data-feature-banner>
       <div class="container feature-banner">
         <div class="book-card__cover book-card__cover--compact" aria-hidden="true">
           <img class="book-card__cover-image" data-feature-cover-img alt="" hidden loading="lazy" decoding="async">
+          <span class="book-card__cover-placeholder-text" data-feature-placeholder>
+            <span class="book-card__cover-placeholder-eyebrow">Robayer WealthLab</span>
+            <span class="book-card__cover-placeholder-title">Small Cedis, Big Wealth</span>
+            <span class="book-card__cover-placeholder-subtitle">How Ordinary Ghanaians Can Build Real Wealth</span>
+          </span>
         </div>
-        <div>
+        <div data-reveal>
           <span class="eyebrow feature-banner__eyebrow">Featured eBook</span>
           <h2 id="featured-book-heading" class="mt-2 mb-2 feature-banner__title" data-feature-title>Starting to invest with GH₵100</h2>
           <p class="mb-4 feature-banner__copy" data-feature-description>A practical first guide to treasury bills, mobile money savings, and the Ghana Stock Exchange.</p>
