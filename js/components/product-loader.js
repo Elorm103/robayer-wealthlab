@@ -72,6 +72,25 @@
   }
 
   /**
+   * Version 4.2 (Hero Cover Loading Lag) — the homepage alone calls
+   * loadAll() twice per page load (once for the Hero's own
+   * [data-feature-banner], once for the separate "Featured eBook"
+   * section further down, each its own [data-feature-banner] element —
+   * see initFeatureBanners() below), each independently firing a fresh,
+   * uncached `fetch('/api/products?...')` (confirmed uncached: the
+   * route sets no Cache-Control header). Root-caused during Version
+   * 4.2's investigation as one of two real, additive causes of the
+   * visible hero-cover loading lag: two redundant network requests
+   * racing to reveal two separate images, at slightly different times,
+   * rather than one shared fetch settling both at once. Memoizing the
+   * in-flight/resolved promise here means every caller within the same
+   * page load shares exactly one network request — a real fix, not a
+   * cache-staleness risk, since a full page load always resets this
+   * module-scoped variable to `null` again.
+   */
+  let cachedProductsPromise = null;
+
+  /**
    * Reads one page of the public product API (backend/routes/products.ts
    * — GET /api/products, publicly-listed statuses only, D1-backed).
    * Always returns an array — a fetch/parse failure is an honest empty
@@ -79,7 +98,8 @@
    * must remember to catch" pattern for the old JSON registry fetch.
    */
   function loadAll() {
-    return fetch('/api/products?pageSize=100')
+    if (cachedProductsPromise) return cachedProductsPromise;
+    cachedProductsPromise = fetch('/api/products?pageSize=100')
       .then((response) => {
         if (!response.ok) throw new Error('Failed to load products.');
         return response.json();
@@ -98,6 +118,7 @@
         return valid;
       })
       .catch(() => []);
+    return cachedProductsPromise;
   }
 
   /** Single-product fetch, by slug — publicly-listed statuses only (see routes/products.ts). Returns null for anything not found, not just a fetch failure — a caller never needs to distinguish "404" from "network error." */
@@ -455,6 +476,39 @@
   // getFeatured() result. If there is none, the banner's existing
   // static HTML is left completely untouched — that text doubles as
   // the honest fallback, never a blank section.
+  /**
+   * Version 4.2 (Hero Cover Loading Lag) — swaps a [data-feature-cover-img]
+   * element from hidden to visible only once `url` is fully downloaded
+   * AND decoded, using the standard `HTMLImageElement.decode()` API
+   * (broadly supported in every evergreen browser this site targets).
+   * Setting `.src` alone does not do this: the `src` assignment starts
+   * the download, but the browser is free to paint whatever bytes have
+   * arrived so far the moment the element becomes visible — decode()'s
+   * returned promise resolves only once the image is fully ready to be
+   * painted with no further network or decode work, which is exactly
+   * the guarantee this swap needs. Falls back to the plain `load` event
+   * on the rare browser without decode() support, and to `loadAll()`'s
+   * own existing "leave the placeholder as-is" behavior on any failure
+   * — this never leaves a broken image visible or a permanently-hidden
+   * placeholder with nothing to show in its place.
+   */
+  function revealCover(imgEl, placeholderEl, url) {
+    imgEl.src = url;
+    const reveal = () => {
+      imgEl.hidden = false;
+      if (placeholderEl) placeholderEl.hidden = true;
+    };
+    if (typeof imgEl.decode === 'function') {
+      imgEl.decode().then(reveal, () => {
+        // Decode failed (a genuinely broken/unreachable image) — leave
+        // the typographic placeholder visible rather than reveal a
+        // blank or broken <img>.
+      });
+    } else {
+      imgEl.addEventListener('load', reveal, { once: true });
+    }
+  }
+
   function initFeatureBanners() {
     const banners = document.querySelectorAll('[data-feature-banner]:not([data-bound])');
     if (!banners.length) return;
@@ -512,10 +566,27 @@
         // placeholder when the featured product has one — missing
         // covers are handled gracefully by simply leaving the
         // placeholder in place (its default, already-visible state).
+        //
+        // Version 4.2 (Hero Cover Loading Lag) — root cause: this used
+        // to set coverImgEl.src and reveal it (coverImgEl.hidden = false)
+        // in the same synchronous step, before the browser had actually
+        // downloaded or decoded a single byte of the image. The
+        // placeholder disappeared immediately, but the real cover then
+        // had to load in over the network in full view — a visibly
+        // incomplete/partially-rendered image on anything slower than a
+        // fast connection, and structurally guaranteed (not intermittent)
+        // on every page load regardless of speed. revealCover() below
+        // fixes this at the root: the swap only happens once the image
+        // is fully downloaded AND decoded (HTMLImageElement.decode()),
+        // so there is no possible visible state between "placeholder"
+        // and "complete cover" — never a blank gap, never a partial
+        // render, never a fade (this is a hard, instant swap, exactly
+        // like the placeholder's own existing [hidden] toggle). If the
+        // image fails to load or decode, the placeholder is left exactly
+        // as it already was — the existing graceful-fallback behavior,
+        // unchanged.
         if (coverImgEl && featured.coverImage) {
-          coverImgEl.src = featured.coverImage;
-          coverImgEl.hidden = false;
-          if (placeholderEl) placeholderEl.hidden = true;
+          revealCover(coverImgEl, placeholderEl, featured.coverImage);
         }
       });
     });
