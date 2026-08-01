@@ -42,3 +42,8 @@ export function generateCustomerPasswordToken(): string {
 export function generateReviewReminderOptOutToken(): string {
   return randomHex();
 }
+
+/** Version 4.0 Milestone C1 — the purchase-followup opt-out link's token (customer_profiles.purchase_followup_opt_out_token). Same generator/entropy/long-lived-not-single-use reasoning as generateReviewReminderOptOutToken() above, for the same structural reason: a distinct email with its own independent opt-out. */
+export function generatePurchaseFollowupOptOutToken(): string {
+  return randomHex();
+}

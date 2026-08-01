@@ -975,3 +975,77 @@ export async function getTrafficFunnel(env: Env, range: PeriodRange): Promise<Tr
     productAttention: bookViewRows.results.map((row) => ({ ...row, checkoutsStarted: totalCheckoutsStarted })),
   };
 }
+
+// ============================================================
+// Email Lifecycle — Version 4.0 Milestone C1 (Core Email Lifecycle).
+// Answers the one dashboard-relevant question the milestone's audit
+// surfaced: "is the customer lifecycle's email system actually
+// working?" Every count here is a real `email_log` aggregate — the
+// exact same table and status values
+// services/admin/settingsService.ts's per-template diagnostics already
+// reads (that existing diagnostic lives on the Settings page, scoped
+// to ops/troubleshooting; this one is scoped to the specific
+// lifecycle-stage templates a business owner would actually recognize
+// as "the customer journey," on the page they already check daily).
+// No new counting logic, no new table — reusing email_log exactly as
+// every other consumer already does.
+//
+// Fixed 30-day window, not a caller-supplied range — matching
+// getOperationalFeeds() immediately above, this dashboard's other
+// no-range-picker section. A rolling health check ("is this still
+// working") doesn't need historical date-range slicing the way Sales
+// or Traffic do.
+// ============================================================
+
+const EMAIL_LIFECYCLE_WINDOW_DAYS = 30;
+
+/** The subset of EmailTemplateName that actually represents a customer-lifecycle touchpoint (per docs/v4.0-c1-customer-journey-map.md) — deliberately excludes admin-only templates (admin-invite, password-reset) and acknowledgement templates (contact/consultation) that aren't part of the newsletter → purchase → activation → review → announcement journey this milestone maps. */
+const LIFECYCLE_TEMPLATES = [
+  'newsletter-welcome',
+  'free-guide-delivery',
+  'customer-welcome',
+  'purchase-receipt',
+  'secure-download',
+  'customer-purchase-followup',
+  'customer-review-reminder',
+  'newsletter-campaign',
+] as const;
+
+export interface EmailLifecycleStageSummary {
+  template: (typeof LIFECYCLE_TEMPLATES)[number];
+  sent: number;
+  failed: number;
+  lastSentAt: string | null;
+}
+
+export interface EmailLifecycleSummary {
+  windowDays: number;
+  stages: EmailLifecycleStageSummary[];
+}
+
+export async function getEmailLifecycleSummary(env: Env): Promise<EmailLifecycleSummary> {
+  const since = new Date(Date.now() - EMAIL_LIFECYCLE_WINDOW_DAYS * 24 * 60 * 60_000).toISOString();
+  const placeholders = LIFECYCLE_TEMPLATES.map(() => '?').join(',');
+
+  const { results } = await env.DB.prepare(
+    `SELECT template,
+            SUM(CASE WHEN status = 'sent' THEN 1 ELSE 0 END) AS sent,
+            SUM(CASE WHEN status IN ('failed', 'permanently_failed') THEN 1 ELSE 0 END) AS failed,
+            MAX(CASE WHEN status = 'sent' THEN sent_at ELSE NULL END) AS lastSentAt
+     FROM email_log
+     WHERE template IN (${placeholders}) AND created_at >= ?
+     GROUP BY template`
+  )
+    .bind(...LIFECYCLE_TEMPLATES, since)
+    .all<{ template: string; sent: number; failed: number; lastSentAt: string | null }>();
+
+  const byTemplate = new Map(results.map((row) => [row.template, row]));
+
+  return {
+    windowDays: EMAIL_LIFECYCLE_WINDOW_DAYS,
+    stages: LIFECYCLE_TEMPLATES.map((template) => {
+      const row = byTemplate.get(template);
+      return { template, sent: row?.sent ?? 0, failed: row?.failed ?? 0, lastSentAt: row?.lastSentAt ?? null };
+    }),
+  };
+}

@@ -22,6 +22,7 @@ const TEMPLATE_LABELS = {
   'secure-download': 'Secure download',
   'password-reset': 'Password reset',
   'admin-invite': 'Admin invite',
+  'customer-purchase-followup': 'Purchase follow-up',
 };
 
 function initAdminSettings() {

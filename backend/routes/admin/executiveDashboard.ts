@@ -145,3 +145,16 @@ export async function handleDashboardTraffic(request: Request, env: Env, logger:
   const traffic = await executiveDashboardService.getTrafficFunnel(env, range);
   return jsonSuccess({ range, ...traffic });
 }
+
+/** Version 4.0 Milestone C1 (Core Email Lifecycle). No range param — see getEmailLifecycleSummary()'s own comment for why this section uses a fixed window like handleDashboardOperational above, not a caller-supplied range. */
+export async function handleDashboardEmailLifecycle(request: Request, env: Env, logger: Logger): Promise<Response> {
+  const auth = await requireAuth(request, env, logger);
+  if (!auth.ok) return auth.response;
+
+  if (await isRateLimited(request, env, READ_RATE_LIMIT)) {
+    return jsonError('RATE_LIMITED', 'Too many requests. Please try again shortly.');
+  }
+
+  const summary = await executiveDashboardService.getEmailLifecycleSummary(env);
+  return jsonSuccess(summary);
+}

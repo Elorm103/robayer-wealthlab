@@ -43,6 +43,11 @@ import customerPasswordResetTemplate from '../emails/templates/customer-password
 import customerPurchaseReconciliationTemplate from '../emails/templates/customer-purchase-reconciliation.html';
 // Version 3.3 Milestone M5C Phase 5 — see services/customer/reviewReminderService.ts.
 import customerReviewReminderTemplate from '../emails/templates/customer-review-reminder.html';
+// Version 4.0 Milestone C1 (Core Email Lifecycle) — see
+// services/customer/purchaseFollowupService.ts. Same delayed,
+// per-purchase, cron-driven pattern as customer-review-reminder above,
+// sent earlier in the lifecycle (a check-in, not a review request).
+import customerPurchaseFollowupTemplate from '../emails/templates/customer-purchase-followup.html';
 import type { Env } from '../worker/env';
 import type { Logger } from '../utils/logger';
 import { getEmailSendSettings } from './admin/settingsService';
@@ -84,7 +89,8 @@ export type EmailTemplateName =
   | 'customer-welcome'
   | 'customer-password-reset'
   | 'customer-purchase-reconciliation'
-  | 'customer-review-reminder';
+  | 'customer-review-reminder'
+  | 'customer-purchase-followup';
 
 const TEMPLATES: Record<EmailTemplateName, string> = {
   'newsletter-welcome': newsletterWelcomeTemplate,
@@ -100,6 +106,7 @@ const TEMPLATES: Record<EmailTemplateName, string> = {
   'customer-password-reset': customerPasswordResetTemplate,
   'customer-purchase-reconciliation': customerPurchaseReconciliationTemplate,
   'customer-review-reminder': customerReviewReminderTemplate,
+  'customer-purchase-followup': customerPurchaseFollowupTemplate,
 };
 
 export interface SendEmailOptions {

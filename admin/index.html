@@ -446,6 +446,28 @@
             <ul class="admin-activity-list" data-feed-product-changes></ul>
           </div>
         </div>
+
+        <!-- ============================================================
+             EMAIL LIFECYCLE
+             Version 4.0 Milestone C1 (Core Email Lifecycle). Real
+             email_log counts for every customer-lifecycle-stage
+             template (newsletter welcome, lead magnet delivery,
+             purchase welcome, receipt/download, follow-up, review
+             reminder, campaign announcements) — see
+             docs/v4.0-c1-email-lifecycle-architecture.md.
+             ============================================================ -->
+        <h2 class="text-lg mb-3">Email lifecycle <span class="text-secondary text-small" data-email-lifecycle-window></span></h2>
+        <div class="mb-5">
+          <div class="empty-state empty-state--compact" data-email-lifecycle-empty hidden>
+            <p class="empty-state__title">No lifecycle emails sent in this window yet</p>
+          </div>
+          <div class="admin-table-wrap" data-email-lifecycle-wrap hidden>
+            <table class="table" aria-label="Email lifecycle summary">
+              <thead><tr><th scope="col">Stage</th><th scope="col">Sent</th><th scope="col">Failed</th><th scope="col">Last sent</th></tr></thead>
+              <tbody data-email-lifecycle-body></tbody>
+            </table>
+          </div>
+        </div>
       </main>
     </div>
   </div>
@@ -456,6 +478,6 @@
   <script src="/js/components/admin/admin-auth.js?v=bb1cec7934"></script>
   <script src="/js/components/admin/admin-shell.js?v=7233204897"></script>
   <script src="/js/components/admin/timeseries-chart.js?v=5ec461649c"></script>
-  <script src="/js/components/admin/admin-dashboard.js?v=3d609a9400"></script>
+  <script src="/js/components/admin/admin-dashboard.js?v=03859b174d"></script>
 </body>
 </html>

@@ -58,6 +58,15 @@ export const EMAIL_TEMPLATE_NAMES: readonly EmailTemplateName[] = [
   'secure-download',
   'password-reset',
   'admin-invite',
+  // Version 4.0 Milestone C1 (Core Email Lifecycle) — the one
+  // genuinely new template this milestone adds. Not backfilling the
+  // other customer-* templates (customer-welcome,
+  // customer-password-reset, customer-purchase-reconciliation,
+  // customer-review-reminder, newsletter-campaign) here — they predate
+  // this list and were never added to it; leaving that pre-existing
+  // gap alone rather than changing behavior for templates this
+  // milestone didn't touch.
+  'customer-purchase-followup',
 ];
 
 export interface MaintenanceModeValue {

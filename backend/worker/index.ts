@@ -106,6 +106,7 @@ import {
   handleDashboardOperational,
   handleDashboardAlerts,
   handleDashboardTraffic,
+  handleDashboardEmailLifecycle,
 } from '../routes/admin/executiveDashboard';
 import { handleHealth } from '../routes/health';
 import {
@@ -238,6 +239,11 @@ import { handleCustomerReconcilePurchases } from '../routes/customer/reconciliat
 // email-linked opt-out action. See routes/customer/reviewReminders.ts.
 import { handleReviewReminderOptOut } from '../routes/customer/reviewReminders';
 import { sendDueReviewReminders } from '../services/customer/reviewReminderService';
+// Version 4.0 Milestone C1 (Core Email Lifecycle) — same shape as the
+// review-reminder pair immediately above; runs on the same Cron
+// Trigger, not a new one.
+import { handlePurchaseFollowupOptOut } from '../routes/customer/purchaseFollowup';
+import { sendDuePurchaseFollowups } from '../services/customer/purchaseFollowupService';
 import { record as recordAuditEvent } from '../services/admin/auditService';
 
 export type { Env };
@@ -323,6 +329,7 @@ const ROUTES: Route[] = [
   { pattern: new URLPattern({ pathname: '/api/admin/dashboard/operational' }), method: 'GET', handler: handleDashboardOperational },
   { pattern: new URLPattern({ pathname: '/api/admin/dashboard/alerts' }), method: 'GET', handler: handleDashboardAlerts },
   { pattern: new URLPattern({ pathname: '/api/admin/dashboard/traffic' }), method: 'GET', handler: handleDashboardTraffic },
+  { pattern: new URLPattern({ pathname: '/api/admin/dashboard/email-lifecycle' }), method: 'GET', handler: handleDashboardEmailLifecycle },
   // Same-Origin Routing Proof of Concept (docs/v2-same-origin-routing-poc.md)
   // — the first thing verified through the new robayerwealthlab.com/api/*
   // Workers Route, before anything that touches real state.
@@ -529,6 +536,8 @@ const ROUTES: Route[] = [
   { pattern: new URLPattern({ pathname: '/api/customer/reconcile-purchases' }), method: 'POST', handler: handleCustomerReconcilePurchases },
   // Version 3.3 Milestone M5C Phase 5 — the review-reminder email's one-click opt-out link.
   { pattern: new URLPattern({ pathname: '/api/customer/review-reminders/opt-out' }), method: 'GET', handler: handleReviewReminderOptOut },
+  // Version 4.0 Milestone C1 (Core Email Lifecycle) — the purchase-followup email's one-click opt-out link.
+  { pattern: new URLPattern({ pathname: '/api/customer/purchase-followup/opt-out' }), method: 'GET', handler: handlePurchaseFollowupOptOut },
   // Milestone M2 (Orders, Receipts & Customer Library) — `/receipts`
   // ordered before `/receipts/:receiptNumber/download`'s more specific
   // pattern is irrelevant here since URLPattern matches by exact
@@ -611,6 +620,15 @@ export default {
    * (`review_reminder_attempts`, migration 0022) — see that service's
    * own header comment and docs/v3.3-m5d1-retry-idempotency-strategy.md
    * for the corrected design.
+   *
+   * Version 4.0 Milestone C1 (Core Email Lifecycle) adds a second,
+   * independent `ctx.waitUntil()` below for
+   * `sendDuePurchaseFollowups()` — the same Cron Trigger, not a new
+   * one, since both jobs are cheap, idempotent, and unrelated to each
+   * other. Each has its own try/catch and its own `cron.heartbeat`
+   * entity_type ('review_reminders' vs. 'purchase_followups') so one
+   * job failing is visible on the dashboard without ever masking or
+   * being masked by the other's outcome.
    */
   async scheduled(_event: ScheduledController, env: Env, ctx: ExecutionContext): Promise<void> {
     const logger = createLogger(generateRequestId(), 'scheduled review-reminders');
@@ -643,6 +661,32 @@ export default {
             actorId: null,
             action: 'cron.heartbeat',
             entityType: 'review_reminders',
+            entityId: null,
+            metadata: { ok: false, error: message },
+          });
+        })
+    );
+
+    ctx.waitUntil(
+      sendDuePurchaseFollowups(env, logger, env.SITE_BASE_URL)
+        .then((result) =>
+          recordAuditEvent(env, logger, {
+            actorType: 'system',
+            actorId: null,
+            action: 'cron.heartbeat',
+            entityType: 'purchase_followups',
+            entityId: null,
+            metadata: { ok: true, eligible: result.eligible, claimed: result.claimed, sent: result.sent },
+          })
+        )
+        .catch((err) => {
+          const message = err instanceof Error ? err.message : String(err);
+          logger.error('purchase_followups.run_failed', { error: message });
+          return recordAuditEvent(env, logger, {
+            actorType: 'system',
+            actorId: null,
+            action: 'cron.heartbeat',
+            entityType: 'purchase_followups',
             entityId: null,
             metadata: { ok: false, error: message },
           });

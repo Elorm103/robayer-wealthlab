@@ -28,6 +28,7 @@ function initAdminDashboard() {
   loadCharts(chartsRangeDays);
   loadCustomerInsights(chartsRangeDays);
   loadOperational();
+  loadEmailLifecycle();
   bindChartPresets();
 
   // ============================================================
@@ -364,6 +365,59 @@ function initAdminDashboard() {
     renderFeed('[data-feed-password-resets]', data.recentPasswordResets, (p) => p.recipient + ' — ' + humanizeAction(p.template), (p) => p.createdAt);
     renderFeed('[data-feed-admin-activity]', data.recentAdminActivity, (a) => humanizeAction(a.action), (a) => a.createdAt);
     renderFeed('[data-feed-product-changes]', data.recentProductChanges, (p) => humanizeAction(p.action) + (p.entityId ? ' (#' + p.entityId + ')' : ''), (p) => p.createdAt);
+  }
+
+  // ============================================================
+  // Version 4.0 Milestone C1 (Core Email Lifecycle) — Email Lifecycle summary
+  // ============================================================
+  const EMAIL_LIFECYCLE_LABELS = {
+    'newsletter-welcome': 'Newsletter welcome',
+    'free-guide-delivery': 'Lead magnet delivery',
+    'customer-welcome': 'Welcome (first purchase)',
+    'purchase-receipt': 'Purchase receipt',
+    'secure-download': 'Secure download',
+    'customer-purchase-followup': 'Purchase follow-up',
+    'customer-review-reminder': 'Review reminder',
+    'newsletter-campaign': 'Product/campaign announcement',
+  };
+
+  async function loadEmailLifecycle() {
+    let data;
+    try {
+      data = await window.AdminAuth.adminFetch('/api/admin/dashboard/email-lifecycle');
+    } catch (error) {
+      showLoadError('Could not load the email lifecycle summary: ' + error.message);
+      return;
+    }
+
+    const emptyEl = root.querySelector('[data-email-lifecycle-empty]');
+    const wrapEl = root.querySelector('[data-email-lifecycle-wrap]');
+    const bodyEl = root.querySelector('[data-email-lifecycle-body]');
+    const windowLabelEl = root.querySelector('[data-email-lifecycle-window]');
+    if (!emptyEl || !wrapEl || !bodyEl) return;
+
+    if (windowLabelEl) windowLabelEl.textContent = 'Last ' + data.windowDays + ' days';
+
+    const hasAnyActivity = data.stages.some((stage) => stage.sent > 0 || stage.failed > 0);
+    emptyEl.hidden = hasAnyActivity;
+    wrapEl.hidden = !hasAnyActivity;
+    if (!hasAnyActivity) return;
+
+    bodyEl.innerHTML = '';
+    data.stages.forEach((stage) => {
+      const tr = document.createElement('tr');
+      const nameTd = document.createElement('td');
+      nameTd.textContent = EMAIL_LIFECYCLE_LABELS[stage.template] || stage.template;
+      const sentTd = document.createElement('td');
+      sentTd.textContent = String(stage.sent);
+      const failedTd = document.createElement('td');
+      failedTd.textContent = String(stage.failed);
+      if (stage.failed > 0) failedTd.style.color = 'var(--color-error, #B3261E)';
+      const lastSentTd = document.createElement('td');
+      lastSentTd.textContent = stage.lastSentAt ? formatRelativeTime(stage.lastSentAt) : '—';
+      tr.append(nameTd, sentTd, failedTd, lastSentTd);
+      bodyEl.appendChild(tr);
+    });
   }
 
   function renderFeed(selector, items, labelFn, timeFn) {
