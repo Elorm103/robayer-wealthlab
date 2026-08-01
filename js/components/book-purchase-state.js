@@ -93,14 +93,6 @@
     });
   }
 
-  function formatPurchaseDate(isoDate) {
-    try {
-      return new Date(isoDate).toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric' });
-    } catch {
-      return isoDate;
-    }
-  }
-
   /** A single, page-singleton inline status line - the one place any Owner Mode action (download, read, review) reports what's happening. Never a browser alert() dialog, per this milestone's own explicit rule. */
   function setDownloadStatus(message, tone) {
     // Reuses this codebase's existing .alert/.alert--* classes rather
@@ -137,7 +129,7 @@
     });
 
     document.querySelectorAll('[data-owner-purchased-date]').forEach((el) => {
-      el.textContent = formatPurchaseDate(purchase.createdAt);
+      el.textContent = window.RobayerOwnership.formatOwnedDate(purchase.createdAt);
     });
     document.querySelectorAll('[data-owner-reference]').forEach((el) => {
       el.textContent = purchase.purchaseReference;
@@ -167,6 +159,14 @@
    * This is documented plainly in docs/v3.5.3-ownership-architecture-report.md
    * rather than silently hidden.
    */
+  function disableOwnedLinks(readLink, downloadLink) {
+    [readLink, downloadLink].forEach((link) => {
+      if (!link) return;
+      link.setAttribute('aria-disabled', 'true');
+      link.classList.add('btn--disabled');
+    });
+  }
+
   function wireOwnedActions(purchase) {
     const ebookAsset = purchase.assets.find((a) => !a.revoked) || null;
     const readLink = document.querySelector('[data-owned-read-action]');
@@ -179,18 +179,14 @@
       [readLink, downloadLink].forEach((link) => {
         if (link) link.hidden = true;
       });
-      setDownloadStatus("This purchase's files are no longer available. Contact us if you think this is a mistake.", 'error');
+      setDownloadStatus(window.RobayerOwnership.describeDownloadState(ebookAsset).message, 'error');
       return;
     }
 
-    const limitReached = ebookAsset.maxDownloads !== null && ebookAsset.downloadsUsed >= ebookAsset.maxDownloads;
-    if (limitReached) {
-      [readLink, downloadLink].forEach((link) => {
-        if (!link) return;
-        link.setAttribute('aria-disabled', 'true');
-        link.classList.add('btn--disabled');
-      });
-      setDownloadStatus("You've used all " + ebookAsset.maxDownloads + ' downloads included with this purchase. Contact us if you need another copy.', 'notice');
+    const initialState = window.RobayerOwnership.describeDownloadState(ebookAsset);
+    if (initialState.limitReached) {
+      disableOwnedLinks(readLink, downloadLink);
+      setDownloadStatus(initialState.message, 'notice');
     }
 
     [readLink, downloadLink].forEach((link) => {
@@ -219,25 +215,24 @@
           // A successful download-permission grant consumes one use -
           // reflect that immediately rather than waiting for a reload.
           ebookAsset.downloadsUsed += 1;
-          if (ebookAsset.maxDownloads !== null && ebookAsset.downloadsUsed >= ebookAsset.maxDownloads) {
-            [readLink, downloadLink].forEach((l) => {
-              if (l) {
-                l.setAttribute('aria-disabled', 'true');
-                l.classList.add('btn--disabled-look');
-              }
-            });
-            setDownloadStatus("You've used all " + ebookAsset.maxDownloads + ' downloads included with this purchase. Contact us if you need another copy.', 'notice');
+          const afterState = window.RobayerOwnership.describeDownloadState(ebookAsset);
+          if (afterState.limitReached) {
+            disableOwnedLinks(readLink, downloadLink);
+            setDownloadStatus(afterState.message, 'notice');
           }
         } catch (error) {
           // Never a browser alert() - an inline, honest message next to
-          // the actions themselves, distinguishing the one case this
-          // milestone actually found in production (a real, already-
-          // exhausted download limit) from every other failure.
+          // the actions themselves. A DOWNLOAD_NOT_AVAILABLE denial this
+          // late (after the up-front limit check above already passed)
+          // means the limit was reached by another tab/device between
+          // page load and this click - the same honest, specific
+          // message applies either way, not a generic failure.
           const message =
             error.code === 'DOWNLOAD_NOT_AVAILABLE'
-              ? "This download isn't available right now. If you've used all your downloads for this file, contact us for another copy."
+              ? window.RobayerOwnership.describeDownloadState(ebookAsset).message ||
+                'This download is no longer available. If you believe this is an error, please contact support.'
               : error.message || 'Could not prepare the download right now. Please try again, or use My Library.';
-          setDownloadStatus(message, 'error');
+          setDownloadStatus(message, error.code === 'DOWNLOAD_NOT_AVAILABLE' ? 'notice' : 'error');
         } finally {
           link.textContent = defaultLabel;
           link.removeAttribute('aria-busy');

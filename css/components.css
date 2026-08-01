@@ -2081,6 +2081,78 @@ button.resource-card {
   border-radius: var(--radius-md);
 }
 
+/* Version 3.5.4 (Customer Ownership Experience & Product Page
+   Refinement) - the Customer Library's own "premium digital
+   bookshelf" card, distinct from .library-row above (which
+   purchase-history-list.js/receipts-list.js/licenses-list.js still
+   use unchanged, on their own separate dashboard pages, out of this
+   milestone's scope). Reuses .book-card__cover/.book-card__cover--compact
+   directly for the cover treatment rather than inventing a second
+   cover component - the same honest cover-or-typographic-placeholder
+   behavior the book detail page and homepage already have. */
+.library-card {
+  display: grid;
+  grid-template-columns: 96px 1fr;
+  gap: var(--space-3);
+  padding: var(--space-4);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-md);
+  background-color: var(--color-surface);
+}
+
+.library-card + .library-card {
+  margin-top: var(--space-3);
+}
+
+.library-card__cover {
+  width: 96px;
+  aspect-ratio: 3 / 4;
+}
+
+.library-card__meta {
+  min-width: 0;
+}
+
+.library-card__title {
+  font-family: var(--font-heading);
+  margin: 0 0 var(--space-2) 0;
+}
+
+.library-card__details {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-1) var(--space-4);
+  margin: 0;
+}
+
+.library-card__details dt {
+  font-size: var(--text-small);
+  color: var(--color-text-secondary);
+  margin: 0 0 2px;
+}
+
+.library-card__details dd {
+  margin: 0;
+  font-weight: var(--weight-medium);
+}
+
+.library-card__actions {
+  grid-column: 1 / -1;
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-2);
+  margin-top: var(--space-1);
+}
+
+@media (max-width: 480px) {
+  .library-card {
+    grid-template-columns: 72px 1fr;
+  }
+  .library-card__cover {
+    width: 72px;
+  }
+}
+
 .session-row {
   display: flex;
   flex-wrap: wrap;

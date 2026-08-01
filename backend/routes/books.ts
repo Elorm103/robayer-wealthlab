@@ -1174,7 +1174,15 @@ ${NEWSLETTER_BAND}`;
     extraHead: breadcrumbJsonLd + bookJsonLd + faqJsonLd,
     breadcrumb,
     bodyContent: body,
-    scripts: ['/js/components/buy-button.js?v=m66', '/js/components/founder-bio.js', '/js/components/product-reviews.js?v=m2', '/js/components/countdown.js', '/js/components/book-purchase-state.js?v=m2', '/js/main.js'],
+    scripts: [
+      '/js/components/buy-button.js?v=m66',
+      '/js/components/founder-bio.js',
+      '/js/components/product-reviews.js?v=m2',
+      '/js/components/countdown.js',
+      '/js/components/ownership-helpers.js',
+      '/js/components/book-purchase-state.js?v=m3',
+      '/js/main.js',
+    ],
   });
 
   return htmlResponse(html, 200);
