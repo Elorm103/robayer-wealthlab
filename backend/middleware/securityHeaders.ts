@@ -114,7 +114,21 @@ function securityHeaders(response: Response): Record<string, string> {
   // since been removed in favor of this global rule. HTML pages
   // (routes/books.ts) are deliberately excluded — a public product page
   // has no reason to forbid caching.
-  if (!isHtmlResponse(response)) {
+  //
+  // Version 4.2.1 (Hero Cover Flicker Instrumentation) — root cause of
+  // the persistent flicker: this rule was unconditionally overwriting
+  // routes/media.ts's own `public, max-age=31536000, immutable` header
+  // with `no-store` on every media file response, since a served image
+  // is non-HTML too. Confirmed live: the cover image (a real, content-
+  // addressed, never-changes-at-this-URL file) was being fully
+  // re-downloaded — multiple seconds for a ~1.9MB PNG — on every single
+  // page view with no caching anywhere, browser or edge, which is what
+  // made the placeholder linger and the eventual swap read as a
+  // flicker. Only apply the no-store default when the route hasn't
+  // already opted into public caching itself.
+  const existingCacheControl = response.headers.get('Cache-Control');
+  const routeOptedIntoPublicCaching = existingCacheControl?.startsWith('public,') ?? false;
+  if (!isHtmlResponse(response) && !routeOptedIntoPublicCaching) {
     headers['Cache-Control'] = 'no-store, no-cache, must-revalidate';
     headers['Pragma'] = 'no-cache';
   }
