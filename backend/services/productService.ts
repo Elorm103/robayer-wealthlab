@@ -74,6 +74,14 @@ export interface ProductRelation {
   sortOrder: number;
 }
 
+/** Version 4.0 Milestone D (Second Product Ecosystem & Bundles) — one row per real product a bundle includes. Deliberately its own shape/table, not a ProductRelation with a new relationType — see migration 0027's header comment for why. */
+export interface BundleItem {
+  itemProductId: number;
+  itemProductSlug: string;
+  itemProductTitle: string;
+  sortOrder: number;
+}
+
 export interface ProductRecord {
   id: number;
   productId: string;
@@ -122,9 +130,11 @@ export interface ProductRecord {
   createdAt: string;
   updatedAt: string;
   deletedAt: string | null;
+  isBundle: boolean;
   files: ProductFile[];
   gallery: ProductGalleryItem[];
   relations: ProductRelation[];
+  bundleItems: BundleItem[];
 }
 
 interface ProductRow {
@@ -175,6 +185,7 @@ interface ProductRow {
   created_at: string;
   updated_at: string;
   deleted_at: string | null;
+  is_bundle: number;
 }
 
 const PRODUCT_SELECT_COLUMNS = `
@@ -188,7 +199,7 @@ const PRODUCT_SELECT_COLUMNS = `
   p.og_media_id, og.public_url AS og_public_url,
   p.featured, p.bestseller, p.new_release, p.tags, p.max_downloads, p.download_expires_days,
   p.seo_title, p.seo_description, p.seo_canonical_url, p.published_at,
-  p.created_by, p.updated_by, p.created_at, p.updated_at, p.deleted_at
+  p.created_by, p.updated_by, p.created_at, p.updated_at, p.deleted_at, p.is_bundle
 `;
 
 const PRODUCT_FROM_CLAUSE = `
@@ -199,7 +210,7 @@ const PRODUCT_FROM_CLAUSE = `
   LEFT JOIN media_assets og ON og.id = p.og_media_id
 `;
 
-function fromRow(row: ProductRow): Omit<ProductRecord, 'files' | 'gallery' | 'relations'> {
+function fromRow(row: ProductRow): Omit<ProductRecord, 'files' | 'gallery' | 'relations' | 'bundleItems'> {
   return {
     id: row.id,
     productId: row.product_id,
@@ -248,6 +259,7 @@ function fromRow(row: ProductRow): Omit<ProductRecord, 'files' | 'gallery' | 're
     createdAt: row.created_at,
     updatedAt: row.updated_at,
     deletedAt: row.deleted_at,
+    isBundle: row.is_bundle === 1,
   };
 }
 
@@ -390,14 +402,34 @@ async function loadRelations(env: Env, productId: number): Promise<ProductRelati
   }));
 }
 
-/** Attaches files/gallery/relations to a base row — three extra queries, only ever run for a single-product read (get/edit), never in a list response (see listProducts's own, deliberately lighter shape). */
-async function hydrate(env: Env, base: Omit<ProductRecord, 'files' | 'gallery' | 'relations'>): Promise<ProductRecord> {
-  const [files, gallery, relations] = await Promise.all([
+/** Version 4.0 Milestone D — mirrors loadRelations() exactly, joined through bundle_items instead of product_relations. See migration 0027's header comment for why this is a dedicated table/query rather than reusing loadRelations(). */
+async function loadBundleItems(env: Env, productId: number): Promise<BundleItem[]> {
+  const { results } = await env.DB.prepare(
+    `SELECT bi.item_product_id, bi.sort_order, p.slug, p.title
+     FROM bundle_items bi
+     JOIN products p ON p.id = bi.item_product_id
+     WHERE bi.bundle_product_id = ? AND p.deleted_at IS NULL
+     ORDER BY bi.sort_order ASC, bi.id ASC`
+  )
+    .bind(productId)
+    .all<{ item_product_id: number; sort_order: number; slug: string; title: string }>();
+  return results.map((r) => ({
+    itemProductId: r.item_product_id,
+    itemProductSlug: r.slug,
+    itemProductTitle: r.title,
+    sortOrder: r.sort_order,
+  }));
+}
+
+/** Attaches files/gallery/relations/bundleItems to a base row — extra queries, only ever run for a single-product read (get/edit), never in a list response (see listProducts's own, deliberately lighter shape). */
+async function hydrate(env: Env, base: Omit<ProductRecord, 'files' | 'gallery' | 'relations' | 'bundleItems'>): Promise<ProductRecord> {
+  const [files, gallery, relations, bundleItems] = await Promise.all([
     loadFiles(env, base.id),
     loadGallery(env, base.id),
     loadRelations(env, base.id),
+    loadBundleItems(env, base.id),
   ]);
-  return { ...base, files, gallery, relations };
+  return { ...base, files, gallery, relations, bundleItems };
 }
 
 export async function getProductById(env: Env, id: number): Promise<ProductRecord | null> {
@@ -441,7 +473,7 @@ export interface ListProductsQuery {
 }
 
 export interface ListProductsResult {
-  items: Array<Omit<ProductRecord, 'files' | 'gallery' | 'relations'> & { coverPublicUrl: string | null }>;
+  items: Array<Omit<ProductRecord, 'files' | 'gallery' | 'relations' | 'bundleItems'> & { coverPublicUrl: string | null }>;
   total: number;
   page: number;
   pageSize: number;
@@ -560,6 +592,8 @@ export interface ProductInput {
   seoTitle?: string | null;
   seoDescription?: string | null;
   seoCanonicalUrl?: string | null;
+  /** Version 4.0 Milestone D — orthogonal to productType, see migration 0027's header comment. Defaults to false (a normal single product) when omitted. */
+  isBundle?: boolean;
 }
 
 /**
@@ -755,8 +789,8 @@ export async function createProduct(
        currency, tax_behavior, sku, version, language,
        estimated_reading_time, author, cover_media_id, thumbnail_media_id, preview_media_id, og_media_id,
        featured, bestseller, new_release, tags, max_downloads, download_expires_days,
-       seo_title, seo_description, seo_canonical_url, created_by, updated_by
-     ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`
+       seo_title, seo_description, seo_canonical_url, created_by, updated_by, is_bundle
+     ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`
   )
     .bind(
       productId,
@@ -795,7 +829,8 @@ export async function createProduct(
       input.seoDescription ?? null,
       input.seoCanonicalUrl ?? null,
       actorId,
-      actorId
+      actorId,
+      input.isBundle ? 1 : 0
     )
     .run();
 
@@ -843,7 +878,7 @@ export async function updateProduct(
        language = ?, estimated_reading_time = ?, author = ?, cover_media_id = ?, thumbnail_media_id = ?,
        preview_media_id = ?, og_media_id = ?, featured = ?, bestseller = ?, new_release = ?, tags = ?,
        max_downloads = ?, download_expires_days = ?, seo_title = ?, seo_description = ?, seo_canonical_url = ?,
-       updated_by = ?, updated_at = datetime('now')
+       is_bundle = ?, updated_by = ?, updated_at = datetime('now')
      WHERE id = ?`
   )
     .bind(
@@ -881,6 +916,7 @@ export async function updateProduct(
       input.seoTitle ?? null,
       input.seoDescription ?? null,
       input.seoCanonicalUrl ?? null,
+      input.isBundle ? 1 : 0,
       actorId,
       id
     )
@@ -910,7 +946,10 @@ const LIFECYCLE_TARGET_STATUS: Record<LifecycleAction, ProductStatus> = {
   unarchive: 'draft',
 };
 
-export type LifecycleResult = { ok: true; product: ProductRecord } | { ok: false; reason: 'not_found' | 'missing_price' };
+export type LifecycleResult = { ok: true; product: ProductRecord } | { ok: false; reason: 'not_found' | 'missing_price' | 'insufficient_bundle_items' };
+
+/** A bundle needs at least this many real items to mean anything as a bundle — matches the missing_price guard immediately below in spirit: an authoring-time completeness check, not a checkout-time one (checkout/isPurchasable() itself stays untouched, per this milestone's "do not redesign checkout"). */
+const MIN_BUNDLE_ITEMS = 2;
 
 export async function transitionProductStatus(
   env: Env,
@@ -925,6 +964,9 @@ export async function transitionProductStatus(
   const targetStatus = LIFECYCLE_TARGET_STATUS[action];
   if (targetStatus === 'active' && existing.pricePesewas === null) {
     return { ok: false, reason: 'missing_price' };
+  }
+  if (targetStatus === 'active' && existing.isBundle && existing.bundleItems.length < MIN_BUNDLE_ITEMS) {
+    return { ok: false, reason: 'insufficient_bundle_items' };
   }
 
   const publishedAtClause = targetStatus === 'active' && !existing.publishedAt ? `, published_at = datetime('now')` : '';
@@ -1001,6 +1043,7 @@ export async function duplicateProduct(env: Env, logger: Logger, actorId: number
     seoTitle: null, // SEO canonical/title are page-identity fields — never copied verbatim onto a new URL
     seoDescription: source.seoDescription,
     seoCanonicalUrl: null,
+    isBundle: source.isBundle,
     },
     // A duplicate carries over the source's real max_downloads/
     // download_expires_days verbatim (even if `null`, i.e. genuinely
@@ -1189,5 +1232,37 @@ export async function setProductRelations(env: Env, logger: Logger, actorId: num
     entityType: 'product',
     entityId: productId,
     metadata: { relationCount: relations.length },
+  });
+}
+
+/**
+ * Version 4.0 Milestone D (Second Product Ecosystem & Bundles) — full-
+ * replace, mirroring setProductRelations() exactly. The one extra rule
+ * relations don't need: an item can never itself be a bundle (`item.isBundle`
+ * check at the route layer, see routes/admin/products.ts) — this keeps
+ * bundle membership one level deep, avoiding the recursive-resolution
+ * complexity a bundle-of-bundles would force onto
+ * productCatalogService.ts's fetchCatalogProduct() for a need nobody
+ * has asked for.
+ */
+export interface BundleItemInput {
+  itemProductId: number;
+}
+
+export async function setBundleItems(env: Env, logger: Logger, actorId: number, bundleProductId: number, items: BundleItemInput[]): Promise<void> {
+  await env.DB.prepare(`DELETE FROM bundle_items WHERE bundle_product_id = ?`).bind(bundleProductId).run();
+  for (const [index, item] of items.entries()) {
+    if (item.itemProductId === bundleProductId) continue; // a bundle can never include itself
+    await env.DB.prepare(`INSERT OR IGNORE INTO bundle_items (bundle_product_id, item_product_id, sort_order) VALUES (?, ?, ?)`)
+      .bind(bundleProductId, item.itemProductId, index)
+      .run();
+  }
+  await auditService.record(env, logger, {
+    actorType: 'admin',
+    actorId,
+    action: 'product.bundle_items_updated',
+    entityType: 'product',
+    entityId: bundleProductId,
+    metadata: { itemCount: items.length },
   });
 }

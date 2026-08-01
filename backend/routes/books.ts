@@ -222,7 +222,7 @@ const NEWSLETTER_BAND = `
 // cards, and a customer sees an identical card whether it was
 // rendered here or client-side by product-loader.js.
 // ============================================================
-async function renderProductCard(env: Env, product: Omit<ProductRecord, 'files' | 'gallery' | 'relations'>): Promise<string> {
+async function renderProductCard(env: Env, product: Omit<ProductRecord, 'files' | 'gallery' | 'relations' | 'bundleItems'>): Promise<string> {
   const isUpcoming = product.status === 'coming-soon';
   const href = `/books/${product.slug}/`;
 
@@ -232,6 +232,9 @@ async function renderProductCard(env: Env, product: Omit<ProductRecord, 'files' 
 
   const badges: string[] = [];
   if (isUpcoming) badges.push('<span class="badge badge--warning mb-2">Coming soon</span>');
+  // Version 4.0 Milestone D — shown alongside, not instead of, the other
+  // badges: a bundle can also be new/a bestseller in its own right.
+  if (product.isBundle) badges.push('<span class="badge badge--info mb-2">Bundle</span>');
   if (product.newRelease) badges.push('<span class="badge badge--info mb-2">New</span>');
   if (product.bestseller) badges.push('<span class="badge badge--success mb-2">Bestseller</span>');
   if (!isUpcoming && product.pricePesewas === 0) badges.push('<span class="badge badge--success mb-2">Free</span>');
@@ -798,6 +801,35 @@ async function renderBookDetail(env: Env, slug: string): Promise<Response> {
     </section>`
       : '';
 
+  // Version 4.0 Milestone D (Second Product Ecosystem & Bundles) —
+  // shown for every bundle regardless of item count (even a
+  // still-being-assembled draft bundle with 0-1 items, since this is a
+  // detail page render, not a purchase gate — transitionProductStatus()
+  // is what actually prevents an under-stocked bundle from ever
+  // reaching 'active'/publicly-listed status in the first place).
+  const bundleContentsSection =
+    product.isBundle && product.bundleItems.length > 0
+      ? `
+    <section class="section" aria-labelledby="bundle-contents-heading">
+      <div class="container">
+        <span class="eyebrow">This bundle includes</span>
+        <h2 id="bundle-contents-heading" class="mt-2 mb-4">What's inside</h2>
+        <div class="grid grid--3">
+          ${(
+            await Promise.all(
+              product.bundleItems.map(async (item) => {
+                const itemProduct = await productService.getProductBySlug(env, item.itemProductSlug);
+                return itemProduct ? renderProductCard(env, itemProduct) : '';
+              })
+            )
+          )
+            .filter(Boolean)
+            .join('\n')}
+        </div>
+      </div>
+    </section>`
+      : '';
+
   const relatedItems = product.relations.filter((r) => r.relationType === 'related');
   const relatedSection =
     relatedItems.length > 0
@@ -1073,7 +1105,7 @@ async function renderBookDetail(env: Env, slug: string): Promise<Response> {
         ${intro || (product.description ?? `<p>${escapeHtml(product.shortDescription ?? '')}</p>`)}
       </div>
     </section>
-${whyHtml}${learnHtml}${TRUST_SIGNALS}${audienceHtml}${insideHtml}${otherSectionsHtml}${galleryHtml}${ABOUT_AUTHOR}${faqHtml}${reviewsHtml}${relatedSection}
+${whyHtml}${learnHtml}${TRUST_SIGNALS}${audienceHtml}${insideHtml}${otherSectionsHtml}${bundleContentsSection}${galleryHtml}${ABOUT_AUTHOR}${faqHtml}${reviewsHtml}${relatedSection}
     <section class="section--tight">
       <div class="container content-column">
         <p class="alert alert--warning">Robayer WealthLab provides financial education, not licensed financial advice. This guide is for informational purposes only. Always do your own research and consider your personal circumstances before making investment decisions.</p>

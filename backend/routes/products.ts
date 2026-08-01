@@ -24,7 +24,7 @@ import { isPubliclyListedStatus, computeSaleState } from '../services/productSer
 import { getReviewSummary } from '../services/reviewService';
 
 /** Never exposes internal `id`, `createdBy`/`updatedBy`, or the raw `sku` — only what a public page legitimately renders. */
-async function toPublicShape(env: Env, product: Omit<ProductRecord, 'files' | 'gallery' | 'relations'>) {
+async function toPublicShape(env: Env, product: Omit<ProductRecord, 'files' | 'gallery' | 'relations' | 'bundleItems'>) {
   // Version 3.4.2 Milestone M6.2 (Dynamic Pricing) - `price` keeps its
   // existing, already-relied-upon meaning (the regular price), so
   // nothing already reading it needs to change. The sale fields below

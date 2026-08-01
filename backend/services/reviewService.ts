@@ -56,10 +56,28 @@ export async function submitOrUpdateReview(env: Env, logger: Logger, customerId:
   const product = await env.DB.prepare(`SELECT id FROM products WHERE slug = ? AND deleted_at IS NULL`).bind(input.productSlug).first<{ id: number }>();
   if (!product) return { ok: false, reason: 'product_not_found' };
 
+  // Version 4.0 Milestone D (Second Product Ecosystem & Bundles) — a
+  // verified purchase either of this exact product, OR of any bundle
+  // that includes it (bundle_items), qualifies. A customer who bought
+  // "The Starter Bundle" genuinely received and paid for every item it
+  // contains, so they've earned the same right to review each one as
+  // someone who bought that item on its own — see productService.ts's
+  // BundleItem/bundle_items for the same relationship fulfilmentService.ts
+  // already relies on to grant the actual file entitlements.
   const purchase = await env.DB.prepare(
-    `SELECT id FROM purchase_sessions WHERE customer_id = ? AND product_slug = ? AND status = 'verified' ORDER BY id DESC LIMIT 1`
+    `SELECT id FROM purchase_sessions
+     WHERE customer_id = ? AND status = 'verified'
+       AND (
+         product_slug = ?
+         OR product_slug IN (
+           SELECT bp.slug FROM bundle_items bi
+           JOIN products bp ON bp.id = bi.bundle_product_id
+           WHERE bi.item_product_id = (SELECT id FROM products WHERE slug = ?)
+         )
+       )
+     ORDER BY id DESC LIMIT 1`
   )
-    .bind(customerId, input.productSlug)
+    .bind(customerId, input.productSlug, input.productSlug)
     .first<{ id: number }>();
   if (!purchase) return { ok: false, reason: 'no_verified_purchase' };
 

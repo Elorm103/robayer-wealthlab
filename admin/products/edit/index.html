@@ -237,6 +237,26 @@
               <div class="editor-list" data-pe-relations-list></div>
             </section>
 
+            <!-- Version 4.0 Milestone D (Second Product Ecosystem & Bundles) -->
+            <section class="card">
+              <h2 class="editor-section-title">Bundle</h2>
+              <div class="field field--checkbox">
+                <input type="checkbox" id="pe-is-bundle" data-pe-is-bundle>
+                <label class="field__label" for="pe-is-bundle">This is a bundle of other products</label>
+                <p class="field__hint mt-1 mb-0">Checkout, pricing, and discounts work exactly the same as any single product — set the bundle's own price above like normal. Needs at least 2 items before it can be published.</p>
+              </div>
+              <div data-pe-bundle-section hidden>
+                <div class="field">
+                  <label class="field__label" for="pe-bundle-item-search">Add item to this bundle</label>
+                  <div class="relation-search">
+                    <input class="field__input" id="pe-bundle-item-search" data-pe-bundle-item-search placeholder="Search products&hellip;" autocomplete="off">
+                    <div class="relation-search__results" data-pe-bundle-item-results hidden></div>
+                  </div>
+                </div>
+                <div class="editor-list" data-pe-bundle-items-list></div>
+              </div>
+            </section>
+
             <section class="card">
               <h2 class="editor-section-title">Discovery</h2>
               <div class="field">
@@ -385,6 +405,6 @@
   <script src="/js/components/branding.js?v=483b048741"></script>
   <script src="/js/components/admin/admin-auth.js?v=bb1cec7934"></script>
   <script src="/js/components/admin/admin-shell.js?v=7233204897"></script>
-  <script src="/js/components/admin/admin-product-editor.js?v=72f34e0dfe"></script>
+  <script src="/js/components/admin/admin-product-editor.js?v=4cec891616"></script>
 </body>
 </html>

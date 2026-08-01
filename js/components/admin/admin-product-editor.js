@@ -35,6 +35,8 @@ function initProductEditor() {
     files: [],
     gallery: [],
     relations: [],
+    // Version 4.0 Milestone D (Second Product Ecosystem & Bundles)
+    bundleItems: [],
   };
 
   const els = {
@@ -83,6 +85,13 @@ function initProductEditor() {
     relationResults: root.querySelector('[data-pe-relation-results]'),
     relationsList: root.querySelector('[data-pe-relations-list]'),
 
+    // Version 4.0 Milestone D (Second Product Ecosystem & Bundles)
+    isBundle: root.querySelector('[data-pe-is-bundle]'),
+    bundleSection: root.querySelector('[data-pe-bundle-section]'),
+    bundleItemSearch: root.querySelector('[data-pe-bundle-item-search]'),
+    bundleItemResults: root.querySelector('[data-pe-bundle-item-results]'),
+    bundleItemsList: root.querySelector('[data-pe-bundle-items-list]'),
+
     tags: root.querySelector('[data-pe-tags]'),
     featured: root.querySelector('[data-pe-featured]'),
     bestseller: root.querySelector('[data-pe-bestseller]'),
@@ -118,6 +127,7 @@ function initProductEditor() {
   bindFileSection();
   bindGallerySection();
   bindRelationsSection();
+  bindBundleSection();
   bindSeoCharCounters();
   bindLivePreviewListeners();
   bindSave();
@@ -225,9 +235,15 @@ function initProductEditor() {
     state.files = product.files.map((f) => ({ ...f }));
     state.gallery = product.gallery.map((g) => ({ ...g }));
     state.relations = product.relations.map((r) => ({ ...r }));
+    state.bundleItems = product.bundleItems.map((b) => ({ ...b }));
     renderFilesList();
     renderGalleryList();
     renderRelationsList();
+
+    // Version 4.0 Milestone D
+    els.isBundle.checked = Boolean(product.isBundle);
+    els.bundleSection.hidden = !els.isBundle.checked;
+    renderBundleItemsList();
 
     updateModeUi();
     updateStatusBadge(product.status, product.deletedAt);
@@ -653,6 +669,98 @@ function initProductEditor() {
   }
 
   // ============================================================
+  // Version 4.0 Milestone D (Second Product Ecosystem & Bundles) — a
+  // deliberate near-exact copy of the Relations section immediately
+  // above, mirroring bindRelationsSection()/renderRelationsList()'s own
+  // structure. Two differences: no relation-type select (bundle
+  // membership has no type), and the search excludes any product that
+  // is itself a bundle — keeps bundle membership one level deep, same
+  // rule the server enforces in handleProductBundleItemsUpdate().
+  // ============================================================
+
+  function bindBundleSection() {
+    els.isBundle.addEventListener('change', () => {
+      els.bundleSection.hidden = !els.isBundle.checked;
+    });
+
+    let searchTimer = null;
+    els.bundleItemSearch.addEventListener('input', () => {
+      window.clearTimeout(searchTimer);
+      const query = els.bundleItemSearch.value.trim();
+      if (!query) {
+        els.bundleItemResults.hidden = true;
+        return;
+      }
+      searchTimer = window.setTimeout(() => runBundleItemSearch(query), 300);
+    });
+
+    document.addEventListener('click', (event) => {
+      if (!els.bundleItemResults.contains(event.target) && event.target !== els.bundleItemSearch) {
+        els.bundleItemResults.hidden = true;
+      }
+    });
+  }
+
+  async function runBundleItemSearch(query) {
+    try {
+      const result = await window.AdminAuth.adminFetch(`${PRODUCTS_API_BASE}?search=${encodeURIComponent(query)}&pageSize=8`);
+      const existingIds = new Set(state.bundleItems.map((b) => b.itemProductId));
+      const items = result.items.filter((item) => item.id !== state.id && !item.isBundle && !existingIds.has(item.id));
+      els.bundleItemResults.innerHTML = '';
+      if (items.length === 0) {
+        els.bundleItemResults.hidden = true;
+        return;
+      }
+      items.forEach((item) => {
+        const button = document.createElement('button');
+        button.type = 'button';
+        button.className = 'relation-search__result';
+        button.textContent = `${item.title} (${item.slug})`;
+        button.addEventListener('click', () => {
+          state.bundleItems.push({ itemProductId: item.id, itemProductSlug: item.slug, itemProductTitle: item.title });
+          renderBundleItemsList();
+          els.bundleItemSearch.value = '';
+          els.bundleItemResults.hidden = true;
+        });
+        els.bundleItemResults.appendChild(button);
+      });
+      els.bundleItemResults.hidden = false;
+    } catch {
+      els.bundleItemResults.hidden = true;
+    }
+  }
+
+  function renderBundleItemsList() {
+    els.bundleItemsList.innerHTML = '';
+    state.bundleItems.forEach((item, index) => {
+      const row = document.createElement('div');
+      row.className = 'editor-list-row';
+
+      const info = document.createElement('div');
+      info.className = 'editor-list-row__info';
+      const title = document.createElement('p');
+      title.className = 'editor-list-row__title';
+      title.textContent = item.itemProductTitle;
+      const meta = document.createElement('p');
+      meta.className = 'editor-list-row__meta';
+      meta.textContent = item.itemProductSlug;
+      info.append(title, meta);
+
+      const removeButton = document.createElement('button');
+      removeButton.type = 'button';
+      removeButton.className = 'btn btn--secondary';
+      removeButton.textContent = 'Remove';
+      removeButton.addEventListener('click', () => {
+        state.bundleItems.splice(index, 1);
+        renderBundleItemsList();
+      });
+
+      row.append(info, removeButton);
+      els.bundleItemsList.appendChild(row);
+    });
+  }
+
+  // ============================================================
   // SEO char counters
   // ============================================================
 
@@ -867,6 +975,7 @@ function initProductEditor() {
       seoTitle: els.seoTitle.value.trim() || null,
       seoDescription: els.seoDescription.value.trim() || null,
       seoCanonicalUrl: els.seoCanonical.value.trim() || null,
+      isBundle: els.isBundle.checked,
     };
   }
 
@@ -928,6 +1037,12 @@ function initProductEditor() {
           method: 'PUT',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({ relations: state.relations.map((r) => ({ relatedProductId: r.relatedProductId, relationType: r.relationType })) }),
+        }),
+        // Version 4.0 Milestone D (Second Product Ecosystem & Bundles)
+        window.AdminAuth.adminFetch(`${PRODUCTS_API_BASE}/${state.id}/bundle-items`, {
+          method: 'PUT',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ items: state.bundleItems.map((b) => ({ itemProductId: b.itemProductId })) }),
         }),
       ]);
 

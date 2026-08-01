@@ -135,6 +135,7 @@ import {
   handleProductFilesUpdate,
   handleProductGalleryUpdate,
   handleProductRelationsUpdate,
+  handleProductBundleItemsUpdate,
   handleProductsBulkAction,
 } from '../routes/admin/products';
 import { handlePublicProductsList, handlePublicProductGet } from '../routes/products';
@@ -379,6 +380,7 @@ const ROUTES: Route[] = [
   { pattern: new URLPattern({ pathname: '/api/admin/products/:id/files' }), method: 'PUT', handler: handleProductFilesUpdate },
   { pattern: new URLPattern({ pathname: '/api/admin/products/:id/gallery' }), method: 'PUT', handler: handleProductGalleryUpdate },
   { pattern: new URLPattern({ pathname: '/api/admin/products/:id/relations' }), method: 'PUT', handler: handleProductRelationsUpdate },
+  { pattern: new URLPattern({ pathname: '/api/admin/products/:id/bundle-items' }), method: 'PUT', handler: handleProductBundleItemsUpdate },
   // Public — no auth, only publicly-listed statuses. Ordered after the
   // admin routes above for readability; no collision risk since the
   // path prefixes are disjoint (`/api/admin/products` vs `/api/products`).

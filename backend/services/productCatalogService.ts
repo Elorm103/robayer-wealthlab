@@ -35,6 +35,17 @@ import { computeSaleState } from './productService';
  */
 export interface DigitalAsset {
   assetId: string;
+  /**
+   * The slug of the product this specific file actually belongs to —
+   * for a normal product's own asset, identical to the outer
+   * CatalogProduct.slug being fetched. For an asset pulled in from a
+   * bundle's item products (Version 4.0 Milestone D), this is the
+   * ITEM's real slug, not the bundle's — fulfilmentService.ts's
+   * grantEntitlement() call site uses this (not the outer purchased
+   * slug) so `deliveries.product_slug` correctly attributes each
+   * delivery to the real product it came from, not to the bundle
+   * wrapper.
+   */
   productSlug: string;
   filename: string;
   displayName: string;
@@ -85,6 +96,8 @@ export interface CatalogProduct {
   downloadPolicy: DownloadPolicy;
   /** 'inclusive' | 'exclusive' | 'exempt' — Version 3.0.2 Milestone M2 (Orders, Receipts & Customer Library), see services/orders/taxService.ts. Already a live `products` column since before M1; simply not read by this function until M2 needed it for receipt generation. */
   taxBehavior: string;
+  /** Version 4.0 Milestone D — see migration 0027. Not read by commerceService.ts/fulfilmentService.ts at all (a bundle checks out and fulfils through the exact same code paths as any product); present here purely for callers that want to display or log bundle-ness honestly, e.g. a future admin diagnostic. */
+  isBundle: boolean;
 }
 
 const PURCHASABLE_STATUS = 'active';
@@ -123,6 +136,7 @@ interface ProductRow {
   max_downloads: number | null;
   download_expires_days: number | null;
   tax_behavior: string;
+  is_bundle: number;
 }
 
 interface ProductFileRow {
@@ -135,6 +149,8 @@ interface ProductFileRow {
   original_filename: string;
   size_bytes: number;
   content_hash: string;
+  /** Only present on the bundle-items query below — the item's own real slug, distinct from the outer bundle's slug. Falls back to the outer product's slug for a normal (non-bundle) product's own files. */
+  item_slug?: string;
 }
 
 export async function fetchCatalogProduct(env: Env, slugInput: unknown): Promise<CatalogProduct | null> {
@@ -143,14 +159,18 @@ export async function fetchCatalogProduct(env: Env, slugInput: unknown): Promise
 
   const productRow = await env.DB.prepare(
     `SELECT product_id, slug, title, status, price_pesewas, sale_price_pesewas, sale_enabled, sale_starts_at, sale_ends_at,
-            currency, version, max_downloads, download_expires_days, tax_behavior
+            currency, version, max_downloads, download_expires_days, tax_behavior, is_bundle
      FROM products WHERE slug = ? AND deleted_at IS NULL`
   )
     .bind(slug)
     .first<ProductRow>();
   if (!productRow) return null;
 
-  const { results: fileRows } = await env.DB.prepare(
+  // The bundle's own files (normally none — a bundle typically has zero
+  // product_files of its own, since everything it delivers belongs to
+  // its item products — but not forbidden, in case a bundle ever ships
+  // its own extra bonus file alongside its items).
+  const { results: ownFileRows } = await env.DB.prepare(
     `SELECT pf.asset_id, pf.display_name, pf.file_type, pf.version, pf.status,
             m.storage_key, m.original_filename, m.size_bytes, m.content_hash
      FROM product_files pf
@@ -161,9 +181,36 @@ export async function fetchCatalogProduct(env: Env, slugInput: unknown): Promise
     .bind(slug)
     .all<ProductFileRow>();
 
-  const digitalAssets: DigitalAsset[] = fileRows.map((row) => ({
+  // Version 4.0 Milestone D (Second Product Ecosystem & Bundles) — the
+  // one integration seam that makes fulfilmentService.fulfilPurchase(),
+  // resolveAssetsWithDeliveryInfo() (Customer Library), and
+  // getFulfilmentStatus() all correctly handle a bundle purchase with
+  // ZERO changes to any of those three functions: a bundle's
+  // `digitalAssets` is the union of every item product's own published
+  // files, each still carrying ITS OWN real slug (not the bundle's) via
+  // `item_slug` below — see DigitalAsset.productSlug's own doc comment
+  // for why that distinction matters to fulfilmentService.ts's
+  // grantEntitlement() call site.
+  let bundleItemFileRows: ProductFileRow[] = [];
+  if (productRow.is_bundle === 1) {
+    const { results } = await env.DB.prepare(
+      `SELECT pf.asset_id, pf.display_name, pf.file_type, pf.version, pf.status,
+              m.storage_key, m.original_filename, m.size_bytes, m.content_hash, ip.slug AS item_slug
+       FROM bundle_items bi
+       JOIN products ip ON ip.id = bi.item_product_id AND ip.deleted_at IS NULL
+       JOIN product_files pf ON pf.product_id = ip.id
+       JOIN media_assets m ON m.id = pf.media_id
+       WHERE bi.bundle_product_id = (SELECT id FROM products WHERE slug = ?)
+       ORDER BY bi.sort_order ASC, pf.sort_order ASC, pf.id ASC`
+    )
+      .bind(slug)
+      .all<ProductFileRow>();
+    bundleItemFileRows = results;
+  }
+
+  const digitalAssets: DigitalAsset[] = [...ownFileRows, ...bundleItemFileRows].map((row) => ({
     assetId: row.asset_id,
-    productSlug: slug,
+    productSlug: row.item_slug ?? slug,
     filename: row.original_filename,
     displayName: row.display_name,
     fileType: row.file_type,
@@ -201,6 +248,7 @@ export async function fetchCatalogProduct(env: Env, slugInput: unknown): Promise
     digitalAssets,
     downloadPolicy: { maxPerPurchase: productRow.max_downloads, expiresAfterDays: productRow.download_expires_days },
     taxBehavior: productRow.tax_behavior,
+    isBundle: productRow.is_bundle === 1,
   };
 }
 

@@ -79,7 +79,15 @@ export async function fulfilPurchase(env: Env, logger: Logger, input: FulfilPurc
 
     const newlyGrantedAssetIds: string[] = [];
     for (const asset of publishedAssets) {
-      const granted = await grantEntitlement(env, input.purchaseSessionId, input.productSlug, asset, product.downloadPolicy);
+      // Version 4.0 Milestone D (Second Product Ecosystem & Bundles) —
+      // asset.productSlug, NOT input.productSlug: for a normal product
+      // these are identical, but for a bundle purchase input.productSlug
+      // is the bundle's own slug while each asset carries the real item
+      // product's slug it actually came from (see
+      // productCatalogService.ts's DigitalAsset.productSlug comment) —
+      // this one substitution is what makes deliveries.product_slug
+      // correctly attribute each entitlement to its real source product.
+      const granted = await grantEntitlement(env, input.purchaseSessionId, asset.productSlug, asset, product.downloadPolicy);
       if (granted) newlyGrantedAssetIds.push(asset.assetId);
     }
 

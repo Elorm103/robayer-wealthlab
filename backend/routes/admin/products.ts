@@ -125,10 +125,12 @@ function toApiShape(product: ProductRecord) {
     })),
     gallery: product.gallery,
     relations: product.relations,
+    isBundle: product.isBundle,
+    bundleItems: product.bundleItems,
   };
 }
 
-function toApiListShape(product: Omit<ProductRecord, 'files' | 'gallery' | 'relations'>) {
+function toApiListShape(product: Omit<ProductRecord, 'files' | 'gallery' | 'relations' | 'bundleItems'>) {
   return {
     id: product.id,
     productId: product.productId,
@@ -147,6 +149,7 @@ function toApiListShape(product: Omit<ProductRecord, 'files' | 'gallery' | 'rela
     updatedAt: product.updatedAt,
     deletedAt: product.deletedAt,
     onSale: computeSaleState(product).isActive,
+    isBundle: product.isBundle,
   };
 }
 
@@ -193,6 +196,7 @@ function parseProductInput(
     seoTitle: typeof body.seoTitle === 'string' ? body.seoTitle : body.seoTitle === null ? null : undefined,
     seoDescription: typeof body.seoDescription === 'string' ? body.seoDescription : body.seoDescription === null ? null : undefined,
     seoCanonicalUrl: typeof body.seoCanonicalUrl === 'string' ? body.seoCanonicalUrl : body.seoCanonicalUrl === null ? null : undefined,
+    isBundle: typeof body.isBundle === 'boolean' ? body.isBundle : undefined,
   };
 
   return { input, priceInvalid: Number.isNaN(price), compareAtPriceInvalid: Number.isNaN(compareAtPrice), salePriceInvalid: Number.isNaN(salePrice) };
@@ -394,6 +398,9 @@ export async function handleProductStatusTransition(request: Request, env: Env, 
   const result = await productService.transitionProductStatus(env, logger, auth.auth.adminId, id, action as LifecycleAction);
   if (!result.ok) {
     if (result.reason === 'not_found') return jsonError('NOT_FOUND', 'This product could not be found.');
+    if (result.reason === 'insufficient_bundle_items') {
+      return jsonError('INVALID_STATUS_TRANSITION', 'This bundle needs at least 2 items before it can be published.');
+    }
     return jsonError('INVALID_STATUS_TRANSITION', 'This product needs a price before it can be published.');
   }
 
@@ -603,6 +610,57 @@ export async function handleProductRelationsUpdate(request: Request, env: Env, l
   }
 
   await productService.setProductRelations(env, logger, auth.auth.adminId, id, relations);
+  const updated = await productService.getProductById(env, id);
+  return jsonSuccess(toApiShape(updated!));
+}
+
+/**
+ * Version 4.0 Milestone D (Second Product Ecosystem & Bundles) — full-
+ * replace, mirroring handleProductRelationsUpdate() exactly, plus one
+ * extra guard relations don't need: an item can never itself be a
+ * bundle, keeping bundle membership one level deep (see
+ * productService.setBundleItems()'s own comment for why).
+ */
+export async function handleProductBundleItemsUpdate(request: Request, env: Env, logger: Logger, params: RouteParams): Promise<Response> {
+  const auth = await requireAuth(request, env, logger);
+  if (!auth.ok) return auth.response;
+  const roleFailure = await requireRole(request, env, logger, auth.auth, EDITOR_ROLES);
+  if (roleFailure) return roleFailure;
+  const csrfFailure = await requireCsrf(request, env, logger, auth.auth);
+  if (csrfFailure) return csrfFailure;
+
+  const id = parseId(params);
+  if (id === null) return jsonError('NOT_FOUND', 'This product could not be found.');
+
+  const existing = await productService.getProductById(env, id);
+  if (!existing) return jsonError('NOT_FOUND', 'This product could not be found.');
+
+  const body = await readJsonBody(request);
+  const itemsRaw = body?.items;
+  if (!Array.isArray(itemsRaw)) return jsonError('VALIDATION_ERROR', 'An items array is required.');
+
+  const items: productService.BundleItemInput[] = [];
+  for (const entry of itemsRaw) {
+    if (!entry || typeof entry !== 'object' || typeof (entry as Record<string, unknown>).itemProductId !== 'number') {
+      return jsonError('VALIDATION_ERROR', 'Each item needs an itemProductId.');
+    }
+    items.push({ itemProductId: (entry as Record<string, unknown>).itemProductId as number });
+  }
+
+  const itemIds = items.map((i) => i.itemProductId);
+  if (itemIds.length > 0) {
+    const placeholders = itemIds.map(() => '?').join(',');
+    const { results } = await env.DB.prepare(`SELECT id, is_bundle FROM products WHERE id IN (${placeholders}) AND deleted_at IS NULL`)
+      .bind(...itemIds)
+      .all<{ id: number; is_bundle: number }>();
+    const found = new Map(results.map((r) => [r.id, r.is_bundle === 1]));
+    for (const itemId of new Set(itemIds)) {
+      if (!found.has(itemId)) return jsonError('VALIDATION_ERROR', `Product ${itemId} could not be found.`);
+      if (found.get(itemId)) return jsonError('VALIDATION_ERROR', `Product ${itemId} is itself a bundle and cannot be included in another bundle.`);
+    }
+  }
+
+  await productService.setBundleItems(env, logger, auth.auth.adminId, id, items);
   const updated = await productService.getProductById(env, id);
   return jsonSuccess(toApiShape(updated!));
 }
