@@ -42,6 +42,7 @@ function initLicensesList() {
     result.licenses.forEach((license) => listEl.appendChild(renderRow(license)));
   }
 
+  /** Version 3.6 (Platform Hardening, Phase 3 — Dashboard UI Consistency) - see purchase-history-list.js's own header comment on this same change: the labeled detail strip reuses .library-card__details exactly as established for the Customer Library in V3.5.4. The status badge now sits above the details strip (matching the Library's own "badge first" hierarchy) rather than inside the actions row; Copy Key's behavior is unchanged. */
   function renderRow(license) {
     const row = document.createElement('div');
     row.className = 'library-row';
@@ -50,42 +51,49 @@ function initLicensesList() {
     meta.className = 'library-row__meta';
 
     const title = document.createElement('h2');
-    title.className = 'library-row__title';
+    title.className = 'library-card__title';
     title.textContent = license.productTitle;
     meta.appendChild(title);
 
-    const details = document.createElement('p');
-    details.className = 'text-secondary text-small';
-    details.textContent = `${license.licenseType} license • Issued ${formatDate(license.issuedAt)}`;
-    meta.appendChild(details);
+    const badge = document.createElement('span');
+    badge.className = license.status === 'active' ? 'badge badge--success mb-2' : 'badge badge--error mb-2';
+    badge.textContent = license.status === 'active' ? 'Active' : 'Revoked';
+    meta.appendChild(badge);
 
-    const keyRow = document.createElement('p');
-    keyRow.className = 'text-small';
-    keyRow.style.fontFamily = 'var(--font-mono)';
-    keyRow.textContent = truncateKey(license.licenseKey);
-    meta.appendChild(keyRow);
+    const details = document.createElement('dl');
+    details.className = 'library-card__details';
+    appendDetail(details, 'License type', license.licenseType);
+    appendDetail(details, 'Issued', formatDate(license.issuedAt));
+    appendDetail(details, 'License key', truncateKey(license.licenseKey));
+    meta.appendChild(details);
 
     row.appendChild(meta);
 
-    const actions = document.createElement('div');
-    actions.className = 'library-row__actions';
-
-    const badge = document.createElement('span');
-    badge.className = license.status === 'active' ? 'badge badge--success' : 'badge badge--error';
-    badge.textContent = license.status === 'active' ? 'Active' : 'Revoked';
-    actions.appendChild(badge);
-
     if (license.status === 'active') {
+      const actions = document.createElement('div');
+      actions.className = 'library-card__actions';
       const copyButton = document.createElement('button');
       copyButton.type = 'button';
       copyButton.className = 'btn btn--secondary';
       copyButton.textContent = 'Copy key';
       copyButton.addEventListener('click', () => copyKey(license.licenseKey, copyButton));
       actions.appendChild(copyButton);
+      row.appendChild(actions);
     }
 
-    row.appendChild(actions);
     return row;
+  }
+
+  function appendDetail(list, label, value) {
+    const pair = document.createElement('div');
+    const dt = document.createElement('dt');
+    dt.textContent = label;
+    const dd = document.createElement('dd');
+    dd.style.fontFamily = label === 'License key' ? 'var(--font-mono)' : '';
+    dd.textContent = value;
+    pair.appendChild(dt);
+    pair.appendChild(dd);
+    list.appendChild(pair);
   }
 
   function truncateKey(key) {

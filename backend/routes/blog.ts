@@ -64,11 +64,11 @@ const HEAD_ASSETS = `
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Newsreader:ital,wght@0,600;1,500&family=Space+Grotesk:wght@500&family=Work+Sans:wght@400;500&family=IBM+Plex+Mono:wght@400;500&display=swap" rel="stylesheet">
 
-  <link rel="stylesheet" href="/css/tokens.css">
-  <link rel="stylesheet" href="/css/base.css">
-  <link rel="stylesheet" href="/css/layout.css">
-  <link rel="stylesheet" href="/css/components.css?v=m70">
-  <link rel="stylesheet" href="/css/utilities.css">
+  <link rel="stylesheet" href="/css/tokens.css?v=167327e0c9">
+  <link rel="stylesheet" href="/css/base.css?v=57a963bc6f">
+  <link rel="stylesheet" href="/css/layout.css?v=a6fb0c7359">
+  <link rel="stylesheet" href="/css/components.css?v=1afe806636">
+  <link rel="stylesheet" href="/css/utilities.css?v=406dfe7300">
 `;
 
 const ORGANIZATION_JSON_LD = `
@@ -140,12 +140,12 @@ ${opts.bodyContent}
 
   <div data-include="/partials/footer.html"></div>
 
-  <script src="/js/includes.js"></script>
-  <script src="/js/components/nav.js"></script>
-  <script src="/js/components/theme-toggle.js"></script>
-  <script src="/js/components/branding.js"></script>
-  <script src="/js/content-inject.js"></script>
-  <script src="/js/components/newsletter-form.js"></script>
+  <script src="/js/includes.js?v=cba95d9aa1"></script>
+  <script src="/js/components/nav.js?v=c2889cbb06"></script>
+  <script src="/js/components/theme-toggle.js?v=eebe98960c"></script>
+  <script src="/js/components/branding.js?v=483b048741"></script>
+  <script src="/js/content-inject.js?v=10a4d215c2"></script>
+  <script src="/js/components/newsletter-form.js?v=e84b578fd7"></script>
 ${opts.scripts.map((s) => `  <script src="${s}"></script>`).join('\n')}
 </body>
 </html>`;
@@ -327,7 +327,7 @@ ${NEWSLETTER_BAND}
     ogImage: `${SITE_ORIGIN}/assets/branding/social/og-image.jpg`,
     extraHead: faqJsonLd,
     bodyContent: body,
-    scripts: ['/js/components/content-filters.js', '/js/main.js'],
+    scripts: ['/js/components/content-filters.js?v=bff036747e', '/js/main.js?v=7050d1e123'],
   });
 
   return htmlResponse(html, 200);
@@ -351,7 +351,7 @@ function render404(slug: string): Response {
         <a href="/blog/" class="btn btn--primary">Browse all articles</a>
       </div>
     </section>`,
-    scripts: ['/js/main.js'],
+    scripts: ['/js/main.js?v=7050d1e123'],
   });
   return htmlResponse(html, 404);
 }
@@ -455,7 +455,7 @@ ${NEWSLETTER_BAND}`;
     extraHead: breadcrumbJsonLd + (isPreview ? '' : articleJsonLd),
     breadcrumb,
     bodyContent: body,
-    scripts: ['/js/components/article-reading.js', '/js/main.js'],
+    scripts: ['/js/components/article-reading.js?v=954b78747a', '/js/main.js?v=7050d1e123'],
   });
 
   return htmlResponse(html, isPreview ? 200 : 200);

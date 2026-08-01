@@ -1,0 +1,4 @@
+# Version 3.6 (Platform Hardening) - shell hooks must keep LF line
+# endings regardless of the checking-out platform's core.autocrlf
+# setting, or `sh` may fail to parse them on Windows.
+.githooks/* text eol=lf

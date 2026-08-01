@@ -1,0 +1,16 @@
+#!/bin/sh
+# Robayer WealthLab: automatic asset cache-busting (Version 3.6).
+# Runs scripts/bump-asset-versions.mjs before every commit and
+# re-stages any file it updates, so a content-hash version string can
+# never be forgotten or picked stale by hand. See
+# docs/v3.6-cache-architecture-report.md for the full policy.
+#
+# One-time setup per clone: git config core.hooksPath .githooks
+
+node scripts/bump-asset-versions.mjs
+if [ $? -ne 0 ]; then
+  echo "bump-asset-versions.mjs failed - commit aborted." >&2
+  exit 1
+fi
+
+git diff --name-only --diff-filter=M | grep -E '\.(html|ts)$' | xargs -r git add

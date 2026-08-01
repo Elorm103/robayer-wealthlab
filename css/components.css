@@ -2057,23 +2057,6 @@ button.resource-card {
   min-width: 0;
 }
 
-.library-row__title {
-  font-family: var(--font-heading);
-  margin: 0 0 var(--space-1) 0;
-}
-
-.library-row__actions {
-  display: flex;
-  flex-wrap: wrap;
-  gap: var(--space-2);
-}
-
-.library-row__usage {
-  font-size: 0.85rem;
-  color: var(--color-text-secondary);
-  margin-top: var(--space-1);
-}
-
 .library-empty-state {
   text-align: center;
   padding: var(--space-6) var(--space-3);
@@ -2153,19 +2136,29 @@ button.resource-card {
   }
 }
 
+/* Version 3.6 (Platform Hardening, Phase 3 — Dashboard UI
+   Consistency) - border-radius/padding/background/margin now match
+   .library-row/.library-card exactly, so every "list of records" card
+   on the customer dashboard (Library, Purchases, Receipts, Licenses,
+   Security's own sessions list) shares one card rhythm instead of the
+   session list quietly using a slightly smaller radius and no
+   background fill. Layout itself (flex, no cover, no detail strip) is
+   unchanged - a session row has no product to browse and doesn't need
+   one. */
 .session-row {
   display: flex;
   flex-wrap: wrap;
   align-items: center;
   justify-content: space-between;
   gap: var(--space-3);
-  padding: var(--space-3) var(--space-4);
+  padding: var(--space-4);
   border: 1px solid var(--color-border);
-  border-radius: var(--radius-sm);
+  border-radius: var(--radius-md);
+  background-color: var(--color-surface);
 }
 
 .session-row + .session-row {
-  margin-top: var(--space-2);
+  margin-top: var(--space-3);
 }
 
 /* ============================================================

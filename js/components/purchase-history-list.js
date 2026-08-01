@@ -45,6 +45,21 @@ function initPurchaseHistoryList() {
     result.purchases.forEach((purchase) => listEl.appendChild(renderRow(purchase)));
   }
 
+  /**
+   * Version 3.6 (Platform Hardening, Phase 3 — Dashboard UI
+   * Consistency) - the labeled Purchased/Reference/Amount strip below
+   * reuses .library-card__details/dt/dd exactly as introduced for the
+   * Customer Library in V3.5.4, rather than a second hand-rolled
+   * "label above value" style for this page. The single run-on
+   * sentence this replaced (date bullet reference bullet amount) is
+   * gone; the underlying data and fields are unchanged. The outer
+   * .library-row container itself is deliberately kept (not switched
+   * to .library-card): its border/radius/padding/background are
+   * already identical to .library-card's, and this page has no cover
+   * image to justify .library-card's two-column grid — reusing the
+   * correct existing variant for a page with no cover, not inventing
+   * a third pattern.
+   */
   function renderRow(purchase) {
     const row = document.createElement('div');
     row.className = 'library-row';
@@ -53,24 +68,10 @@ function initPurchaseHistoryList() {
     meta.className = 'library-row__meta';
 
     const title = document.createElement('h2');
-    title.className = 'library-row__title';
+    title.className = 'library-card__title';
     title.textContent = purchase.productTitle;
     meta.appendChild(title);
 
-    const details = document.createElement('p');
-    details.className = 'text-secondary text-small';
-    details.innerHTML = '';
-    const refEl = document.createElement('span');
-    refEl.style.fontFamily = 'var(--font-mono)';
-    refEl.textContent = purchase.purchaseReference;
-    details.appendChild(document.createTextNode(`${formatDate(purchase.createdAt)} • `));
-    details.appendChild(refEl);
-    details.appendChild(document.createTextNode(` • ${purchase.amountDisplay}`));
-    meta.appendChild(details);
-
-    row.appendChild(meta);
-
-    const badge = document.createElement('span');
     const map = {
       ready: { label: 'Ready', className: 'badge--success' },
       processing: { label: 'Processing', className: 'badge--info' },
@@ -78,11 +79,32 @@ function initPurchaseHistoryList() {
       unavailable: { label: 'Unavailable', className: 'badge--error' },
     };
     const info = map[purchase.status] || map.unavailable;
-    badge.className = `badge ${info.className}`;
+    const badge = document.createElement('span');
+    badge.className = `badge ${info.className} mb-2`;
     badge.textContent = info.label;
-    row.appendChild(badge);
+    meta.appendChild(badge);
 
+    const details = document.createElement('dl');
+    details.className = 'library-card__details';
+    appendDetail(details, 'Purchased', formatDate(purchase.createdAt));
+    appendDetail(details, 'Reference', purchase.purchaseReference);
+    appendDetail(details, 'Amount', purchase.amountDisplay);
+    meta.appendChild(details);
+
+    row.appendChild(meta);
     return row;
+  }
+
+  function appendDetail(list, label, value) {
+    const pair = document.createElement('div');
+    const dt = document.createElement('dt');
+    dt.textContent = label;
+    const dd = document.createElement('dd');
+    dd.style.fontFamily = label === 'Reference' ? 'var(--font-mono)' : '';
+    dd.textContent = value;
+    pair.appendChild(dt);
+    pair.appendChild(dd);
+    list.appendChild(pair);
   }
 
   /** Normalizes both `datetime('now')` (SQL) and `toISOString()` formats — see js/components/admin/admin-account.js's own header comment for the exact mixed-format issue this avoids re-discovering. */
