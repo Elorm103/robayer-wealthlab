@@ -83,7 +83,7 @@
          ============================================================ -->
     <section class="hero hero--split bg-paper">
       <div class="container">
-        <div class="hero__content" data-reveal>
+        <div class="hero__content">
           <!-- Version 3.4 Milestone M6: headline/subheading/CTA copy below
                is genuinely admin editable (site_settings key hero_content,
                via GET/PATCH /api/admin/settings), fetched client-side by
@@ -92,7 +92,17 @@
                site.json config already uses. The text/hrefs already in
                this markup are the static fallback shown if that fetch
                fails, same fail-safe pattern as site.json's own fields. -->
-          <div class="hero__text">
+          <!-- Version 4.2 Part 1.1: data-reveal lives here, on the text
+               column only, not on .hero__content. It used to wrap both
+               the text AND .hero__visual below, which meant the book
+               cover's container inherited an independent, IntersectionObserver
+               -driven opacity/transform fade that fires at DOMContentLoaded
+               regardless of whether the cover image has finished loading -
+               racing against product-loader.js's fetch+decode and producing
+               exactly the "partial render / obvious transition / placeholder
+               after ready" symptoms reported in production. See
+               docs/v4.2-hero-cover-flicker-permanent-fix-report.md. -->
+          <div class="hero__text" data-reveal>
             <span class="eyebrow hero__eyebrow" data-content="hero.eyebrow">Financial education for Ghana</span>
             <h1 class="hero__title" data-content="hero.headline">Financial education built for everyday Ghanaians.</h1>
             <p class="hero__subtitle" data-content="hero.subheading">Practical, honest guidance on saving, investing, and growing money, grounded in treasury bills, mobile money, and the Ghana Stock Exchange, not advice imported from somewhere else.</p>
