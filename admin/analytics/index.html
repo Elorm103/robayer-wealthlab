@@ -218,9 +218,83 @@
         </div>
 
         <div class="card">
-          <h2 class="text-lg mb-2">Visitors, sessions &amp; traffic sources</h2>
-          <p class="text-secondary text-small mb-3">Cloudflare Web Analytics tracks visitor-level traffic for this site, but its dashboard has no API — these numbers can't be embedded here honestly, so this links out to the real dashboard instead of showing an estimate.</p>
-          <a class="btn btn--secondary" href="https://dash.cloudflare.com/" target="_blank" rel="noopener">Open Cloudflare Web Analytics →</a>
+          <h2 class="text-lg mb-2">Device- and country-level traffic</h2>
+          <p class="text-secondary text-small mb-3">Cloudflare Web Analytics can show visitor counts by device and country with zero backend engineering, but requires a one-time setup step in the Cloudflare dashboard (adding a site under Analytics &amp; Logs → Web Analytics) that hasn't been completed yet — confirmed not currently active on this site. Once enabled there, its own dashboard has no API to embed here, so it will always be a separate, linked-out view rather than a number this page can show directly.</p>
+          <a class="btn btn--secondary" href="https://dash.cloudflare.com/" target="_blank" rel="noopener">Open Cloudflare dashboard →</a>
+        </div>
+
+        <!-- ============================================================
+             TRAFFIC & FUNNEL
+             Version 4.0 Milestone A (Measurement Foundation). Real,
+             first-party data from the new analytics_events table
+             (migration 0025) plus the already-existing
+             newsletter_subscribers.source column — see
+             docs/v4.0-measurement-architecture-report.md for exactly
+             what each figure does and does not claim to measure.
+             ============================================================ -->
+        <div class="card" data-traffic-root>
+          <h2 class="text-lg mb-3">Traffic &amp; funnel</h2>
+          <p class="text-secondary text-small mb-3" data-traffic-load-error hidden role="alert"></p>
+
+          <h3 class="text-body mb-2 mt-4">Most-viewed pages</h3>
+          <div class="empty-state empty-state--compact" data-traffic-pages-empty hidden>
+            <p class="empty-state__title">No page views recorded in this range yet</p>
+          </div>
+          <div class="admin-table-wrap" data-traffic-pages-wrap hidden>
+            <table class="table" aria-label="Most-viewed pages">
+              <thead><tr><th scope="col">Page</th><th scope="col">Views</th></tr></thead>
+              <tbody data-traffic-pages-body></tbody>
+            </table>
+          </div>
+
+          <h3 class="text-body mb-2 mt-4">Most-clicked buttons</h3>
+          <div class="empty-state empty-state--compact" data-traffic-ctas-empty hidden>
+            <p class="empty-state__title">No button clicks recorded in this range yet</p>
+          </div>
+          <div class="admin-table-wrap" data-traffic-ctas-wrap hidden>
+            <table class="table" aria-label="Most-clicked buttons">
+              <thead><tr><th scope="col">Button</th><th scope="col">Clicks</th></tr></thead>
+              <tbody data-traffic-ctas-body></tbody>
+            </table>
+          </div>
+
+          <h3 class="text-body mb-2 mt-4">Traffic sources (by visit)</h3>
+          <div class="empty-state empty-state--compact" data-traffic-sources-empty hidden>
+            <p class="empty-state__title">No sessions recorded in this range yet</p>
+          </div>
+          <div class="admin-table-wrap" data-traffic-sources-wrap hidden>
+            <table class="table" aria-label="Traffic sources">
+              <thead><tr><th scope="col">Source</th><th scope="col">Sessions</th></tr></thead>
+              <tbody data-traffic-sources-body></tbody>
+            </table>
+          </div>
+
+          <h3 class="text-body mb-2 mt-4">Newsletter signups by form</h3>
+          <p class="text-secondary text-small mb-2">Real data — every signup already records which page it came from; no new tracking needed for this one.</p>
+          <div class="empty-state empty-state--compact" data-traffic-newsletter-empty hidden>
+            <p class="empty-state__title">No newsletter signups in this range yet</p>
+          </div>
+          <div class="admin-table-wrap" data-traffic-newsletter-wrap hidden>
+            <table class="table" aria-label="Newsletter signups by source page">
+              <thead><tr><th scope="col">Page</th><th scope="col">Signups</th></tr></thead>
+              <tbody data-traffic-newsletter-body></tbody>
+            </table>
+          </div>
+
+          <h3 class="text-body mb-2 mt-4">Free guide lead magnet</h3>
+          <p class="mb-0" data-traffic-lead-magnet>—</p>
+
+          <h3 class="text-body mb-2 mt-4">Product attention</h3>
+          <p class="text-secondary text-small mb-2">Book detail page views alongside total checkouts started in the same range — a directional comparison, not a per-visitor attribution (see the Measurement Architecture Report for why).</p>
+          <div class="empty-state empty-state--compact" data-traffic-products-empty hidden>
+            <p class="empty-state__title">No product page views in this range yet</p>
+          </div>
+          <div class="admin-table-wrap" data-traffic-products-wrap hidden>
+            <table class="table" aria-label="Product attention">
+              <thead><tr><th scope="col">Page</th><th scope="col">Views</th><th scope="col">Checkouts started (whole range)</th></tr></thead>
+              <tbody data-traffic-products-body></tbody>
+            </table>
+          </div>
         </div>
       </main>
     </div>
@@ -233,5 +307,6 @@
   <script src="/js/components/admin/admin-shell.js?v=7233204897"></script>
   <script src="/js/components/admin/timeseries-chart.js?v=5ec461649c"></script>
   <script src="/js/components/admin/admin-analytics.js?v=416f7ae50a"></script>
+  <script src="/js/components/admin/admin-traffic.js?v=34110bd6df"></script>
 </body>
 </html>

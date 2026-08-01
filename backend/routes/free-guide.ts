@@ -143,6 +143,7 @@ ${opts.bodyContent}
   <div data-include="/partials/footer.html"></div>
 
   <script src="/js/includes.js?v=cba95d9aa1"></script>
+  <script src="/js/components/analytics.js?v=dd6f93b38e"></script>
   <script src="/js/components/nav.js?v=c2889cbb06"></script>
   <script src="/js/components/theme-toggle.js?v=eebe98960c"></script>
   <script src="/js/components/branding.js?v=483b048741"></script>
@@ -161,7 +162,7 @@ const FAQ_QA: Array<{ q: string; a: string }> = [
     a: 'Young professionals, National Service personnel, university graduates, first-time investors, small business owners, and salaried workers in Ghana: anyone who wants practical financial guidance without jargon or hype.',
   },
   { q: 'Is this financial advice?', a: 'No. This guide provides financial education, not licensed financial advice. It teaches principles and decision-making, not personalised recommendations.' },
-  { q: 'Will I be spammed after signing up?', a: "No. You'll join the same weekly, free, no-spam newsletter used across the site, and you can unsubscribe at any time." },
+  { q: 'Will I be spammed after signing up?', a: "No. You'll join the same free, no-spam newsletter used across the site, and you can unsubscribe at any time." },
 ];
 
 function faqJsonLd(): string {

@@ -131,3 +131,17 @@ export async function handleDashboardAlerts(request: Request, env: Env, logger: 
   const alerts = await executiveDashboardService.getBusinessAlerts(env);
   return jsonSuccess({ alerts });
 }
+
+/** Version 4.0 Milestone A (Measurement Foundation). Same auth/rate-limit/range-parsing pattern as handleDashboardCharts/handleDashboardCustomerInsights above. */
+export async function handleDashboardTraffic(request: Request, env: Env, logger: Logger): Promise<Response> {
+  const auth = await requireAuth(request, env, logger);
+  if (!auth.ok) return auth.response;
+
+  if (await isRateLimited(request, env, READ_RATE_LIMIT)) {
+    return jsonError('RATE_LIMITED', 'Too many requests. Please try again shortly.');
+  }
+
+  const range = parseRange(new URL(request.url).searchParams);
+  const traffic = await executiveDashboardService.getTrafficFunnel(env, range);
+  return jsonSuccess({ range, ...traffic });
+}

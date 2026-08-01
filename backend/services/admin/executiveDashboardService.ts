@@ -864,3 +864,114 @@ export async function getBusinessAlerts(env: Env): Promise<BusinessAlert[]> {
 
   return alerts;
 }
+
+// ============================================================
+// Version 4.0 Milestone A (Measurement Foundation) — Traffic &
+// Funnel. Every number here is a real D1 aggregate over the new
+// `analytics_events` table (migration 0025) plus, for newsletter
+// performance, the already-existing `newsletter_subscribers.source`
+// column (populated since this project's own newsletter-form.js was
+// first built — no new tracking needed for that one). Deliberately
+// does not attempt precise per-visitor funnel attribution (e.g. "did
+// the exact person who viewed the book detail page also start
+// checkout") — analytics_events.session_id is anonymous and never
+// threaded through the checkout/webhook flow, by design (see the
+// migration's own privacy-posture comment). What's shown instead is
+// two honest, real, parallel counts per stage — page views on one
+// side, real conversions (from purchase_sessions/newsletter_subscribers,
+// unchanged) on the other — in the same time window, which answers
+// "which pages/CTAs get attention and does that roughly track with
+// outcomes" without fabricating an attribution precision this
+// architecture cannot honestly deliver.
+// ============================================================
+
+export interface TrafficFunnel {
+  pageViewsByPath: { pagePath: string; views: number }[];
+  ctaClicksById: { ctaId: string; clicks: number }[];
+  trafficSources: { source: string; sessions: number }[];
+  leadMagnetFunnel: { ctaClicks: number; freeGuideSignups: number };
+  newsletterSignupsBySource: { source: string; signups: number }[];
+  productAttention: { pagePath: string; views: number; checkoutsStarted: number }[];
+}
+
+export async function getTrafficFunnel(env: Env, range: PeriodRange): Promise<TrafficFunnel> {
+  const fromBound = range.from;
+  const toBound = exclusiveEndDate(range.to);
+
+  const [pageViewRows, ctaClickRows, sourceRows, freeGuideClickRow, freeGuideSignupRow, newsletterSourceRows, bookViewRows, checkoutRows] = await Promise.all([
+    env.DB.prepare(
+      `SELECT page_path AS pagePath, COUNT(*) AS views
+       FROM analytics_events WHERE event_type = 'page_view' AND created_at >= ? AND created_at < ?
+       GROUP BY page_path ORDER BY views DESC LIMIT 20`
+    )
+      .bind(fromBound, toBound)
+      .all<{ pagePath: string; views: number }>(),
+    env.DB.prepare(
+      `SELECT cta_id AS ctaId, COUNT(*) AS clicks
+       FROM analytics_events WHERE event_type = 'cta_click' AND created_at >= ? AND created_at < ?
+       GROUP BY cta_id ORDER BY clicks DESC`
+    )
+      .bind(fromBound, toBound)
+      .all<{ ctaId: string; clicks: number }>(),
+    // "Traffic source" here means the referrer host (or utm_source
+    // when present, which takes priority as the more deliberate
+    // signal) recorded on each distinct session's first page view in
+    // range — a session that browses five pages counts once, not five
+    // times, so this answers "how many visits came from where," not
+    // "how many page views."
+    env.DB.prepare(
+      `SELECT COALESCE(utm_source, CASE WHEN referrer IS NULL OR referrer = '' THEN 'direct' ELSE referrer END) AS source,
+              COUNT(DISTINCT session_id) AS sessions
+       FROM analytics_events
+       WHERE event_type = 'page_view' AND created_at >= ? AND created_at < ?
+       GROUP BY source ORDER BY sessions DESC LIMIT 15`
+    )
+      .bind(fromBound, toBound)
+      .all<{ source: string; sessions: number }>(),
+    env.DB.prepare(
+      `SELECT COUNT(*) AS c FROM analytics_events WHERE event_type = 'cta_click' AND cta_id = 'featured-resource-cta' AND created_at >= ? AND created_at < ?`
+    )
+      .bind(fromBound, toBound)
+      .first<{ c: number }>(),
+    env.DB.prepare(`SELECT COUNT(*) AS c FROM newsletter_subscribers WHERE source = '/free-guide/' AND subscribed_at >= ? AND subscribed_at < ?`)
+      .bind(fromBound, toBound)
+      .first<{ c: number }>(),
+    env.DB.prepare(
+      `SELECT COALESCE(source, 'unknown') AS source, COUNT(*) AS signups
+       FROM newsletter_subscribers WHERE subscribed_at >= ? AND subscribed_at < ?
+       GROUP BY source ORDER BY signups DESC`
+    )
+      .bind(fromBound, toBound)
+      .all<{ source: string; signups: number }>(),
+    env.DB.prepare(
+      `SELECT page_path AS pagePath, COUNT(*) AS views
+       FROM analytics_events
+       WHERE event_type = 'page_view' AND page_path LIKE '/books/%' AND page_path != '/books/' AND created_at >= ? AND created_at < ?
+       GROUP BY page_path ORDER BY views DESC LIMIT 10`
+    )
+      .bind(fromBound, toBound)
+      .all<{ pagePath: string; views: number }>(),
+    env.DB.prepare(`SELECT COUNT(*) AS c FROM purchase_sessions WHERE created_at >= ? AND created_at < ?`).bind(fromBound, toBound).first<{ c: number }>(),
+  ]);
+
+  const totalCheckoutsStarted = checkoutRows?.c ?? 0;
+
+  return {
+    pageViewsByPath: pageViewRows.results,
+    ctaClicksById: ctaClickRows.results,
+    trafficSources: sourceRows.results,
+    leadMagnetFunnel: {
+      ctaClicks: freeGuideClickRow?.c ?? 0,
+      freeGuideSignups: freeGuideSignupRow?.c ?? 0,
+    },
+    newsletterSignupsBySource: newsletterSourceRows.results,
+    // Book detail views are real, per-page; checkoutsStarted is shown
+    // as one honest total for the whole window rather than falsely
+    // attributed per book (this catalog currently has only one
+    // purchasable product, so a per-product split would be a single
+    // number dressed up as a breakdown - revisit once a second real
+    // SKU exists, per docs/v4.0-master-planning-document.md's own
+    // Milestone D).
+    productAttention: bookViewRows.results.map((row) => ({ ...row, checkoutsStarted: totalCheckoutsStarted })),
+  };
+}

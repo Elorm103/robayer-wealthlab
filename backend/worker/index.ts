@@ -49,6 +49,7 @@ import { withSecurityHeaders } from '../middleware/securityHeaders';
 import { withErrorHandling } from '../middleware/errorHandler';
 import { checkMaintenanceMode } from '../middleware/maintenanceMode';
 import { handleNewsletter } from '../routes/newsletter';
+import { handleAnalyticsEvent } from '../routes/analytics';
 import { handleContact } from '../routes/contact';
 import { handleConsultation } from '../routes/consultation';
 import { handleCreateCheckoutSession } from '../routes/checkout';
@@ -104,6 +105,7 @@ import {
   handleDashboardCustomerInsights,
   handleDashboardOperational,
   handleDashboardAlerts,
+  handleDashboardTraffic,
 } from '../routes/admin/executiveDashboard';
 import { handleHealth } from '../routes/health';
 import {
@@ -259,6 +261,7 @@ interface Route {
 
 const ROUTES: Route[] = [
   { pattern: new URLPattern({ pathname: '/api/newsletter' }), method: 'POST', handler: handleNewsletter },
+  { pattern: new URLPattern({ pathname: '/api/analytics/event' }), method: 'POST', handler: handleAnalyticsEvent },
   { pattern: new URLPattern({ pathname: '/api/contact' }), method: 'POST', handler: handleContact },
   { pattern: new URLPattern({ pathname: '/api/consultation' }), method: 'POST', handler: handleConsultation },
   { pattern: new URLPattern({ pathname: '/api/checkout/sessions' }), method: 'POST', handler: handleCreateCheckoutSession },
@@ -319,6 +322,7 @@ const ROUTES: Route[] = [
   { pattern: new URLPattern({ pathname: '/api/admin/dashboard/customer-insights' }), method: 'GET', handler: handleDashboardCustomerInsights },
   { pattern: new URLPattern({ pathname: '/api/admin/dashboard/operational' }), method: 'GET', handler: handleDashboardOperational },
   { pattern: new URLPattern({ pathname: '/api/admin/dashboard/alerts' }), method: 'GET', handler: handleDashboardAlerts },
+  { pattern: new URLPattern({ pathname: '/api/admin/dashboard/traffic' }), method: 'GET', handler: handleDashboardTraffic },
   // Same-Origin Routing Proof of Concept (docs/v2-same-origin-routing-poc.md)
   // — the first thing verified through the new robayerwealthlab.com/api/*
   // Workers Route, before anything that touches real state.

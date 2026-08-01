@@ -184,6 +184,7 @@ ${opts.bodyContent}
   <div data-include="/partials/footer.html"></div>
 
   <script src="/js/includes.js?v=cba95d9aa1"></script>
+  <script src="/js/components/analytics.js?v=dd6f93b38e"></script>
   <script src="/js/components/nav.js?v=c2889cbb06"></script>
   <script src="/js/components/theme-toggle.js?v=eebe98960c"></script>
   <script src="/js/components/branding.js?v=483b048741"></script>
@@ -200,7 +201,7 @@ const NEWSLETTER_BAND = `
         <div class="newsletter-band">
           <div>
             <h2 class="mb-2">Get one better money tip</h2>
-            <p>Weekly, free, no spam. Unsubscribe any time.</p>
+            <p>Free, practical money tips. Unsubscribe any time.</p>
           </div>
           <form class="cluster gap-2" data-newsletter-form novalidate aria-label="Newsletter signup">
             <label for="newsletter-email" class="sr-only">Email address</label>

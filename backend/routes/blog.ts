@@ -141,6 +141,7 @@ ${opts.bodyContent}
   <div data-include="/partials/footer.html"></div>
 
   <script src="/js/includes.js?v=cba95d9aa1"></script>
+  <script src="/js/components/analytics.js?v=dd6f93b38e"></script>
   <script src="/js/components/nav.js?v=c2889cbb06"></script>
   <script src="/js/components/theme-toggle.js?v=eebe98960c"></script>
   <script src="/js/components/branding.js?v=483b048741"></script>
@@ -157,7 +158,7 @@ const NEWSLETTER_BAND = `
         <div class="newsletter-band">
           <div>
             <h2 class="mb-2">Get one better money tip</h2>
-            <p>Weekly, free, no spam. Unsubscribe any time.</p>
+            <p>Free, practical money tips. Unsubscribe any time.</p>
           </div>
           <form class="cluster gap-2" data-newsletter-form novalidate aria-label="Newsletter signup">
             <label for="newsletter-email" class="sr-only">Email address</label>
@@ -170,7 +171,7 @@ const NEWSLETTER_BAND = `
     </section>`;
 
 const LISTING_FAQ_QA: Array<{ q: string; a: string }> = [
-  { q: 'How often do you publish new articles?', a: "Weekly, alongside the newsletter. Subscribe above to get each one as it's published." },
+  { q: 'How often do you publish new articles?', a: "As often as we have something genuinely useful to share, not on a fixed schedule. Subscribe above to get each one as it's published." },
   { q: 'Do I need any background knowledge to follow along?', a: 'No, articles are written for complete beginners first, with more advanced topics clearly marked.' },
   { q: 'Can I suggest a topic?', a: 'Yes, reach out through the Contact page. Reader questions are where most articles start.' },
   { q: 'Are these articles the same as the free resources?', a: 'No. Resources are practical templates and checklists; articles are explanations and stories written to build understanding.' },
