@@ -1,25 +1,23 @@
 /**
- * Robayer WealthLab: Book detail purchase-state (Version 3.5.1: Book
- * Detail UX Polish).
+ * Robayer WealthLab: Book detail purchase-state (Version 3.5.3:
+ * Customer Experience Separation).
  *
- * Runs on the book detail page only ([data-buy-button] is how this
- * detects it's on one). For a signed-in customer:
- *   - if they already own this exact product (a real 'ready' purchase
- *     from GET /api/customer/purchases, matched by productSlug - see
- *     backend/services/customer/purchaseHistoryService.ts), the Buy
- *     flow is replaced with Read/Download/Review actions, reusing the
- *     exact same POST /api/purchases/:reference/downloads flow
- *     js/components/library-list.js already uses for the Customer
- *     Library - no new download mechanism.
- *   - otherwise, the required email field is replaced with a
- *     "Purchasing as <email>" confirmation, and #purchase-email's
- *     value is set to their real session email so
- *     js/components/buy-button.js needs no changes at all - it just
- *     reads whatever value is already in that field.
+ * The book detail page is server-rendered in Sales Mode by default
+ * ([data-sales-mode] visible, [data-owner-mode] hidden — see
+ * backend/routes/books.ts). This file is the ONLY thing that ever
+ * flips it to Owner Mode, and it does so exactly once, atomically: it
+ * never shows both modes at once, and it never guesses - Owner Mode is
+ * only revealed after a real 'ready' purchase is confirmed via
+ * GET /api/customer/purchases (the same ownership signal this page has
+ * trusted since V3.5.1, unchanged - see docs/v3.5.3-ownership-architecture-report.md
+ * for the full traced lifecycle).
  *
- * A guest (no session) sees every existing default exactly as before -
- * this script does nothing for them beyond one 401 from the session
- * check, which is expected and silent, not an error.
+ * A guest (no session) sees the default, server-rendered Sales Mode
+ * exactly as shipped - this script does nothing for them beyond one
+ * 401 from the session check, which is expected and silent, not an
+ * error. A signed-in customer who does NOT own this specific product
+ * stays in Sales Mode too, just with the email field replaced by a
+ * "Purchasing as <email>" confirmation (unchanged from V3.5.1).
  *
  * Deliberately does not use js/components/dashboard-auth.js's
  * CustomerDashboard helper: that helper redirects to sign-in on a
@@ -57,6 +55,7 @@
     const body = await response.json().catch(() => null);
     if (!response.ok || !body || !body.success) {
       const error = new Error((body && body.error && body.error.message) || 'Something went wrong.');
+      error.code = body && body.error && body.error.code;
       error.status = response.status;
       throw error;
     }
@@ -94,41 +93,172 @@
     });
   }
 
-  function showOwnedState(purchase) {
-    document.querySelectorAll('[data-purchase-default-state]').forEach((el) => {
+  function formatPurchaseDate(isoDate) {
+    try {
+      return new Date(isoDate).toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric' });
+    } catch {
+      return isoDate;
+    }
+  }
+
+  /** A single, page-singleton inline status line - the one place any Owner Mode action (download, read, review) reports what's happening. Never a browser alert() dialog, per this milestone's own explicit rule. */
+  function setDownloadStatus(message, tone) {
+    // Reuses this codebase's existing .alert/.alert--* classes rather
+    // than a new color system - 'notice' maps to the existing warning
+    // treatment (the download-limit-reached case is a heads-up, not a
+    // failure), 'error' to the existing error treatment.
+    const ALERT_CLASS = { error: 'alert--error', notice: 'alert--warning' };
+    document.querySelectorAll('[data-download-status]').forEach((el) => {
+      el.classList.remove('alert', 'alert--error', 'alert--warning', 'alert--info');
+      if (!message) {
+        el.hidden = true;
+        el.textContent = '';
+        return;
+      }
+      el.hidden = false;
+      el.textContent = message;
+      el.classList.add('alert', ALERT_CLASS[tone] || 'alert--info');
+    });
+  }
+
+  /**
+   * Reveals Owner Mode and hides Sales Mode - the one and only place
+   * this page ever does that switch, so there is exactly one code path
+   * to audit for "are both modes ever shown together." Also fills in
+   * the purchase summary (date/reference) Sales Mode never had reason
+   * to know.
+   */
+  function enterOwnerMode(purchase) {
+    document.querySelectorAll('[data-sales-mode]').forEach((el) => {
       el.hidden = true;
     });
-    document.querySelectorAll('[data-purchase-owned-state]').forEach((el) => {
+    document.querySelectorAll('[data-owner-mode]').forEach((el) => {
       el.hidden = false;
     });
 
-    const ebookAsset = purchase.assets.find((a) => !a.revoked) || null;
-    if (!ebookAsset) return; // Owned but every asset has been revoked (e.g. a refund) - the "Go to My Library" links already shown are the honest, accurate action here.
+    document.querySelectorAll('[data-owner-purchased-date]').forEach((el) => {
+      el.textContent = formatPurchaseDate(purchase.createdAt);
+    });
+    document.querySelectorAll('[data-owner-reference]').forEach((el) => {
+      el.textContent = purchase.purchaseReference;
+    });
 
-    document.querySelectorAll('[data-owned-read-action], [data-owned-download-action]').forEach((link) => {
+    wireOwnedActions(purchase);
+  }
+
+  /**
+   * Version 3.5.3 (Download Flow Verification) - the download bug
+   * traced this milestone was never a broken endpoint: it's a real,
+   * already-enforced per-purchase download limit
+   * (services/entitlementService.ts's checkEntitlement(), unchanged),
+   * and the previous UI had no idea that limit existed until the
+   * moment it silently hit it, then showed a browser alert() with a
+   * generic message. GET /api/customer/purchases already returns each
+   * asset's own downloadsUsed/maxDownloads (services/fulfilmentService.ts's
+   * resolveAssetsWithDeliveryInfo(), unchanged) - this function is the
+   * first thing in this codebase to actually read those two fields and
+   * show the honest state up front, before a click can ever fail
+   * confusingly.
+   *
+   * "Read eBook" and "Download PDF" deliberately still share the same
+   * underlying entitlement/download-permission call (existing
+   * architecture, preserved rather than forked into two systems) - so
+   * they also deliberately share the same remaining-downloads count.
+   * This is documented plainly in docs/v3.5.3-ownership-architecture-report.md
+   * rather than silently hidden.
+   */
+  function wireOwnedActions(purchase) {
+    const ebookAsset = purchase.assets.find((a) => !a.revoked) || null;
+    const readLink = document.querySelector('[data-owned-read-action]');
+    const downloadLink = document.querySelector('[data-owned-download-action]');
+
+    if (!ebookAsset) {
+      // Owned but every asset has been revoked (e.g. a refund) - hide
+      // the actions this customer genuinely cannot use rather than
+      // offering a button that can only ever fail.
+      [readLink, downloadLink].forEach((link) => {
+        if (link) link.hidden = true;
+      });
+      setDownloadStatus("This purchase's files are no longer available. Contact us if you think this is a mistake.", 'error');
+      return;
+    }
+
+    const limitReached = ebookAsset.maxDownloads !== null && ebookAsset.downloadsUsed >= ebookAsset.maxDownloads;
+    if (limitReached) {
+      [readLink, downloadLink].forEach((link) => {
+        if (!link) return;
+        link.setAttribute('aria-disabled', 'true');
+        link.classList.add('btn--disabled');
+      });
+      setDownloadStatus("You've used all " + ebookAsset.maxDownloads + ' downloads included with this purchase. Contact us if you need another copy.', 'notice');
+    }
+
+    [readLink, downloadLink].forEach((link) => {
+      if (!link) return;
       link.addEventListener('click', async (event) => {
         event.preventDefault();
+        if (link.getAttribute('aria-disabled') === 'true') return;
+
+        const isDownload = link.hasAttribute('data-owned-download-action');
         const defaultLabel = link.textContent;
-        link.textContent = 'Preparing…';
+        link.textContent = isDownload ? 'Downloading…' : 'Opening…';
+        link.setAttribute('aria-busy', 'true');
+        setDownloadStatus(null);
+
         try {
           const data = await customerFetch(`/api/purchases/${encodeURIComponent(purchase.purchaseReference)}/downloads`, {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({ assetId: ebookAsset.assetId }),
           });
-          if (link.hasAttribute('data-owned-download-action')) {
+          if (isDownload) {
             window.location.href = data.downloadUrl;
           } else {
             window.open(data.downloadUrl, '_blank', 'noopener');
           }
+          // A successful download-permission grant consumes one use -
+          // reflect that immediately rather than waiting for a reload.
+          ebookAsset.downloadsUsed += 1;
+          if (ebookAsset.maxDownloads !== null && ebookAsset.downloadsUsed >= ebookAsset.maxDownloads) {
+            [readLink, downloadLink].forEach((l) => {
+              if (l) {
+                l.setAttribute('aria-disabled', 'true');
+                l.classList.add('btn--disabled-look');
+              }
+            });
+            setDownloadStatus("You've used all " + ebookAsset.maxDownloads + ' downloads included with this purchase. Contact us if you need another copy.', 'notice');
+          }
         } catch (error) {
+          // Never a browser alert() - an inline, honest message next to
+          // the actions themselves, distinguishing the one case this
+          // milestone actually found in production (a real, already-
+          // exhausted download limit) from every other failure.
+          const message =
+            error.code === 'DOWNLOAD_NOT_AVAILABLE'
+              ? "This download isn't available right now. If you've used all your downloads for this file, contact us for another copy."
+              : error.message || 'Could not prepare the download right now. Please try again, or use My Library.';
+          setDownloadStatus(message, 'error');
+        } finally {
           link.textContent = defaultLabel;
-          window.alert(error.message || 'Could not prepare the download right now. Please try again, or use My Library.');
-          return;
+          link.removeAttribute('aria-busy');
         }
-        link.textContent = defaultLabel;
       });
     });
+  }
+
+  /** Version 3.5.3 (Phase 6) - "Leave a Review" becomes "Edit Review" the moment this customer already has one for this exact product, so Owner Mode never invites a review that would just be rejected as a duplicate (the backend already upserts by (product, customer), but the label should say so up front rather than surprise the customer after they submit). */
+  async function syncReviewActionLabel(productSlug) {
+    const reviewLink = document.querySelector('[data-owned-review-action]');
+    if (!reviewLink) return;
+    try {
+      const data = await customerFetch('/api/customer/reviews');
+      const existing = (data.reviews || []).find((r) => r.productSlug === productSlug);
+      if (existing) reviewLink.textContent = 'Edit Review';
+    } catch {
+      // Non-fatal - the link stays "Leave a Review", and
+      // js/components/product-reviews.js's own review section still
+      // correctly detects and pre-fills an existing review either way.
+    }
   }
 
   async function initBookPurchaseState() {
@@ -141,20 +271,21 @@
     try {
       session = await customerFetch('/api/customer/auth/session');
     } catch {
-      return; // Guest - every existing default is already correct for them.
+      return; // Guest - the server-rendered Sales Mode default is already correct for them.
     }
 
     let purchasesResult;
     try {
       purchasesResult = await customerFetch('/api/customer/purchases?limit=50');
     } catch {
-      purchasesResult = null; // Could not confirm ownership - fail safe to the guest-equivalent default rather than guessing.
+      purchasesResult = null; // Could not confirm ownership - fail safe to Sales Mode rather than guessing.
     }
 
     const owned = purchasesResult ? purchasesResult.purchases.find((p) => p.productSlug === productSlug && p.status === 'ready') : null;
 
     if (owned) {
-      showOwnedState(owned);
+      enterOwnerMode(owned);
+      syncReviewActionLabel(productSlug);
     } else if (session.email) {
       showLoggedInEmail(session.email);
     }

@@ -230,6 +230,22 @@ export async function listReviewsForModeration(env: Env, query: ListReviewsForMo
   return { items: rows.results, total: countRow?.total ?? 0, page: query.page, pageSize: query.pageSize };
 }
 
+// ============================================================
+// Customer self-service delete
+// ============================================================
+
+export type DeleteOwnReviewResult = { ok: true } | { ok: false; reason: 'not_found' };
+
+/** Scoped to the caller's own review by construction (WHERE id = ? AND customer_id = ?) — a customer can never delete another customer's review through this path, matching submitOrUpdateReview()'s own "never trust a client-supplied id for someone else's row" discipline. */
+export async function deleteOwnReview(env: Env, logger: Logger, customerId: number, reviewId: number): Promise<DeleteOwnReviewResult> {
+  const result = await env.DB.prepare(`DELETE FROM product_reviews WHERE id = ? AND customer_id = ?`).bind(reviewId, customerId).run();
+  if (result.meta.changes !== 1) return { ok: false, reason: 'not_found' };
+
+  logger.info('review.deleted', { customerId, reviewId });
+
+  return { ok: true };
+}
+
 export type ModerateReviewResult = { ok: true } | { ok: false; reason: 'not_found' };
 
 export async function moderateReview(env: Env, logger: Logger, actorId: number, id: number, status: 'approved' | 'rejected'): Promise<ModerateReviewResult> {

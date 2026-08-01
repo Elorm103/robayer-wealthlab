@@ -220,7 +220,7 @@ import { handleListCustomerSessions, handleRevokeCustomerSession } from '../rout
 // Version 3.2 Milestone M4 (Commerce & Trust Foundations) — Product
 // Reviews. See docs/v3.2-m4-scope-recommendation.md.
 import { handleListPublicReviews } from '../routes/reviews';
-import { handleListCustomerOwnReviews, handleSubmitReview } from '../routes/customer/reviews';
+import { handleListCustomerOwnReviews, handleSubmitReview, handleDeleteOwnReview } from '../routes/customer/reviews';
 import { handleAdminReviewsList, handleAdminReviewModerate } from '../routes/admin/reviews';
 // Version 3.2 Milestone M4 — Coupon Engine, schema corrected per the
 // M4B Required Amendment 1 (docs/v3.2-m4c-amendment-1-resolution.md).
@@ -544,6 +544,7 @@ const ROUTES: Route[] = [
   { pattern: new URLPattern({ pathname: '/api/products/:slug/reviews' }), method: 'GET', handler: handleListPublicReviews },
   { pattern: new URLPattern({ pathname: '/api/customer/reviews' }), method: 'GET', handler: handleListCustomerOwnReviews },
   { pattern: new URLPattern({ pathname: '/api/customer/reviews' }), method: 'POST', handler: handleSubmitReview },
+  { pattern: new URLPattern({ pathname: '/api/customer/reviews/:id' }), method: 'DELETE', handler: handleDeleteOwnReview },
   { pattern: new URLPattern({ pathname: '/api/admin/reviews' }), method: 'GET', handler: handleAdminReviewsList },
   { pattern: new URLPattern({ pathname: '/api/admin/reviews/:id/moderate' }), method: 'POST', handler: handleAdminReviewModerate },
 

@@ -1339,6 +1339,43 @@
   display: none;
 }
 
+/* Version 3.5.3 (Customer Experience Separation) - a single,
+   generalized [hidden] override for every Sales Mode / Owner Mode
+   element on the book detail page, rather than the one-off overrides
+   above that V3.5.1 and V3.5.2 each had to add by hand for one
+   specific element at a time. Attribute-selector specificity (0,2,0)
+   beats any single class also present on the same element (0,1,0),
+   including .book-card__actions and any future class - so a new
+   Sales/Owner Mode element never needs its own bespoke [hidden] fix
+   the way .book-card__actions[hidden] and .purchase-logged-in-row[hidden]
+   above did. */
+[data-sales-mode][hidden],
+[data-owner-mode][hidden] {
+  display: none;
+}
+
+/* Owner Mode's "Purchased" summary (date/reference) - a plain
+   definition list styled as a compact two-column key/value strip,
+   matching this file's existing "label above, value below" rhythm
+   (see .price-block__meta) rather than inventing a new pattern. */
+.owner-purchase-summary {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-4);
+  margin: 0;
+}
+
+.owner-purchase-summary dt {
+  font-size: var(--text-small);
+  color: var(--color-text-secondary);
+  margin: 0 0 2px;
+}
+
+.owner-purchase-summary dd {
+  margin: 0;
+  font-weight: var(--weight-medium);
+}
+
 /* ============================================================
    BLOG CARD
    ============================================================ */

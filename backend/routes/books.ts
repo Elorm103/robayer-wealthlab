@@ -105,7 +105,7 @@ const HEAD_ASSETS = `
   <link rel="stylesheet" href="/css/tokens.css">
   <link rel="stylesheet" href="/css/base.css">
   <link rel="stylesheet" href="/css/layout.css">
-  <link rel="stylesheet" href="/css/components.css?v=m68">
+  <link rel="stylesheet" href="/css/components.css?v=m69">
   <link rel="stylesheet" href="/css/utilities.css">
 `;
 
@@ -704,26 +704,49 @@ async function renderBookDetail(env: Env, slug: string): Promise<Response> {
     </div>`;
   const purchaseConsentNote = `<p class="text-secondary text-small mt-3" style="color:rgba(255,255,255,0.7);">By purchasing, you agree to our <a href="/legal/terms-of-use/" style="color:#fff;text-decoration:underline;">Terms of Service</a> and <a href="/legal/license-agreement/" style="color:#fff;text-decoration:underline;">License Agreement</a>.</p>`;
 
-  // Version 3.5.1 (Book Detail UX Polish) - a customer who already owns
-  // this product should never be offered the chance to buy it again.
-  // [data-purchase-owned-state] is rendered hidden and only revealed by
-  // js/components/book-purchase-state.js after it confirms real
-  // ownership via the customer's own existing purchase history
-  // (GET /api/customer/purchases) - the same ownership signal the
-  // Customer Library and review-eligibility check already trust,
-  // reused here rather than a new check invented for this page.
-  const ownedActionsBlock = `
-    <div class="book-card__actions" data-purchase-owned-state hidden>
+  // Version 3.5.3 (Customer Experience Separation) - the page has
+  // exactly two mutually exclusive purchase states, never both at
+  // once: [data-sales-mode] (the default, server-rendered state - a
+  // guest, an authenticated non-owner, or an authenticated owner
+  // before js/components/book-purchase-state.js has resolved) and
+  // [data-owner-mode] (rendered hidden, revealed only after a real
+  // 'ready' purchase is confirmed via GET /api/customer/purchases -
+  // the same ownership signal this page has trusted since V3.5.1,
+  // unchanged). See css/components.css's generalized
+  // [data-sales-mode][hidden]/[data-owner-mode][hidden] rule, which
+  // replaces the old one-off-per-element [hidden] overrides
+  // (.purchase-logged-in-row[hidden], .book-card__actions[hidden])
+  // V3.5.1/V3.5.2 each had to add by hand - every element carrying
+  // either attribute is now covered by construction, not case by case.
+  const ownerActionsBlock = `
+    <div class="book-card__actions" data-owner-mode hidden>
       <a href="#" class="btn btn--accent" data-owned-read-action target="_blank" rel="noopener">Read eBook</a>
       <a href="#" class="btn btn--secondary" data-owned-download-action>Download PDF</a>
-      <a href="#reviews" class="btn btn--secondary">Leave a Review</a>
+      <a href="#reviews" class="btn btn--secondary" data-owned-review-action>Leave a Review</a>
+      <a href="/dashboard/" class="btn btn--secondary">View My Library</a>
+    </div>
+    <p class="text-small mt-2 mb-0" data-download-status role="status" aria-live="polite" hidden></p>`;
+
+  // Version 3.5.3 - Sales Mode's own purchased-ownership badge/summary
+  // sits directly above the price block it replaces, so the "you
+  // already own this" fact is the very first thing an owner sees on
+  // load, before Read/Download/Review even come into view - matching
+  // Phase 7's requested hierarchy (Purchased badge -> Purchase details
+  // -> Actions -> Product information).
+  const ownerSummaryBlock = `
+    <div class="mb-3" data-owner-mode hidden>
+      <p class="badge badge--success mb-2" style="font-size:var(--text-body);padding:var(--space-2) var(--space-3);">&#10003;&nbsp; Purchased</p>
+      <dl class="owner-purchase-summary">
+        <div><dt>Purchased on</dt><dd data-owner-purchased-date>&mdash;</dd></div>
+        <div><dt>Reference</dt><dd data-owner-reference>&mdash;</dd></div>
+      </dl>
     </div>`;
 
   const buyAction = isUpcoming
     ? '<a href="/newsletter/" class="btn btn--accent">Get notified when this launches</a>'
     : priceLabel === null
       ? '<span class="badge badge--warning">Price coming soon</span>'
-      : `<div data-purchase-default-state><div class="book-card__actions"><a href="#" class="btn btn--accent" data-buy-button data-product-slug="${escapeHtml(product.slug)}">Buy Now (${escapeHtml(chargeableLabel ?? '')})</a><a href="/dashboard/" class="btn btn--secondary">View My Library</a></div>${purchaseConsentBlock}</div>${ownedActionsBlock}`;
+      : `<div data-sales-mode><div class="book-card__actions"><a href="#" class="btn btn--accent" data-buy-button data-product-slug="${escapeHtml(product.slug)}">Buy Now (${escapeHtml(chargeableLabel ?? '')})</a></div>${purchaseConsentBlock}</div>${ownerActionsBlock}`;
 
   const tagsLine = product.tags
     ? `<p class="text-secondary text-small mb-3">Tags: ${escapeHtml(
@@ -982,13 +1005,15 @@ async function renderBookDetail(env: Env, slug: string): Promise<Response> {
       ? `
     <section class="section bg-navy" aria-labelledby="cta-heading">
       <div class="container content-column text-center">
-        <h2 id="cta-heading" class="mt-2 mb-3" style="color:#fff;">Ready to start with GH&#8373;1?</h2>
-        <p class="mb-4" style="color:rgba(255,255,255,0.8);">Instant digital access &bull; Read on any device &bull; Secure checkout via Paystack</p>
-        <div data-purchase-default-state>
+        <div data-sales-mode>
+          <h2 id="cta-heading" class="mt-2 mb-3" style="color:#fff;">Ready to start with GH&#8373;1?</h2>
+          <p class="mb-4" style="color:rgba(255,255,255,0.8);">Instant digital access &bull; Read on any device &bull; Secure checkout via Paystack</p>
           <a href="#" class="btn btn--accent" data-buy-button data-product-slug="${escapeHtml(product.slug)}">Buy Now (${escapeHtml(chargeableLabel ?? '')})</a>
           ${purchaseConsentNote}
         </div>
-        <div data-purchase-owned-state hidden>
+        <div data-owner-mode hidden>
+          <h2 class="mt-2 mb-3" style="color:#fff;">You already own this guide</h2>
+          <p class="mb-4" style="color:rgba(255,255,255,0.8);">Head to your library any time to read, download, or manage this purchase.</p>
           <a href="/dashboard/" class="btn btn--accent">Go to My Library</a>
         </div>
       </div>
@@ -1018,12 +1043,20 @@ async function renderBookDetail(env: Env, slug: string): Promise<Response> {
             <p class="hero__subtitle">${escapeHtml(product.subtitle ?? product.shortDescription ?? '')}</p>
             <p class="text-secondary text-small mb-2">${metaBits.map(escapeHtml).join(' &bull; ')}</p>
             ${tagsLine}
-            ${priceBlockHtml}
+            ${ownerSummaryBlock}
+            <div data-sales-mode>${priceBlockHtml}</div>
             <div class="hero__actions">${buyAction}</div>
-            <p class="text-secondary text-small mt-3">Written specifically for Ghana &bull; Instant digital access &bull; Secure checkout via Paystack</p>
+            <div data-sales-mode>
+              <p class="text-secondary text-small mt-3">Written specifically for Ghana &bull; Instant digital access &bull; Secure checkout via Paystack</p>
+              ${
+                !isUpcoming && priceLabel !== null
+                  ? `<p class="text-secondary text-small mt-1">Full refund within 7 days if you haven't downloaded more than once. See the <a href="/legal/terms-of-use/#refund-policy">refund policy</a>.</p>`
+                  : ''
+              }
+            </div>
             ${
               !isUpcoming && priceLabel !== null
-                ? `<p class="text-secondary text-small mt-1">Full refund within 7 days if you haven't downloaded more than once. See the <a href="/legal/terms-of-use/#refund-policy">refund policy</a>.</p>`
+                ? `<p class="text-secondary text-small mt-3" data-owner-mode hidden>Version ${escapeHtml(product.version || '1.0')} &bull; Purchased licence</p>`
                 : ''
             }
           </div>
@@ -1141,7 +1174,7 @@ ${NEWSLETTER_BAND}`;
     extraHead: breadcrumbJsonLd + bookJsonLd + faqJsonLd,
     breadcrumb,
     bodyContent: body,
-    scripts: ['/js/components/buy-button.js?v=m66', '/js/components/founder-bio.js', '/js/components/product-reviews.js', '/js/components/countdown.js', '/js/components/book-purchase-state.js', '/js/main.js'],
+    scripts: ['/js/components/buy-button.js?v=m66', '/js/components/founder-bio.js', '/js/components/product-reviews.js?v=m2', '/js/components/countdown.js', '/js/components/book-purchase-state.js?v=m2', '/js/main.js'],
   });
 
   return htmlResponse(html, 200);

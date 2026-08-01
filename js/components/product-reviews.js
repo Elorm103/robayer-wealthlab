@@ -65,6 +65,34 @@
     return '<p class="text-secondary text-small mb-0">You already reviewed this guide. Editing below will resubmit it for moderation.</p>';
   }
 
+  /** Version 3.5.3 (Phase 6) - a real, scoped delete action (DELETE /api/customer/reviews/:id, customer-owned-row only server-side) where none existed before. Confirmation is an inline "Delete this review? / Yes, delete / Cancel" swap, never window.confirm() - same no-native-dialogs rule this milestone applies to the download flow. */
+  function renderDeleteConfirm(root, productSlug, existing) {
+    root.innerHTML =
+      '<div class="stack gap-2" style="max-width:480px;">' +
+      '<p class="mb-0">Delete this review? This can\'t be undone.</p>' +
+      '<p class="alert alert--error mt-0" data-review-error hidden role="alert"></p>' +
+      '<div class="cluster gap-2">' +
+      '<button type="button" class="btn btn--secondary" data-confirm-delete>Yes, delete</button>' +
+      '<button type="button" class="btn btn--secondary" data-cancel-delete>Cancel</button>' +
+      '</div>' +
+      '</div>';
+
+    root.querySelector('[data-cancel-delete]').addEventListener('click', () => renderForm(root, productSlug, existing));
+    root.querySelector('[data-confirm-delete]').addEventListener('click', async (event) => {
+      const button = event.currentTarget;
+      const errorEl = root.querySelector('[data-review-error]');
+      button.disabled = true;
+      try {
+        await customerFetch('/api/customer/reviews/' + encodeURIComponent(existing.id), { method: 'DELETE' });
+        root.innerHTML = '<p class="alert alert--success">Your review has been deleted.</p>';
+      } catch (error) {
+        errorEl.textContent = error.message || 'Something went wrong. Please try again.';
+        errorEl.hidden = false;
+        button.disabled = false;
+      }
+    });
+  }
+
   function renderForm(root, productSlug, existing) {
     const isEdit = !!existing;
     root.innerHTML =
@@ -85,13 +113,20 @@
       '</textarea>' +
       '</div>' +
       '<p class="alert alert--error mt-0" data-review-error hidden role="alert"></p>' +
+      '<div class="cluster gap-2">' +
       '<button type="submit" class="btn btn--secondary" style="align-self:flex-start;">' +
       (isEdit ? 'Update review' : 'Submit review') +
       '</button>' +
+      (isEdit ? '<button type="button" class="btn btn--secondary" data-delete-review>Delete review</button>' : '') +
+      '</div>' +
       '</form>';
 
     const form = root.querySelector('[data-review-form]');
     const errorEl = root.querySelector('[data-review-error]');
+
+    if (isEdit) {
+      form.querySelector('[data-delete-review]').addEventListener('click', () => renderDeleteConfirm(root, productSlug, existing));
+    }
 
     form.addEventListener('submit', async (event) => {
       event.preventDefault();

@@ -67,7 +67,7 @@ const HEAD_ASSETS = `
   <link rel="stylesheet" href="/css/tokens.css">
   <link rel="stylesheet" href="/css/base.css">
   <link rel="stylesheet" href="/css/layout.css">
-  <link rel="stylesheet" href="/css/components.css?v=m68">
+  <link rel="stylesheet" href="/css/components.css?v=m69">
   <link rel="stylesheet" href="/css/utilities.css">
 `;
 

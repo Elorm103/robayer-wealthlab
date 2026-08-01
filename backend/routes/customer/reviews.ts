@@ -12,7 +12,7 @@ import { isRateLimited } from '../../middleware/rateLimit';
 import { requireCustomerAuth } from '../../middleware/requireCustomerAuth';
 import { requireCustomerCsrf } from '../../middleware/customerCsrf';
 import { isPlausibleSlug } from '../../services/productCatalogService';
-import { submitOrUpdateReview, listCustomerOwnReviews, isValidRating, isValidReviewBody } from '../../services/reviewService';
+import { submitOrUpdateReview, listCustomerOwnReviews, deleteOwnReview, isValidRating, isValidReviewBody } from '../../services/reviewService';
 
 function withNoStore(response: Response): Response {
   const headers = new Headers(response.headers);
@@ -66,4 +66,23 @@ export async function handleSubmitReview(request: Request, env: Env, logger: Log
   }
 
   return withNoStore(jsonSuccess({ reviewId: result.reviewId, status: 'pending' }, 201));
+}
+
+export async function handleDeleteOwnReview(request: Request, env: Env, logger: Logger, params: Record<string, string | undefined>): Promise<Response> {
+  const auth = await requireCustomerAuth(request, env, logger);
+  if (!auth.ok) return withNoStore(auth.response);
+  const csrfFailure = await requireCustomerCsrf(request, env, logger, auth.auth);
+  if (csrfFailure) return withNoStore(csrfFailure);
+
+  if (await isRateLimited(request, env, WRITE_RATE_LIMIT)) {
+    return withNoStore(jsonError('RATE_LIMITED', 'Too many requests. Please try again shortly.'));
+  }
+
+  const reviewId = parseInt(params.id ?? '', 10);
+  if (!Number.isInteger(reviewId)) return withNoStore(jsonError('VALIDATION_ERROR', 'A valid review id is required.'));
+
+  const result = await deleteOwnReview(env, logger, auth.auth.customerId, reviewId);
+  if (!result.ok) return withNoStore(jsonError('NOT_FOUND', 'This review could not be found.'));
+
+  return withNoStore(jsonSuccess({ deleted: true }));
 }
