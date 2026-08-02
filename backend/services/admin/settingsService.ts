@@ -584,13 +584,56 @@ async function getSystemDiagnostics(env: Env, request: Request): Promise<SystemD
   };
 }
 
+// ============================================================
+// AI Gateway diagnostics — Version 5.0 Milestone 1. Same
+// secret-status-without-exposing-the-value pattern as
+// getPaymentDiagnostics() above; usage figures derived from
+// ai_usage_log (backend/database/migrations/0033_ai_gateway.sql), no
+// new aggregation mechanism.
+// ============================================================
+
+export interface AiGatewayDiagnostics {
+  openAiConfigured: SettingsField<boolean>;
+  lastSuccessfulCallAt: SettingsField<string | null>;
+  lastFailedCallAt: SettingsField<string | null>;
+  callCount30d: SettingsField<number>;
+  costUsdMicros30d: SettingsField<number>;
+}
+
+async function getAiGatewayDiagnostics(env: Env): Promise<AiGatewayDiagnostics> {
+  const openAiConfigured = typeof env.OPENAI_API_KEY === 'string' && env.OPENAI_API_KEY.length > 0;
+
+  const [lastSuccess, lastFailure, recent] = await Promise.all([
+    env.DB.prepare(`SELECT MAX(created_at) AS at FROM ai_usage_log WHERE succeeded = 1`).first<{ at: string | null }>(),
+    env.DB.prepare(`SELECT MAX(created_at) AS at FROM ai_usage_log WHERE succeeded = 0`).first<{ at: string | null }>(),
+    env.DB.prepare(`SELECT COUNT(*) AS count, COALESCE(SUM(cost_usd_micros), 0) AS totalCost FROM ai_usage_log WHERE created_at > datetime('now', '-30 days')`).first<{
+      count: number;
+      totalCost: number;
+    }>(),
+  ]);
+
+  return {
+    openAiConfigured: field(openAiConfigured, 'secret', false),
+    lastSuccessfulCallAt: field(lastSuccess?.at ?? null, 'derived', false),
+    lastFailedCallAt: field(lastFailure?.at ?? null, 'derived', false),
+    callCount30d: field(recent?.count ?? 0, 'derived', false),
+    costUsdMicros30d: field(recent?.totalCost ?? 0, 'derived', false),
+  };
+}
+
 export interface SettingsStatusView {
   payment: PaymentDiagnostics;
   email: EmailDiagnostics;
   system: SystemDiagnostics;
+  aiGateway: AiGatewayDiagnostics;
 }
 
 export async function getSettingsStatus(env: Env, request: Request): Promise<SettingsStatusView> {
-  const [payment, email, system] = await Promise.all([getPaymentDiagnostics(env), getEmailDiagnostics(env), getSystemDiagnostics(env, request)]);
-  return { payment, email, system };
+  const [payment, email, system, aiGateway] = await Promise.all([
+    getPaymentDiagnostics(env),
+    getEmailDiagnostics(env),
+    getSystemDiagnostics(env, request),
+    getAiGatewayDiagnostics(env),
+  ]);
+  return { payment, email, system, aiGateway };
 }

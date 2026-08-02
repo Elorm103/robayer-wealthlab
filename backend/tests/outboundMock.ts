@@ -68,6 +68,11 @@ export async function queueResendResponse(env: MockDbEnv, response: { status: nu
   await queueResponse(env, 'resend_send', response);
 }
 
+/** Overrides the next (and only the next) OpenAI /v1/chat/completions response — Version 5.0 Milestone 1 (AI Gateway). */
+export async function queueOpenAiResponse(env: MockDbEnv, response: { status: number; body: unknown }): Promise<void> {
+  await queueResponse(env, 'openai_chat_completions', response);
+}
+
 /**
  * Version 3.3 Milestone M5D.1 (Acceptance Remediation) — a PERSISTENT
  * Resend override, checked before the one-shot `queueResendResponse()`
@@ -130,6 +135,15 @@ export async function outboundMock(request: Request, miniflare: Miniflare): Prom
     if (sticky) return json(sticky.status, sticky.body) as unknown as MiniflareResponse;
     const queued = (await takeConsumedResponse(DB, 'resend_send')) as { status: number; body: unknown } | null;
     const result = queued ?? { status: 200, body: { id: 'mock-email-id' } };
+    return json(result.status, result.body) as unknown as MiniflareResponse;
+  }
+
+  if (url.hostname === 'api.openai.com' && url.pathname === '/v1/chat/completions' && request.method === 'POST') {
+    const queued = (await takeConsumedResponse(DB, 'openai_chat_completions')) as { status: number; body: unknown } | null;
+    const result = queued ?? {
+      status: 200,
+      body: { choices: [{ message: { content: 'OK' } }], usage: { prompt_tokens: 10, completion_tokens: 2 }, model: 'gpt-4o-mini' },
+    };
     return json(result.status, result.body) as unknown as MiniflareResponse;
   }
 

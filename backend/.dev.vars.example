@@ -33,3 +33,9 @@ PAYSTACK_SECRET_KEY=sk_test_placeholder_replace_with_a_real_paystack_secret_key
 # SITE_BASE_URL for local `wrangler dev` only. Must serve
 # content/products/*.json for productCatalogService.ts to find anything.
 # SITE_BASE_URL=http://localhost:8080
+
+# OpenAI API key — the first AiProvider implementation behind the AI
+# Gateway (Version 5.0 Milestone 1, see docs/v5.0-ai-gateway.md). Used
+# server-side only, exclusively by services/ai/providers/openAiProvider.ts.
+# Get a key from https://platform.openai.com/api-keys.
+OPENAI_API_KEY=sk-placeholder_replace_with_a_real_openai_api_key

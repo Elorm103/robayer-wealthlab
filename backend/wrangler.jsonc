@@ -100,7 +100,11 @@
     "SITE_BASE_URL": "https://robayerwealthlab.com",
     "PAYMENT_PROVIDER": "paystack",
     "PAYSTACK_BASE_URL": "https://api.paystack.co",
-    "RESEND_BASE_URL": "https://api.resend.com"
+    "RESEND_BASE_URL": "https://api.resend.com",
+    // Added in Version 5.0 Milestone 1 (AI Gateway Foundation) —
+    // OPENAI_API_KEY is a genuine secret, deliberately absent from this
+    // file (set via `wrangler secret put OPENAI_API_KEY`).
+    "OPENAI_BASE_URL": "https://api.openai.com"
   },
 
   // D1 — structured data (Phase 2 schema: backend/database/schema.sql).

@@ -59,4 +59,16 @@ export interface Env {
   // fabricated value.
   DEPLOYED_COMMIT?: string;
   DEPLOYED_AT?: string;
+
+  // Added in Version 5.0 Milestone 1 (AI Gateway Foundation) — see
+  // docs/v5.0-ai-gateway.md. OPENAI_API_KEY is a genuine secret (set via
+  // `wrangler secret put`, never here); OPENAI_BASE_URL is not secret,
+  // same reasoning as PAYSTACK_BASE_URL/RESEND_BASE_URL above — kept
+  // configurable rather than hardcoded so tests can intercept it via
+  // tests/outboundMock.ts's outboundService without touching this
+  // binding.
+  /** Secret — set via `wrangler secret put OPENAI_API_KEY`, never committed. Used server-side only, exclusively by services/ai/providers/openAiProvider.ts — never read anywhere else. */
+  OPENAI_API_KEY: string;
+  /** e.g. "https://api.openai.com" */
+  OPENAI_BASE_URL: string;
 }

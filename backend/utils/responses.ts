@@ -88,4 +88,5 @@ export const ERROR_STATUS: Record<ApiErrorCode, number> = {
   NO_VERIFIED_PURCHASE: 403,
   COUPON_INVALID: 400,
   PASSWORD_NOT_SET: 401,
+  AI_GATEWAY_ERROR: 502,
 };

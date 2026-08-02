@@ -38,6 +38,10 @@ function initAdminSettings() {
     emailDiagnosticsBody: root.querySelector('[data-email-diagnostics-body]'),
     paymentDiagnostics: root.querySelector('[data-payment-diagnostics]'),
     systemDiagnostics: root.querySelector('[data-system-diagnostics]'),
+    aiGatewayDiagnostics: root.querySelector('[data-ai-gateway-diagnostics]'),
+    aiGatewayTestError: root.querySelector('[data-ai-gateway-test-error]'),
+    aiGatewayTestSuccess: root.querySelector('[data-ai-gateway-test-success]'),
+    aiGatewayTestButton: root.querySelector('[data-ai-gateway-test]'),
     saveButton: root.querySelector('[data-settings-save]'),
     baselineLoadError: root.querySelector('[data-baseline-load-error]'),
     baselineSuccess: root.querySelector('[data-baseline-success]'),
@@ -51,6 +55,7 @@ function initAdminSettings() {
 
   els.saveButton.addEventListener('click', save);
   els.baselineCaptureButton.addEventListener('click', captureBaseline);
+  els.aiGatewayTestButton.addEventListener('click', testAiGateway);
 
   load();
   loadBaseline();
@@ -267,6 +272,28 @@ function initAdminSettings() {
     return new Date(normalized).toLocaleString(undefined, { year: 'numeric', month: 'short', day: 'numeric', hour: 'numeric', minute: '2-digit' });
   }
 
+  // 1 micro = $0.000001 — see backend/services/ai/types.ts.
+  function formatUsdMicros(micros) {
+    return '$' + (micros / 1_000_000).toFixed(4);
+  }
+
+  async function testAiGateway() {
+    els.aiGatewayTestError.hidden = true;
+    els.aiGatewayTestSuccess.hidden = true;
+    els.aiGatewayTestButton.disabled = true;
+    try {
+      const result = await window.AdminAuth.adminFetch(`${SETTINGS_API_BASE}/ai-gateway/test`, { method: 'POST' });
+      els.aiGatewayTestSuccess.textContent = `Success — ${result.provider}/${result.model} responded "${result.content}" in ${result.latencyMs}ms (${formatUsdMicros(result.costUsdMicros)}${result.fallbackUsed ? ', fallback used' : ''}).`;
+      els.aiGatewayTestSuccess.hidden = false;
+      await load();
+    } catch (error) {
+      els.aiGatewayTestError.textContent = error.message || 'AI Gateway test request failed.';
+      els.aiGatewayTestError.hidden = false;
+    } finally {
+      els.aiGatewayTestButton.disabled = false;
+    }
+  }
+
   function renderDiagnostics(status) {
     const p = status.payment;
     const environmentLabel = { test: 'Test mode', live: 'Live mode', unknown: 'Unrecognized key format', not_configured: 'Not configured' }[p.environment.value];
@@ -277,6 +304,15 @@ function initAdminSettings() {
       diagnosticRow('Last successful payment', formatDate(p.lastSuccessfulPaymentAt.value), p.lastSuccessfulPaymentAt.source),
       diagnosticRow('Last successful webhook', formatDate(p.lastWebhookReceivedAt.value), p.lastWebhookReceivedAt.source),
       diagnosticRow('Failed payments (7 days)', String(p.recentFailureCount7d.value), p.recentFailureCount7d.source),
+    ].join('');
+
+    const ai = status.aiGateway;
+    els.aiGatewayDiagnostics.innerHTML = [
+      diagnosticRow('OpenAI API key', ai.openAiConfigured.value ? 'Configured' : 'Not configured', ai.openAiConfigured.source),
+      diagnosticRow('Last successful call', formatDate(ai.lastSuccessfulCallAt.value), ai.lastSuccessfulCallAt.source),
+      diagnosticRow('Last failed call', formatDate(ai.lastFailedCallAt.value), ai.lastFailedCallAt.source),
+      diagnosticRow('Calls (30 days)', String(ai.callCount30d.value), ai.callCount30d.source),
+      diagnosticRow('Cost (30 days)', formatUsdMicros(ai.costUsdMicros30d.value), ai.costUsdMicros30d.source),
     ].join('');
 
     const s = status.system;

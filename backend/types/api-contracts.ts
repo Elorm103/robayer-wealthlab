@@ -134,4 +134,11 @@ export type ApiErrorCode =
   // already told the user this exact fact before this change, so this
   // adds no new enumeration signal, only a machine-readable code for
   // it. See services/customer/authService.ts's login().
-  | 'PASSWORD_NOT_SET';
+  | 'PASSWORD_NOT_SET'
+  // POST /api/admin/settings/ai-gateway/test — added Version 5.0
+  // Milestone 1 (AI Gateway Foundation). Distinct from INTERNAL_ERROR
+  // because this specifically means "every routing candidate the AI
+  // Gateway tried failed" (see services/ai/aiGateway.ts), which is an
+  // upstream-provider/config problem an admin can act on (e.g. check
+  // OPENAI_API_KEY), not a bug in this Worker itself.
+  | 'AI_GATEWAY_ERROR';

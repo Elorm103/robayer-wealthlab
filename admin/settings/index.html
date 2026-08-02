@@ -188,6 +188,19 @@
         </section>
 
         <section class="card mb-4">
+          <h2 class="editor-section-title">AI Gateway</h2>
+          <p class="text-small text-secondary mb-3">
+            Version 5.0 Milestone 1. Every AI feature on this platform calls out through this Gateway only — no
+            component talks to a provider directly. Operational visibility only; no API secret is ever displayed or
+            editable here. Cloudflare Secrets remain the only source of truth. Super-admin only.
+          </p>
+          <dl data-ai-gateway-diagnostics></dl>
+          <p class="alert alert--error" role="alert" data-ai-gateway-test-error hidden></p>
+          <p class="alert alert--success" role="status" data-ai-gateway-test-success hidden></p>
+          <button type="button" class="btn btn--secondary mt-2" data-ai-gateway-test>Send test request</button>
+        </section>
+
+        <section class="card mb-4">
           <h2 class="editor-section-title">Production Launch Baseline</h2>
           <p class="text-small text-secondary mb-3">
             Version 4.9 Phase 9. An immutable, point-in-time snapshot of true launch metrics (PRODUCTION-tier only) —
