@@ -451,15 +451,6 @@
 
   <div data-include="/partials/footer.html"></div>
 
-  <!-- TEMPORARY — Version 4.2.7 Final Acceptance Audit. Loads the
-       MutationObserver tracer, which also sets window.__RECON_AUDIT__
-       (product-loader.js's reconciliation-decision logging checks this
-       flag) - done inside the file itself, not a separate inline
-       <script>, since this site's CSP (script-src 'self', no
-       unsafe-inline) silently blocks inline scripts. Remove this line
-       and js/debug/hero-reconciliation-trace.js once the audit is
-       complete. -->
-  <script src="/js/debug/hero-reconciliation-trace.js?v=50df76c7a6"></script>
   <!-- Version 4.2.5: defer added to every script below - real production
        tracing showed ~973ms of blocking, sequential download+execute
        time for these 12 tags before DOMContentLoaded could even fire
@@ -479,7 +470,7 @@
   <script src="/js/components/branding.js?v=483b048741" defer></script>
   <script src="/js/content-inject.js?v=10a4d215c2" defer></script>
   <script src="/js/components/founder-bio.js?v=4e2cad6615" defer></script>
-  <script src="/js/components/product-loader.js?v=5c4cf1cf71" defer></script>
+  <script src="/js/components/product-loader.js?v=d1a19c35da" defer></script>
   <script src="/js/components/featured-resource.js?v=421ccce2d1" defer></script>
   <script src="/js/components/countdown.js?v=b2f79caeca" defer></script>
   <script src="/js/components/newsletter-form.js?v=e84b578fd7" defer></script>
