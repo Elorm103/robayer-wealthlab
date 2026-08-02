@@ -47,6 +47,39 @@ function firstOfMonth(dateStr: string): string {
 }
 
 // ============================================================
+// Version 4.9 — Analytics Mode (Production Launch Readiness).
+// data_classification (added in migration 0028, backfilled in 0029/
+// 0030) is one of PRODUCTION / INTERNAL / DEVELOPMENT / UNKNOWN on
+// every customer-facing/business table. Analytics Mode controls which
+// of those classifications count toward customer-facing KPIs —
+// 'production' is the default per the founder's rule that Executive
+// Dashboard metrics must exclude DEVELOPMENT and INTERNAL records
+// unless an admin deliberately widens the view. UNKNOWN is never
+// silently folded into 'production' — it only appears once 'all' is
+// selected, so it can't inflate real business numbers before a human
+// reviews it.
+// ============================================================
+
+export type AnalyticsMode = 'production' | 'production_internal' | 'all';
+
+const ANALYTICS_MODE_CLASSIFICATIONS: Record<AnalyticsMode, string[] | null> = {
+  production: ['PRODUCTION'],
+  production_internal: ['PRODUCTION', 'INTERNAL'],
+  all: null,
+};
+
+export function parseAnalyticsMode(value: string | null): AnalyticsMode {
+  if (value === 'production_internal' || value === 'all') return value;
+  return 'production';
+}
+
+/** `classifications === null` means "no filter" (Analytics Mode: All) — returns a predicate always safe to AND/WHERE into a query, never string-interpolated. */
+function classificationPredicate(classifications: string[] | null): { sql: string; params: string[] } {
+  if (!classifications) return { sql: '1=1', params: [] };
+  return { sql: `data_classification IN (${classifications.map(() => '?').join(', ')})`, params: classifications };
+}
+
+// ============================================================
 // Phase 2 + 7 + 9 + 10 — Executive Summary (KPIs, Revenue
 // Intelligence, Publishing inventory, Financial breakdown). One
 // endpoint: this is all "open the dashboard and see it immediately"
@@ -54,7 +87,41 @@ function firstOfMonth(dateStr: string): string {
 // Promise.all pass.
 // ============================================================
 
+export interface RevenueBreakdown {
+  productionPesewas: number;
+  internalPesewas: number;
+  developmentPesewas: number;
+  unknownPesewas: number;
+  totalProcessedPesewas: number;
+}
+
+/**
+ * Always computed across every classification, regardless of the
+ * caller's selected Analytics Mode — per the founder's explicit rule
+ * that the dashboard must never look like no money has ever been
+ * processed just because most of it is internal/dev traffic.
+ */
+async function getRevenueBreakdown(env: Env): Promise<RevenueBreakdown> {
+  const rows = await env.DB.prepare(
+    `SELECT data_classification AS classification, COALESCE(SUM(amount_pesewas), 0) AS total
+     FROM purchase_sessions WHERE status = 'verified' GROUP BY data_classification`
+  ).all<{ classification: string; total: number }>();
+
+  const totals: Record<string, number> = { PRODUCTION: 0, INTERNAL: 0, DEVELOPMENT: 0, UNKNOWN: 0 };
+  for (const row of rows.results ?? []) {
+    totals[row.classification] = row.total ?? 0;
+  }
+  return {
+    productionPesewas: totals.PRODUCTION,
+    internalPesewas: totals.INTERNAL,
+    developmentPesewas: totals.DEVELOPMENT,
+    unknownPesewas: totals.UNKNOWN,
+    totalProcessedPesewas: totals.PRODUCTION + totals.INTERNAL + totals.DEVELOPMENT + totals.UNKNOWN,
+  };
+}
+
 export interface ExecutiveKpis {
+  analyticsMode: AnalyticsMode;
   revenue: {
     todayPesewas: number;
     yesterdayPesewas: number;
@@ -63,6 +130,7 @@ export interface ExecutiveKpis {
     lastMonthPesewas: number;
     monthVsLastMonthPercent: number | null;
     lifetimePesewas: number;
+    breakdown: RevenueBreakdown;
   };
   orders: {
     today: number;
@@ -72,6 +140,7 @@ export interface ExecutiveKpis {
     refunds: number;
   };
   conversionRate: { value: number | null; windowDays: number };
+  totalCustomers: number;
   returningCustomers: number;
   averageOrderValuePesewas: number | null;
   newsletter: { totalSubscribers: number; newToday: number };
@@ -88,11 +157,13 @@ export interface ExecutiveKpis {
   coupons: { active: number; expired: number };
 }
 
-async function getKpis(env: Env): Promise<ExecutiveKpis> {
+async function getKpis(env: Env, analyticsMode: AnalyticsMode): Promise<ExecutiveKpis> {
   const today = todayUtcDateString();
   const yesterday = addDaysToDateString(today, -1);
   const monthStart = firstOfMonth(today);
   const lastMonthStart = firstOfMonth(addDaysToDateString(monthStart, -1));
+  const classifications = ANALYTICS_MODE_CLASSIFICATIONS[analyticsMode];
+  const cls = classificationPredicate(classifications);
 
   const [
     revenueToday,
@@ -100,6 +171,7 @@ async function getKpis(env: Env): Promise<ExecutiveKpis> {
     revenueMonth,
     revenueLastMonth,
     revenueLifetime,
+    revenueBreakdown,
     ordersToday,
     ordersThisMonth,
     ordersCompleted,
@@ -107,6 +179,7 @@ async function getKpis(env: Env): Promise<ExecutiveKpis> {
     ordersRefunded,
     checkoutStarts30d,
     checkoutCompletions30d,
+    totalCustomers,
     returningCustomers,
     aov,
     newsletterTotal,
@@ -121,54 +194,93 @@ async function getKpis(env: Env): Promise<ExecutiveKpis> {
     couponsActive,
     couponsExpired,
   ] = await Promise.all([
-    revenueBetween(env, today, exclusiveEndDate(today)),
-    revenueBetween(env, yesterday, exclusiveEndDate(yesterday)),
-    revenueBetween(env, monthStart, exclusiveEndDate(today)),
-    revenueBetween(env, lastMonthStart, monthStart),
-    revenueBetween(env, '0001-01-01', '9999-12-31'),
-    countVerifiedOrdersBetween(env, today, exclusiveEndDate(today)),
-    countVerifiedOrdersBetween(env, monthStart, exclusiveEndDate(today)),
-    countVerifiedOrdersBetween(env, '0001-01-01', '9999-12-31'),
-    env.DB.prepare(`SELECT COUNT(*) AS c FROM purchase_sessions WHERE status = 'pending' AND expires_at > datetime('now')`).first<{ c: number }>(),
-    env.DB.prepare(`SELECT COUNT(*) AS c FROM purchase_sessions WHERE status = 'refunded'`).first<{ c: number }>(),
-    env.DB.prepare(`SELECT COUNT(*) AS c FROM purchase_sessions WHERE created_at > datetime('now', '-30 days')`).first<{ c: number }>(),
-    env.DB.prepare(`SELECT COUNT(*) AS c FROM purchase_sessions WHERE status = 'verified' AND verified_at > datetime('now', '-30 days')`).first<{ c: number }>(),
+    revenueBetween(env, today, exclusiveEndDate(today), classifications),
+    revenueBetween(env, yesterday, exclusiveEndDate(yesterday), classifications),
+    revenueBetween(env, monthStart, exclusiveEndDate(today), classifications),
+    revenueBetween(env, lastMonthStart, monthStart, classifications),
+    revenueBetween(env, '0001-01-01', '9999-12-31', classifications),
+    getRevenueBreakdown(env),
+    countVerifiedOrdersBetween(env, today, exclusiveEndDate(today), classifications),
+    countVerifiedOrdersBetween(env, monthStart, exclusiveEndDate(today), classifications),
+    countVerifiedOrdersBetween(env, '0001-01-01', '9999-12-31', classifications),
+    env.DB.prepare(`SELECT COUNT(*) AS c FROM purchase_sessions WHERE status = 'pending' AND expires_at > datetime('now') AND ${cls.sql}`)
+      .bind(...cls.params)
+      .first<{ c: number }>(),
+    env.DB.prepare(`SELECT COUNT(*) AS c FROM purchase_sessions WHERE status = 'refunded' AND ${cls.sql}`)
+      .bind(...cls.params)
+      .first<{ c: number }>(),
+    env.DB.prepare(`SELECT COUNT(*) AS c FROM purchase_sessions WHERE created_at > datetime('now', '-30 days') AND ${cls.sql}`)
+      .bind(...cls.params)
+      .first<{ c: number }>(),
+    env.DB.prepare(`SELECT COUNT(*) AS c FROM purchase_sessions WHERE status = 'verified' AND verified_at > datetime('now', '-30 days') AND ${cls.sql}`)
+      .bind(...cls.params)
+      .first<{ c: number }>(),
+    env.DB.prepare(`SELECT COUNT(*) AS c FROM customers WHERE ${cls.sql}`)
+      .bind(...cls.params)
+      .first<{ c: number }>(),
     env.DB.prepare(
       `SELECT COUNT(*) AS c FROM (
-         SELECT customer_id FROM purchase_sessions WHERE status = 'verified' AND customer_id IS NOT NULL
+         SELECT customer_id FROM purchase_sessions WHERE status = 'verified' AND customer_id IS NOT NULL AND ${cls.sql}
          GROUP BY customer_id HAVING COUNT(*) >= 2
        )`
-    ).first<{ c: number }>(),
-    env.DB.prepare(`SELECT COALESCE(SUM(amount_pesewas), 0) AS total, COUNT(*) AS c FROM purchase_sessions WHERE status = 'verified'`).first<{
-      total: number;
-      c: number;
-    }>(),
-    env.DB.prepare(`SELECT COUNT(*) AS c FROM newsletter_subscribers WHERE status = 'subscribed'`).first<{ c: number }>(),
-    env.DB.prepare(`SELECT COUNT(*) AS c FROM newsletter_subscribers WHERE status = 'subscribed' AND subscribed_at >= ? AND subscribed_at < ?`)
-      .bind(today, exclusiveEndDate(today))
+    )
+      .bind(...cls.params)
       .first<{ c: number }>(),
-    env.DB.prepare(`SELECT COUNT(*) AS c FROM products WHERE status = 'active' AND deleted_at IS NULL`).first<{ c: number }>(),
-    env.DB.prepare(`SELECT COUNT(*) AS c FROM resources WHERE status = 'published' AND deleted_at IS NULL`).first<{ c: number }>(),
-    env.DB.prepare(`SELECT COUNT(*) AS c FROM blog_posts WHERE status = 'published' AND deleted_at IS NULL`).first<{ c: number }>(),
-    env.DB.prepare(`SELECT COUNT(*) AS c, AVG(rating) AS avgRating FROM product_reviews WHERE status = 'approved'`).first<{
-      c: number;
-      avgRating: number | null;
-    }>(),
-    env.DB.prepare(`SELECT COUNT(*) AS c FROM products WHERE status = 'draft' AND deleted_at IS NULL`).first<{ c: number }>(),
-    env.DB.prepare(`SELECT COUNT(*) AS c FROM resources WHERE status = 'draft' AND deleted_at IS NULL`).first<{ c: number }>(),
-    env.DB.prepare(`SELECT COUNT(*) AS c FROM blog_posts WHERE status = 'draft' AND deleted_at IS NULL`).first<{ c: number }>(),
-    env.DB.prepare(`SELECT COUNT(*) AS c FROM coupons WHERE status = 'active' AND (expires_at IS NULL OR expires_at > datetime('now'))`).first<{
-      c: number;
-    }>(),
-    env.DB.prepare(`SELECT COUNT(*) AS c FROM coupons WHERE status = 'expired' OR (expires_at IS NOT NULL AND expires_at <= datetime('now'))`).first<{
-      c: number;
-    }>(),
+    env.DB.prepare(`SELECT COALESCE(SUM(amount_pesewas), 0) AS total, COUNT(*) AS c FROM purchase_sessions WHERE status = 'verified' AND ${cls.sql}`)
+      .bind(...cls.params)
+      .first<{
+        total: number;
+        c: number;
+      }>(),
+    env.DB.prepare(`SELECT COUNT(*) AS c FROM newsletter_subscribers WHERE status = 'subscribed' AND ${cls.sql}`)
+      .bind(...cls.params)
+      .first<{ c: number }>(),
+    env.DB.prepare(
+      `SELECT COUNT(*) AS c FROM newsletter_subscribers WHERE status = 'subscribed' AND subscribed_at >= ? AND subscribed_at < ? AND ${cls.sql}`
+    )
+      .bind(today, exclusiveEndDate(today), ...cls.params)
+      .first<{ c: number }>(),
+    env.DB.prepare(`SELECT COUNT(*) AS c FROM products WHERE status = 'active' AND deleted_at IS NULL AND ${cls.sql}`)
+      .bind(...cls.params)
+      .first<{ c: number }>(),
+    env.DB.prepare(`SELECT COUNT(*) AS c FROM resources WHERE status = 'published' AND deleted_at IS NULL AND ${cls.sql}`)
+      .bind(...cls.params)
+      .first<{ c: number }>(),
+    env.DB.prepare(`SELECT COUNT(*) AS c FROM blog_posts WHERE status = 'published' AND deleted_at IS NULL AND ${cls.sql}`)
+      .bind(...cls.params)
+      .first<{ c: number }>(),
+    env.DB.prepare(`SELECT COUNT(*) AS c, AVG(rating) AS avgRating FROM product_reviews WHERE status = 'approved' AND ${cls.sql}`)
+      .bind(...cls.params)
+      .first<{
+        c: number;
+        avgRating: number | null;
+      }>(),
+    env.DB.prepare(`SELECT COUNT(*) AS c FROM products WHERE status = 'draft' AND deleted_at IS NULL AND ${cls.sql}`)
+      .bind(...cls.params)
+      .first<{ c: number }>(),
+    env.DB.prepare(`SELECT COUNT(*) AS c FROM resources WHERE status = 'draft' AND deleted_at IS NULL AND ${cls.sql}`)
+      .bind(...cls.params)
+      .first<{ c: number }>(),
+    env.DB.prepare(`SELECT COUNT(*) AS c FROM blog_posts WHERE status = 'draft' AND deleted_at IS NULL AND ${cls.sql}`)
+      .bind(...cls.params)
+      .first<{ c: number }>(),
+    env.DB.prepare(`SELECT COUNT(*) AS c FROM coupons WHERE status = 'active' AND (expires_at IS NULL OR expires_at > datetime('now')) AND ${cls.sql}`)
+      .bind(...cls.params)
+      .first<{
+        c: number;
+      }>(),
+    env.DB.prepare(`SELECT COUNT(*) AS c FROM coupons WHERE (status = 'expired' OR (expires_at IS NOT NULL AND expires_at <= datetime('now'))) AND ${cls.sql}`)
+      .bind(...cls.params)
+      .first<{
+        c: number;
+      }>(),
   ]);
 
   const startsCount = checkoutStarts30d?.c ?? 0;
   const completionsCount = checkoutCompletions30d?.c ?? 0;
 
   return {
+    analyticsMode,
     revenue: {
       todayPesewas: revenueToday,
       yesterdayPesewas: revenueYesterday,
@@ -177,6 +289,7 @@ async function getKpis(env: Env): Promise<ExecutiveKpis> {
       lastMonthPesewas: revenueLastMonth,
       monthVsLastMonthPercent: percentChange(revenueMonth, revenueLastMonth),
       lifetimePesewas: revenueLifetime,
+      breakdown: revenueBreakdown,
     },
     orders: {
       today: ordersToday,
@@ -189,6 +302,7 @@ async function getKpis(env: Env): Promise<ExecutiveKpis> {
       value: startsCount > 0 ? Math.round((completionsCount / startsCount) * 1000) / 10 : null,
       windowDays: 30,
     },
+    totalCustomers: totalCustomers?.c ?? 0,
     returningCustomers: returningCustomers?.c ?? 0,
     averageOrderValuePesewas: aov && aov.c > 0 ? Math.round(aov.total / aov.c) : null,
     newsletter: { totalSubscribers: newsletterTotal?.c ?? 0, newToday: newsletterToday?.c ?? 0 },
@@ -206,20 +320,22 @@ async function getKpis(env: Env): Promise<ExecutiveKpis> {
   };
 }
 
-async function revenueBetween(env: Env, fromInclusive: string, toExclusive: string): Promise<number> {
+async function revenueBetween(env: Env, fromInclusive: string, toExclusive: string, classifications: string[] | null): Promise<number> {
+  const cls = classificationPredicate(classifications);
   const row = await env.DB.prepare(
-    `SELECT COALESCE(SUM(amount_pesewas), 0) AS total FROM purchase_sessions WHERE status = 'verified' AND verified_at >= ? AND verified_at < ?`
+    `SELECT COALESCE(SUM(amount_pesewas), 0) AS total FROM purchase_sessions WHERE status = 'verified' AND verified_at >= ? AND verified_at < ? AND ${cls.sql}`
   )
-    .bind(fromInclusive, toExclusive)
+    .bind(fromInclusive, toExclusive, ...cls.params)
     .first<{ total: number }>();
   return row?.total ?? 0;
 }
 
-async function countVerifiedOrdersBetween(env: Env, fromInclusive: string, toExclusive: string): Promise<number> {
+async function countVerifiedOrdersBetween(env: Env, fromInclusive: string, toExclusive: string, classifications: string[] | null): Promise<number> {
+  const cls = classificationPredicate(classifications);
   const row = await env.DB.prepare(
-    `SELECT COUNT(*) AS c FROM purchase_sessions WHERE status = 'verified' AND verified_at >= ? AND verified_at < ?`
+    `SELECT COUNT(*) AS c FROM purchase_sessions WHERE status = 'verified' AND verified_at >= ? AND verified_at < ? AND ${cls.sql}`
   )
-    .bind(fromInclusive, toExclusive)
+    .bind(fromInclusive, toExclusive, ...cls.params)
     .first<{ c: number }>();
   return row?.c ?? 0;
 }
@@ -450,9 +566,9 @@ export interface ExecutiveSummary {
   financial: FinancialSummary;
 }
 
-export async function getExecutiveSummary(env: Env): Promise<ExecutiveSummary> {
+export async function getExecutiveSummary(env: Env, analyticsMode: AnalyticsMode = 'production'): Promise<ExecutiveSummary> {
   const [kpis, revenueIntelligence, publishing, financial] = await Promise.all([
-    getKpis(env),
+    getKpis(env, analyticsMode),
     getRevenueIntelligence(env),
     getPublishingInventory(env),
     getFinancialSummary(env),

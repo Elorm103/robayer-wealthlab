@@ -20,6 +20,7 @@ import { isRateLimited } from '../../middleware/rateLimit';
 import { requireAuth } from '../../middleware/requireAuth';
 import { getSystemHealth } from '../../services/admin/systemHealthService';
 import * as executiveDashboardService from '../../services/admin/executiveDashboardService';
+import { parseAnalyticsMode } from '../../services/admin/executiveDashboardService';
 import type { PeriodRange } from '../../utils/dateRange';
 
 const READ_RATE_LIMIT = { endpoint: 'admin-ops-read', limit: 120, windowSeconds: 15 * 60 };
@@ -78,7 +79,8 @@ export async function handleDashboardExecutiveSummary(request: Request, env: Env
     return jsonError('RATE_LIMITED', 'Too many requests. Please try again shortly.');
   }
 
-  const summary = await executiveDashboardService.getExecutiveSummary(env);
+  const analyticsMode = parseAnalyticsMode(new URL(request.url).searchParams.get('analyticsMode'));
+  const summary = await executiveDashboardService.getExecutiveSummary(env, analyticsMode);
   return jsonSuccess(summary);
 }
 

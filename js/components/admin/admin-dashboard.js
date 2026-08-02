@@ -21,6 +21,7 @@ function initAdminDashboard() {
   root.setAttribute('data-bound', 'true');
 
   let chartsRangeDays = 30;
+  let analyticsMode = 'production';
 
   loadHealth();
   loadAlerts();
@@ -30,6 +31,25 @@ function initAdminDashboard() {
   loadOperational();
   loadEmailLifecycle();
   bindChartPresets();
+  bindAnalyticsModeToggle();
+
+  // ============================================================
+  // Version 4.9 — Analytics Mode (Production Launch Readiness).
+  // Controls which data_classification values count toward the
+  // customer-facing KPI cards above (Revenue & orders / Content &
+  // growth). The Revenue breakdown card always shows every
+  // classification regardless of this setting.
+  // ============================================================
+  function bindAnalyticsModeToggle() {
+    root.querySelectorAll('[data-analytics-mode]').forEach((button) => {
+      button.addEventListener('click', () => {
+        root.querySelectorAll('[data-analytics-mode]').forEach((b) => b.setAttribute('aria-pressed', 'false'));
+        button.setAttribute('aria-pressed', 'true');
+        analyticsMode = button.getAttribute('data-analytics-mode');
+        loadExecutiveSummary();
+      });
+    });
+  }
 
   // ============================================================
   // Phase 1 — Health
@@ -120,7 +140,7 @@ function initAdminDashboard() {
   async function loadExecutiveSummary() {
     let summary;
     try {
-      summary = await window.AdminAuth.adminFetch('/api/admin/dashboard/executive-summary');
+      summary = await window.AdminAuth.adminFetch('/api/admin/dashboard/executive-summary?analyticsMode=' + analyticsMode);
     } catch (error) {
       showLoadError('Could not load the executive summary: ' + error.message);
       return;
@@ -148,8 +168,15 @@ function initAdminDashboard() {
 
     setValue('[data-kpi-conversion]', kpis.conversionRate.value === null ? 'No data yet' : kpis.conversionRate.value + '%');
     setText('[data-kpi-conversion-meta]', 'Last ' + kpis.conversionRate.windowDays + ' days');
+    setValue('[data-kpi-total-customers]', kpis.totalCustomers);
     setValue('[data-kpi-returning]', kpis.returningCustomers);
     setValue('[data-kpi-aov]', kpis.averageOrderValuePesewas === null ? 'No data yet' : formatCurrency(kpis.averageOrderValuePesewas / 100));
+
+    const breakdown = kpis.revenue.breakdown;
+    setValue('[data-kpi-revenue-production]', formatCurrency(breakdown.productionPesewas / 100));
+    setValue('[data-kpi-revenue-internal]', formatCurrency(breakdown.internalPesewas / 100));
+    setValue('[data-kpi-revenue-development]', formatCurrency(breakdown.developmentPesewas / 100));
+    setValue('[data-kpi-revenue-total-processed]', formatCurrency(breakdown.totalProcessedPesewas / 100));
 
     setValue('[data-kpi-subscribers]', kpis.newsletter.totalSubscribers);
     setValue('[data-kpi-subscribers-today]', kpis.newsletter.newToday);
