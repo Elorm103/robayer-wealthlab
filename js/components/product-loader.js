@@ -597,7 +597,30 @@
         // still matters) on pages this Worker route doesn't own, and as
         // a safety net if the featured product changes in the narrow
         // window between the Worker's response and this fetch resolving.
-        const alreadyCorrect = coverImgEl && !coverImgEl.hidden && coverImgEl.src && coverImgEl.src.endsWith(featured.coverImage || ' ');
+        const alreadyCorrect = coverImgEl && !coverImgEl.hidden && coverImgEl.src && coverImgEl.src.endsWith(featured.coverImage || ' ');
+        // TEMPORARY — Version 4.2.7 Final Acceptance Audit logging. Gated
+        // behind window.__RECON_AUDIT__ so it is a genuine no-op unless
+        // explicitly enabled; changes no behavior, only reports the
+        // decision the line below is already making. Remove this whole
+        // if-block once the audit is complete.
+        if (window.__RECON_AUDIT__ && coverImgEl) {
+          if (!featured.coverImage) {
+            console.log('[RECON] ' + performance.now().toFixed(2) + 'ms  No cover to reconcile (featured product has no coverImage).');
+          } else if (alreadyCorrect) {
+            console.log('[RECON] ' + performance.now().toFixed(2) + 'ms  Hero already correct. Skipping DOM update.', {
+              currentSrc: coverImgEl.src, expected: featured.coverImage, hidden: coverImgEl.hidden,
+            });
+          } else {
+            const reason = coverImgEl.hidden
+              ? 'image is currently hidden'
+              : !coverImgEl.src
+                ? 'image has no src yet'
+                : "src mismatch (server-rendered src does not match the client-fetched featured product's cover)";
+            console.log('[RECON] ' + performance.now().toFixed(2) + 'ms  Updating hero because: ' + reason + '.', {
+              currentSrc: coverImgEl.src, expected: featured.coverImage, hidden: coverImgEl.hidden,
+            });
+          }
+        }
         if (coverImgEl && featured.coverImage && !alreadyCorrect) {
           revealCover(coverImgEl, placeholderEl, featured.coverImage);
         }
