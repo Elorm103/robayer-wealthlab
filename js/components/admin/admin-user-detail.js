@@ -48,6 +48,8 @@ function initAdminUserDetail() {
     disable: root.querySelector('[data-detail-disable]'),
     reactivate: root.querySelector('[data-detail-reactivate]'),
     delete: root.querySelector('[data-detail-delete]'),
+    restoreSection: root.querySelector('[data-detail-restore-section]'),
+    restore: root.querySelector('[data-detail-restore]'),
   };
 
   const confirmModal = document.querySelector('[data-confirm-modal]');
@@ -110,6 +112,8 @@ function initAdminUserDetail() {
 
     renderSessions(admin.sessions);
     renderHistory(admin.loginHistory);
+
+    els.restoreSection.hidden = !admin.deletedAt || isSelf;
 
     if (admin.deletedAt) {
       els.actionsCard.hidden = true;
@@ -258,6 +262,14 @@ function initAdminUserDetail() {
       confirmAndRun('Delete this account?', 'It will be hidden from the admin and be signed out everywhere. It can be restored later — nothing is permanently deleted.', els.delete, async () => {
         await window.AdminAuth.adminFetch(`${USERS_API_BASE}/${targetId}`, { method: 'DELETE' });
         window.location.href = '/admin/users/';
+      })
+    );
+
+    els.restore.addEventListener('click', () =>
+      confirmAndRun('Restore this account?', 'It will become active again with its original password and role. They will need to log in again.', els.restore, async () => {
+        await window.AdminAuth.adminFetch(`${USERS_API_BASE}/${targetId}/restore`, { method: 'POST' });
+        showSuccess('Account restored.');
+        load();
       })
     );
   }

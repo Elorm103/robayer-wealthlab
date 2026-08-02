@@ -45,7 +45,8 @@ export type ManagementError =
   | { ok: false; reason: 'last_super_admin' }
   | { ok: false; reason: 'invalid_role' }
   | { ok: false; reason: 'email_taken' }
-  | { ok: false; reason: 'invite_not_found' };
+  | { ok: false; reason: 'invite_not_found' }
+  | { ok: false; reason: 'not_deleted' };
 
 // ============================================================
 // Shared guards — re-checked in every function below, never trusted
@@ -461,6 +462,43 @@ export async function softDeleteAdmin(env: Env, logger: Logger, actorId: number,
     actorType: 'admin',
     actorId,
     action: 'admin_user.deleted',
+    entityType: 'admin_user',
+    entityId: targetId,
+    metadata: auditMetadata(context, { email: target.email }),
+  });
+
+  return { ok: true };
+}
+
+/**
+ * Undoes softDeleteAdmin() — clears deleted_at and restores the
+ * account to active. Deliberately a separate action from `inviteAdmin`,
+ * not a bypass of its `email_taken` check: re-inviting a deleted email
+ * would send a "someone invited you, set your password" email to an
+ * account whose password already exists and is untouched by deletion
+ * (only sessions are revoked, per softDeleteAdmin() above) — the
+ * correct fix for "I deleted this admin by mistake" is restoring the
+ * exact row, not issuing a fresh invite that collides with it.
+ *
+ * The admin's original password is left exactly as it was — deletion
+ * never touched it, so there's nothing to reset. If the restoring
+ * super_admin wants the account to set a new password as a security
+ * precaution, the existing `forcePasswordReset`/`forcePasswordChange`
+ * actions below remain available immediately after restoring.
+ */
+export async function restoreAdmin(env: Env, logger: Logger, actorId: number, targetId: number, context: ActionContext): Promise<EditAdminResult> {
+  const guard = await guardTarget(env, actorId, targetId);
+  if (!guard.ok) return guard;
+  const { target } = guard;
+
+  if (!target.deletedAt) return { ok: false, reason: 'not_deleted' };
+
+  await env.DB.prepare(`UPDATE admin_users SET deleted_at = NULL, is_active = 1, updated_at = datetime('now') WHERE id = ?`).bind(targetId).run();
+
+  await auditService.record(env, logger, {
+    actorType: 'admin',
+    actorId,
+    action: 'admin_user.restored',
     entityType: 'admin_user',
     entityId: targetId,
     metadata: auditMetadata(context, { email: target.email }),

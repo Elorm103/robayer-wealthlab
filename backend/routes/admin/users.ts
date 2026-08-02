@@ -41,6 +41,8 @@ function managementErrorResponse(error: ManagementError): Response {
       return jsonError('INVALID_ROLE', 'A valid role is required.');
     case 'email_taken':
       return jsonError('EMAIL_TAKEN', 'An account with this email already exists.');
+    case 'not_deleted':
+      return jsonError('VALIDATION_ERROR', 'This account is not deleted.');
   }
 }
 
@@ -213,6 +215,19 @@ export async function handleDeleteAdmin(request: Request, env: Env, logger: Logg
   if (!result.ok) return managementErrorResponse(result);
 
   return jsonSuccess({ deleted: true });
+}
+
+export async function handleRestoreAdmin(request: Request, env: Env, logger: Logger, params: RouteParams): Promise<Response> {
+  const auth = await guardWriteAccess(request, env, logger);
+  if (!auth.ok) return auth.response;
+
+  const id = parseId(params);
+  if (id === null) return jsonError('NOT_FOUND', 'This account could not be found.');
+
+  const result = await adminUserService.restoreAdmin(env, logger, auth.auth.adminId, id, actionContext(request));
+  if (!result.ok) return managementErrorResponse(result);
+
+  return jsonSuccess({ restored: true });
 }
 
 // ============================================================
