@@ -527,11 +527,31 @@
         const coverImgEl = banner.querySelector('[data-feature-cover-img]');
         const placeholderEl = banner.querySelector('[data-feature-placeholder]');
 
-        if (titleEl) titleEl.textContent = featured.title;
-        if (subtitleEl && featured.subtitle) subtitleEl.textContent = featured.subtitle;
-        if (descriptionEl && featured.shortDescription) descriptionEl.textContent = featured.shortDescription;
+        // Version 4.2.7 (Final Acceptance Audit) — the image reconciliation
+        // below already skips redundant work when the server-rendered
+        // state is already correct (see the alreadyCorrect check further
+        // down), but text/href were still being unconditionally
+        // rewritten every load even when the value was identical.
+        // textContent/setAttribute both fire real DOM mutations (a text
+        // node replacement, an attribute-changed record) regardless of
+        // whether the new value differs from the old one — confirmed via
+        // MutationObserver tracing on the Worker-rendered homepage, where
+        // this fired on every load despite the content never actually
+        // changing. These two tiny helpers make the same "only touch the
+        // DOM if something would actually change" guarantee the image
+        // already had, everywhere else in this function.
+        function setTextIfChanged(el, value) {
+          if (el && el.textContent !== value) el.textContent = value;
+        }
+        function setAttrIfChanged(el, attr, value) {
+          if (el && el.getAttribute(attr) !== value) el.setAttribute(attr, value);
+        }
+
+        if (titleEl) setTextIfChanged(titleEl, featured.title);
+        if (subtitleEl && featured.subtitle) setTextIfChanged(subtitleEl, featured.subtitle);
+        if (descriptionEl && featured.shortDescription) setTextIfChanged(descriptionEl, featured.shortDescription);
         if (ctaEl) {
-          ctaEl.setAttribute('href', '/books/' + featured.slug + '/');
+          setAttrIfChanged(ctaEl, 'href', '/books/' + featured.slug + '/');
           // Version 3.4.2 Milestone M6.2 - the chargeable amount (sale
           // price while a sale is active, regular price otherwise),
           // never featured.price directly - matches every book-card's
@@ -556,10 +576,23 @@
           // begin with (the plain, label-less "Featured eBook" section
           // further down the homepage).
           const labelEl = ctaEl.querySelector('[data-feature-cta-label]');
+          // Version 4.2.7 (Final Acceptance Audit) — this always wrote
+          // "Get the guide: {price}" regardless of which banner it was,
+          // but the Featured eBook section's own static markup (and now
+          // backend/routes/home.ts's server-rendered version) both use
+          // "Get the guide ({price})" - a real, previously-uncaught
+          // mismatch that made this line rewrite the Featured eBook's
+          // CTA to a different format on every single load, a genuine
+          // (if easy to miss) text flash. Matching the format each
+          // section's own markup already uses, keyed on the label's
+          // class, closes that gap rather than just papering over it
+          // with a same-value check that would never actually match.
+          const isFeaturedEbookLabel = labelEl && labelEl.classList.contains('feature-banner__cta-label');
+          const label = isFeaturedEbookLabel ? 'Get the guide (' + priceLabel + ')' : 'Get the guide: ' + priceLabel;
           if (labelEl) {
-            labelEl.textContent = 'Get the guide: ' + priceLabel;
+            setTextIfChanged(labelEl, label);
           } else if (ctaEl.children.length === 0) {
-            ctaEl.textContent = 'Get the guide: ' + priceLabel;
+            setTextIfChanged(ctaEl, label);
           }
         }
         // Real uploaded cover takes over from the typographic
