@@ -329,6 +329,78 @@ export function computeSaleState(
   };
 }
 
+export interface HomepageFeaturedProduct {
+  slug: string;
+  title: string;
+  subtitle: string | null;
+  shortDescription: string | null;
+  /** Regular price, in currency units (e.g. GHS), matching the public API's convention — null for a not-yet-priced coming-soon product. */
+  price: number | null;
+  /** Set only when a sale is genuinely active right now (computeSaleState) — never a stale/expired sale price. */
+  salePrice: number | null;
+  onSale: boolean;
+  coverPublicUrl: string | null;
+}
+
+/**
+ * Version 4.2.6 (Worker-Rendered Homepage) — the ONLY query the
+ * homepage route (routes/home.ts) needs, deliberately not
+ * listProducts()/toPublicShape(): the hero and Featured eBook sections
+ * show exactly one product's cover/title/subtitle/price, never review
+ * counts, gallery, SEO fields, or related products, so there is no
+ * reason to pay for that extra work (or an extra review-summary D1
+ * round trip) on the single hottest path on the whole site. Mirrors
+ * getFeatured(getActive(products))[0] from js/components/product-loader.js
+ * exactly: only a `status = 'active'` product is eligible (not
+ * `coming-soon` — a not-yet-purchasable product was never meant to be
+ * the hero's own focal image), most-recently-created first, matching
+ * the public list endpoint's default `newest` sort so this can never
+ * pick a different product than the client-side fallback would.
+ */
+export async function getHomepageFeaturedProduct(env: Env): Promise<HomepageFeaturedProduct | null> {
+  const row = await env.DB.prepare(
+    `SELECT p.slug, p.title, p.subtitle, p.short_description,
+            p.price_pesewas, p.sale_price_pesewas, p.sale_enabled, p.sale_starts_at, p.sale_ends_at,
+            cover.public_url AS cover_public_url
+     FROM products p
+     LEFT JOIN media_assets cover ON cover.id = p.cover_media_id
+     WHERE p.featured = 1 AND p.status = 'active' AND p.deleted_at IS NULL
+     ORDER BY p.created_at DESC
+     LIMIT 1`
+  ).first<{
+    slug: string;
+    title: string;
+    subtitle: string | null;
+    short_description: string | null;
+    price_pesewas: number | null;
+    sale_price_pesewas: number | null;
+    sale_enabled: number;
+    sale_starts_at: string | null;
+    sale_ends_at: string | null;
+    cover_public_url: string | null;
+  }>();
+  if (!row) return null;
+
+  const sale = computeSaleState({
+    pricePesewas: row.price_pesewas,
+    salePricePesewas: row.sale_price_pesewas,
+    saleEnabled: row.sale_enabled === 1,
+    saleStartsAt: row.sale_starts_at,
+    saleEndsAt: row.sale_ends_at,
+  });
+
+  return {
+    slug: row.slug,
+    title: row.title,
+    subtitle: row.subtitle,
+    shortDescription: row.short_description,
+    price: row.price_pesewas === null ? null : row.price_pesewas / 100,
+    salePrice: sale.isActive ? (sale.effectivePricePesewas as number) / 100 : null,
+    onSale: sale.isActive,
+    coverPublicUrl: row.cover_public_url,
+  };
+}
+
 async function loadFiles(env: Env, productId: number): Promise<ProductFile[]> {
   const { results } = await env.DB.prepare(
     `SELECT pf.id, pf.asset_id, pf.media_id, pf.display_name, pf.file_type, pf.version, pf.status, pf.sort_order,

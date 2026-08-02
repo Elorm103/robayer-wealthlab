@@ -585,7 +585,20 @@
         // image fails to load or decode, the placeholder is left exactly
         // as it already was — the existing graceful-fallback behavior,
         // unchanged.
-        if (coverImgEl && featured.coverImage) {
+        //
+        // Version 4.2.6 (Worker-Rendered Homepage) — this whole function
+        // is now a reconciliation layer, not the primary renderer: the
+        // homepage's own HTML response (backend/routes/home.ts) already
+        // has the real cover's src assigned and unhidden by the time
+        // this script runs, for every normal page load. The check below
+        // recognizes that already-correct state and skips redundant DOM
+        // work entirely — no re-assigning an identical src, no re-toggling
+        // an already-correct hidden state. This function still runs (and
+        // still matters) on pages this Worker route doesn't own, and as
+        // a safety net if the featured product changes in the narrow
+        // window between the Worker's response and this fetch resolving.
+        const alreadyCorrect = coverImgEl && !coverImgEl.hidden && coverImgEl.src && coverImgEl.src.endsWith(featured.coverImage || ' ');
+        if (coverImgEl && featured.coverImage && !alreadyCorrect) {
           revealCover(coverImgEl, placeholderEl, featured.coverImage);
         }
       });

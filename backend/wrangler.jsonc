@@ -44,7 +44,16 @@
   // — every request under /books/* is fully rendered or 404'd by this
   // Worker. Every other path on the zone remains untouched, served by
   // GitHub Pages exactly as before.
+  // Version 4.2.6 (Worker-Rendered Homepage): a fifth Route, matching
+  // ONLY the exact root path (no trailing `*`), so this Worker owns
+  // just `/` itself - every other path at the domain root
+  // (/css/*, /js/*, /assets/*, /about/, etc.) is completely unaffected
+  // and continues being served by GitHub Pages exactly as before. See
+  // routes/home.ts's header comment for why this renders from a
+  // build-time-imported copy of index.html rather than fetching
+  // GitHub Pages at request time.
   "routes": [
+    { "pattern": "robayerwealthlab.com/", "zone_name": "robayerwealthlab.com" },
     { "pattern": "robayerwealthlab.com/api/*", "zone_name": "robayerwealthlab.com" },
     { "pattern": "robayerwealthlab.com/books/*", "zone_name": "robayerwealthlab.com" },
     { "pattern": "robayerwealthlab.com/resources/*", "zone_name": "robayerwealthlab.com" },

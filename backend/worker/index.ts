@@ -140,6 +140,7 @@ import {
 } from '../routes/admin/products';
 import { handlePublicProductsList, handlePublicProductGet } from '../routes/products';
 import { handleBooksIndex, handleBookDetail, handleBookRedirect } from '../routes/books';
+import { handleHomepage } from '../routes/home';
 import {
   handleConsultationsMeta,
   handleConsultationsList,
@@ -495,6 +496,7 @@ const ROUTES: Route[] = [
   // why it never falls through to GitHub Pages for any case (index,
   // known slug, unknown slug all render/404 from D1 directly). Ordered
   // last since `/books/*` is the broadest pattern on this table.
+  { pattern: new URLPattern({ pathname: '/' }), method: 'GET', handler: handleHomepage },
   { pattern: new URLPattern({ pathname: '/books/' }), method: 'GET', handler: handleBooksIndex },
   { pattern: new URLPattern({ pathname: '/books/:slug/' }), method: 'GET', handler: handleBookDetail },
   { pattern: new URLPattern({ pathname: '/books/:slug' }), method: 'GET', handler: handleBookRedirect },

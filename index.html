@@ -338,7 +338,7 @@
           <span class="eyebrow feature-banner__eyebrow">Featured eBook</span>
           <h2 id="featured-book-heading" class="mt-2 mb-2 feature-banner__title" data-feature-title>Starting to invest with GH₵100</h2>
           <p class="mb-4 feature-banner__copy" data-feature-description>A practical first guide to treasury bills, mobile money savings, and the Ghana Stock Exchange.</p>
-          <a href="/books/" class="btn btn--accent" data-feature-cta>Get the guide (GH₵39)</a>
+          <a href="/books/" class="btn btn--accent" data-feature-cta><span class="feature-banner__cta-label" data-feature-cta-label>Get the guide (GH₵39)</span></a>
         </div>
       </div>
     </section>
@@ -454,18 +454,30 @@
   <!-- TEMPORARY — Version 4.2.5 root-cause trace. Remove this line and
        js/debug/hero-trace.js once the exact cause is confirmed. -->
   <script src="/js/debug/hero-trace.js?v=8eae88c2bd"></script>
-  <script src="/js/includes.js?v=cba95d9aa1"></script>
-  <script src="/js/components/analytics.js?v=dd6f93b38e"></script>
-  <script src="/js/components/nav.js?v=c2889cbb06"></script>
-  <script src="/js/components/theme-toggle.js?v=eebe98960c"></script>
-  <script src="/js/components/branding.js?v=483b048741"></script>
-  <script src="/js/content-inject.js?v=10a4d215c2"></script>
-  <script src="/js/components/founder-bio.js?v=4e2cad6615"></script>
-  <script src="/js/components/product-loader.js?v=8534cb1906"></script>
-  <script src="/js/components/featured-resource.js?v=421ccce2d1"></script>
-  <script src="/js/components/countdown.js?v=b2f79caeca"></script>
-  <script src="/js/components/newsletter-form.js?v=e84b578fd7"></script>
-  <script src="/js/components/scroll-reveal.js?v=fc50a299c3"></script>
-  <script src="/js/main.js?v=7050d1e123"></script>
+  <!-- Version 4.2.5: defer added to every script below - real production
+       tracing showed ~973ms of blocking, sequential download+execute
+       time for these 12 tags before DOMContentLoaded could even fire
+       (each one had to fully download AND execute before the parser
+       could move to the next). defer lets the browser download all of
+       them in parallel while it keeps parsing, then executes them once,
+       in the same relative order, still before DOMContentLoaded fires -
+       nothing here relies on document.write or synchronous side effects
+       (confirmed: every script wires up via DOMContentLoaded/partials:loaded
+       event listeners, none run top-level DOM-mutating code immediately),
+       so execution order and timing guarantees are unaffected. See
+       docs/v4.2.5-hero-cover-flicker-root-cause-report.md. -->
+  <script src="/js/includes.js?v=cba95d9aa1" defer></script>
+  <script src="/js/components/analytics.js?v=dd6f93b38e" defer></script>
+  <script src="/js/components/nav.js?v=c2889cbb06" defer></script>
+  <script src="/js/components/theme-toggle.js?v=eebe98960c" defer></script>
+  <script src="/js/components/branding.js?v=483b048741" defer></script>
+  <script src="/js/content-inject.js?v=10a4d215c2" defer></script>
+  <script src="/js/components/founder-bio.js?v=4e2cad6615" defer></script>
+  <script src="/js/components/product-loader.js?v=60630ba3d3" defer></script>
+  <script src="/js/components/featured-resource.js?v=421ccce2d1" defer></script>
+  <script src="/js/components/countdown.js?v=b2f79caeca" defer></script>
+  <script src="/js/components/newsletter-form.js?v=e84b578fd7" defer></script>
+  <script src="/js/components/scroll-reveal.js?v=fc50a299c3" defer></script>
+  <script src="/js/main.js?v=7050d1e123" defer></script>
 </body>
 </html>
