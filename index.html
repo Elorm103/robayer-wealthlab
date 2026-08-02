@@ -451,13 +451,15 @@
 
   <div data-include="/partials/footer.html"></div>
 
-  <!-- TEMPORARY — Version 4.2.7 Final Acceptance Audit. Sets the flag
-       product-loader.js's reconciliation-decision logging checks, and
-       loads the MutationObserver tracer. Remove this block, the inline
-       flag, and js/debug/hero-reconciliation-trace.js once the audit is
+  <!-- TEMPORARY — Version 4.2.7 Final Acceptance Audit. Loads the
+       MutationObserver tracer, which also sets window.__RECON_AUDIT__
+       (product-loader.js's reconciliation-decision logging checks this
+       flag) - done inside the file itself, not a separate inline
+       <script>, since this site's CSP (script-src 'self', no
+       unsafe-inline) silently blocks inline scripts. Remove this line
+       and js/debug/hero-reconciliation-trace.js once the audit is
        complete. -->
-  <script>window.__RECON_AUDIT__ = true;</script>
-  <script src="/js/debug/hero-reconciliation-trace.js?v=5badb1e303"></script>
+  <script src="/js/debug/hero-reconciliation-trace.js?v=50df76c7a6"></script>
   <!-- Version 4.2.5: defer added to every script below - real production
        tracing showed ~973ms of blocking, sequential download+execute
        time for these 12 tags before DOMContentLoaded could even fire

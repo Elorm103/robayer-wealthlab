@@ -5,6 +5,13 @@
  * once the audit is complete.
  */
 (function () {
+  // Set here rather than via a separate inline <script> tag - this
+  // site's CSP is script-src 'self' with no 'unsafe-inline', which
+  // silently blocks inline scripts (confirmed: the earlier inline-tag
+  // version of this flag never actually set window.__RECON_AUDIT__).
+  // This file is loaded via <script src>, which satisfies 'self'.
+  window.__RECON_AUDIT__ = true;
+
   function log(label, extra) {
     var line = '[RECON-TRACE] ' + performance.now().toFixed(2) + 'ms  ' + label;
     if (extra !== undefined) {
