@@ -34,6 +34,8 @@ export interface AdminAuthContext {
   name: string | null;
   csrfSecret: string;
   mustChangePassword: boolean;
+  /** Version 4.9 Phase 6 — this admin's persisted Analytics Mode preference ('production' | 'production_internal' | 'all'), read-only display/reporting concern, never touches data_classification. */
+  analyticsMode: string;
 }
 
 export type RequireAuthResult = { ok: true; auth: AdminAuthContext } | { ok: false; response: Response };
@@ -86,6 +88,7 @@ export async function requireAuth(request: Request, env: Env, logger: Logger): P
       name: check.name,
       csrfSecret: check.csrfSecret,
       mustChangePassword: check.mustChangePassword,
+      analyticsMode: check.analyticsMode,
     },
   };
 }

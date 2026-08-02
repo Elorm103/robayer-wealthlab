@@ -62,6 +62,7 @@ import {
   handleAdminLogout,
   handleAdminSession,
   handleChangePassword,
+  handleUpdateAnalyticsMode,
   handleForgotPassword,
   handleResetPassword,
   handleListSessions,
@@ -108,6 +109,8 @@ import {
   handleDashboardTraffic,
   handleDashboardEmailLifecycle,
 } from '../routes/admin/executiveDashboard';
+import { handleArchiveSummary, handleArchiveEntityRecords, handleArchiveRecordDetail, handleArchivePromoteRecord } from '../routes/admin/archive';
+import { handleListProductionBaselines, handleCaptureProductionBaseline } from '../routes/admin/productionBaseline';
 import { handleHealth } from '../routes/health';
 import {
   handleMediaUpload,
@@ -306,6 +309,7 @@ const ROUTES: Route[] = [
   // docs/v2.1-architecture-plan.md Section 6 and
   // docs/v2.1-phase3-implementation.md.
   { pattern: new URLPattern({ pathname: '/api/admin/auth/change-password' }), method: 'POST', handler: handleChangePassword },
+  { pattern: new URLPattern({ pathname: '/api/admin/auth/analytics-mode' }), method: 'PUT', handler: handleUpdateAnalyticsMode },
   { pattern: new URLPattern({ pathname: '/api/admin/auth/forgot-password' }), method: 'POST', handler: handleForgotPassword },
   { pattern: new URLPattern({ pathname: '/api/admin/auth/reset-password' }), method: 'POST', handler: handleResetPassword },
   { pattern: new URLPattern({ pathname: '/api/admin/auth/sessions' }), method: 'GET', handler: handleListSessions },
@@ -332,6 +336,12 @@ const ROUTES: Route[] = [
   { pattern: new URLPattern({ pathname: '/api/admin/dashboard/alerts' }), method: 'GET', handler: handleDashboardAlerts },
   { pattern: new URLPattern({ pathname: '/api/admin/dashboard/traffic' }), method: 'GET', handler: handleDashboardTraffic },
   { pattern: new URLPattern({ pathname: '/api/admin/dashboard/email-lifecycle' }), method: 'GET', handler: handleDashboardEmailLifecycle },
+  { pattern: new URLPattern({ pathname: '/api/admin/archive/summary' }), method: 'GET', handler: handleArchiveSummary },
+  { pattern: new URLPattern({ pathname: '/api/admin/archive/:entity' }), method: 'GET', handler: handleArchiveEntityRecords },
+  { pattern: new URLPattern({ pathname: '/api/admin/archive/:entity/:id' }), method: 'GET', handler: handleArchiveRecordDetail },
+  { pattern: new URLPattern({ pathname: '/api/admin/archive/:entity/:id/classification' }), method: 'PUT', handler: handleArchivePromoteRecord },
+  { pattern: new URLPattern({ pathname: '/api/admin/production-baseline' }), method: 'GET', handler: handleListProductionBaselines },
+  { pattern: new URLPattern({ pathname: '/api/admin/production-baseline' }), method: 'POST', handler: handleCaptureProductionBaseline },
   // Same-Origin Routing Proof of Concept (docs/v2-same-origin-routing-poc.md)
   // — the first thing verified through the new robayerwealthlab.com/api/*
   // Workers Route, before anything that touches real state.

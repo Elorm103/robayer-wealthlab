@@ -20,8 +20,9 @@ import { isRateLimited } from '../../middleware/rateLimit';
 import { requireAuth } from '../../middleware/requireAuth';
 import { getSystemHealth } from '../../services/admin/systemHealthService';
 import * as executiveDashboardService from '../../services/admin/executiveDashboardService';
-import { parseAnalyticsMode } from '../../services/admin/executiveDashboardService';
+import { parseAnalyticsMode, isAnalyticsMode, type AnalyticsMode } from '../../services/admin/executiveDashboardService';
 import type { PeriodRange } from '../../utils/dateRange';
+import type { AdminAuthContext } from '../../middleware/requireAuth';
 
 const READ_RATE_LIMIT = { endpoint: 'admin-ops-read', limit: 120, windowSeconds: 15 * 60 };
 
@@ -59,6 +60,11 @@ function parseRange(params: URLSearchParams): PeriodRange {
   return { from, to };
 }
 
+/** Version 4.9 Phase 6 — the authenticated admin's own persisted Analytics Mode (admin_users.analytics_mode) is the fallback whenever a request omits `?analyticsMode=`; an explicit query param still always wins (see parseAnalyticsMode()). */
+function adminAnalyticsModeDefault(auth: AdminAuthContext): AnalyticsMode {
+  return isAnalyticsMode(auth.analyticsMode) ? auth.analyticsMode : 'production';
+}
+
 export async function handleDashboardHealth(request: Request, env: Env, logger: Logger): Promise<Response> {
   const auth = await requireAuth(request, env, logger);
   if (!auth.ok) return auth.response;
@@ -79,7 +85,7 @@ export async function handleDashboardExecutiveSummary(request: Request, env: Env
     return jsonError('RATE_LIMITED', 'Too many requests. Please try again shortly.');
   }
 
-  const analyticsMode = parseAnalyticsMode(new URL(request.url).searchParams.get('analyticsMode'));
+  const analyticsMode = parseAnalyticsMode(new URL(request.url).searchParams.get('analyticsMode'), adminAnalyticsModeDefault(auth.auth));
   const summary = await executiveDashboardService.getExecutiveSummary(env, analyticsMode);
   return jsonSuccess(summary);
 }
@@ -93,7 +99,8 @@ export async function handleDashboardCharts(request: Request, env: Env, logger: 
   }
 
   const range = parseRange(new URL(request.url).searchParams);
-  const charts = await executiveDashboardService.getSalesCharts(env, range);
+  const analyticsMode = parseAnalyticsMode(new URL(request.url).searchParams.get('analyticsMode'), adminAnalyticsModeDefault(auth.auth));
+  const charts = await executiveDashboardService.getSalesCharts(env, range, analyticsMode);
   return jsonSuccess({ range, ...charts });
 }
 
@@ -106,7 +113,8 @@ export async function handleDashboardCustomerInsights(request: Request, env: Env
   }
 
   const range = parseRange(new URL(request.url).searchParams);
-  const insights = await executiveDashboardService.getCustomerInsights(env, range);
+  const analyticsMode = parseAnalyticsMode(new URL(request.url).searchParams.get('analyticsMode'), adminAnalyticsModeDefault(auth.auth));
+  const insights = await executiveDashboardService.getCustomerInsights(env, range, analyticsMode);
   return jsonSuccess({ range, ...insights });
 }
 
@@ -118,7 +126,8 @@ export async function handleDashboardOperational(request: Request, env: Env, log
     return jsonError('RATE_LIMITED', 'Too many requests. Please try again shortly.');
   }
 
-  const operational = await executiveDashboardService.getOperationalFeeds(env);
+  const analyticsMode = parseAnalyticsMode(new URL(request.url).searchParams.get('analyticsMode'), adminAnalyticsModeDefault(auth.auth));
+  const operational = await executiveDashboardService.getOperationalFeeds(env, analyticsMode);
   return jsonSuccess(operational);
 }
 
@@ -130,7 +139,8 @@ export async function handleDashboardAlerts(request: Request, env: Env, logger: 
     return jsonError('RATE_LIMITED', 'Too many requests. Please try again shortly.');
   }
 
-  const alerts = await executiveDashboardService.getBusinessAlerts(env);
+  const analyticsMode = parseAnalyticsMode(new URL(request.url).searchParams.get('analyticsMode'), adminAnalyticsModeDefault(auth.auth));
+  const alerts = await executiveDashboardService.getBusinessAlerts(env, analyticsMode);
   return jsonSuccess({ alerts });
 }
 
@@ -144,7 +154,8 @@ export async function handleDashboardTraffic(request: Request, env: Env, logger:
   }
 
   const range = parseRange(new URL(request.url).searchParams);
-  const traffic = await executiveDashboardService.getTrafficFunnel(env, range);
+  const analyticsMode = parseAnalyticsMode(new URL(request.url).searchParams.get('analyticsMode'), adminAnalyticsModeDefault(auth.auth));
+  const traffic = await executiveDashboardService.getTrafficFunnel(env, range, analyticsMode);
   return jsonSuccess({ range, ...traffic });
 }
 

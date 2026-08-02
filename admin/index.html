@@ -22,7 +22,7 @@
   <link rel="stylesheet" href="/css/layout.css?v=a6fb0c7359">
   <link rel="stylesheet" href="/css/components.css?v=1afe806636">
   <link rel="stylesheet" href="/css/utilities.css?v=406dfe7300">
-  <link rel="stylesheet" href="/css/admin.css?v=e5c39b0613">
+  <link rel="stylesheet" href="/css/admin.css?v=2d07c9c939">
 </head>
 <body>
   <a href="#main-content" class="skip-link">Skip to main content</a>
@@ -88,17 +88,24 @@
 
         <!-- ============================================================
              Phase 2 — Executive KPI Cards
-             Version 4.9 — Analytics Mode controls which data_classification
-             values count toward these customer-facing KPIs. Defaults to
-             Production Only. Revenue breakdown below is always shown in
-             every mode, since real processed money must never look hidden.
+             Version 4.9 Phase 6 — Analytics Mode is a per-admin, persisted
+             preference (admin_users.analytics_mode) controlling which
+             data_classification values count toward these customer-facing
+             KPIs. Defaults to Production Only. Revenue breakdown below is
+             always shown in every mode, since real processed money must
+             never look hidden. Reporting/display only - never touches
+             data_classification or any underlying record.
              ============================================================ -->
-        <div class="cluster cluster--between mb-3">
+        <div class="cluster cluster--between mb-2">
           <h2 class="text-lg">Revenue &amp; orders</h2>
+          <p class="stat-card__meta" data-analytics-mode-label>Viewing: Production Only</p>
+        </div>
+        <div class="cluster cluster--between mb-3">
+          <p class="text-secondary text-small">Analytics mode (your own default, saved to your account)</p>
           <div class="toolbar__group" data-analytics-mode-group role="group" aria-label="Analytics mode">
             <button type="button" class="media-filter-chip" aria-pressed="true" data-analytics-mode="production">Production Only</button>
             <button type="button" class="media-filter-chip" aria-pressed="false" data-analytics-mode="production_internal">Production + Internal</button>
-            <button type="button" class="media-filter-chip" aria-pressed="false" data-analytics-mode="all">All</button>
+            <button type="button" class="media-filter-chip" aria-pressed="false" data-analytics-mode="all">All Records</button>
           </div>
         </div>
         <div class="grid grid--4 mb-5">
@@ -516,6 +523,6 @@
   <script src="/js/components/admin/admin-auth.js?v=bb1cec7934"></script>
   <script src="/js/components/admin/admin-shell.js?v=7233204897"></script>
   <script src="/js/components/admin/timeseries-chart.js?v=5ec461649c"></script>
-  <script src="/js/components/admin/admin-dashboard.js?v=484d4de8b6"></script>
+  <script src="/js/components/admin/admin-dashboard.js?v=3e465b1a92"></script>
 </body>
 </html>

@@ -200,8 +200,36 @@ export async function handleAdminSession(request: Request, env: Env, logger: Log
       role: auth.auth.role,
       name: auth.auth.name,
       mustChangePassword: auth.auth.mustChangePassword,
+      analyticsMode: auth.auth.analyticsMode,
     })
   );
+}
+
+// ============================================================
+// Analytics Mode preference — Version 4.9 Phase 6 (Analytics
+// Settings). A per-admin reporting preference, not a security-critical
+// mutation — same requireAuth + requireCsrf shape as change-password
+// above, but no dedicated rate limit (READ_RATE_LIMIT-class endpoints
+// elsewhere in this codebase already cover low-stakes, low-frequency
+// admin self-service writes; see routes/admin/executiveDashboard.ts's
+// own README-equivalent comment on this).
+// ============================================================
+
+export async function handleUpdateAnalyticsMode(request: Request, env: Env, logger: Logger): Promise<Response> {
+  const auth = await requireAuth(request, env, logger);
+  if (!auth.ok) return withNoStore(auth.response);
+  const csrfFailure = await requireCsrf(request, env, logger, auth.auth);
+  if (csrfFailure) return withNoStore(csrfFailure);
+
+  const body = await readJsonBody(request);
+  if (!body) return withNoStore(jsonError('VALIDATION_ERROR', 'Invalid request body.'));
+
+  const result = await authService.updateAnalyticsMode(env, logger, auth.auth.adminId, body.analyticsMode);
+  if (!result.ok) {
+    return withNoStore(jsonError('VALIDATION_ERROR', 'analyticsMode must be one of: production, production_internal, all.'));
+  }
+
+  return withNoStore(jsonSuccess({ analyticsMode: result.analyticsMode }));
 }
 
 // ============================================================

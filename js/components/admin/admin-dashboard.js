@@ -15,13 +15,21 @@
  * as every other admin page script.
  */
 
-function initAdminDashboard() {
+const ANALYTICS_MODE_LABELS = {
+  production: 'Production Only',
+  production_internal: 'Production + Internal',
+  all: 'All Records',
+};
+
+async function initAdminDashboard() {
   const root = document.querySelector('[data-dashboard-root]');
   if (!root || root.hasAttribute('data-bound')) return;
   root.setAttribute('data-bound', 'true');
 
   let chartsRangeDays = 30;
   let analyticsMode = 'production';
+
+  await initAnalyticsMode();
 
   loadHealth();
   loadAlerts();
@@ -34,19 +42,61 @@ function initAdminDashboard() {
   bindAnalyticsModeToggle();
 
   // ============================================================
-  // Version 4.9 — Analytics Mode (Production Launch Readiness).
+  // Version 4.9 Phase 6 — Analytics Mode (per-admin, persisted).
   // Controls which data_classification values count toward the
   // customer-facing KPI cards above (Revenue & orders / Content &
-  // growth). The Revenue breakdown card always shows every
-  // classification regardless of this setting.
+  // growth), reporting only — it never touches data_classification or
+  // any underlying record. The Revenue breakdown card always shows
+  // every classification regardless of this setting. Each admin's
+  // choice is their own (admin_users.analytics_mode) and persists
+  // across sessions/devices; read once at load from the same session
+  // check admin-shell.js already performs, so this page never needs
+  // its own separate settings screen to know the current value.
   // ============================================================
+  async function initAnalyticsMode() {
+    try {
+      const session = await window.AdminAuth.adminFetch('/api/admin/auth/session');
+      if (session.analyticsMode) analyticsMode = session.analyticsMode;
+    } catch (error) {
+      // Non-fatal here - admin-shell.js's own requireSession() gate is
+      // the real auth boundary; this page just falls back to the safe
+      // 'production' default if its own session read fails.
+    }
+    syncAnalyticsModeUi();
+  }
+
+  function syncAnalyticsModeUi() {
+    root.querySelectorAll('[data-analytics-mode]').forEach((button) => {
+      button.setAttribute('aria-pressed', String(button.getAttribute('data-analytics-mode') === analyticsMode));
+    });
+    const label = root.querySelector('[data-analytics-mode-label]');
+    if (label) label.textContent = 'Viewing: ' + (ANALYTICS_MODE_LABELS[analyticsMode] || analyticsMode);
+  }
+
   function bindAnalyticsModeToggle() {
     root.querySelectorAll('[data-analytics-mode]').forEach((button) => {
-      button.addEventListener('click', () => {
-        root.querySelectorAll('[data-analytics-mode]').forEach((b) => b.setAttribute('aria-pressed', 'false'));
-        button.setAttribute('aria-pressed', 'true');
-        analyticsMode = button.getAttribute('data-analytics-mode');
+      button.addEventListener('click', async () => {
+        const mode = button.getAttribute('data-analytics-mode');
+        if (mode === analyticsMode) return;
+        analyticsMode = mode;
+        syncAnalyticsModeUi();
         loadExecutiveSummary();
+        loadCharts(chartsRangeDays);
+        loadCustomerInsights(chartsRangeDays);
+        loadOperational();
+        loadAlerts();
+
+        try {
+          await window.AdminAuth.adminFetch('/api/admin/auth/analytics-mode', {
+            method: 'PUT',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ analyticsMode: mode }),
+          });
+        } catch (error) {
+          // Persisting the preference is best-effort - the mode still
+          // applies for the rest of this session either way, it just
+          // won't be remembered as this admin's default next time.
+        }
       });
     });
   }
@@ -108,7 +158,7 @@ function initAdminDashboard() {
   async function loadAlerts() {
     let payload;
     try {
-      payload = await window.AdminAuth.adminFetch('/api/admin/dashboard/alerts');
+      payload = await window.AdminAuth.adminFetch('/api/admin/dashboard/alerts?analyticsMode=' + analyticsMode);
     } catch (error) {
       return; // A failed alerts fetch degrades silently - health/KPIs are the load-bearing sections.
     }
@@ -263,7 +313,7 @@ function initAdminDashboard() {
   async function loadCharts(days) {
     let data;
     try {
-      data = await window.AdminAuth.adminFetch('/api/admin/dashboard/charts?' + rangeParams(days));
+      data = await window.AdminAuth.adminFetch('/api/admin/dashboard/charts?' + rangeParams(days) + '&analyticsMode=' + analyticsMode);
     } catch (error) {
       showLoadError('Could not load sales analytics: ' + error.message);
       return;
@@ -332,7 +382,7 @@ function initAdminDashboard() {
   async function loadCustomerInsights(days) {
     let data;
     try {
-      data = await window.AdminAuth.adminFetch('/api/admin/dashboard/customer-insights?' + rangeParams(days));
+      data = await window.AdminAuth.adminFetch('/api/admin/dashboard/customer-insights?' + rangeParams(days) + '&analyticsMode=' + analyticsMode);
     } catch (error) {
       showLoadError('Could not load customer analytics: ' + error.message);
       return;
@@ -376,7 +426,7 @@ function initAdminDashboard() {
   async function loadOperational() {
     let data;
     try {
-      data = await window.AdminAuth.adminFetch('/api/admin/dashboard/operational');
+      data = await window.AdminAuth.adminFetch('/api/admin/dashboard/operational?analyticsMode=' + analyticsMode);
     } catch (error) {
       showLoadError('Could not load operational activity: ' + error.message);
       return;

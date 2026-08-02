@@ -39,11 +39,21 @@ function initAdminSettings() {
     paymentDiagnostics: root.querySelector('[data-payment-diagnostics]'),
     systemDiagnostics: root.querySelector('[data-system-diagnostics]'),
     saveButton: root.querySelector('[data-settings-save]'),
+    baselineLoadError: root.querySelector('[data-baseline-load-error]'),
+    baselineSuccess: root.querySelector('[data-baseline-success]'),
+    baselineLatestEmpty: root.querySelector('[data-baseline-latest-empty]'),
+    baselineLatest: root.querySelector('[data-baseline-latest]'),
+    baselineCaptureForm: root.querySelector('[data-baseline-capture-form]'),
+    baselineVersionInput: root.querySelector('[data-baseline-version-input]'),
+    baselineNotesInput: root.querySelector('[data-baseline-notes-input]'),
+    baselineCaptureButton: root.querySelector('[data-baseline-capture]'),
   };
 
   els.saveButton.addEventListener('click', save);
+  els.baselineCaptureButton.addEventListener('click', captureBaseline);
 
   load();
+  loadBaseline();
 
   async function load() {
     els.loadError.hidden = true;
@@ -158,6 +168,97 @@ function initAdminSettings() {
 
   function diagnosticRow(label, valueHtml, source) {
     return `<div class="settings-diagnostic-row"><dt>${label}</dt><dd>${valueHtml} ${sourceTag(source)}</dd></div>`;
+  }
+
+  function baselineRow(label, valueHtml) {
+    return `<div class="settings-diagnostic-row"><dt>${label}</dt><dd>${valueHtml}</dd></div>`;
+  }
+
+  // ============================================================
+  // Production Launch Baseline — Version 4.9 Phase 9. Read access is
+  // open to every authenticated admin; capturing a new baseline is
+  // super_admin-only, enforced server-side regardless of what this
+  // script shows/hides.
+  // ============================================================
+
+  function formatCurrency(pesewas) {
+    return 'GH₵' + (pesewas / 100).toFixed(2);
+  }
+
+  async function loadBaseline() {
+    els.baselineLoadError.hidden = true;
+    try {
+      const [payload, session] = await Promise.all([
+        window.AdminAuth.adminFetch('/api/admin/production-baseline'),
+        window.AdminAuth.adminFetch('/api/admin/auth/session'),
+      ]);
+      renderLatestBaseline(payload.latest);
+      els.baselineCaptureForm.hidden = session.role !== 'super_admin';
+    } catch (error) {
+      els.baselineLoadError.textContent = error.message || 'Could not load the production launch baseline.';
+      els.baselineLoadError.hidden = false;
+    }
+  }
+
+  function renderLatestBaseline(baseline) {
+    if (!baseline) {
+      els.baselineLatestEmpty.hidden = false;
+      els.baselineLatest.hidden = true;
+      return;
+    }
+    els.baselineLatestEmpty.hidden = true;
+    els.baselineLatest.hidden = false;
+    els.baselineLatest.innerHTML = [
+      baselineRow('Platform version', escapeHtml(baseline.platformVersion)),
+      baselineRow('Launch date', escapeHtml(baseline.launchDate)),
+      baselineRow('Captured', formatDate(baseline.createdAt)),
+      baselineRow('Lifetime revenue (total processed)', formatCurrency(baseline.lifetimeRevenuePesewas)),
+      baselineRow('Customer (production) revenue', formatCurrency(baseline.customerRevenuePesewas)),
+      baselineRow('Internal revenue', formatCurrency(baseline.internalRevenuePesewas)),
+      baselineRow('Development revenue', formatCurrency(baseline.developmentRevenuePesewas)),
+      baselineRow('Customers', String(baseline.customersCount)),
+      baselineRow('Orders', String(baseline.ordersCount)),
+      baselineRow('Products', String(baseline.productsCount)),
+      baselineRow('Bundles', String(baseline.bundlesCount)),
+      baselineRow('Resources', String(baseline.resourcesCount)),
+      baselineRow('Downloads', String(baseline.downloadsCount)),
+      baselineRow('Subscribers', String(baseline.subscribersCount)),
+      baselineRow('Reviews', String(baseline.reviewsCount)),
+      baselineRow('Conversion rate', baseline.conversionRatePercent === null ? 'No data yet' : baseline.conversionRatePercent + '%'),
+      baselineRow('Average order value', baseline.averageOrderValuePesewas === null ? 'No data yet' : formatCurrency(baseline.averageOrderValuePesewas)),
+      baselineRow('Traffic (page views, lifetime)', baseline.trafficPageViews === null ? 'No data' : String(baseline.trafficPageViews)),
+    ].join('');
+  }
+
+  async function captureBaseline() {
+    const platformVersion = els.baselineVersionInput.value.trim();
+    els.baselineLoadError.hidden = true;
+    els.baselineSuccess.hidden = true;
+
+    if (!platformVersion) {
+      els.baselineLoadError.textContent = 'Platform version is required to capture a baseline.';
+      els.baselineLoadError.hidden = false;
+      return;
+    }
+
+    els.baselineCaptureButton.disabled = true;
+    try {
+      await window.AdminAuth.adminFetch('/api/admin/production-baseline', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ platformVersion, notes: els.baselineNotesInput.value.trim() || undefined }),
+      });
+      els.baselineSuccess.textContent = 'Baseline captured — this snapshot is now permanent and cannot be edited or deleted.';
+      els.baselineSuccess.hidden = false;
+      els.baselineVersionInput.value = '';
+      els.baselineNotesInput.value = '';
+      await loadBaseline();
+    } catch (error) {
+      els.baselineLoadError.textContent = error.message || 'Could not capture a new baseline.';
+      els.baselineLoadError.hidden = false;
+    } finally {
+      els.baselineCaptureButton.disabled = false;
+    }
   }
 
   function formatDate(isoString) {

@@ -1,0 +1,168 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+
+  <title>Archive Centre | Robayer WealthLab Admin</title>
+  <meta name="description" content="Filter-based visibility into Production, Internal, Development, and Unknown classified records across every business table.">
+  <link rel="canonical" href="https://robayerwealthlab.com/admin/archive/">
+  <meta name="robots" content="noindex, nofollow">
+
+  <link rel="icon" type="image/svg+xml" href="/assets/icons/favicon.svg">
+  <link rel="icon" type="image/png" sizes="32x32" href="/assets/icons/favicon-32.png">
+  <link rel="apple-touch-icon" href="/assets/icons/apple-touch-icon.png">
+
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Newsreader:ital,wght@0,600;1,500&family=Space+Grotesk:wght@500&family=Work+Sans:wght@400;500&family=IBM+Plex+Mono:wght@400;500&display=swap" rel="stylesheet">
+
+  <link rel="stylesheet" href="/css/tokens.css?v=167327e0c9">
+  <link rel="stylesheet" href="/css/base.css?v=57a963bc6f">
+  <link rel="stylesheet" href="/css/layout.css?v=a6fb0c7359">
+  <link rel="stylesheet" href="/css/components.css?v=1afe806636">
+  <link rel="stylesheet" href="/css/utilities.css?v=406dfe7300">
+  <link rel="stylesheet" href="/css/admin.css?v=2d07c9c939">
+</head>
+<body>
+  <a href="#main-content" class="skip-link">Skip to main content</a>
+
+  <div class="admin-shell" data-sidebar-collapsed="false">
+    <div class="admin-include" data-include="/partials/admin-sidebar.html"></div>
+
+    <div class="admin-main">
+      <div class="admin-include" data-include="/partials/admin-topbar.html"></div>
+
+      <main class="admin-content" id="main-content" data-archive-root>
+        <p class="alert alert--error" role="alert" data-archive-load-error hidden></p>
+
+        <section class="card mb-5">
+          <h2 class="text-lg mb-1">Archive Centre</h2>
+          <p class="text-secondary text-small mb-3">
+            Every business table's records, grouped by classification. Nothing here is ever moved, duplicated, or deleted —
+            this is a filtered view over the live tables. Click any count below to see those exact records.
+          </p>
+          <div class="admin-table-wrap" data-archive-summary-wrap>
+            <table class="table" aria-label="Classification summary by table">
+              <thead>
+                <tr>
+                  <th scope="col">Table</th>
+                  <th scope="col">Production</th>
+                  <th scope="col">Internal</th>
+                  <th scope="col">Development</th>
+                  <th scope="col">Unknown</th>
+                  <th scope="col">Total</th>
+                </tr>
+              </thead>
+              <tbody data-archive-summary-body></tbody>
+            </table>
+          </div>
+        </section>
+
+        <section class="card mb-5">
+          <div class="cluster cluster--between mb-3">
+            <h2 class="text-lg">Records</h2>
+            <span class="text-small text-secondary" data-archive-result-count></span>
+          </div>
+
+          <div class="toolbar mb-3">
+            <div class="toolbar__group">
+              <label class="text-small text-secondary" for="archive-entity-select">Table</label>
+              <select id="archive-entity-select" data-archive-entity-select></select>
+            </div>
+            <div class="toolbar__group">
+              <label class="text-small text-secondary" for="archive-search-input">Search</label>
+              <input type="search" id="archive-search-input" data-archive-search placeholder="Search this table&hellip;">
+            </div>
+          </div>
+
+          <div class="media-filters mb-3" role="group" aria-label="Classification filter" data-archive-classification-filters>
+            <button type="button" class="media-filter-chip" aria-pressed="true" data-archive-classification="ALL">All</button>
+            <button type="button" class="media-filter-chip" aria-pressed="false" data-archive-classification="PRODUCTION">Production</button>
+            <button type="button" class="media-filter-chip" aria-pressed="false" data-archive-classification="INTERNAL">Internal</button>
+            <button type="button" class="media-filter-chip" aria-pressed="false" data-archive-classification="DEVELOPMENT">Development</button>
+            <button type="button" class="media-filter-chip" aria-pressed="false" data-archive-classification="UNKNOWN">Unknown</button>
+          </div>
+
+          <div class="empty-state" data-archive-empty hidden>
+            <svg class="icon empty-state__icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M3 3h18v18H3z"/></svg>
+            <p class="empty-state__title">No records match this filter</p>
+            <p class="empty-state__body">Try a different table, classification, or search term.</p>
+          </div>
+
+          <div class="admin-table-wrap" data-archive-table-wrap hidden>
+            <table class="table" aria-label="Archive records">
+              <thead data-archive-table-head></thead>
+              <tbody data-archive-table-body></tbody>
+            </table>
+          </div>
+
+          <div class="pagination" data-archive-pagination>
+            <span data-archive-pagination-label></span>
+            <div class="pagination__controls">
+              <button type="button" class="pagination__button" data-archive-pagination-prev aria-label="Previous page">
+                <svg class="icon" width="16" height="16" viewBox="0 0 24 24" aria-hidden="true"><path d="M15 18l-6-6 6-6"/></svg>
+              </button>
+              <button type="button" class="pagination__button" data-archive-pagination-next aria-label="Next page">
+                <svg class="icon" width="16" height="16" viewBox="0 0 24 24" aria-hidden="true"><path d="M9 6l6 6-6 6"/></svg>
+              </button>
+            </div>
+          </div>
+        </section>
+      </main>
+    </div>
+  </div>
+
+  <!-- Record detail / Unknown-record review drawer — Version 4.9 Phase 8 -->
+  <div class="drawer-overlay" data-archive-drawer hidden>
+    <div class="drawer" role="dialog" aria-modal="true" aria-labelledby="archive-drawer-title">
+      <div class="drawer__header">
+        <div>
+          <h2 class="drawer__title" id="archive-drawer-title" data-archive-drawer-title>&nbsp;</h2>
+          <p class="drawer__subtitle" data-archive-drawer-subtitle>&nbsp;</p>
+        </div>
+        <button type="button" class="drawer__close" data-drawer-close aria-label="Close">
+          <svg class="icon" width="20" height="20" viewBox="0 0 24 24" aria-hidden="true"><path d="M18 6L6 18M6 6l12 12"/></svg>
+        </button>
+      </div>
+      <div class="drawer__body">
+        <p class="alert alert--error" role="alert" data-archive-drawer-error hidden></p>
+        <p class="alert alert--success" role="status" data-archive-drawer-success hidden></p>
+
+        <div class="drawer__section">
+          <p class="drawer__section-title">Evidence (full record)</p>
+          <dl data-archive-drawer-evidence></dl>
+        </div>
+
+        <div class="drawer__section" data-archive-drawer-related-section hidden>
+          <p class="drawer__section-title">Related entities</p>
+          <div data-archive-drawer-related></div>
+        </div>
+
+        <div class="drawer__section" data-archive-drawer-promote-section hidden>
+          <p class="drawer__section-title">Resolve this UNKNOWN record</p>
+          <p class="text-secondary text-small mb-2">
+            Every reclassification here is permanently recorded in the audit trail (administrator, timestamp, before, after, reason).
+          </p>
+          <div class="field mb-3">
+            <label class="field__label" for="archive-drawer-reason">Reason (required)</label>
+            <textarea id="archive-drawer-reason" class="field__input" data-archive-drawer-reason rows="3" placeholder="Why does this record belong in the classification you're about to choose?"></textarea>
+          </div>
+          <div class="cluster">
+            <button type="button" class="btn btn--secondary" data-archive-promote="PRODUCTION">Promote to Production</button>
+            <button type="button" class="btn btn--secondary" data-archive-promote="INTERNAL">Promote to Internal</button>
+            <button type="button" class="btn btn--secondary" data-archive-promote="DEVELOPMENT">Promote to Development</button>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <script src="/js/includes.js?v=cba95d9aa1"></script>
+  <script src="/js/components/theme-toggle.js?v=eebe98960c"></script>
+  <script src="/js/components/branding.js?v=483b048741"></script>
+  <script src="/js/components/admin/admin-auth.js?v=bb1cec7934"></script>
+  <script src="/js/components/admin/admin-shell.js?v=7233204897"></script>
+  <script src="/js/components/admin/admin-archive.js?v=ee7b50cb74"></script>
+</body>
+</html>

@@ -68,15 +68,26 @@ const ANALYTICS_MODE_CLASSIFICATIONS: Record<AnalyticsMode, string[] | null> = {
   all: null,
 };
 
-export function parseAnalyticsMode(value: string | null): AnalyticsMode {
-  if (value === 'production_internal' || value === 'all') return value;
-  return 'production';
+export function isAnalyticsMode(value: unknown): value is AnalyticsMode {
+  return value === 'production' || value === 'production_internal' || value === 'all';
 }
 
-/** `classifications === null` means "no filter" (Analytics Mode: All) — returns a predicate always safe to AND/WHERE into a query, never string-interpolated. */
-function classificationPredicate(classifications: string[] | null): { sql: string; params: string[] } {
+/** `fallback` is the authenticated admin's own persisted preference (see requireAuth.ts's `AdminAuthContext.analyticsMode`, Version 4.9 Phase 6) — an explicit, valid `?analyticsMode=` query param always wins, but an admin who omits it gets their own remembered default rather than a hardcoded one. */
+export function parseAnalyticsMode(value: string | null, fallback: AnalyticsMode = 'production'): AnalyticsMode {
+  if (isAnalyticsMode(value)) return value;
+  return fallback;
+}
+
+/**
+ * `classifications === null` means "no filter" (Analytics Mode: All) —
+ * returns a predicate always safe to AND/WHERE into a query, never
+ * string-interpolated. `column` lets callers target an aliased table
+ * (e.g. `ps.data_classification`) when a query joins more than one
+ * classified table.
+ */
+function classificationPredicate(classifications: string[] | null, column: string = 'data_classification'): { sql: string; params: string[] } {
   if (!classifications) return { sql: '1=1', params: [] };
-  return { sql: `data_classification IN (${classifications.map(() => '?').join(', ')})`, params: classifications };
+  return { sql: `${column} IN (${classifications.map(() => '?').join(', ')})`, params: classifications };
 }
 
 // ============================================================
@@ -157,7 +168,8 @@ export interface ExecutiveKpis {
   coupons: { active: number; expired: number };
 }
 
-async function getKpis(env: Env, analyticsMode: AnalyticsMode): Promise<ExecutiveKpis> {
+/** Exported (Version 4.9 Phase 9) so services/admin/productionBaselineService.ts can reuse the exact same PRODUCTION-tier revenue/customer/order/conversion computation for its Launch Baseline snapshot, rather than re-deriving it — same numbers, one source of truth. */
+export async function getKpis(env: Env, analyticsMode: AnalyticsMode): Promise<ExecutiveKpis> {
   const today = todayUtcDateString();
   const yesterday = addDaysToDateString(today, -1);
   const monthStart = firstOfMonth(today);
@@ -350,34 +362,43 @@ export interface RevenueIntelligence {
   salesForecast: { nextMonthPesewas: number; basis: string } | null;
 }
 
-async function getRevenueIntelligence(env: Env): Promise<RevenueIntelligence> {
+async function getRevenueIntelligence(env: Env, analyticsMode: AnalyticsMode): Promise<RevenueIntelligence> {
+  const cls = classificationPredicate(ANALYTICS_MODE_CLASSIFICATIONS[analyticsMode], 'ps.data_classification');
   const [bestSeller, highestDay, discountStats, monthly] = await Promise.all([
     env.DB.prepare(
       `SELECT ps.product_slug AS slug, COALESCE(p.title, MAX(ps.product_title)) AS title, COUNT(*) AS orderCount, COALESCE(SUM(ps.amount_pesewas), 0) AS revenuePesewas
        FROM purchase_sessions ps
        LEFT JOIN products p ON p.slug = ps.product_slug
-       WHERE ps.status = 'verified'
+       WHERE ps.status = 'verified' AND ${cls.sql}
        GROUP BY ps.product_slug
        ORDER BY revenuePesewas DESC
        LIMIT 1`
-    ).first<{ slug: string; title: string; orderCount: number; revenuePesewas: number }>(),
+    )
+      .bind(...cls.params)
+      .first<{ slug: string; title: string; orderCount: number; revenuePesewas: number }>(),
     env.DB.prepare(
       `SELECT date(verified_at) AS date, COALESCE(SUM(amount_pesewas), 0) AS revenuePesewas
-       FROM purchase_sessions WHERE status = 'verified'
+       FROM purchase_sessions ps WHERE ps.status = 'verified' AND ${cls.sql}
        GROUP BY date(verified_at)
        ORDER BY revenuePesewas DESC
        LIMIT 1`
-    ).first<{ date: string; revenuePesewas: number }>(),
+    )
+      .bind(...cls.params)
+      .first<{ date: string; revenuePesewas: number }>(),
     env.DB.prepare(
       `SELECT AVG(discount_pesewas) AS avgDiscount, COALESCE(SUM(discount_pesewas), 0) AS totalDiscount
-       FROM purchase_sessions WHERE status = 'verified' AND coupon_id IS NOT NULL`
-    ).first<{ avgDiscount: number | null; totalDiscount: number }>(),
+       FROM purchase_sessions ps WHERE ps.status = 'verified' AND ps.coupon_id IS NOT NULL AND ${cls.sql}`
+    )
+      .bind(...cls.params)
+      .first<{ avgDiscount: number | null; totalDiscount: number }>(),
     env.DB.prepare(
       `SELECT strftime('%Y-%m', verified_at) AS month, COALESCE(SUM(amount_pesewas), 0) AS revenuePesewas, COUNT(*) AS orderCount
-       FROM purchase_sessions WHERE status = 'verified' AND verified_at > datetime('now', '-12 months')
+       FROM purchase_sessions ps WHERE ps.status = 'verified' AND ps.verified_at > datetime('now', '-12 months') AND ${cls.sql}
        GROUP BY month
        ORDER BY month ASC`
-    ).all<{ month: string; revenuePesewas: number; orderCount: number }>(),
+    )
+      .bind(...cls.params)
+      .all<{ month: string; revenuePesewas: number; orderCount: number }>(),
   ]);
 
   // Fastest-growing product: last 30 days vs the 30 days before that,
@@ -390,9 +411,11 @@ async function getRevenueIntelligence(env: Env): Promise<RevenueIntelligence> {
             SUM(CASE WHEN ps.verified_at <= datetime('now', '-30 days') AND ps.verified_at > datetime('now', '-60 days') THEN ps.amount_pesewas ELSE 0 END) AS priorPesewas
      FROM purchase_sessions ps
      LEFT JOIN products p ON p.slug = ps.product_slug
-     WHERE ps.status = 'verified' AND ps.verified_at > datetime('now', '-60 days')
+     WHERE ps.status = 'verified' AND ps.verified_at > datetime('now', '-60 days') AND ${cls.sql}
      GROUP BY ps.product_slug`
-  ).all<{ slug: string; title: string; recentPesewas: number; priorPesewas: number }>();
+  )
+    .bind(...cls.params)
+    .all<{ slug: string; title: string; recentPesewas: number; priorPesewas: number }>();
 
   let fastestGrowing: RevenueIntelligence['fastestGrowingProduct'] = null;
   for (const row of growthRows.results) {
@@ -447,7 +470,9 @@ export interface PublishingInventory {
   productsMissingSeo: number;
 }
 
-async function getPublishingInventory(env: Env): Promise<PublishingInventory> {
+async function getPublishingInventory(env: Env, analyticsMode: AnalyticsMode): Promise<PublishingInventory> {
+  const classifications = ANALYTICS_MODE_CLASSIFICATIONS[analyticsMode];
+  const cls = classificationPredicate(classifications);
   const [bookStatus, resourceStatus, blogStatus, mediaCount, brokenRefs, missingCovers, missingMetadata, missingSeo] = await Promise.all([
     env.DB.prepare(
       `SELECT
@@ -455,17 +480,25 @@ async function getPublishingInventory(env: Env): Promise<PublishingInventory> {
          SUM(CASE WHEN status = 'draft' THEN 1 ELSE 0 END) AS draft,
          SUM(CASE WHEN status = 'coming-soon' THEN 1 ELSE 0 END) AS comingSoon,
          SUM(CASE WHEN status = 'archived' THEN 1 ELSE 0 END) AS archived
-       FROM products WHERE deleted_at IS NULL`
-    ).first<{ published: number; draft: number; comingSoon: number; archived: number }>(),
+       FROM products WHERE deleted_at IS NULL AND ${cls.sql}`
+    )
+      .bind(...cls.params)
+      .first<{ published: number; draft: number; comingSoon: number; archived: number }>(),
     env.DB.prepare(
       `SELECT SUM(CASE WHEN status = 'published' THEN 1 ELSE 0 END) AS published, SUM(CASE WHEN status = 'draft' THEN 1 ELSE 0 END) AS draft
-       FROM resources WHERE deleted_at IS NULL`
-    ).first<{ published: number; draft: number }>(),
+       FROM resources WHERE deleted_at IS NULL AND ${cls.sql}`
+    )
+      .bind(...cls.params)
+      .first<{ published: number; draft: number }>(),
     env.DB.prepare(
       `SELECT SUM(CASE WHEN status = 'published' THEN 1 ELSE 0 END) AS published, SUM(CASE WHEN status = 'draft' THEN 1 ELSE 0 END) AS draft
-       FROM blog_posts WHERE deleted_at IS NULL`
-    ).first<{ published: number; draft: number }>(),
-    env.DB.prepare(`SELECT COUNT(*) AS c FROM media_assets WHERE deleted_at IS NULL`).first<{ c: number }>(),
+       FROM blog_posts WHERE deleted_at IS NULL AND ${cls.sql}`
+    )
+      .bind(...cls.params)
+      .first<{ published: number; draft: number }>(),
+    env.DB.prepare(`SELECT COUNT(*) AS c FROM media_assets WHERE deleted_at IS NULL AND ${cls.sql}`)
+      .bind(...cls.params)
+      .first<{ c: number }>(),
     // A "broken media reference" is any non-null media id on a
     // publicly-relevant record that no longer resolves to a real,
     // non-deleted media_assets row — the exact class of defect Version
@@ -520,29 +553,36 @@ export interface FinancialSummary {
   revenueByProduct: { title: string; slug: string; revenuePesewas: number; orderCount: number }[];
 }
 
-async function getFinancialSummary(env: Env): Promise<FinancialSummary> {
+async function getFinancialSummary(env: Env, analyticsMode: AnalyticsMode): Promise<FinancialSummary> {
+  const cls = classificationPredicate(ANALYTICS_MODE_CLASSIFICATIONS[analyticsMode], 'ps.data_classification');
   const [totals, mostDiscounted, byProduct] = await Promise.all([
     env.DB.prepare(
       `SELECT COALESCE(SUM(amount_pesewas), 0) AS net, COALESCE(SUM(discount_pesewas), 0) AS discount
-       FROM purchase_sessions WHERE status = 'verified'`
-    ).first<{ net: number; discount: number }>(),
+       FROM purchase_sessions ps WHERE ps.status = 'verified' AND ${cls.sql}`
+    )
+      .bind(...cls.params)
+      .first<{ net: number; discount: number }>(),
     env.DB.prepare(
       `SELECT ps.product_slug AS slug, COALESCE(p.title, MAX(ps.product_title)) AS title, COALESCE(SUM(ps.discount_pesewas), 0) AS totalDiscountPesewas
        FROM purchase_sessions ps
        LEFT JOIN products p ON p.slug = ps.product_slug
-       WHERE ps.status = 'verified' AND ps.coupon_id IS NOT NULL
+       WHERE ps.status = 'verified' AND ps.coupon_id IS NOT NULL AND ${cls.sql}
        GROUP BY ps.product_slug
        ORDER BY totalDiscountPesewas DESC
        LIMIT 1`
-    ).first<{ slug: string; title: string; totalDiscountPesewas: number }>(),
+    )
+      .bind(...cls.params)
+      .first<{ slug: string; title: string; totalDiscountPesewas: number }>(),
     env.DB.prepare(
       `SELECT ps.product_slug AS slug, COALESCE(p.title, MAX(ps.product_title)) AS title, COALESCE(SUM(ps.amount_pesewas), 0) AS revenuePesewas, COUNT(*) AS orderCount
        FROM purchase_sessions ps
        LEFT JOIN products p ON p.slug = ps.product_slug
-       WHERE ps.status = 'verified'
+       WHERE ps.status = 'verified' AND ${cls.sql}
        GROUP BY ps.product_slug
        ORDER BY revenuePesewas DESC`
-    ).all<{ slug: string; title: string; revenuePesewas: number; orderCount: number }>(),
+    )
+      .bind(...cls.params)
+      .all<{ slug: string; title: string; revenuePesewas: number; orderCount: number }>(),
   ]);
 
   const net = totals?.net ?? 0;
@@ -569,9 +609,9 @@ export interface ExecutiveSummary {
 export async function getExecutiveSummary(env: Env, analyticsMode: AnalyticsMode = 'production'): Promise<ExecutiveSummary> {
   const [kpis, revenueIntelligence, publishing, financial] = await Promise.all([
     getKpis(env, analyticsMode),
-    getRevenueIntelligence(env),
-    getPublishingInventory(env),
-    getFinancialSummary(env),
+    getRevenueIntelligence(env, analyticsMode),
+    getPublishingInventory(env, analyticsMode),
+    getFinancialSummary(env, analyticsMode),
   ]);
   return { kpis, revenueIntelligence, publishing, financial };
 }
@@ -587,54 +627,60 @@ export interface SalesCharts {
   salesByChannel: { channel: string; orderCount: number; revenuePesewas: number }[];
 }
 
-export async function getSalesCharts(env: Env, range: PeriodRange): Promise<SalesCharts> {
+export async function getSalesCharts(env: Env, range: PeriodRange, analyticsMode: AnalyticsMode): Promise<SalesCharts> {
+  const classifications = ANALYTICS_MODE_CLASSIFICATIONS[analyticsMode];
+  const clsPs = classificationPredicate(classifications, 'ps.data_classification');
+  const clsCr = classificationPredicate(classifications, 'cr.data_classification');
+
   const [dailyRows, topProducts, couponUsage, channelRows] = await Promise.all([
     env.DB.prepare(
       `SELECT date(verified_at) AS date, COALESCE(SUM(amount_pesewas), 0) AS revenuePesewas, COUNT(*) AS orderCount
-       FROM purchase_sessions WHERE status = 'verified' AND verified_at >= ? AND verified_at < ?
+       FROM purchase_sessions ps WHERE ps.status = 'verified' AND ps.verified_at >= ? AND ps.verified_at < ? AND ${clsPs.sql}
        GROUP BY date(verified_at)
        ORDER BY date ASC`
     )
-      .bind(range.from, exclusiveEndDate(range.to))
+      .bind(range.from, exclusiveEndDate(range.to), ...clsPs.params)
       .all<{ date: string; revenuePesewas: number; orderCount: number }>(),
     env.DB.prepare(
       `SELECT ps.product_slug AS slug, COALESCE(p.title, MAX(ps.product_title)) AS title, COUNT(*) AS orderCount, COALESCE(SUM(ps.amount_pesewas), 0) AS revenuePesewas
        FROM purchase_sessions ps
        LEFT JOIN products p ON p.slug = ps.product_slug
-       WHERE ps.status = 'verified' AND ps.verified_at >= ? AND ps.verified_at < ?
+       WHERE ps.status = 'verified' AND ps.verified_at >= ? AND ps.verified_at < ? AND ${clsPs.sql}
        GROUP BY ps.product_slug
        ORDER BY revenuePesewas DESC
        LIMIT 10`
     )
-      .bind(range.from, exclusiveEndDate(range.to))
+      .bind(range.from, exclusiveEndDate(range.to), ...clsPs.params)
       .all<{ slug: string; title: string; orderCount: number; revenuePesewas: number }>(),
     env.DB.prepare(
       `SELECT c.code AS code, COUNT(*) AS redemptions, COALESCE(SUM(cr.discount_pesewas), 0) AS totalDiscountPesewas
        FROM coupon_redemptions cr
        JOIN coupons c ON c.id = cr.coupon_id
-       WHERE cr.redeemed_at >= ? AND cr.redeemed_at < ?
+       WHERE cr.redeemed_at >= ? AND cr.redeemed_at < ? AND ${clsCr.sql}
        GROUP BY c.code
        ORDER BY redemptions DESC`
     )
-      .bind(range.from, exclusiveEndDate(range.to))
+      .bind(range.from, exclusiveEndDate(range.to), ...clsCr.params)
       .all<{ code: string; redemptions: number; totalDiscountPesewas: number }>(),
     // Payment channel (mobile_money/card/etc.) is only available inside
     // the raw Paystack gateway_response JSON blob recorded per
     // transaction — extracted here with json_extract rather than
     // stored as its own column, since payment_transactions.gateway_response
     // is already the authoritative, verbatim record of what Paystack
-    // reported (see commerceService.ts's handlePaymentWebhook()).
+    // reported (see commerceService.ts's handlePaymentWebhook()). Filtered
+    // on ps.data_classification, not pt's own — purchase_sessions is the
+    // canonical classification for a transaction (see revenueBetween()).
     env.DB.prepare(
       `SELECT COALESCE(json_extract(pt.gateway_response, '$.data.channel'), 'unknown') AS channel,
               COUNT(*) AS orderCount,
               COALESCE(SUM(ps.amount_pesewas), 0) AS revenuePesewas
        FROM payment_transactions pt
        JOIN purchase_sessions ps ON ps.id = pt.purchase_session_id
-       WHERE pt.status = 'success' AND ps.status = 'verified' AND ps.verified_at >= ? AND ps.verified_at < ?
+       WHERE pt.status = 'success' AND ps.status = 'verified' AND ps.verified_at >= ? AND ps.verified_at < ? AND ${clsPs.sql}
        GROUP BY channel
        ORDER BY orderCount DESC`
     )
-      .bind(range.from, exclusiveEndDate(range.to))
+      .bind(range.from, exclusiveEndDate(range.to), ...clsPs.params)
       .all<{ channel: string; orderCount: number; revenuePesewas: number }>(),
   ]);
 
@@ -664,7 +710,15 @@ export interface CustomerInsights {
   repeatPurchaseRatePercent: number | null;
 }
 
-export async function getCustomerInsights(env: Env, range: PeriodRange): Promise<CustomerInsights> {
+export async function getCustomerInsights(env: Env, range: PeriodRange, analyticsMode: AnalyticsMode): Promise<CustomerInsights> {
+  const classifications = ANALYTICS_MODE_CLASSIFICATIONS[analyticsMode];
+  const clsCustomers = classificationPredicate(classifications);
+  const clsPs = classificationPredicate(classifications, 'ps.data_classification');
+  const clsPrior = classificationPredicate(classifications, 'prior.data_classification');
+  const clsDeliveries = classificationPredicate(classifications);
+  const clsReviews = classificationPredicate(classifications);
+  const clsR = classificationPredicate(classifications, 'r.data_classification');
+
   const [
     newCustomers,
     returningInRange,
@@ -678,38 +732,43 @@ export async function getCustomerInsights(env: Env, range: PeriodRange): Promise
     customersWithAnyPurchase,
     customersWithRepeatPurchase,
   ] = await Promise.all([
-    env.DB.prepare(`SELECT COUNT(*) AS c FROM customers WHERE created_at >= ? AND created_at < ?`)
-      .bind(range.from, exclusiveEndDate(range.to))
+    env.DB.prepare(`SELECT COUNT(*) AS c FROM customers WHERE created_at >= ? AND created_at < ? AND ${clsCustomers.sql}`)
+      .bind(range.from, exclusiveEndDate(range.to), ...clsCustomers.params)
       .first<{ c: number }>(),
     env.DB.prepare(
       `SELECT COUNT(*) AS c FROM purchase_sessions ps
-       WHERE ps.status = 'verified' AND ps.verified_at >= ? AND ps.verified_at < ? AND ps.customer_id IS NOT NULL
+       WHERE ps.status = 'verified' AND ps.verified_at >= ? AND ps.verified_at < ? AND ps.customer_id IS NOT NULL AND ${clsPs.sql}
          AND EXISTS (
-           SELECT 1 FROM purchase_sessions prior WHERE prior.customer_id = ps.customer_id AND prior.status = 'verified'
+           SELECT 1 FROM purchase_sessions prior WHERE prior.customer_id = ps.customer_id AND prior.status = 'verified' AND ${clsPrior.sql}
              AND (prior.verified_at < ps.verified_at OR (prior.verified_at = ps.verified_at AND prior.id < ps.id))
          )`
     )
-      .bind(range.from, exclusiveEndDate(range.to))
+      .bind(range.from, exclusiveEndDate(range.to), ...clsPs.params, ...clsPrior.params)
       .first<{ c: number }>(),
+    // email_log carries no data_classification (see migration 0028's
+    // exclusion list — operational history, not a business record), so
+    // this figure is intentionally the same in every Analytics Mode.
     env.DB.prepare(`SELECT COUNT(*) AS c FROM email_log WHERE template = 'customer-password-reset' AND status = 'sent' AND created_at >= ? AND created_at < ?`)
       .bind(range.from, exclusiveEndDate(range.to))
       .first<{ c: number }>(),
     env.DB.prepare(
-      `SELECT product_slug AS slug, COUNT(*) AS downloads FROM deliveries WHERE last_download_at IS NOT NULL AND last_download_at >= ? AND last_download_at < ?
+      `SELECT product_slug AS slug, COUNT(*) AS downloads FROM deliveries WHERE last_download_at IS NOT NULL AND last_download_at >= ? AND last_download_at < ? AND ${clsDeliveries.sql}
        GROUP BY product_slug ORDER BY downloads DESC LIMIT 10`
     )
-      .bind(range.from, exclusiveEndDate(range.to))
+      .bind(range.from, exclusiveEndDate(range.to), ...clsDeliveries.params)
       .all<{ slug: string; downloads: number }>(),
-    env.DB.prepare(`SELECT COUNT(*) AS c FROM product_reviews WHERE created_at >= ? AND created_at < ?`)
-      .bind(range.from, exclusiveEndDate(range.to))
+    env.DB.prepare(`SELECT COUNT(*) AS c FROM product_reviews WHERE created_at >= ? AND created_at < ? AND ${clsReviews.sql}`)
+      .bind(range.from, exclusiveEndDate(range.to), ...clsReviews.params)
       .first<{ c: number }>(),
-    env.DB.prepare(`SELECT COUNT(*) AS c FROM purchase_sessions WHERE status = 'verified' AND verified_at >= ? AND verified_at < ?`)
-      .bind(range.from, exclusiveEndDate(range.to))
+    env.DB.prepare(`SELECT COUNT(*) AS c FROM purchase_sessions ps WHERE ps.status = 'verified' AND ps.verified_at >= ? AND ps.verified_at < ? AND ${clsPs.sql}`)
+      .bind(range.from, exclusiveEndDate(range.to), ...clsPs.params)
       .first<{ c: number }>(),
     env.DB.prepare(
       `SELECT COALESCE(SUM(amount_pesewas), 0) AS total, COUNT(DISTINCT customer_id) AS customers
-       FROM purchase_sessions WHERE status = 'verified' AND customer_id IS NOT NULL`
-    ).first<{ total: number; customers: number }>(),
+       FROM purchase_sessions ps WHERE ps.status = 'verified' AND ps.customer_id IS NOT NULL AND ${clsPs.sql}`
+    )
+      .bind(...clsPs.params)
+      .first<{ total: number; customers: number }>(),
     // Average days between a purchase's verification and the first
     // review that purchase's customer ever submitted for that same
     // product — real, computed from actual timestamps, only over
@@ -721,18 +780,26 @@ export async function getCustomerInsights(env: Env, range: PeriodRange): Promise
        FROM product_reviews r
        JOIN purchase_sessions ps ON ps.customer_id = r.customer_id
        JOIN products p ON p.slug = ps.product_slug AND p.id = r.product_id
-       WHERE ps.status = 'verified'`
-    ).first<{ avgDays: number | null }>(),
+       WHERE ps.status = 'verified' AND ${clsR.sql} AND ${clsPs.sql}`
+    )
+      .bind(...clsR.params, ...clsPs.params)
+      .first<{ avgDays: number | null }>(),
     env.DB.prepare(
       `SELECT AVG(julianday(ps.verified_at) - julianday(ps.created_at)) AS avgDays
-       FROM purchase_sessions ps WHERE ps.status = 'verified'`
-    ).first<{ avgDays: number | null }>(),
-    env.DB.prepare(`SELECT COUNT(DISTINCT customer_id) AS c FROM purchase_sessions WHERE status = 'verified' AND customer_id IS NOT NULL`).first<{
-      c: number;
-    }>(),
+       FROM purchase_sessions ps WHERE ps.status = 'verified' AND ${clsPs.sql}`
+    )
+      .bind(...clsPs.params)
+      .first<{ avgDays: number | null }>(),
+    env.DB.prepare(`SELECT COUNT(DISTINCT customer_id) AS c FROM purchase_sessions ps WHERE ps.status = 'verified' AND ps.customer_id IS NOT NULL AND ${clsPs.sql}`)
+      .bind(...clsPs.params)
+      .first<{
+        c: number;
+      }>(),
     env.DB.prepare(
-      `SELECT COUNT(*) AS c FROM (SELECT customer_id FROM purchase_sessions WHERE status = 'verified' AND customer_id IS NOT NULL GROUP BY customer_id HAVING COUNT(*) >= 2)`
-    ).first<{ c: number }>(),
+      `SELECT COUNT(*) AS c FROM (SELECT customer_id FROM purchase_sessions ps WHERE ps.status = 'verified' AND ps.customer_id IS NOT NULL AND ${clsPs.sql} GROUP BY customer_id HAVING COUNT(*) >= 2)`
+    )
+      .bind(...clsPs.params)
+      .first<{ c: number }>(),
   ]);
 
   const reviewCount = reviewsInRange?.c ?? 0;
@@ -776,7 +843,15 @@ export interface OperationalFeeds {
 
 const RECENT_LIMIT = 10;
 
-export async function getOperationalFeeds(env: Env): Promise<OperationalFeeds> {
+export async function getOperationalFeeds(env: Env, analyticsMode: AnalyticsMode): Promise<OperationalFeeds> {
+  const classifications = ANALYTICS_MODE_CLASSIFICATIONS[analyticsMode];
+  const clsPs = classificationPredicate(classifications);
+  const clsR = classificationPredicate(classifications, 'r.data_classification');
+  const clsContact = classificationPredicate(classifications);
+  const clsConsult = classificationPredicate(classifications);
+  const clsNewsletter = classificationPredicate(classifications);
+  const clsAdmin = classificationPredicate(classifications, 'a.data_classification');
+
   const [
     recentOrders,
     recentReviews,
@@ -791,37 +866,45 @@ export async function getOperationalFeeds(env: Env): Promise<OperationalFeeds> {
   ] = await Promise.all([
     env.DB.prepare(
       `SELECT purchase_reference AS reference, product_title AS productTitle, amount_pesewas AS amountPesewas, verified_at AS verifiedAt
-       FROM purchase_sessions WHERE status = 'verified' ORDER BY id DESC LIMIT ?`
+       FROM purchase_sessions WHERE status = 'verified' AND ${clsPs.sql} ORDER BY id DESC LIMIT ?`
     )
-      .bind(RECENT_LIMIT)
+      .bind(...clsPs.params, RECENT_LIMIT)
       .all<{ reference: string; productTitle: string; amountPesewas: number; verifiedAt: string }>(),
     env.DB.prepare(
       `SELECT COALESCE(p.title, 'Unknown product') AS productTitle, r.rating AS rating, r.status AS status, r.created_at AS createdAt
-       FROM product_reviews r LEFT JOIN products p ON p.id = r.product_id ORDER BY r.id DESC LIMIT ?`
+       FROM product_reviews r LEFT JOIN products p ON p.id = r.product_id WHERE ${clsR.sql} ORDER BY r.id DESC LIMIT ?`
     )
-      .bind(RECENT_LIMIT)
+      .bind(...clsR.params, RECENT_LIMIT)
       .all<{ productTitle: string; rating: number; status: string; createdAt: string }>(),
-    env.DB.prepare(`SELECT name, substr(message, 1, 80) AS messagePreview, created_at AS createdAt FROM contact_messages WHERE deleted_at IS NULL ORDER BY id DESC LIMIT ?`)
-      .bind(RECENT_LIMIT)
+    env.DB.prepare(`SELECT name, substr(message, 1, 80) AS messagePreview, created_at AS createdAt FROM contact_messages WHERE deleted_at IS NULL AND ${clsContact.sql} ORDER BY id DESC LIMIT ?`)
+      .bind(...clsContact.params, RECENT_LIMIT)
       .all<{ name: string; messagePreview: string; createdAt: string }>(),
-    env.DB.prepare(`SELECT name, status, created_at AS createdAt FROM consultation_requests WHERE deleted_at IS NULL ORDER BY id DESC LIMIT ?`)
-      .bind(RECENT_LIMIT)
+    env.DB.prepare(`SELECT name, status, created_at AS createdAt FROM consultation_requests WHERE deleted_at IS NULL AND ${clsConsult.sql} ORDER BY id DESC LIMIT ?`)
+      .bind(...clsConsult.params, RECENT_LIMIT)
       .all<{ name: string; status: string; createdAt: string }>(),
-    env.DB.prepare(`SELECT email AS email, subscribed_at AS subscribedAt FROM newsletter_subscribers ORDER BY id DESC LIMIT ?`)
-      .bind(RECENT_LIMIT)
+    env.DB.prepare(`SELECT email AS email, subscribed_at AS subscribedAt FROM newsletter_subscribers WHERE ${clsNewsletter.sql} ORDER BY id DESC LIMIT ?`)
+      .bind(...clsNewsletter.params, RECENT_LIMIT)
       .all<{ email: string; subscribedAt: string }>(),
+    // Admin login activity is filtered by the acting admin account's own
+    // classification (real team vs. milestone-tagged test admin) — the
+    // login event itself (login_history) has no classification of its
+    // own, per migration 0028's operational-history exclusion.
     env.DB.prepare(
       `SELECT a.email AS email, lh.created_at AS createdAt FROM login_history lh JOIN admin_users a ON a.id = lh.admin_id
-       WHERE lh.outcome = 'success' ORDER BY lh.id DESC LIMIT ?`
+       WHERE lh.outcome = 'success' AND ${clsAdmin.sql} ORDER BY lh.id DESC LIMIT ?`
     )
-      .bind(RECENT_LIMIT)
+      .bind(...clsAdmin.params, RECENT_LIMIT)
       .all<{ email: string; createdAt: string }>(),
     env.DB.prepare(
       `SELECT a.email AS email, lh.outcome AS outcome, lh.created_at AS createdAt FROM login_history lh JOIN admin_users a ON a.id = lh.admin_id
-       WHERE lh.outcome != 'success' ORDER BY lh.id DESC LIMIT ?`
+       WHERE lh.outcome != 'success' AND ${clsAdmin.sql} ORDER BY lh.id DESC LIMIT ?`
     )
-      .bind(RECENT_LIMIT)
+      .bind(...clsAdmin.params, RECENT_LIMIT)
       .all<{ email: string; outcome: string; createdAt: string }>(),
+    // email_log and audit_logs carry no data_classification by design
+    // (operational/security history, not business records — see
+    // migration 0028's exclusion list) — these three feeds are
+    // intentionally identical in every Analytics Mode.
     env.DB.prepare(
       `SELECT recipient, template, created_at AS createdAt FROM email_log
        WHERE template IN ('customer-password-reset', 'password-reset', 'customer-purchase-reconciliation') AND status = 'sent'
@@ -871,8 +954,13 @@ export interface BusinessAlert {
   message: string;
 }
 
-export async function getBusinessAlerts(env: Env): Promise<BusinessAlert[]> {
+export async function getBusinessAlerts(env: Env, analyticsMode: AnalyticsMode): Promise<BusinessAlert[]> {
   const alerts: BusinessAlert[] = [];
+  const classifications = ANALYTICS_MODE_CLASSIFICATIONS[analyticsMode];
+  const clsP = classificationPredicate(classifications, 'p.data_classification');
+  const clsR = classificationPredicate(classifications, 'r.data_classification');
+  const clsProducts = classificationPredicate(classifications);
+  const clsCampaigns = classificationPredicate(classifications);
 
   const [
     lowReviewProducts,
@@ -885,12 +973,23 @@ export async function getBusinessAlerts(env: Env): Promise<BusinessAlert[]> {
     cronHeartbeat,
     migrationInfo,
   ] = await Promise.all([
+    // Filtered on both the product's own classification and the review's
+    // (via the LEFT JOIN's ON clause, not WHERE, so a product with zero
+    // qualifying reviews still surfaces reviewCount = 0 rather than
+    // disappearing from the result entirely).
     env.DB.prepare(
       `SELECT p.title AS title, COUNT(r.id) AS reviewCount
-       FROM products p LEFT JOIN product_reviews r ON r.product_id = p.id AND r.status = 'approved'
-       WHERE p.status = 'active' AND p.deleted_at IS NULL
+       FROM products p LEFT JOIN product_reviews r ON r.product_id = p.id AND r.status = 'approved' AND ${clsR.sql}
+       WHERE p.status = 'active' AND p.deleted_at IS NULL AND ${clsP.sql}
        GROUP BY p.id HAVING reviewCount < 3`
-    ).all<{ title: string; reviewCount: number }>(),
+    )
+      .bind(...clsR.params, ...clsP.params)
+      .all<{ title: string; reviewCount: number }>(),
+    // email_log/payment_transactions failure counts, and the cron/
+    // migration health checks below, are operational signals rather
+    // than customer-facing business KPIs — always shown in full
+    // regardless of Analytics Mode, matching migration 0028's own
+    // operational-history carve-out.
     env.DB.prepare(`SELECT COUNT(*) AS c FROM email_log WHERE status IN ('failed', 'permanently_failed') AND created_at > datetime('now', '-7 days')`).first<{
       c: number;
     }>(),
@@ -904,21 +1003,29 @@ export async function getBusinessAlerts(env: Env): Promise<BusinessAlert[]> {
     // routes/books.ts's renderProductCard()). Flagging that as an
     // alert here would be a false alarm about an established, correct
     // design, not a real problem.
-    env.DB.prepare(`SELECT title FROM products WHERE status = 'active' AND deleted_at IS NULL AND cover_media_id IS NULL`).all<{
-      title: string;
-    }>(),
+    env.DB.prepare(`SELECT title FROM products WHERE status = 'active' AND deleted_at IS NULL AND cover_media_id IS NULL AND ${clsProducts.sql}`)
+      .bind(...clsProducts.params)
+      .all<{
+        title: string;
+      }>(),
     env.DB.prepare(
       `SELECT p.title AS title FROM products p
-       WHERE p.status = 'active' AND p.deleted_at IS NULL AND p.price_pesewas IS NOT NULL AND p.price_pesewas > 0
+       WHERE p.status = 'active' AND p.deleted_at IS NULL AND p.price_pesewas IS NOT NULL AND p.price_pesewas > 0 AND ${clsP.sql}
          AND NOT EXISTS (SELECT 1 FROM product_files f WHERE f.product_id = p.id AND f.status = 'published')`
-    ).all<{ title: string }>(),
-    env.DB.prepare(`SELECT title, status FROM products WHERE status IN ('hidden', 'unavailable') AND deleted_at IS NULL`).all<{
-      title: string;
-      status: string;
-    }>(),
-    env.DB.prepare(`SELECT COUNT(*) AS c FROM newsletter_campaigns WHERE status = 'failed' AND deleted_at IS NULL AND created_at > datetime('now', '-30 days')`).first<{
-      c: number;
-    }>(),
+    )
+      .bind(...clsP.params)
+      .all<{ title: string }>(),
+    env.DB.prepare(`SELECT title, status FROM products WHERE status IN ('hidden', 'unavailable') AND deleted_at IS NULL AND ${clsProducts.sql}`)
+      .bind(...clsProducts.params)
+      .all<{
+        title: string;
+        status: string;
+      }>(),
+    env.DB.prepare(`SELECT COUNT(*) AS c FROM newsletter_campaigns WHERE status = 'failed' AND deleted_at IS NULL AND created_at > datetime('now', '-30 days') AND ${clsCampaigns.sql}`)
+      .bind(...clsCampaigns.params)
+      .first<{
+        c: number;
+      }>(),
     env.DB.prepare(`SELECT created_at AS createdAt FROM audit_logs WHERE actor_type = 'system' AND action = 'cron.heartbeat' ORDER BY id DESC LIMIT 1`).first<{
       createdAt: string;
     }>(),
@@ -1010,9 +1117,17 @@ export interface TrafficFunnel {
   productAttention: { pagePath: string; views: number; checkoutsStarted: number }[];
 }
 
-export async function getTrafficFunnel(env: Env, range: PeriodRange): Promise<TrafficFunnel> {
+export async function getTrafficFunnel(env: Env, range: PeriodRange, analyticsMode: AnalyticsMode): Promise<TrafficFunnel> {
   const fromBound = range.from;
   const toBound = exclusiveEndDate(range.to);
+  // analytics_events is anonymous, unauthenticated traffic data with no
+  // data_classification of its own (see migration 0028's exclusion
+  // list) — page views/CTA clicks/traffic sources are identical in
+  // every Analytics Mode. Only the two purchase-/subscriber-facing
+  // conversion counts below (checkoutRows, freeGuideSignupRow/
+  // newsletterSourceRows) are classification-aware.
+  const classifications = ANALYTICS_MODE_CLASSIFICATIONS[analyticsMode];
+  const cls = classificationPredicate(classifications);
 
   const [pageViewRows, ctaClickRows, sourceRows, freeGuideClickRow, freeGuideSignupRow, newsletterSourceRows, bookViewRows, checkoutRows] = await Promise.all([
     env.DB.prepare(
@@ -1049,15 +1164,15 @@ export async function getTrafficFunnel(env: Env, range: PeriodRange): Promise<Tr
     )
       .bind(fromBound, toBound)
       .first<{ c: number }>(),
-    env.DB.prepare(`SELECT COUNT(*) AS c FROM newsletter_subscribers WHERE source = '/free-guide/' AND subscribed_at >= ? AND subscribed_at < ?`)
-      .bind(fromBound, toBound)
+    env.DB.prepare(`SELECT COUNT(*) AS c FROM newsletter_subscribers WHERE source = '/free-guide/' AND subscribed_at >= ? AND subscribed_at < ? AND ${cls.sql}`)
+      .bind(fromBound, toBound, ...cls.params)
       .first<{ c: number }>(),
     env.DB.prepare(
       `SELECT COALESCE(source, 'unknown') AS source, COUNT(*) AS signups
-       FROM newsletter_subscribers WHERE subscribed_at >= ? AND subscribed_at < ?
+       FROM newsletter_subscribers WHERE subscribed_at >= ? AND subscribed_at < ? AND ${cls.sql}
        GROUP BY source ORDER BY signups DESC`
     )
-      .bind(fromBound, toBound)
+      .bind(fromBound, toBound, ...cls.params)
       .all<{ source: string; signups: number }>(),
     env.DB.prepare(
       `SELECT page_path AS pagePath, COUNT(*) AS views
@@ -1067,7 +1182,9 @@ export async function getTrafficFunnel(env: Env, range: PeriodRange): Promise<Tr
     )
       .bind(fromBound, toBound)
       .all<{ pagePath: string; views: number }>(),
-    env.DB.prepare(`SELECT COUNT(*) AS c FROM purchase_sessions WHERE created_at >= ? AND created_at < ?`).bind(fromBound, toBound).first<{ c: number }>(),
+    env.DB.prepare(`SELECT COUNT(*) AS c FROM purchase_sessions WHERE created_at >= ? AND created_at < ? AND ${cls.sql}`)
+      .bind(fromBound, toBound, ...cls.params)
+      .first<{ c: number }>(),
   ]);
 
   const totalCheckoutsStarted = checkoutRows?.c ?? 0;
@@ -1139,6 +1256,15 @@ export interface EmailLifecycleSummary {
   stages: EmailLifecycleStageSummary[];
 }
 
+/**
+ * Version 4.9 note: deliberately has no `analyticsMode` parameter.
+ * Every query here reads `email_log`, which carries no
+ * `data_classification` column by design (migration 0028's own
+ * exclusion list — operational/delivery history, not a business
+ * record) — there is nothing here for an Analytics Mode filter to
+ * narrow, so this stays identical across every mode rather than
+ * accepting a parameter it would silently ignore.
+ */
 export async function getEmailLifecycleSummary(env: Env): Promise<EmailLifecycleSummary> {
   const since = new Date(Date.now() - EMAIL_LIFECYCLE_WINDOW_DAYS * 24 * 60 * 60_000).toISOString();
   const placeholders = LIFECYCLE_TEMPLATES.map(() => '?').join(',');

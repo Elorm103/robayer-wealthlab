@@ -277,6 +277,42 @@ export async function changePassword(
 }
 
 // ============================================================
+// Analytics Mode preference — Version 4.9 Phase 6 (Analytics
+// Settings). Purely a per-admin reporting/display preference (which
+// data_classification values the Executive Dashboard includes by
+// default) — never touches data_classification or any business
+// record itself. See migration 0031_admin_analytics_mode.sql.
+// ============================================================
+
+const ANALYTICS_MODES = ['production', 'production_internal', 'all'] as const;
+export type AdminAnalyticsMode = (typeof ANALYTICS_MODES)[number];
+
+export type UpdateAnalyticsModeResult = { ok: true; analyticsMode: AdminAnalyticsMode } | { ok: false; reason: 'invalid_mode' };
+
+export async function updateAnalyticsMode(env: Env, logger: Logger, adminId: number, modeInput: unknown): Promise<UpdateAnalyticsModeResult> {
+  if (typeof modeInput !== 'string' || !(ANALYTICS_MODES as readonly string[]).includes(modeInput)) {
+    return { ok: false, reason: 'invalid_mode' };
+  }
+  const mode = modeInput as AdminAnalyticsMode;
+
+  const before = await env.DB.prepare(`SELECT analytics_mode AS analyticsMode FROM admin_users WHERE id = ?`).bind(adminId).first<{ analyticsMode: string }>();
+
+  await env.DB.prepare(`UPDATE admin_users SET analytics_mode = ?, updated_at = datetime('now') WHERE id = ?`).bind(mode, adminId).run();
+
+  await auditService.record(env, logger, {
+    actorType: 'admin',
+    actorId: adminId,
+    action: 'admin.analytics_mode_changed',
+    entityType: 'admin_user',
+    entityId: adminId,
+    metadata: { before: before?.analyticsMode ?? null, after: mode },
+  });
+  logger.info('admin.analytics_mode_changed', { adminId, mode });
+
+  return { ok: true, analyticsMode: mode };
+}
+
+// ============================================================
 // Forgot / reset password — Version 2.1 Phase 3 (Identity & Security).
 // The same no-user-enumeration discipline login() already established:
 // forgot-password always returns the identical generic outcome

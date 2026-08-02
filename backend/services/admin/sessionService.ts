@@ -48,7 +48,17 @@ export async function createSession(env: Env, adminId: number, context: CreateSe
 }
 
 export type SessionCheckResult =
-  | { ok: true; sessionId: number; adminId: number; role: string; email: string; name: string | null; csrfSecret: string; mustChangePassword: boolean }
+  | {
+      ok: true;
+      sessionId: number;
+      adminId: number;
+      role: string;
+      email: string;
+      name: string | null;
+      csrfSecret: string;
+      mustChangePassword: boolean;
+      analyticsMode: string;
+    }
   | { ok: false };
 
 /**
@@ -71,14 +81,24 @@ export async function validateSession(env: Env, tokenInput: unknown): Promise<Se
   const now = new Date().toISOString();
   const row = await env.DB.prepare(
     `SELECT s.id AS sessionId, s.admin_id AS adminId, s.csrf_secret AS csrfSecret,
-            u.role AS role, u.email AS email, u.name AS name, u.must_change_password AS mustChangePassword
+            u.role AS role, u.email AS email, u.name AS name, u.must_change_password AS mustChangePassword,
+            u.analytics_mode AS analyticsMode
      FROM admin_sessions s
      JOIN admin_users u ON u.id = s.admin_id
      WHERE s.token = ? AND s.revoked_at IS NULL AND s.expires_at > ?
        AND u.is_active = 1 AND u.deleted_at IS NULL`
   )
     .bind(tokenInput, now)
-    .first<{ sessionId: number; adminId: number; csrfSecret: string; role: string; email: string; name: string | null; mustChangePassword: number }>();
+    .first<{
+      sessionId: number;
+      adminId: number;
+      csrfSecret: string;
+      role: string;
+      email: string;
+      name: string | null;
+      mustChangePassword: number;
+      analyticsMode: string;
+    }>();
 
   if (!row) return { ok: false };
 
@@ -95,6 +115,7 @@ export async function validateSession(env: Env, tokenInput: unknown): Promise<Se
     name: row.name,
     csrfSecret: row.csrfSecret,
     mustChangePassword: row.mustChangePassword === 1,
+    analyticsMode: row.analyticsMode,
   };
 }
 

@@ -22,7 +22,7 @@
   <link rel="stylesheet" href="/css/layout.css?v=a6fb0c7359">
   <link rel="stylesheet" href="/css/components.css?v=1afe806636">
   <link rel="stylesheet" href="/css/utilities.css?v=406dfe7300">
-  <link rel="stylesheet" href="/css/admin.css?v=e5c39b0613">
+  <link rel="stylesheet" href="/css/admin.css?v=2d07c9c939">
 </head>
 <body>
   <a href="#main-content" class="skip-link">Skip to main content</a>
@@ -187,6 +187,31 @@
           <dl data-payment-diagnostics></dl>
         </section>
 
+        <section class="card mb-4">
+          <h2 class="editor-section-title">Production Launch Baseline</h2>
+          <p class="text-small text-secondary mb-3">
+            Version 4.9 Phase 9. An immutable, point-in-time snapshot of true launch metrics (PRODUCTION-tier only) —
+            once captured, a baseline is never edited or deleted, only superseded by a newer one. Super-admin only.
+          </p>
+          <p class="alert alert--error" role="alert" data-baseline-load-error hidden></p>
+          <p class="alert alert--success" role="status" data-baseline-success hidden></p>
+
+          <div data-baseline-latest-empty class="text-small text-secondary mb-3" hidden>No baseline has been captured yet.</div>
+          <dl data-baseline-latest hidden></dl>
+
+          <div class="field-row mt-3" data-baseline-capture-form hidden>
+            <div class="field mb-2">
+              <label class="field__label" for="baseline-platform-version">Platform version</label>
+              <input type="text" id="baseline-platform-version" class="field__input" data-baseline-version-input placeholder="e.g. 4.9">
+            </div>
+            <div class="field mb-2">
+              <label class="field__label" for="baseline-notes">Notes (optional)</label>
+              <textarea id="baseline-notes" class="field__input" data-baseline-notes-input rows="2"></textarea>
+            </div>
+            <button type="button" class="btn btn--primary" data-baseline-capture>Capture new baseline</button>
+          </div>
+        </section>
+
         <section class="card">
           <h2 class="editor-section-title">System Information</h2>
           <p class="text-small text-secondary mb-3">For troubleshooting and operational awareness — not configuration.</p>
@@ -201,6 +226,6 @@
   <script src="/js/components/branding.js?v=483b048741"></script>
   <script src="/js/components/admin/admin-auth.js?v=bb1cec7934"></script>
   <script src="/js/components/admin/admin-shell.js?v=7233204897"></script>
-  <script src="/js/components/admin/admin-settings.js?v=84b96aa77e"></script>
+  <script src="/js/components/admin/admin-settings.js?v=a95cbc6c0d"></script>
 </body>
 </html>
