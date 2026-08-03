@@ -33,3 +33,15 @@ export function getRoutingCandidates(feature: string): RoutingCandidate[] {
   }
   return candidates;
 }
+
+/**
+ * Version 5.0 Milestone 1.1 — a read-only snapshot of the whole
+ * routing table, for the AI Operations Dashboard's "Provider / Model /
+ * Fallback" view (services/admin/settingsService.ts). Returns a deep
+ * copy so a caller can never mutate the live table through this. Not
+ * used by callAi() itself, which always goes through
+ * getRoutingCandidates() above.
+ */
+export function getAllRoutingConfig(): Record<string, RoutingCandidate[]> {
+  return Object.fromEntries(Object.entries(ROUTING_TABLE).map(([feature, candidates]) => [feature, candidates.map((c) => ({ ...c }))]));
+}

@@ -188,13 +188,58 @@
         </section>
 
         <section class="card mb-4">
-          <h2 class="editor-section-title">AI Gateway</h2>
+          <div class="editor-field-row" style="align-items: center; justify-content: space-between;">
+            <h2 class="editor-section-title" style="margin-bottom: 0;">AI Gateway — Operations Dashboard</h2>
+            <span class="badge" data-ai-gateway-status-badge></span>
+          </div>
+          <p class="text-small text-secondary mb-1" data-ai-gateway-status-reason></p>
           <p class="text-small text-secondary mb-3">
-            Version 5.0 Milestone 1. Every AI feature on this platform calls out through this Gateway only — no
+            Version 5.0 Milestone 1.1. Every AI feature on this platform calls out through this Gateway only — no
             component talks to a provider directly. Operational visibility only; no API secret is ever displayed or
             editable here. Cloudflare Secrets remain the only source of truth. Super-admin only.
+            <a href="/admin/ai-usage/">View the full AI Usage Log &rarr;</a>
           </p>
-          <dl data-ai-gateway-diagnostics></dl>
+
+          <div data-ai-gateway-warnings hidden class="mb-3"></div>
+
+          <p class="settings-field__label">Status</p>
+          <dl data-ai-gateway-diagnostics-status></dl>
+
+          <p class="settings-field__label mt-3">Volume</p>
+          <dl data-ai-gateway-diagnostics-volume></dl>
+
+          <p class="settings-field__label mt-3">Cost</p>
+          <dl data-ai-gateway-diagnostics-cost></dl>
+
+          <p class="settings-field__label mt-3">Latency (last 30 days)</p>
+          <dl data-ai-gateway-diagnostics-latency></dl>
+
+          <p class="settings-field__label mt-3">Provider routing</p>
+          <div class="admin-table-wrap mb-3">
+            <table class="table" aria-label="AI Gateway routing configuration">
+              <thead><tr><th scope="col">Feature</th><th scope="col">Provider / Model</th><th scope="col">Fallback</th></tr></thead>
+              <tbody data-ai-gateway-routing-body></tbody>
+            </table>
+          </div>
+
+          <div class="editor-field-row">
+            <div class="field mb-2">
+              <label class="field__label" for="setting-ai-cost-cap">Per-call cost cap (USD)</label>
+              <input class="field__input" type="number" step="0.0001" min="0" id="setting-ai-cost-cap" data-setting="aiGatewayCostCapUsdMicros">
+              <span class="field__hint">Any single AI call estimated above this is refused, not billed.</span>
+            </div>
+            <div class="field mb-2">
+              <label class="field__label" for="setting-ai-daily-budget">Daily budget warning (USD, optional)</label>
+              <input class="field__input" type="number" step="0.01" min="0" id="setting-ai-daily-budget" data-setting="aiGatewayDailyBudgetUsdMicros" placeholder="Unconfigured">
+              <span class="field__hint">Warning only — never blocks a call. Leave blank to disable.</span>
+            </div>
+            <div class="field mb-2">
+              <label class="field__label" for="setting-ai-monthly-budget">Monthly budget warning (USD, optional)</label>
+              <input class="field__input" type="number" step="0.01" min="0" id="setting-ai-monthly-budget" data-setting="aiGatewayMonthlyBudgetUsdMicros" placeholder="Unconfigured">
+              <span class="field__hint">Warning only — never blocks a call. Leave blank to disable.</span>
+            </div>
+          </div>
+
           <p class="alert alert--error" role="alert" data-ai-gateway-test-error hidden></p>
           <p class="alert alert--success" role="status" data-ai-gateway-test-success hidden></p>
           <button type="button" class="btn btn--secondary mt-2" data-ai-gateway-test>Send test request</button>

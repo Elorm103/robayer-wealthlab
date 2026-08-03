@@ -19,6 +19,7 @@
 import type { Env } from '../../worker/env';
 import type { Logger } from '../../utils/logger';
 import type { EmailTemplateName } from '../emailService';
+import { getAllRoutingConfig } from '../ai/routingConfig';
 import * as auditService from './auditService';
 import packageJson from '../../package.json';
 
@@ -116,6 +117,19 @@ const DEFAULTS = {
   // change. Not a promise that raising this indefinitely stays safe —
   // see docs/v2.1-phase6-design.md's §4.
   campaign_recipient_cap: 300 as number,
+  // Version 5.0 Milestone 1.1 (AI Gateway Operational Hardening) — the
+  // per-call cost ceiling every AI Gateway feature is checked against
+  // by default (see services/ai/aiGateway.ts's maxCostUsdMicros), and
+  // two purely informational daily/monthly spend thresholds. Per the
+  // founder's explicit decision, these budgets power a dashboard
+  // warning ONLY — crossing them never blocks an AI call. Real
+  // enforcement (refusing calls once a period's spend is exceeded)
+  // was deliberately deferred; see the Milestone 1.1 engineering
+  // report's "Future Recommendations" section. null means
+  // "unconfigured" — no warning is ever shown for a null budget.
+  ai_gateway_cost_cap_usd_micros: 1000 as number, // $0.001 — matches the diagnostic test's long-standing hardcoded value
+  ai_gateway_daily_budget_usd_micros: null as number | null,
+  ai_gateway_monthly_budget_usd_micros: null as number | null,
 };
 
 type SettingsKey = keyof typeof DEFAULTS;
@@ -155,6 +169,9 @@ export interface EditableSettingsView {
   emailReplyTo: SettingsField<string | null>;
   emailTemplateEnabled: SettingsField<Record<string, boolean>>;
   campaignRecipientCap: SettingsField<number>;
+  aiGatewayCostCapUsdMicros: SettingsField<number>;
+  aiGatewayDailyBudgetUsdMicros: SettingsField<number | null>;
+  aiGatewayMonthlyBudgetUsdMicros: SettingsField<number | null>;
   settingsSchemaVersion: SettingsField<{ stored: number; expected: number; matches: boolean }>;
 }
 
@@ -173,6 +190,9 @@ export async function getEditableSettings(env: Env): Promise<EditableSettingsVie
     emailReplyTo: field(resolve(raw, 'email_reply_to'), 'site_settings', true),
     emailTemplateEnabled: field(resolve(raw, 'email_template_enabled'), 'site_settings', true),
     campaignRecipientCap: field(resolve(raw, 'campaign_recipient_cap'), 'site_settings', true),
+    aiGatewayCostCapUsdMicros: field(resolve(raw, 'ai_gateway_cost_cap_usd_micros'), 'site_settings', true),
+    aiGatewayDailyBudgetUsdMicros: field(resolve(raw, 'ai_gateway_daily_budget_usd_micros'), 'site_settings', true),
+    aiGatewayMonthlyBudgetUsdMicros: field(resolve(raw, 'ai_gateway_monthly_budget_usd_micros'), 'site_settings', true),
     settingsSchemaVersion: field(
       { stored: storedVersion, expected: EXPECTED_SETTINGS_SCHEMA_VERSION, matches: storedVersion === EXPECTED_SETTINGS_SCHEMA_VERSION },
       'site_settings',
@@ -185,6 +205,16 @@ export async function getEditableSettings(env: Env): Promise<EditableSettingsVie
 export async function getCampaignRecipientCap(env: Env): Promise<number> {
   const raw = await readRawSettings(env);
   return resolve(raw, 'campaign_recipient_cap');
+}
+
+/** Resolves just the three AI Gateway budget/cap values — routes/admin/settings.ts needs the cost cap at call time, and this whole shape for the dashboard's warning derivation. */
+export async function getAiGatewayBudgetConfig(env: Env): Promise<{ costCapUsdMicros: number; dailyBudgetUsdMicros: number | null; monthlyBudgetUsdMicros: number | null }> {
+  const raw = await readRawSettings(env);
+  return {
+    costCapUsdMicros: resolve(raw, 'ai_gateway_cost_cap_usd_micros'),
+    dailyBudgetUsdMicros: resolve(raw, 'ai_gateway_daily_budget_usd_micros'),
+    monthlyBudgetUsdMicros: resolve(raw, 'ai_gateway_monthly_budget_usd_micros'),
+  };
 }
 
 /**
@@ -357,6 +387,26 @@ function validateCampaignRecipientCap(value: unknown, errors: SettingsValidation
   return value;
 }
 
+const MAX_AI_GATEWAY_COST_CAP_USD_MICROS = 1_000_000; // $1.00 per call — well above any real single-call cost with today's models, a safety ceiling against a fat-fingered config value, not a realistic day-to-day figure
+const MAX_AI_GATEWAY_BUDGET_USD_MICROS = 10_000_000_000; // $10,000 — same "safety ceiling against a typo" reasoning, not a recommended real budget
+
+function validateAiGatewayCostCap(value: unknown, errors: SettingsValidationError[]): number | undefined {
+  if (typeof value !== 'number' || !Number.isInteger(value) || value < 1 || value > MAX_AI_GATEWAY_COST_CAP_USD_MICROS) {
+    errors.push({ field: 'aiGatewayCostCapUsdMicros', message: `aiGatewayCostCapUsdMicros must be a whole number of USD micros between 1 and ${MAX_AI_GATEWAY_COST_CAP_USD_MICROS}.` });
+    return undefined;
+  }
+  return value;
+}
+
+function validateAiGatewayBudget(value: unknown, fieldName: string, errors: SettingsValidationError[]): number | null | undefined {
+  if (value === null) return null;
+  if (typeof value !== 'number' || !Number.isInteger(value) || value < 1 || value > MAX_AI_GATEWAY_BUDGET_USD_MICROS) {
+    errors.push({ field: fieldName, message: `${fieldName} must be a whole number of USD micros between 1 and ${MAX_AI_GATEWAY_BUDGET_USD_MICROS}, or null to leave unconfigured.` });
+    return undefined;
+  }
+  return value;
+}
+
 function validateTemplateEnabled(value: unknown, errors: SettingsValidationError[]): Record<string, boolean> | undefined {
   if (typeof value !== 'object' || value === null) {
     errors.push({ field: 'emailTemplateEnabled', message: 'emailTemplateEnabled must be an object.' });
@@ -399,6 +449,9 @@ const PATCH_KEY_MAP: Record<string, SettingsKey> = {
   emailReplyTo: 'email_reply_to',
   emailTemplateEnabled: 'email_template_enabled',
   campaignRecipientCap: 'campaign_recipient_cap',
+  aiGatewayCostCapUsdMicros: 'ai_gateway_cost_cap_usd_micros',
+  aiGatewayDailyBudgetUsdMicros: 'ai_gateway_daily_budget_usd_micros',
+  aiGatewayMonthlyBudgetUsdMicros: 'ai_gateway_monthly_budget_usd_micros',
 };
 
 export async function updateSettings(env: Env, logger: Logger, actorId: number, patch: Record<string, unknown>, context: ActionContext): Promise<UpdateSettingsResult> {
@@ -434,6 +487,15 @@ export async function updateSettings(env: Env, logger: Logger, actorId: number, 
         break;
       case 'campaign_recipient_cap':
         value = validateCampaignRecipientCap(rawValue, errors);
+        break;
+      case 'ai_gateway_cost_cap_usd_micros':
+        value = validateAiGatewayCostCap(rawValue, errors);
+        break;
+      case 'ai_gateway_daily_budget_usd_micros':
+        value = validateAiGatewayBudget(rawValue, 'aiGatewayDailyBudgetUsdMicros', errors);
+        break;
+      case 'ai_gateway_monthly_budget_usd_micros':
+        value = validateAiGatewayBudget(rawValue, 'aiGatewayMonthlyBudgetUsdMicros', errors);
         break;
     }
 
@@ -585,39 +647,168 @@ async function getSystemDiagnostics(env: Env, request: Request): Promise<SystemD
 }
 
 // ============================================================
-// AI Gateway diagnostics — Version 5.0 Milestone 1. Same
-// secret-status-without-exposing-the-value pattern as
-// getPaymentDiagnostics() above; usage figures derived from
-// ai_usage_log (backend/database/migrations/0033_ai_gateway.sql), no
-// new aggregation mechanism.
+// AI Gateway diagnostics — Version 5.0 Milestone 1 (basic secret/usage
+// status), expanded into a full AI Operations Dashboard in Version 5.0
+// Milestone 1.1 (see docs/v5.0-milestone-1.1-engineering-report.md).
+// Every figure below is derived from real ai_usage_log rows and the
+// static routingConfig.ts table — nothing here is a synthetic ping or
+// a fabricated metric. Per the founder's explicit decision, "health"
+// is derived from real call history only (no scheduled synthetic
+// ping — see the engineering report's Task 3 section for why), and
+// daily/monthly budgets are warning-only figures, never enforced.
 // ============================================================
+
+export type AiGatewayHealthStatus = 'healthy' | 'warning' | 'offline';
+
+export interface AiGatewayRoutingSnapshot {
+  feature: string;
+  primaryProvider: string;
+  primaryModel: string;
+  fallbackProvider: string | null;
+  fallbackModel: string | null;
+}
 
 export interface AiGatewayDiagnostics {
   openAiConfigured: SettingsField<boolean>;
+  healthStatus: SettingsField<AiGatewayHealthStatus>;
+  healthReason: SettingsField<string>;
   lastSuccessfulCallAt: SettingsField<string | null>;
   lastFailedCallAt: SettingsField<string | null>;
-  callCount30d: SettingsField<number>;
-  costUsdMicros30d: SettingsField<number>;
+  consecutiveFailures: SettingsField<number>;
+  avgLatencyMs: SettingsField<number | null>;
+  fastestLatencyMs: SettingsField<number | null>;
+  slowestLatencyMs: SettingsField<number | null>;
+  callsToday: SettingsField<number>;
+  callsLast7d: SettingsField<number>;
+  callsLast30d: SettingsField<number>;
+  callsTotal: SettingsField<number>;
+  costTodayUsdMicros: SettingsField<number>;
+  costLast30dUsdMicros: SettingsField<number>;
+  costLifetimeUsdMicros: SettingsField<number>;
+  successRatePercent30d: SettingsField<number | null>;
+  failureRatePercent30d: SettingsField<number | null>;
+  routing: SettingsField<AiGatewayRoutingSnapshot[]>;
+  costCapUsdMicros: SettingsField<number>;
+  dailyBudgetUsdMicros: SettingsField<number | null>;
+  monthlyBudgetUsdMicros: SettingsField<number | null>;
+  lastErrorMessage: SettingsField<string | null>;
+  lastErrorAt: SettingsField<string | null>;
+  warnings: SettingsField<string[]>;
+}
+
+function formatUsd(micros: number): string {
+  return `$${(micros / 1_000_000).toFixed(4)}`;
 }
 
 async function getAiGatewayDiagnostics(env: Env): Promise<AiGatewayDiagnostics> {
   const openAiConfigured = typeof env.OPENAI_API_KEY === 'string' && env.OPENAI_API_KEY.length > 0;
+  const budget = await getAiGatewayBudgetConfig(env);
 
-  const [lastSuccess, lastFailure, recent] = await Promise.all([
-    env.DB.prepare(`SELECT MAX(created_at) AS at FROM ai_usage_log WHERE succeeded = 1`).first<{ at: string | null }>(),
-    env.DB.prepare(`SELECT MAX(created_at) AS at FROM ai_usage_log WHERE succeeded = 0`).first<{ at: string | null }>(),
-    env.DB.prepare(`SELECT COUNT(*) AS count, COALESCE(SUM(cost_usd_micros), 0) AS totalCost FROM ai_usage_log WHERE created_at > datetime('now', '-30 days')`).first<{
-      count: number;
-      totalCost: number;
-    }>(),
+  const [today, last7d, last30d, lifetime, recentRows, lastFailedRow, lastSuccessRow, costCapRejections7d, rateLimitMentions7d] = await Promise.all([
+    env.DB.prepare(`SELECT COUNT(*) AS calls, COALESCE(SUM(cost_usd_micros), 0) AS cost FROM ai_usage_log WHERE date(created_at) = date('now')`).first<{ calls: number; cost: number }>(),
+    env.DB.prepare(`SELECT COUNT(*) AS calls FROM ai_usage_log WHERE created_at > datetime('now', '-7 days')`).first<{ calls: number }>(),
+    env.DB.prepare(
+      `SELECT COUNT(*) AS calls, COALESCE(SUM(cost_usd_micros), 0) AS cost, COALESCE(SUM(succeeded), 0) AS successes,
+              AVG(latency_ms) AS avgLatency, MIN(latency_ms) AS minLatency, MAX(latency_ms) AS maxLatency
+       FROM ai_usage_log WHERE created_at > datetime('now', '-30 days')`
+    ).first<{ calls: number; cost: number; successes: number; avgLatency: number | null; minLatency: number | null; maxLatency: number | null }>(),
+    env.DB.prepare(`SELECT COUNT(*) AS calls, COALESCE(SUM(cost_usd_micros), 0) AS cost FROM ai_usage_log`).first<{ calls: number; cost: number }>(),
+    // Most recent calls, newest first — used to derive the true
+    // consecutive-failure streak (stops at the first success) and the
+    // single latest call's latency (for spike detection). 50 is a
+    // generous cap; a real streak this long would already have
+    // tripped the health status well before it was reached.
+    env.DB.prepare(`SELECT succeeded, latency_ms FROM ai_usage_log ORDER BY id DESC LIMIT 50`).all<{ succeeded: number; latency_ms: number }>(),
+    env.DB.prepare(`SELECT error_message, created_at FROM ai_usage_log WHERE succeeded = 0 ORDER BY id DESC LIMIT 1`).first<{ error_message: string | null; created_at: string }>(),
+    env.DB.prepare(`SELECT created_at FROM ai_usage_log WHERE succeeded = 1 ORDER BY id DESC LIMIT 1`).first<{ created_at: string }>(),
+    env.DB.prepare(`SELECT COUNT(*) AS c FROM ai_usage_log WHERE succeeded = 0 AND created_at > datetime('now', '-7 days') AND error_message LIKE '%cost cap%'`).first<{ c: number }>(),
+    env.DB.prepare(
+      `SELECT COUNT(*) AS c FROM ai_usage_log WHERE succeeded = 0 AND created_at > datetime('now', '-7 days') AND (error_message LIKE '%429%' OR error_message LIKE '%rate limit%')`
+    ).first<{ c: number }>(),
   ]);
+
+  let consecutiveFailures = 0;
+  for (const row of recentRows.results) {
+    if (row.succeeded === 0) consecutiveFailures++;
+    else break;
+  }
+  const latestLatencyMs = recentRows.results[0]?.latency_ms ?? null;
+
+  const callsTotal = lifetime?.calls ?? 0;
+  const callsLast30d = last30d?.calls ?? 0;
+  const successRatePercent30d = callsLast30d > 0 ? Math.round(((last30d!.successes / callsLast30d) * 100 + Number.EPSILON) * 10) / 10 : null;
+  const failureRatePercent30d = successRatePercent30d === null ? null : Math.round((100 - successRatePercent30d) * 10) / 10;
+  const avgLatencyMs = last30d?.avgLatency != null ? Math.round(last30d.avgLatency) : null;
+
+  const routing: AiGatewayRoutingSnapshot[] = Object.entries(getAllRoutingConfig()).map(([feature, candidates]) => ({
+    feature,
+    primaryProvider: candidates[0]?.provider ?? 'unconfigured',
+    primaryModel: candidates[0]?.model ?? 'unconfigured',
+    fallbackProvider: candidates[1]?.provider ?? null,
+    fallbackModel: candidates[1]?.model ?? null,
+  }));
+
+  const warnings: string[] = [];
+  if (!openAiConfigured) warnings.push('OpenAI API key is not configured — the Gateway cannot serve any request.');
+  if (consecutiveFailures >= 3) warnings.push(`${consecutiveFailures} consecutive AI Gateway calls have failed.`);
+  if (failureRatePercent30d !== null && failureRatePercent30d > 20) warnings.push(`Failure rate over the last 30 days is ${failureRatePercent30d}%.`);
+  if ((costCapRejections7d?.c ?? 0) > 0) warnings.push(`${costCapRejections7d!.c} call(s) were refused for exceeding the configured cost cap in the past 7 days.`);
+  if ((rateLimitMentions7d?.c ?? 0) > 0) warnings.push(`OpenAI appears to be rate-limiting this application (${rateLimitMentions7d!.c} recent failure(s) mention rate limits).`);
+  if (avgLatencyMs !== null && latestLatencyMs !== null && latestLatencyMs > Math.max(avgLatencyMs * 3, 5000)) {
+    warnings.push(`Latest call latency (${latestLatencyMs}ms) is far above the 30-day average (${avgLatencyMs}ms).`);
+  }
+  if (budget.dailyBudgetUsdMicros !== null && (today?.cost ?? 0) >= budget.dailyBudgetUsdMicros * 0.8) {
+    warnings.push(`Today's spend (${formatUsd(today?.cost ?? 0)}) is approaching or over the configured daily budget (${formatUsd(budget.dailyBudgetUsdMicros)}).`);
+  }
+  if (budget.monthlyBudgetUsdMicros !== null && callsLast30d > 0 && (last30d?.cost ?? 0) >= budget.monthlyBudgetUsdMicros * 0.8) {
+    warnings.push(`Last 30 days' spend (${formatUsd(last30d?.cost ?? 0)}) is approaching or over the configured monthly budget (${formatUsd(budget.monthlyBudgetUsdMicros)}).`);
+  }
+
+  let healthStatus: AiGatewayHealthStatus;
+  let healthReason: string;
+  if (!openAiConfigured) {
+    healthStatus = 'offline';
+    healthReason = 'OpenAI API key is not configured.';
+  } else if (consecutiveFailures >= 3) {
+    healthStatus = 'offline';
+    healthReason = `${consecutiveFailures} consecutive calls have failed.`;
+  } else if (callsTotal === 0) {
+    healthStatus = 'warning';
+    healthReason = 'No AI Gateway activity has been recorded yet.';
+  } else if (warnings.length > 0) {
+    healthStatus = 'warning';
+    healthReason = warnings[0];
+  } else {
+    healthStatus = 'healthy';
+    healthReason = 'All recent AI Gateway calls are succeeding normally.';
+  }
 
   return {
     openAiConfigured: field(openAiConfigured, 'secret', false),
-    lastSuccessfulCallAt: field(lastSuccess?.at ?? null, 'derived', false),
-    lastFailedCallAt: field(lastFailure?.at ?? null, 'derived', false),
-    callCount30d: field(recent?.count ?? 0, 'derived', false),
-    costUsdMicros30d: field(recent?.totalCost ?? 0, 'derived', false),
+    healthStatus: field(healthStatus, 'derived', false),
+    healthReason: field(healthReason, 'derived', false),
+    lastSuccessfulCallAt: field(lastSuccessRow?.created_at ?? null, 'derived', false),
+    lastFailedCallAt: field(lastFailedRow?.created_at ?? null, 'derived', false),
+    consecutiveFailures: field(consecutiveFailures, 'derived', false),
+    avgLatencyMs: field(avgLatencyMs, 'derived', false),
+    fastestLatencyMs: field(last30d?.minLatency ?? null, 'derived', false),
+    slowestLatencyMs: field(last30d?.maxLatency ?? null, 'derived', false),
+    callsToday: field(today?.calls ?? 0, 'derived', false),
+    callsLast7d: field(last7d?.calls ?? 0, 'derived', false),
+    callsLast30d: field(callsLast30d, 'derived', false),
+    callsTotal: field(callsTotal, 'derived', false),
+    costTodayUsdMicros: field(today?.cost ?? 0, 'derived', false),
+    costLast30dUsdMicros: field(last30d?.cost ?? 0, 'derived', false),
+    costLifetimeUsdMicros: field(lifetime?.cost ?? 0, 'derived', false),
+    successRatePercent30d: field(successRatePercent30d, 'derived', false),
+    failureRatePercent30d: field(failureRatePercent30d, 'derived', false),
+    routing: field(routing, 'derived', false),
+    costCapUsdMicros: field(budget.costCapUsdMicros, 'site_settings', false),
+    dailyBudgetUsdMicros: field(budget.dailyBudgetUsdMicros, 'site_settings', false),
+    monthlyBudgetUsdMicros: field(budget.monthlyBudgetUsdMicros, 'site_settings', false),
+    lastErrorMessage: field(lastFailedRow?.error_message ?? null, 'derived', false),
+    lastErrorAt: field(lastFailedRow?.created_at ?? null, 'derived', false),
+    warnings: field(warnings, 'derived', false),
   };
 }
 

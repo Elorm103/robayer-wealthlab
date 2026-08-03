@@ -1,0 +1,199 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+
+  <title>AI Usage | Robayer WealthLab Admin</title>
+  <meta name="description" content="AI Gateway usage log, cost, and analytics — Version 5.0 Milestone 1.1.">
+  <link rel="canonical" href="https://robayerwealthlab.com/admin/ai-usage/">
+  <meta name="robots" content="noindex, nofollow">
+
+  <link rel="icon" type="image/svg+xml" href="/assets/icons/favicon.svg">
+  <link rel="icon" type="image/png" sizes="32x32" href="/assets/icons/favicon-32.png">
+  <link rel="apple-touch-icon" href="/assets/icons/apple-touch-icon.png">
+
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Newsreader:ital,wght@0,600;1,500&family=Space+Grotesk:wght@500&family=Work+Sans:wght@400;500&family=IBM+Plex+Mono:wght@400;500&display=swap" rel="stylesheet">
+
+  <link rel="stylesheet" href="/css/tokens.css?v=167327e0c9">
+  <link rel="stylesheet" href="/css/base.css?v=57a963bc6f">
+  <link rel="stylesheet" href="/css/layout.css?v=a6fb0c7359">
+  <link rel="stylesheet" href="/css/components.css?v=1afe806636">
+  <link rel="stylesheet" href="/css/utilities.css?v=406dfe7300">
+  <link rel="stylesheet" href="/css/admin.css?v=2d07c9c939">
+</head>
+<body>
+  <a href="#main-content" class="skip-link">Skip to main content</a>
+
+  <div class="admin-shell" data-sidebar-collapsed="false">
+    <div class="admin-include" data-include="/partials/admin-sidebar.html"></div>
+
+    <div class="admin-main">
+      <div class="admin-include" data-include="/partials/admin-topbar.html"></div>
+
+      <main class="admin-content" id="main-content" data-ai-usage-root>
+        <p class="text-small text-secondary mb-4">
+          Every call the AI Gateway has made, across every feature. Super-admin only. Prompt and response content is
+          never shown here by default — expand a row to inspect it.
+        </p>
+
+        <p class="alert alert--error" role="alert" data-ai-usage-load-error hidden></p>
+
+        <h2 class="text-lg mb-3">Analytics (last 30 days)</h2>
+        <div class="grid grid--2 mb-5">
+          <div class="card">
+            <h3 class="text-body mb-2">Calls per day</h3>
+            <div data-chart-calls-per-day></div>
+          </div>
+          <div class="card">
+            <h3 class="text-body mb-2">Cost per day (USD)</h3>
+            <div data-chart-cost-per-day></div>
+          </div>
+          <div class="card">
+            <h3 class="text-body mb-2">Token consumption per day</h3>
+            <div data-chart-tokens-per-day></div>
+          </div>
+          <div class="card">
+            <h3 class="text-body mb-2">Average latency per day (ms)</h3>
+            <div data-chart-latency-per-day></div>
+          </div>
+          <div class="card">
+            <h3 class="text-body mb-2">Success rate per day (%)</h3>
+            <div data-chart-success-rate></div>
+          </div>
+          <div class="card">
+            <h3 class="text-body mb-2">Failure rate per day (%)</h3>
+            <div data-chart-failure-rate></div>
+          </div>
+          <div class="card">
+            <h3 class="text-body mb-2">Calls per feature</h3>
+            <div data-chart-calls-per-feature></div>
+          </div>
+          <div class="card">
+            <h3 class="text-body mb-2">Calls per provider</h3>
+            <div data-chart-calls-per-provider></div>
+          </div>
+        </div>
+
+        <h2 class="text-lg mb-3">Usage log</h2>
+
+        <div class="toolbar">
+          <div class="toolbar__group">
+            <div class="search-bar">
+              <svg class="icon search-bar__icon" viewBox="0 0 24 24" aria-hidden="true"><circle cx="11" cy="11" r="7"/><path d="m21 21-4.3-4.3"/></svg>
+              <input type="search" class="field__input search-bar__input" placeholder="Search feature, provider, model, or error&hellip;" aria-label="Search AI usage log" data-ai-usage-search>
+            </div>
+            <input type="date" class="field__input" aria-label="From date" data-ai-usage-date-from>
+            <input type="date" class="field__input" aria-label="To date" data-ai-usage-date-to>
+            <select class="field__input" aria-label="Feature filter" data-ai-usage-feature-filter>
+              <option value="">All features</option>
+            </select>
+            <select class="field__input" aria-label="Provider filter" data-ai-usage-provider-filter>
+              <option value="">All providers</option>
+            </select>
+          </div>
+          <div class="toolbar__group">
+            <span class="text-small text-secondary" data-ai-usage-result-count></span>
+            <button type="button" class="btn btn--secondary" data-ai-usage-export>Export CSV</button>
+          </div>
+        </div>
+
+        <div class="media-filters" role="group" aria-label="Status filters" data-ai-usage-status-filters>
+          <button type="button" class="media-filter-chip" aria-pressed="true" data-ai-usage-status-filter="">All</button>
+          <button type="button" class="media-filter-chip" aria-pressed="false" data-ai-usage-status-filter="succeeded">Succeeded</button>
+          <button type="button" class="media-filter-chip" aria-pressed="false" data-ai-usage-status-filter="failed">Failed</button>
+        </div>
+
+        <div class="empty-state" data-ai-usage-empty hidden>
+          <svg class="icon empty-state__icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M12 2a10 10 0 1 0 0 20 10 10 0 0 0 0-20z"/><path d="M12 8v4M12 16h.01"/></svg>
+          <p class="empty-state__title" data-ai-usage-empty-title>No AI Gateway calls yet</p>
+          <p class="empty-state__body" data-ai-usage-empty-body>Once a feature calls the AI Gateway, every call appears here.</p>
+        </div>
+
+        <div class="admin-table-wrap" data-ai-usage-table-wrap hidden>
+          <table class="table" aria-label="AI usage log">
+            <thead>
+              <tr>
+                <th scope="col">Timestamp</th>
+                <th scope="col">Admin / User</th>
+                <th scope="col">Feature</th>
+                <th scope="col">Provider / Model</th>
+                <th scope="col">Tokens</th>
+                <th scope="col">Cost</th>
+                <th scope="col">Duration</th>
+                <th scope="col">Status</th>
+              </tr>
+            </thead>
+            <tbody data-ai-usage-table-body></tbody>
+          </table>
+        </div>
+
+        <div class="pagination" data-ai-usage-pagination>
+          <span data-ai-usage-pagination-label></span>
+          <div class="pagination__controls">
+            <button type="button" class="pagination__button" data-ai-usage-pagination-prev aria-label="Previous page">
+              <svg class="icon" width="16" height="16" viewBox="0 0 24 24" aria-hidden="true"><path d="M15 18l-6-6 6-6"/></svg>
+            </button>
+            <button type="button" class="pagination__button" data-ai-usage-pagination-next aria-label="Next page">
+              <svg class="icon" width="16" height="16" viewBox="0 0 24 24" aria-hidden="true"><path d="M9 6l6 6-6 6"/></svg>
+            </button>
+          </div>
+        </div>
+      </main>
+    </div>
+  </div>
+
+  <!-- Detail drawer -->
+  <div class="drawer-overlay" data-ai-usage-drawer hidden>
+    <div class="drawer" role="dialog" aria-modal="true" aria-labelledby="ai-usage-drawer-title">
+      <div class="drawer__header">
+        <div>
+          <h2 class="drawer__title" id="ai-usage-drawer-title" data-ai-usage-drawer-feature>&nbsp;</h2>
+          <p class="drawer__subtitle" data-ai-usage-drawer-meta>&nbsp;</p>
+        </div>
+        <button type="button" class="drawer__close" data-drawer-close aria-label="Close">
+          <svg class="icon" width="18" height="18" viewBox="0 0 24 24" aria-hidden="true"><path d="M18 6 6 18M6 6l12 12"/></svg>
+        </button>
+      </div>
+      <div class="drawer__body">
+        <p class="alert alert--error" role="alert" data-ai-usage-drawer-error hidden></p>
+
+        <div class="drawer__section">
+          <p class="drawer__section-title">Call details</p>
+          <p><strong>Status:</strong> <span class="badge" data-ai-usage-drawer-status-badge></span></p>
+          <p><strong>Actor:</strong> <span data-ai-usage-drawer-actor></span></p>
+          <p><strong>Session ID:</strong> <span data-ai-usage-drawer-session></span></p>
+          <p><strong>Provider / Model:</strong> <span data-ai-usage-drawer-provider></span></p>
+          <p><strong>Prompt key / version:</strong> <span data-ai-usage-drawer-prompt-version></span></p>
+          <p><strong>Fallback used:</strong> <span data-ai-usage-drawer-fallback></span></p>
+          <p><strong>Tokens:</strong> <span data-ai-usage-drawer-tokens></span></p>
+          <p><strong>Cost:</strong> <span data-ai-usage-drawer-cost></span></p>
+          <p><strong>Duration:</strong> <span data-ai-usage-drawer-duration></span></p>
+          <p><strong>Data classification:</strong> <span data-ai-usage-drawer-classification></span></p>
+          <p data-ai-usage-drawer-error-row hidden><strong>Error:</strong> <span data-ai-usage-drawer-error-message></span></p>
+        </div>
+
+        <div class="drawer__section">
+          <p class="drawer__section-title">Prompt</p>
+          <pre class="drawer__note" style="white-space: pre-wrap; word-break: break-word;" data-ai-usage-drawer-prompt-text></pre>
+        </div>
+
+        <div class="drawer__section">
+          <p class="drawer__section-title">Response</p>
+          <pre class="drawer__note" style="white-space: pre-wrap; word-break: break-word;" data-ai-usage-drawer-response-text></pre>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <script src="/js/includes.js?v=cba95d9aa1"></script>
+  <script src="/js/components/theme-toggle.js?v=eebe98960c"></script>
+  <script src="/js/components/branding.js?v=483b048741"></script>
+  <script src="/js/components/admin/admin-auth.js?v=bb1cec7934"></script>
+  <script src="/js/components/admin/admin-shell.js?v=7233204897"></script>
+  <script src="/js/components/admin/timeseries-chart.js?v=5ec461649c"></script>
+  <script src="/js/components/admin/admin-ai-usage.js?v=1"></script>
+</body>
+</html>

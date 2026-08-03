@@ -101,13 +101,22 @@ export async function handleAiGatewayTest(request: Request, env: Env, logger: Lo
   if (csrfFailure) return csrfFailure;
 
   try {
+    // Version 5.0 Milestone 1.1 — uses the stored, versioned
+    // 'internal.gateway-diagnostic' prompt (services/ai/aiGateway.ts's
+    // promptKey resolution) rather than raw inline text, and reads the
+    // cost cap from site_settings (settingsService.getAiGatewayBudgetConfig)
+    // rather than a hardcoded literal, so both are real, admin-visible
+    // facts on the AI Operations Dashboard instead of invisible
+    // constants only this file knew about.
+    const { costCapUsdMicros } = await settingsService.getAiGatewayBudgetConfig(env);
     const result = await callAi(env, logger, {
       feature: 'internal.gateway-diagnostic',
       actorType: 'admin',
       actorId: auth.auth.adminId,
-      systemPrompt: 'You are a diagnostic health check. Reply with exactly one word: OK.',
+      sessionId: auth.auth.sessionId,
+      promptKey: 'internal.gateway-diagnostic',
       userPrompt: 'Respond now.',
-      maxCostUsdMicros: 1000, // $0.001 ceiling — this prompt costs a small fraction of that
+      maxCostUsdMicros: costCapUsdMicros,
     });
 
     await auditService.record(env, logger, {

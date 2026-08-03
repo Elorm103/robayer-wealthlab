@@ -42,11 +42,28 @@ export interface AiGatewayRequest {
   feature: string;
   actorType: AiActorType;
   actorId: number | null;
+  /** admin_sessions.id, when actorType is 'admin' and the call happened within a real authenticated session — see requireAuth's AdminAuthContext.sessionId. Version 5.0 Milestone 1.1, purely for the AI Usage Log's "Session ID" column; never used for authorization. */
+  sessionId?: number | null;
   /** Resolves the current version of a stored prompt template from ai_prompts, if provided. Real customer-/admin-facing features (Milestone 4+) should register a versioned prompt rather than passing raw text — see docs/v5.0-ai-gateway.md §6. Internal/diagnostic calls may omit this and pass systemPrompt/userPrompt directly. */
   promptKey?: string;
   systemPrompt?: string;
   userPrompt: string;
   maxCostUsdMicros?: number;
+  /**
+   * Version 5.0 Milestone 1.1 — reserved, currently a no-op. Every
+   * future AI product (Customer AI, Knowledge Base, Investment
+   * Assistant, Fraud Detection, Recommendation Engine, etc.) will
+   * eventually need to inject prior conversation turns, retrieved
+   * documents, or business-context snippets into a call without each
+   * feature reinventing its own mechanism. Reserving the shape now (an
+   * ordered list of plain-text snippets the Gateway would one day
+   * splice into the prompt ahead of systemPrompt/userPrompt) means a
+   * future milestone can add real memory storage/retrieval and wire it
+   * in here without redesigning this interface. callAi() does not read
+   * this field yet — passing it today has no effect on the request
+   * sent to the provider.
+   */
+  memoryContext?: string[];
 }
 
 export interface AiGatewayResponse {
@@ -82,8 +99,11 @@ async function logUsage(
     model: string;
     actorType: AiActorType;
     actorId: number | null;
+    sessionId: number | null;
     promptKey: string | null;
     promptVersion: number | null;
+    promptText: string | null;
+    responseText: string | null;
     tokensIn: number;
     tokensOut: number;
     costUsdMicros: number;
@@ -100,9 +120,9 @@ async function logUsage(
   try {
     await env.DB.prepare(
       `INSERT INTO ai_usage_log (
-         feature, provider, model, actor_type, actor_id, prompt_key, prompt_version,
-         tokens_in, tokens_out, cost_usd_micros, latency_ms, fallback_used, succeeded, error_message
-       ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`
+         feature, provider, model, actor_type, actor_id, session_id, prompt_key, prompt_version,
+         prompt_text, response_text, tokens_in, tokens_out, cost_usd_micros, latency_ms, fallback_used, succeeded, error_message
+       ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`
     )
       .bind(
         entry.feature,
@@ -110,8 +130,11 @@ async function logUsage(
         entry.model,
         entry.actorType,
         entry.actorId,
+        entry.sessionId,
         entry.promptKey,
         entry.promptVersion,
+        entry.promptText,
+        entry.responseText,
         entry.tokensIn,
         entry.tokensOut,
         entry.costUsdMicros,
@@ -138,6 +161,13 @@ export async function callAi(env: Env, logger: Logger, request: AiGatewayRequest
   }
 
   const systemPrompt = resolvedPrompt?.template ?? request.systemPrompt;
+
+  // Version 5.0 Milestone 1.1 — the exact text sent to the provider,
+  // captured once here (identical for every candidate this call tries)
+  // so a super_admin can inspect precisely what was asked, via the AI
+  // Usage Log's single-row detail endpoint. Never returned by the
+  // default list endpoint or CSV export — see routes/admin/aiUsage.ts.
+  const promptText = systemPrompt ? `[system]\n${systemPrompt}\n\n[user]\n${request.userPrompt}` : request.userPrompt;
 
   let lastError: Error | null = null;
 
@@ -171,8 +201,11 @@ export async function callAi(env: Env, logger: Logger, request: AiGatewayRequest
           model: candidate.model,
           actorType: request.actorType,
           actorId: request.actorId,
+          sessionId: request.sessionId ?? null,
           promptKey: request.promptKey ?? null,
           promptVersion: resolvedPrompt?.version ?? null,
+          promptText,
+          responseText: null,
           tokensIn: result.tokensIn,
           tokensOut: result.tokensOut,
           costUsdMicros,
@@ -191,8 +224,11 @@ export async function callAi(env: Env, logger: Logger, request: AiGatewayRequest
         model: candidate.model,
         actorType: request.actorType,
         actorId: request.actorId,
+        sessionId: request.sessionId ?? null,
         promptKey: request.promptKey ?? null,
         promptVersion: resolvedPrompt?.version ?? null,
+        promptText,
+        responseText: result.content,
         tokensIn: result.tokensIn,
         tokensOut: result.tokensOut,
         costUsdMicros,
@@ -222,8 +258,11 @@ export async function callAi(env: Env, logger: Logger, request: AiGatewayRequest
         model: candidate.model,
         actorType: request.actorType,
         actorId: request.actorId,
+        sessionId: request.sessionId ?? null,
         promptKey: request.promptKey ?? null,
         promptVersion: resolvedPrompt?.version ?? null,
+        promptText,
+        responseText: null,
         tokensIn: 0,
         tokensOut: 0,
         costUsdMicros: 0,

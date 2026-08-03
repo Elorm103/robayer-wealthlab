@@ -88,6 +88,7 @@ import {
   handleAcceptInvite,
 } from '../routes/admin/users';
 import { handleGetSettings, handleUpdateSettings, handleSettingsStatus, handleAiGatewayTest } from '../routes/admin/settings';
+import { handleListAiUsage, handleGetAiUsageDetail, handleExportAiUsageCsv, handleGetAiUsageAnalytics } from '../routes/admin/aiUsage';
 import {
   handleListCampaigns,
   handleGetCampaign,
@@ -488,6 +489,12 @@ const ROUTES: Route[] = [
   { pattern: new URLPattern({ pathname: '/api/admin/settings' }), method: 'PATCH', handler: handleUpdateSettings },
   { pattern: new URLPattern({ pathname: '/api/admin/settings/status' }), method: 'GET', handler: handleSettingsStatus },
   { pattern: new URLPattern({ pathname: '/api/admin/settings/ai-gateway/test' }), method: 'POST', handler: handleAiGatewayTest },
+  // Static suffixes registered before the /:id pattern below — same
+  // ordering precedent as /api/admin/orders/meta vs /api/admin/orders/:reference.
+  { pattern: new URLPattern({ pathname: '/api/admin/ai-usage/export' }), method: 'GET', handler: handleExportAiUsageCsv },
+  { pattern: new URLPattern({ pathname: '/api/admin/ai-usage/analytics' }), method: 'GET', handler: handleGetAiUsageAnalytics },
+  { pattern: new URLPattern({ pathname: '/api/admin/ai-usage' }), method: 'GET', handler: handleListAiUsage },
+  { pattern: new URLPattern({ pathname: '/api/admin/ai-usage/:id' }), method: 'GET', handler: handleGetAiUsageDetail },
   // Added Version 2.1 Phase 6 (Newsletter Campaigns) — see
   // docs/v2.1-phase6-design.md. `subscribed-count` is a static path
   // and must be ordered before the `:id` wildcard patterns below, the

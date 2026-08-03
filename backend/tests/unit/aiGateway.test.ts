@@ -22,15 +22,30 @@ import { queueOpenAiResponse } from '../outboundMock';
 const logger = createLogger('test-request-id', 'test');
 
 describe('aiGateway.callAi', () => {
+  let adminId: number;
+  let sessionId: number;
+
   beforeEach(async () => {
     await env.DB.exec('DELETE FROM ai_usage_log');
+    await env.DB.exec('DELETE FROM admin_sessions');
+    await env.DB.exec('DELETE FROM admin_users');
+
+    const adminInsert = await env.DB.prepare(`INSERT INTO admin_users (email, password_hash, role, is_active) VALUES ('ai-gateway-test-admin@example.com', 'x:1:x', 'super_admin', 1)`).run();
+    adminId = Number(adminInsert.meta.last_row_id);
+    const sessionInsert = await env.DB.prepare(
+      `INSERT INTO admin_sessions (token, admin_id, csrf_secret, expires_at) VALUES ('test-token', ?, 'test-csrf-secret', datetime('now', '+1 hour'))`
+    )
+      .bind(adminId)
+      .run();
+    sessionId = Number(sessionInsert.meta.last_row_id);
   });
 
   it('completes successfully and logs a succeeded usage row', async () => {
     const result = await callAi(env as any, logger, {
       feature: 'internal.gateway-diagnostic',
       actorType: 'admin',
-      actorId: 1,
+      actorId: adminId,
+      sessionId,
       systemPrompt: 'You are a diagnostic health check. Reply with exactly one word: OK.',
       userPrompt: 'Respond now.',
     });
@@ -45,14 +60,49 @@ describe('aiGateway.callAi', () => {
 
     const row = await env.DB.prepare('SELECT * FROM ai_usage_log WHERE feature = ?')
       .bind('internal.gateway-diagnostic')
-      .first<{ succeeded: number; provider: string; model: string; actor_type: string; actor_id: number; data_classification: string }>();
+      .first<{
+        succeeded: number;
+        provider: string;
+        model: string;
+        actor_type: string;
+        actor_id: number;
+        session_id: number;
+        data_classification: string;
+        prompt_text: string;
+        response_text: string;
+      }>();
     expect(row).toBeTruthy();
     expect(row!.succeeded).toBe(1);
     expect(row!.provider).toBe('openai');
     expect(row!.model).toBe('gpt-4o-mini');
     expect(row!.actor_type).toBe('admin');
-    expect(row!.actor_id).toBe(1);
+    expect(row!.actor_id).toBe(adminId);
+    expect(row!.session_id).toBe(sessionId);
     expect(row!.data_classification).toBe('PRODUCTION');
+    expect(row!.prompt_text).toContain('You are a diagnostic health check.');
+    expect(row!.prompt_text).toContain('Respond now.');
+    expect(row!.response_text).toBe('OK');
+  });
+
+  it('resolves a stored prompt by promptKey/version and logs the resolved template as prompt_text', async () => {
+    // Seeded by database/migrations/0034_ai_gateway_hardening.sql —
+    // the first-ever real (non-raw-text) prompt this Gateway resolves.
+    const result = await callAi(env as any, logger, {
+      feature: 'internal.gateway-diagnostic',
+      actorType: 'admin',
+      actorId: 1,
+      promptKey: 'internal.gateway-diagnostic',
+      userPrompt: 'Respond now.',
+    });
+
+    expect(result.promptVersion).toBe(1);
+
+    const row = await env.DB.prepare('SELECT prompt_key, prompt_version, prompt_text FROM ai_usage_log WHERE feature = ?')
+      .bind('internal.gateway-diagnostic')
+      .first<{ prompt_key: string; prompt_version: number; prompt_text: string }>();
+    expect(row!.prompt_key).toBe('internal.gateway-diagnostic');
+    expect(row!.prompt_version).toBe(1);
+    expect(row!.prompt_text).toContain('diagnostic health check');
   });
 
   it('throws and logs a failed usage row when the provider returns an error', async () => {

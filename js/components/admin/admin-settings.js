@@ -38,7 +38,14 @@ function initAdminSettings() {
     emailDiagnosticsBody: root.querySelector('[data-email-diagnostics-body]'),
     paymentDiagnostics: root.querySelector('[data-payment-diagnostics]'),
     systemDiagnostics: root.querySelector('[data-system-diagnostics]'),
-    aiGatewayDiagnostics: root.querySelector('[data-ai-gateway-diagnostics]'),
+    aiGatewayStatusBadge: root.querySelector('[data-ai-gateway-status-badge]'),
+    aiGatewayStatusReason: root.querySelector('[data-ai-gateway-status-reason]'),
+    aiGatewayWarnings: root.querySelector('[data-ai-gateway-warnings]'),
+    aiGatewayDiagnosticsStatus: root.querySelector('[data-ai-gateway-diagnostics-status]'),
+    aiGatewayDiagnosticsVolume: root.querySelector('[data-ai-gateway-diagnostics-volume]'),
+    aiGatewayDiagnosticsCost: root.querySelector('[data-ai-gateway-diagnostics-cost]'),
+    aiGatewayDiagnosticsLatency: root.querySelector('[data-ai-gateway-diagnostics-latency]'),
+    aiGatewayRoutingBody: root.querySelector('[data-ai-gateway-routing-body]'),
     aiGatewayTestError: root.querySelector('[data-ai-gateway-test-error]'),
     aiGatewayTestSuccess: root.querySelector('[data-ai-gateway-test-success]'),
     aiGatewayTestButton: root.querySelector('[data-ai-gateway-test]'),
@@ -96,6 +103,9 @@ function initAdminSettings() {
     root.querySelector('#setting-sender-name').value = settings.emailSenderName.value;
     root.querySelector('#setting-reply-to').value = settings.emailReplyTo.value ?? '';
     root.querySelector('#setting-campaign-cap').value = settings.campaignRecipientCap.value;
+    root.querySelector('#setting-ai-cost-cap').value = microsToUsd(settings.aiGatewayCostCapUsdMicros.value);
+    root.querySelector('#setting-ai-daily-budget').value = settings.aiGatewayDailyBudgetUsdMicros.value === null ? '' : microsToUsd(settings.aiGatewayDailyBudgetUsdMicros.value);
+    root.querySelector('#setting-ai-monthly-budget').value = settings.aiGatewayMonthlyBudgetUsdMicros.value === null ? '' : microsToUsd(settings.aiGatewayMonthlyBudgetUsdMicros.value);
 
     els.templateToggles.innerHTML = '';
     Object.entries(settings.emailTemplateEnabled.value).forEach(([template, enabled]) => {
@@ -123,6 +133,8 @@ function initAdminSettings() {
     const maxDownloadsRaw = root.querySelector('#setting-default-max-downloads').value.trim();
     const expiresDaysRaw = root.querySelector('#setting-default-expires-days').value.trim();
     const replyToRaw = root.querySelector('#setting-reply-to').value.trim();
+    const dailyBudgetRaw = root.querySelector('#setting-ai-daily-budget').value.trim();
+    const monthlyBudgetRaw = root.querySelector('#setting-ai-monthly-budget').value.trim();
 
     const patch = {
       heroContent: {
@@ -144,6 +156,9 @@ function initAdminSettings() {
       emailReplyTo: replyToRaw === '' ? null : replyToRaw,
       emailTemplateEnabled: templateEnabled,
       campaignRecipientCap: Number(root.querySelector('#setting-campaign-cap').value),
+      aiGatewayCostCapUsdMicros: usdToMicros(root.querySelector('#setting-ai-cost-cap').value),
+      aiGatewayDailyBudgetUsdMicros: dailyBudgetRaw === '' ? null : usdToMicros(dailyBudgetRaw),
+      aiGatewayMonthlyBudgetUsdMicros: monthlyBudgetRaw === '' ? null : usdToMicros(monthlyBudgetRaw),
     };
 
     try {
@@ -277,6 +292,14 @@ function initAdminSettings() {
     return '$' + (micros / 1_000_000).toFixed(4);
   }
 
+  // Plain-number (no '$') variants for populating/reading <input type="number"> fields.
+  function microsToUsd(micros) {
+    return micros / 1_000_000;
+  }
+  function usdToMicros(usdString) {
+    return Math.round(Number(usdString) * 1_000_000);
+  }
+
   async function testAiGateway() {
     els.aiGatewayTestError.hidden = true;
     els.aiGatewayTestSuccess.hidden = true;
@@ -306,14 +329,7 @@ function initAdminSettings() {
       diagnosticRow('Failed payments (7 days)', String(p.recentFailureCount7d.value), p.recentFailureCount7d.source),
     ].join('');
 
-    const ai = status.aiGateway;
-    els.aiGatewayDiagnostics.innerHTML = [
-      diagnosticRow('OpenAI API key', ai.openAiConfigured.value ? 'Configured' : 'Not configured', ai.openAiConfigured.source),
-      diagnosticRow('Last successful call', formatDate(ai.lastSuccessfulCallAt.value), ai.lastSuccessfulCallAt.source),
-      diagnosticRow('Last failed call', formatDate(ai.lastFailedCallAt.value), ai.lastFailedCallAt.source),
-      diagnosticRow('Calls (30 days)', String(ai.callCount30d.value), ai.callCount30d.source),
-      diagnosticRow('Cost (30 days)', formatUsdMicros(ai.costUsdMicros30d.value), ai.costUsdMicros30d.source),
-    ].join('');
+    renderAiGatewayDashboard(status.aiGateway);
 
     const s = status.system;
     const schemaVersionText = `v${s.settingsSchemaVersion.value.stored} (expects v${s.settingsSchemaVersion.value.expected})${s.settingsSchemaVersion.value.matches ? '' : ' — MISMATCH'}`;
@@ -342,6 +358,77 @@ function initAdminSettings() {
         <td>${entry.skippedCount30d}</td>
       `;
       els.emailDiagnosticsBody.appendChild(row);
+    });
+  }
+
+  const STATUS_BADGE = {
+    healthy: { label: 'Healthy', variant: 'badge--success' },
+    warning: { label: 'Warning', variant: 'badge--warning' },
+    offline: { label: 'Offline', variant: 'badge--error' },
+  };
+
+  function renderAiGatewayDashboard(ai) {
+    const statusInfo = STATUS_BADGE[ai.healthStatus.value] || STATUS_BADGE.warning;
+    els.aiGatewayStatusBadge.className = `badge ${statusInfo.variant}`;
+    els.aiGatewayStatusBadge.textContent = statusInfo.label;
+    els.aiGatewayStatusReason.textContent = ai.healthReason.value;
+
+    if (ai.warnings.value.length > 0) {
+      els.aiGatewayWarnings.hidden = false;
+      els.aiGatewayWarnings.innerHTML = `<div class="alert alert--warning" role="alert"><strong>Warnings</strong><ul style="margin: 4px 0 0; padding-left: 1.2em;">${ai.warnings.value
+        .map((w) => `<li>${escapeHtml(w)}</li>`)
+        .join('')}</ul></div>`;
+    } else {
+      els.aiGatewayWarnings.hidden = true;
+      els.aiGatewayWarnings.innerHTML = '';
+    }
+
+    els.aiGatewayDiagnosticsStatus.innerHTML = [
+      diagnosticRow('OpenAI API key', ai.openAiConfigured.value ? 'Configured' : 'Not configured', ai.openAiConfigured.source),
+      diagnosticRow('Last successful call', formatDate(ai.lastSuccessfulCallAt.value), ai.lastSuccessfulCallAt.source),
+      diagnosticRow('Last failed call', formatDate(ai.lastFailedCallAt.value), ai.lastFailedCallAt.source),
+      diagnosticRow('Consecutive failures', String(ai.consecutiveFailures.value), ai.consecutiveFailures.source),
+      diagnosticRow('Last error', ai.lastErrorMessage.value ? escapeHtml(ai.lastErrorMessage.value) : 'None', ai.lastErrorMessage.source),
+    ].join('');
+
+    els.aiGatewayDiagnosticsVolume.innerHTML = [
+      diagnosticRow('Calls today', String(ai.callsToday.value), ai.callsToday.source),
+      diagnosticRow('Calls (7 days)', String(ai.callsLast7d.value), ai.callsLast7d.source),
+      diagnosticRow('Calls (30 days)', String(ai.callsLast30d.value), ai.callsLast30d.source),
+      diagnosticRow('Calls (all-time)', String(ai.callsTotal.value), ai.callsTotal.source),
+      diagnosticRow('Success rate (30 days)', ai.successRatePercent30d.value === null ? 'No data yet' : `${ai.successRatePercent30d.value}%`, ai.successRatePercent30d.source),
+      diagnosticRow('Failure rate (30 days)', ai.failureRatePercent30d.value === null ? 'No data yet' : `${ai.failureRatePercent30d.value}%`, ai.failureRatePercent30d.source),
+    ].join('');
+
+    els.aiGatewayDiagnosticsCost.innerHTML = [
+      diagnosticRow("Today's cost", formatUsdMicros(ai.costTodayUsdMicros.value), ai.costTodayUsdMicros.source),
+      diagnosticRow('Cost (30 days)', formatUsdMicros(ai.costLast30dUsdMicros.value), ai.costLast30dUsdMicros.source),
+      diagnosticRow('Lifetime cost', formatUsdMicros(ai.costLifetimeUsdMicros.value), ai.costLifetimeUsdMicros.source),
+      diagnosticRow('Current cost cap', formatUsdMicros(ai.costCapUsdMicros.value) + ' / call', ai.costCapUsdMicros.source),
+      diagnosticRow('Daily budget', ai.dailyBudgetUsdMicros.value === null ? 'Unconfigured' : formatUsdMicros(ai.dailyBudgetUsdMicros.value), ai.dailyBudgetUsdMicros.source),
+      diagnosticRow('Monthly budget', ai.monthlyBudgetUsdMicros.value === null ? 'Unconfigured' : formatUsdMicros(ai.monthlyBudgetUsdMicros.value), ai.monthlyBudgetUsdMicros.source),
+    ].join('');
+
+    els.aiGatewayDiagnosticsLatency.innerHTML = [
+      diagnosticRow('Average', ai.avgLatencyMs.value === null ? 'No data yet' : `${ai.avgLatencyMs.value}ms`, ai.avgLatencyMs.source),
+      diagnosticRow('Fastest', ai.fastestLatencyMs.value === null ? 'No data yet' : `${ai.fastestLatencyMs.value}ms`, ai.fastestLatencyMs.source),
+      diagnosticRow('Slowest', ai.slowestLatencyMs.value === null ? 'No data yet' : `${ai.slowestLatencyMs.value}ms`, ai.slowestLatencyMs.source),
+    ].join('');
+
+    els.aiGatewayRoutingBody.innerHTML = '';
+    if (ai.routing.value.length === 0) {
+      const row = document.createElement('tr');
+      row.innerHTML = '<td colspan="3">No AI features are registered yet.</td>';
+      els.aiGatewayRoutingBody.appendChild(row);
+    }
+    ai.routing.value.forEach((r) => {
+      const row = document.createElement('tr');
+      row.innerHTML = `
+        <td>${escapeHtml(r.feature)}</td>
+        <td>${escapeHtml(r.primaryProvider)} / ${escapeHtml(r.primaryModel)}</td>
+        <td>${r.fallbackProvider ? `${escapeHtml(r.fallbackProvider)} / ${escapeHtml(r.fallbackModel)}` : 'None configured'}</td>
+      `;
+      els.aiGatewayRoutingBody.appendChild(row);
     });
   }
 
