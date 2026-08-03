@@ -25,6 +25,7 @@ function initAdminAiUsage() {
     dateTo: '',
     feature: '',
     provider: '',
+    classification: '',
     page: 1,
     pageSize: 25,
     items: [],
@@ -38,6 +39,7 @@ function initAdminAiUsage() {
     dateTo: root.querySelector('[data-ai-usage-date-to]'),
     featureFilter: root.querySelector('[data-ai-usage-feature-filter]'),
     providerFilter: root.querySelector('[data-ai-usage-provider-filter]'),
+    classificationFilter: root.querySelector('[data-ai-usage-classification-filter]'),
     statusChips: Array.from(root.querySelectorAll('[data-ai-usage-status-filter]')),
     resultCount: root.querySelector('[data-ai-usage-result-count]'),
     exportButton: root.querySelector('[data-ai-usage-export]'),
@@ -68,6 +70,7 @@ function initAdminAiUsage() {
     statusBadge: drawer.querySelector('[data-ai-usage-drawer-status-badge]'),
     actor: drawer.querySelector('[data-ai-usage-drawer-actor]'),
     session: drawer.querySelector('[data-ai-usage-drawer-session]'),
+    sensitivity: drawer.querySelector('[data-ai-usage-drawer-sensitivity]'),
     provider: drawer.querySelector('[data-ai-usage-drawer-provider]'),
     promptVersion: drawer.querySelector('[data-ai-usage-drawer-prompt-version]'),
     fallback: drawer.querySelector('[data-ai-usage-drawer-fallback]'),
@@ -79,6 +82,14 @@ function initAdminAiUsage() {
     errorMessage: drawer.querySelector('[data-ai-usage-drawer-error-message]'),
     promptText: drawer.querySelector('[data-ai-usage-drawer-prompt-text]'),
     responseText: drawer.querySelector('[data-ai-usage-drawer-response-text]'),
+    gatewayVersion: drawer.querySelector('[data-ai-usage-drawer-gateway-version]'),
+    policyVersion: drawer.querySelector('[data-ai-usage-drawer-policy-version]'),
+    providerDecision: drawer.querySelector('[data-ai-usage-drawer-provider-decision]'),
+    budgetDecision: drawer.querySelector('[data-ai-usage-drawer-budget-decision]'),
+    retentionDecision: drawer.querySelector('[data-ai-usage-drawer-retention-decision]'),
+    masking: drawer.querySelector('[data-ai-usage-drawer-masking]'),
+    cleanupEligible: drawer.querySelector('[data-ai-usage-drawer-cleanup-eligible]'),
+    purgedAt: drawer.querySelector('[data-ai-usage-drawer-purged-at]'),
   };
 
   bindToolbar();
@@ -147,6 +158,7 @@ function initAdminAiUsage() {
     if (state.dateTo) params.set('dateTo', state.dateTo);
     if (state.feature) params.set('feature', state.feature);
     if (state.provider) params.set('provider', state.provider);
+    if (state.classification) params.set('classification', state.classification);
     params.set('page', String(state.page));
     params.set('pageSize', String(state.pageSize));
     return params;
@@ -180,6 +192,11 @@ function initAdminAiUsage() {
     });
     els.providerFilter.addEventListener('change', () => {
       state.provider = els.providerFilter.value;
+      state.page = 1;
+      refresh();
+    });
+    els.classificationFilter.addEventListener('change', () => {
+      state.classification = els.classificationFilter.value;
       state.page = 1;
       refresh();
     });
@@ -276,6 +293,9 @@ function initAdminAiUsage() {
       featureCell.appendChild(fallbackBadge);
     }
 
+    const classificationCell = document.createElement('td');
+    classificationCell.textContent = item.sensitivityClassification;
+
     const providerCell = document.createElement('td');
     providerCell.textContent = `${item.provider} / ${item.model}`;
 
@@ -291,7 +311,7 @@ function initAdminAiUsage() {
     const statusCell = document.createElement('td');
     statusCell.appendChild(statusBadge(item.succeeded));
 
-    row.append(tsCell, actorCell, featureCell, providerCell, tokensCell, costCell, durationCell, statusCell);
+    row.append(tsCell, actorCell, featureCell, classificationCell, providerCell, tokensCell, costCell, durationCell, statusCell);
     return row;
   }
 
@@ -343,6 +363,7 @@ function initAdminAiUsage() {
     updateStatusBadge(drawerEls.statusBadge, detail.succeeded);
     drawerEls.actor.textContent = detail.actorLabel;
     drawerEls.session.textContent = detail.sessionId === null ? 'None' : String(detail.sessionId);
+    drawerEls.sensitivity.textContent = detail.sensitivityClassification;
     drawerEls.provider.textContent = `${detail.provider} / ${detail.model}`;
     drawerEls.promptVersion.textContent = detail.promptKey ? `${detail.promptKey} v${detail.promptVersion}` : 'Not a stored prompt';
     drawerEls.fallback.textContent = detail.fallbackUsed ? 'Yes' : 'No';
@@ -354,6 +375,15 @@ function initAdminAiUsage() {
     drawerEls.errorMessage.textContent = detail.errorMessage || '';
     drawerEls.promptText.textContent = detail.promptText || '(not recorded)';
     drawerEls.responseText.textContent = detail.responseText || '(no response — call did not succeed)';
+
+    drawerEls.gatewayVersion.textContent = detail.gatewayVersion || 'Unknown';
+    drawerEls.policyVersion.textContent = detail.policyVersion || 'Unknown';
+    drawerEls.providerDecision.textContent = detail.providerDecision || 'Not recorded';
+    drawerEls.budgetDecision.textContent = detail.budgetDecision || 'Not recorded';
+    drawerEls.retentionDecision.textContent = detail.retentionDecision || 'Not recorded';
+    drawerEls.masking.textContent = detail.maskingApplied ? 'Yes — a recognizable secret pattern was detected' : 'No';
+    drawerEls.cleanupEligible.textContent = detail.cleanupEligibleDate ? formatDateTime(detail.cleanupEligibleDate) : 'Not applicable (nothing stored, or retained forever)';
+    drawerEls.purgedAt.textContent = detail.purgedAt ? formatDateTime(detail.purgedAt) : 'Not yet purged';
   }
 }
 

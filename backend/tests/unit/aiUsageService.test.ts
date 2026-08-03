@@ -8,7 +8,8 @@
  */
 import { describe, it, expect, beforeEach } from 'vitest';
 import { env } from 'cloudflare:test';
-import { listAiUsage, getAiUsageDetail, exportAiUsageCsv, getAiUsageAnalytics } from '../../services/admin/aiUsageService';
+import { listAiUsage, getAiUsageDetail, exportAiUsageCsv, getAiUsageAnalytics, getAiGovernanceSummary } from '../../services/admin/aiUsageService';
+import { encryptText } from '../../services/ai/promptEncryption';
 
 let adminId: number;
 
@@ -25,6 +26,12 @@ async function seedRow(overrides: Partial<{
   createdAt: string;
   promptText: string | null;
   responseText: string | null;
+  classification: string;
+  maskingApplied: number;
+  providerDecision: string | null;
+  budgetDecision: string | null;
+  cleanupEligibleDate: string | null;
+  purgedAt: string | null;
 }> = {}): Promise<number> {
   const row = {
     feature: 'internal.gateway-diagnostic',
@@ -39,21 +46,28 @@ async function seedRow(overrides: Partial<{
     createdAt: null as string | null,
     promptText: 'system prompt text',
     responseText: 'OK',
+    classification: 'INTERNAL',
+    maskingApplied: 0,
+    providerDecision: null as string | null,
+    budgetDecision: null as string | null,
+    cleanupEligibleDate: null as string | null,
+    purgedAt: null as string | null,
     ...overrides,
   };
 
   const insert = await env.DB.prepare(
     `INSERT INTO ai_usage_log (
-       feature, provider, model, actor_type, actor_id, session_id, prompt_key, prompt_version,
+       feature, provider, model, actor_type, actor_id, session_id, sensitivity_classification, prompt_key, prompt_version,
        prompt_text, response_text, tokens_in, tokens_out, cost_usd_micros, latency_ms, fallback_used, succeeded, error_message,
-       created_at
-     ) VALUES (?, ?, ?, 'admin', ?, NULL, NULL, NULL, ?, ?, ?, ?, ?, ?, 0, ?, ?, COALESCE(?, datetime('now')))`
+       created_at, masking_applied, provider_decision, budget_decision, cleanup_eligible_date, purged_at
+     ) VALUES (?, ?, ?, 'admin', ?, NULL, ?, NULL, NULL, ?, ?, ?, ?, ?, ?, 0, ?, ?, COALESCE(?, datetime('now')), ?, ?, ?, ?, ?)`
   )
     .bind(
       row.feature,
       row.provider,
       row.model,
       adminId,
+      row.classification,
       row.promptText,
       row.responseText,
       row.tokensIn,
@@ -62,7 +76,12 @@ async function seedRow(overrides: Partial<{
       row.latencyMs,
       row.succeeded,
       row.errorMessage,
-      row.createdAt
+      row.createdAt,
+      row.maskingApplied,
+      row.providerDecision,
+      row.budgetDecision,
+      row.cleanupEligibleDate,
+      row.purgedAt
     )
     .run();
   return Number(insert.meta.last_row_id);
@@ -170,5 +189,64 @@ describe('aiUsageService', () => {
 
     const openai = analytics.callsPerProvider.find((p) => p.label === 'openai');
     expect(openai?.value).toBe(3);
+  });
+
+  it('filters by sensitivity classification', async () => {
+    await seedRow({ feature: 'a', classification: 'PUBLIC' });
+    await seedRow({ feature: 'b', classification: 'HIGHLY_SENSITIVE' });
+
+    const result = await listAiUsage(env as any, { classification: 'HIGHLY_SENSITIVE' }, 1, 25);
+    expect(result.total).toBe(1);
+    expect(result.items[0].feature).toBe('b');
+    expect(result.items[0].sensitivityClassification).toBe('HIGHLY_SENSITIVE');
+  });
+
+  it('getAiUsageDetail transparently decrypts a value stored by promptEncryption.ts, and passes legacy plaintext through unchanged', async () => {
+    const rawKey = new Uint8Array(32);
+    crypto.getRandomValues(rawKey);
+    let binary = '';
+    for (const b of rawKey) binary += String.fromCharCode(b);
+    const base64Key = btoa(binary);
+    const envWithKey = { ...(env as any), AI_PROMPT_ENCRYPTION_KEY: base64Key };
+
+    const encryptedPrompt = await encryptText(envWithKey, 'the real, encrypted prompt');
+    const id = await seedRow({ promptText: encryptedPrompt, responseText: 'plain legacy response' });
+
+    const detail = await getAiUsageDetail(envWithKey, id);
+    expect(detail!.promptText).toBe('the real, encrypted prompt');
+    expect(detail!.responseText).toBe('plain legacy response'); // never encrypted — passed through as-is
+  });
+
+  it('getAiGovernanceSummary aggregates classification/provider distribution, sensitive/masked counts, budget blocks, policy violations, and stored-prompt range', async () => {
+    await seedRow({ classification: 'FINANCIAL', provider: 'openai', maskingApplied: 1, promptText: 'masked-and-stored', budgetDecision: 'approved: within budget' });
+    await seedRow({ classification: 'PUBLIC', provider: 'openai', maskingApplied: 1, promptText: null, responseText: null, budgetDecision: 'approved: within budget' });
+    await seedRow({ classification: 'PUBLIC', provider: 'openai', budgetDecision: 'rejected: daily budget would be exceeded', providerDecision: 'approved' });
+    await seedRow({ classification: 'PUBLIC', provider: 'openai', budgetDecision: 'not evaluated', providerDecision: 'rejected: provider not approved for classification' });
+
+    const summary = await getAiGovernanceSummary(env as any);
+    const financial = summary.classificationDistribution30d.find((c) => c.label === 'FINANCIAL');
+    const publicCount = summary.classificationDistribution30d.find((c) => c.label === 'PUBLIC');
+    expect(financial?.value).toBe(1);
+    expect(publicCount?.value).toBe(3);
+
+    const openaiDist = summary.providerDistribution30d.find((p) => p.label === 'openai');
+    expect(openaiDist?.value).toBe(4);
+
+    expect(summary.sensitivePromptCount30d).toBe(2); // two rows with maskingApplied=1
+    expect(summary.maskedPromptCount30d).toBe(1); // only one of those two actually had text stored
+    expect(summary.budgetBlocks30d).toBe(1);
+    expect(summary.policyViolations30d).toBe(1);
+    expect(summary.oldestStoredPromptAt).not.toBeNull();
+    expect(summary.newestStoredPromptAt).not.toBeNull();
+  });
+
+  it('getAiGovernanceSummary reports retention cleanup status from purged_at', async () => {
+    await seedRow({ purgedAt: '2026-01-01 00:00:00' });
+    await seedRow({ purgedAt: '2026-01-15 00:00:00' });
+    await seedRow({ purgedAt: null });
+
+    const summary = await getAiGovernanceSummary(env as any);
+    expect(summary.retentionCleanupTotalPurged).toBe(2);
+    expect(summary.retentionCleanupLastRunAt).toBe('2026-01-15 00:00:00');
   });
 });

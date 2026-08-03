@@ -18,7 +18,7 @@ import { requireAuth } from '../../middleware/requireAuth';
 import { requireRole } from '../../middleware/requireRole';
 import { requireCsrf } from '../../middleware/csrf';
 import * as settingsService from '../../services/admin/settingsService';
-import { callAi } from '../../services/ai/aiGateway';
+import { callAi, AiBudgetExceededError, AiPolicyViolationError } from '../../services/ai/aiGateway';
 import * as auditService from '../../services/admin/auditService';
 
 const SUPER_ADMIN_ONLY = ['super_admin'] as const;
@@ -103,20 +103,21 @@ export async function handleAiGatewayTest(request: Request, env: Env, logger: Lo
   try {
     // Version 5.0 Milestone 1.1 — uses the stored, versioned
     // 'internal.gateway-diagnostic' prompt (services/ai/aiGateway.ts's
-    // promptKey resolution) rather than raw inline text, and reads the
-    // cost cap from site_settings (settingsService.getAiGatewayBudgetConfig)
-    // rather than a hardcoded literal, so both are real, admin-visible
-    // facts on the AI Operations Dashboard instead of invisible
-    // constants only this file knew about.
-    const { costCapUsdMicros } = await settingsService.getAiGatewayBudgetConfig(env);
+    // promptKey resolution) rather than raw inline text. Version 5.0
+    // Milestone 1.2 — `maxCostUsdMicros` is deliberately OMITTED here:
+    // the Gateway itself now inherits the platform-configured default
+    // cost cap automatically (Task 2's "mandatory default budgets"),
+    // so this route no longer needs to look it up and pass it through
+    // by hand. `classification: 'INTERNAL'` — this is an internal
+    // operational health check, never customer or business data.
     const result = await callAi(env, logger, {
       feature: 'internal.gateway-diagnostic',
       actorType: 'admin',
       actorId: auth.auth.adminId,
       sessionId: auth.auth.sessionId,
+      classification: 'INTERNAL',
       promptKey: 'internal.gateway-diagnostic',
       userPrompt: 'Respond now.',
-      maxCostUsdMicros: costCapUsdMicros,
     });
 
     await auditService.record(env, logger, {
@@ -149,6 +150,13 @@ export async function handleAiGatewayTest(request: Request, env: Env, logger: Lo
       metadata: { ...actionContext(request), succeeded: false, error: errorMessage },
     });
 
+    // Version 5.0 Milestone 1.2 — a budget/policy refusal is a
+    // distinct, expected outcome (governance working as designed), not
+    // an upstream/config failure — surfaced with its own error code so
+    // an admin (or a future caller) can tell "OpenAI is down" apart
+    // from "the Gateway refused this on purpose."
+    if (err instanceof AiBudgetExceededError) return jsonError('AI_GATEWAY_BUDGET_EXCEEDED', errorMessage);
+    if (err instanceof AiPolicyViolationError) return jsonError('AI_GATEWAY_POLICY_VIOLATION', errorMessage);
     return jsonError('AI_GATEWAY_ERROR', errorMessage);
   }
 }

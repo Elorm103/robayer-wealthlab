@@ -20,6 +20,21 @@ import type { Env } from '../../worker/env';
 import type { Logger } from '../../utils/logger';
 import type { EmailTemplateName } from '../emailService';
 import { getAllRoutingConfig } from '../ai/routingConfig';
+import {
+  getAiGatewayBudgetConfig as readAiGatewayBudgetConfig,
+  getAiGatewayRetentionConfig as readAiGatewayRetentionConfig,
+  DEFAULT_PER_REQUEST_CAP_USD_MICROS,
+  DEFAULT_DAILY_BUDGET_USD_MICROS,
+  DEFAULT_MONTHLY_BUDGET_USD_MICROS,
+  DEFAULT_PLATFORM_BUDGET_USD_MICROS,
+  DEFAULT_RETENTION_CONFIG,
+  VALID_RETENTION_STORAGE_MODES,
+  VALID_RETENTION_DAYS,
+  type AiRetentionStorageMode,
+} from '../ai/aiGatewayConfig';
+import { isEncryptionAvailable } from '../ai/promptEncryption';
+import { POLICY_VERSION, SENSITIVITY_CLASSIFICATIONS } from '../ai/providerPolicy';
+import { getAiGovernanceSummary } from './aiUsageService';
 import * as auditService from './auditService';
 import packageJson from '../../package.json';
 
@@ -117,19 +132,30 @@ const DEFAULTS = {
   // change. Not a promise that raising this indefinitely stays safe —
   // see docs/v2.1-phase6-design.md's §4.
   campaign_recipient_cap: 300 as number,
-  // Version 5.0 Milestone 1.1 (AI Gateway Operational Hardening) — the
-  // per-call cost ceiling every AI Gateway feature is checked against
-  // by default (see services/ai/aiGateway.ts's maxCostUsdMicros), and
-  // two purely informational daily/monthly spend thresholds. Per the
-  // founder's explicit decision, these budgets power a dashboard
-  // warning ONLY — crossing them never blocks an AI call. Real
-  // enforcement (refusing calls once a period's spend is exceeded)
-  // was deliberately deferred; see the Milestone 1.1 engineering
-  // report's "Future Recommendations" section. null means
-  // "unconfigured" — no warning is ever shown for a null budget.
-  ai_gateway_cost_cap_usd_micros: 1000 as number, // $0.001 — matches the diagnostic test's long-standing hardcoded value
-  ai_gateway_daily_budget_usd_micros: null as number | null,
-  ai_gateway_monthly_budget_usd_micros: null as number | null,
+  // Version 5.0 Milestone 1.1 introduced these as warning-only
+  // thresholds. Version 5.0 Milestone 1.2 (AI Governance & Safety,
+  // Task 1) makes them PREVENTIVE — callAi() now refuses a candidate
+  // BEFORE contacting the provider if the estimated cost would put
+  // spend over any of these. The actual numbers are defined ONCE in
+  // services/ai/aiGatewayConfig.ts (imported here, not
+  // re-hardcoded) — that module is what services/ai/aiGateway.ts
+  // itself reads at enforcement time, so this settings-editing layer
+  // can never silently drift from what the Gateway actually enforces.
+  ai_gateway_cost_cap_usd_micros: DEFAULT_PER_REQUEST_CAP_USD_MICROS as number,
+  ai_gateway_daily_budget_usd_micros: DEFAULT_DAILY_BUDGET_USD_MICROS as number | null,
+  ai_gateway_monthly_budget_usd_micros: DEFAULT_MONTHLY_BUDGET_USD_MICROS as number | null,
+  // Version 5.0 Milestone 1.2 (Task 1) — per-provider LIFETIME ceiling
+  // overrides, keyed by provider name (e.g. {"openai": 75000000}). A
+  // provider absent from this map falls back to the platform-wide
+  // per-provider default (services/ai/aiGatewayConfig.ts's
+  // DEFAULT_PROVIDER_BUDGET_USD_MICROS).
+  ai_gateway_provider_budgets_usd_micros: {} as Record<string, number | null>,
+  ai_gateway_platform_budget_usd_micros: DEFAULT_PLATFORM_BUDGET_USD_MICROS as number | null,
+  // Version 5.0 Milestone 1.2 (Task 5) — see
+  // services/ai/aiGatewayConfig.ts's AiGatewayRetentionConfig for the
+  // full mode/period semantics.
+  ai_gateway_retention_storage_mode: DEFAULT_RETENTION_CONFIG.storageMode as AiRetentionStorageMode,
+  ai_gateway_retention_days: DEFAULT_RETENTION_CONFIG.retentionDays as number | null,
 };
 
 type SettingsKey = keyof typeof DEFAULTS;
@@ -172,6 +198,10 @@ export interface EditableSettingsView {
   aiGatewayCostCapUsdMicros: SettingsField<number>;
   aiGatewayDailyBudgetUsdMicros: SettingsField<number | null>;
   aiGatewayMonthlyBudgetUsdMicros: SettingsField<number | null>;
+  aiGatewayProviderBudgetsUsdMicros: SettingsField<Record<string, number | null>>;
+  aiGatewayPlatformBudgetUsdMicros: SettingsField<number | null>;
+  aiGatewayRetentionStorageMode: SettingsField<AiRetentionStorageMode>;
+  aiGatewayRetentionDays: SettingsField<number | null>;
   settingsSchemaVersion: SettingsField<{ stored: number; expected: number; matches: boolean }>;
 }
 
@@ -193,6 +223,10 @@ export async function getEditableSettings(env: Env): Promise<EditableSettingsVie
     aiGatewayCostCapUsdMicros: field(resolve(raw, 'ai_gateway_cost_cap_usd_micros'), 'site_settings', true),
     aiGatewayDailyBudgetUsdMicros: field(resolve(raw, 'ai_gateway_daily_budget_usd_micros'), 'site_settings', true),
     aiGatewayMonthlyBudgetUsdMicros: field(resolve(raw, 'ai_gateway_monthly_budget_usd_micros'), 'site_settings', true),
+    aiGatewayProviderBudgetsUsdMicros: field(resolve(raw, 'ai_gateway_provider_budgets_usd_micros'), 'site_settings', true),
+    aiGatewayPlatformBudgetUsdMicros: field(resolve(raw, 'ai_gateway_platform_budget_usd_micros'), 'site_settings', true),
+    aiGatewayRetentionStorageMode: field(resolve(raw, 'ai_gateway_retention_storage_mode'), 'site_settings', true),
+    aiGatewayRetentionDays: field(resolve(raw, 'ai_gateway_retention_days'), 'site_settings', true),
     settingsSchemaVersion: field(
       { stored: storedVersion, expected: EXPECTED_SETTINGS_SCHEMA_VERSION, matches: storedVersion === EXPECTED_SETTINGS_SCHEMA_VERSION },
       'site_settings',
@@ -205,16 +239,6 @@ export async function getEditableSettings(env: Env): Promise<EditableSettingsVie
 export async function getCampaignRecipientCap(env: Env): Promise<number> {
   const raw = await readRawSettings(env);
   return resolve(raw, 'campaign_recipient_cap');
-}
-
-/** Resolves just the three AI Gateway budget/cap values — routes/admin/settings.ts needs the cost cap at call time, and this whole shape for the dashboard's warning derivation. */
-export async function getAiGatewayBudgetConfig(env: Env): Promise<{ costCapUsdMicros: number; dailyBudgetUsdMicros: number | null; monthlyBudgetUsdMicros: number | null }> {
-  const raw = await readRawSettings(env);
-  return {
-    costCapUsdMicros: resolve(raw, 'ai_gateway_cost_cap_usd_micros'),
-    dailyBudgetUsdMicros: resolve(raw, 'ai_gateway_daily_budget_usd_micros'),
-    monthlyBudgetUsdMicros: resolve(raw, 'ai_gateway_monthly_budget_usd_micros'),
-  };
 }
 
 /**
@@ -407,6 +431,43 @@ function validateAiGatewayBudget(value: unknown, fieldName: string, errors: Sett
   return value;
 }
 
+/** Version 5.0 Milestone 1.2 (Task 1) — {providerName: budgetOrNull, ...}. Every provider name must be a known one (services/ai/providerRegistry.ts's registered set) and every value must independently pass the same rule as a single provider budget. */
+function validateAiGatewayProviderBudgets(value: unknown, errors: SettingsValidationError[]): Record<string, number | null> | undefined {
+  if (typeof value !== 'object' || value === null || Array.isArray(value)) {
+    errors.push({ field: 'aiGatewayProviderBudgetsUsdMicros', message: 'aiGatewayProviderBudgetsUsdMicros must be an object of provider name to budget (or null).' });
+    return undefined;
+  }
+  const result: Record<string, number | null> = {};
+  for (const [provider, budget] of Object.entries(value as Record<string, unknown>)) {
+    if (budget === null) {
+      result[provider] = null;
+      continue;
+    }
+    if (typeof budget !== 'number' || !Number.isInteger(budget) || budget < 1 || budget > MAX_AI_GATEWAY_BUDGET_USD_MICROS) {
+      errors.push({ field: `aiGatewayProviderBudgetsUsdMicros.${provider}`, message: `Budget for provider "${provider}" must be a whole number of USD micros between 1 and ${MAX_AI_GATEWAY_BUDGET_USD_MICROS}, or null.` });
+      return undefined;
+    }
+    result[provider] = budget;
+  }
+  return result;
+}
+
+function validateAiGatewayRetentionStorageMode(value: unknown, errors: SettingsValidationError[]): AiRetentionStorageMode | undefined {
+  if (typeof value !== 'string' || !(VALID_RETENTION_STORAGE_MODES as readonly string[]).includes(value)) {
+    errors.push({ field: 'aiGatewayRetentionStorageMode', message: `aiGatewayRetentionStorageMode must be one of: ${VALID_RETENTION_STORAGE_MODES.join(', ')}.` });
+    return undefined;
+  }
+  return value as AiRetentionStorageMode;
+}
+
+function validateAiGatewayRetentionDays(value: unknown, errors: SettingsValidationError[]): number | null | undefined {
+  if (!(VALID_RETENTION_DAYS as readonly (number | null)[]).includes(value as number | null)) {
+    errors.push({ field: 'aiGatewayRetentionDays', message: `aiGatewayRetentionDays must be one of: ${VALID_RETENTION_DAYS.map((d) => d ?? 'null (forever)').join(', ')}.` });
+    return undefined;
+  }
+  return value as number | null;
+}
+
 function validateTemplateEnabled(value: unknown, errors: SettingsValidationError[]): Record<string, boolean> | undefined {
   if (typeof value !== 'object' || value === null) {
     errors.push({ field: 'emailTemplateEnabled', message: 'emailTemplateEnabled must be an object.' });
@@ -452,6 +513,10 @@ const PATCH_KEY_MAP: Record<string, SettingsKey> = {
   aiGatewayCostCapUsdMicros: 'ai_gateway_cost_cap_usd_micros',
   aiGatewayDailyBudgetUsdMicros: 'ai_gateway_daily_budget_usd_micros',
   aiGatewayMonthlyBudgetUsdMicros: 'ai_gateway_monthly_budget_usd_micros',
+  aiGatewayProviderBudgetsUsdMicros: 'ai_gateway_provider_budgets_usd_micros',
+  aiGatewayPlatformBudgetUsdMicros: 'ai_gateway_platform_budget_usd_micros',
+  aiGatewayRetentionStorageMode: 'ai_gateway_retention_storage_mode',
+  aiGatewayRetentionDays: 'ai_gateway_retention_days',
 };
 
 export async function updateSettings(env: Env, logger: Logger, actorId: number, patch: Record<string, unknown>, context: ActionContext): Promise<UpdateSettingsResult> {
@@ -496,6 +561,18 @@ export async function updateSettings(env: Env, logger: Logger, actorId: number, 
         break;
       case 'ai_gateway_monthly_budget_usd_micros':
         value = validateAiGatewayBudget(rawValue, 'aiGatewayMonthlyBudgetUsdMicros', errors);
+        break;
+      case 'ai_gateway_provider_budgets_usd_micros':
+        value = validateAiGatewayProviderBudgets(rawValue, errors);
+        break;
+      case 'ai_gateway_platform_budget_usd_micros':
+        value = validateAiGatewayBudget(rawValue, 'aiGatewayPlatformBudgetUsdMicros', errors);
+        break;
+      case 'ai_gateway_retention_storage_mode':
+        value = validateAiGatewayRetentionStorageMode(rawValue, errors);
+        break;
+      case 'ai_gateway_retention_days':
+        value = validateAiGatewayRetentionDays(rawValue, errors);
         break;
     }
 
@@ -668,6 +745,8 @@ export interface AiGatewayRoutingSnapshot {
   fallbackModel: string | null;
 }
 
+export type AiGatewayBudgetStatus = 'healthy' | 'near_limit' | 'blocking';
+
 export interface AiGatewayDiagnostics {
   openAiConfigured: SettingsField<boolean>;
   healthStatus: SettingsField<AiGatewayHealthStatus>;
@@ -691,9 +770,37 @@ export interface AiGatewayDiagnostics {
   costCapUsdMicros: SettingsField<number>;
   dailyBudgetUsdMicros: SettingsField<number | null>;
   monthlyBudgetUsdMicros: SettingsField<number | null>;
+  providerBudgetsUsdMicros: SettingsField<Record<string, number | null>>;
+  defaultProviderBudgetUsdMicros: SettingsField<number | null>;
+  platformBudgetUsdMicros: SettingsField<number | null>;
   lastErrorMessage: SettingsField<string | null>;
   lastErrorAt: SettingsField<string | null>;
   warnings: SettingsField<string[]>;
+
+  // ============================================================
+  // Version 5.0 Milestone 1.2 (AI Governance & Safety), Task 7 — the
+  // AI Governance Dashboard's fields. classificationDistribution/
+  // providerDistribution/sensitivePromptCount/maskedPromptCount/
+  // budgetBlocks/policyViolations/oldest+newestStoredPromptAt are
+  // computed by services/admin/aiUsageService.ts's
+  // getAiGovernanceSummary() — the same module that already owns every
+  // other ai_usage_log aggregate query (Milestone 1.1's analytics
+  // endpoint), rather than a second, independent copy of that SQL
+  // living here.
+  // ============================================================
+  policyStatus: SettingsField<{ version: string; classifications: string[] }>;
+  retentionStatus: SettingsField<{ storageMode: AiRetentionStorageMode; retentionDays: number | null; encryptionAvailable: boolean }>;
+  budgetStatus: SettingsField<AiGatewayBudgetStatus>;
+  classificationDistribution30d: SettingsField<{ label: string; value: number }[]>;
+  providerDistribution30d: SettingsField<{ label: string; value: number }[]>;
+  sensitivePromptCount30d: SettingsField<number>;
+  maskedPromptCount30d: SettingsField<number>;
+  budgetBlocks30d: SettingsField<number>;
+  policyViolations30d: SettingsField<number>;
+  retentionCleanupLastRunAt: SettingsField<string | null>;
+  retentionCleanupTotalPurged: SettingsField<number>;
+  oldestStoredPromptAt: SettingsField<string | null>;
+  newestStoredPromptAt: SettingsField<string | null>;
 }
 
 function formatUsd(micros: number): string {
@@ -702,7 +809,12 @@ function formatUsd(micros: number): string {
 
 async function getAiGatewayDiagnostics(env: Env): Promise<AiGatewayDiagnostics> {
   const openAiConfigured = typeof env.OPENAI_API_KEY === 'string' && env.OPENAI_API_KEY.length > 0;
-  const budget = await getAiGatewayBudgetConfig(env);
+  const [budget, retention, encryptionAvailable, governance] = await Promise.all([
+    readAiGatewayBudgetConfig(env),
+    readAiGatewayRetentionConfig(env),
+    isEncryptionAvailable(env),
+    getAiGovernanceSummary(env),
+  ]);
 
   const [today, last7d, last30d, lifetime, recentRows, lastFailedRow, lastSuccessRow, costCapRejections7d, rateLimitMentions7d] = await Promise.all([
     env.DB.prepare(`SELECT COUNT(*) AS calls, COALESCE(SUM(cost_usd_micros), 0) AS cost FROM ai_usage_log WHERE date(created_at) = date('now')`).first<{ calls: number; cost: number }>(),
@@ -763,6 +875,24 @@ async function getAiGatewayDiagnostics(env: Env): Promise<AiGatewayDiagnostics> 
   if (budget.monthlyBudgetUsdMicros !== null && callsLast30d > 0 && (last30d?.cost ?? 0) >= budget.monthlyBudgetUsdMicros * 0.8) {
     warnings.push(`Last 30 days' spend (${formatUsd(last30d?.cost ?? 0)}) is approaching or over the configured monthly budget (${formatUsd(budget.monthlyBudgetUsdMicros)}).`);
   }
+  // Version 5.0 Milestone 1.2 — budgets now BLOCK (Task 1), so a
+  // recent block is itself worth surfacing prominently, distinct from
+  // the "approaching" warnings above.
+  if (governance.budgetBlocks30d > 0) {
+    warnings.push(`${governance.budgetBlocks30d} AI Gateway call(s) were blocked by budget enforcement in the last 30 days — no provider was contacted for these.`);
+  }
+  if (governance.policyViolations30d > 0) {
+    warnings.push(`${governance.policyViolations30d} AI Gateway call(s) were blocked by provider policy in the last 30 days.`);
+  }
+
+  let budgetStatus: AiGatewayBudgetStatus = 'healthy';
+  if (governance.budgetBlocks30d > 0) budgetStatus = 'blocking';
+  else if (
+    (budget.dailyBudgetUsdMicros !== null && (today?.cost ?? 0) >= budget.dailyBudgetUsdMicros * 0.8) ||
+    (budget.monthlyBudgetUsdMicros !== null && (last30d?.cost ?? 0) >= budget.monthlyBudgetUsdMicros * 0.8)
+  ) {
+    budgetStatus = 'near_limit';
+  }
 
   let healthStatus: AiGatewayHealthStatus;
   let healthReason: string;
@@ -803,12 +933,29 @@ async function getAiGatewayDiagnostics(env: Env): Promise<AiGatewayDiagnostics> 
     successRatePercent30d: field(successRatePercent30d, 'derived', false),
     failureRatePercent30d: field(failureRatePercent30d, 'derived', false),
     routing: field(routing, 'derived', false),
-    costCapUsdMicros: field(budget.costCapUsdMicros, 'site_settings', false),
+    costCapUsdMicros: field(budget.perRequestCapUsdMicros, 'site_settings', false),
     dailyBudgetUsdMicros: field(budget.dailyBudgetUsdMicros, 'site_settings', false),
     monthlyBudgetUsdMicros: field(budget.monthlyBudgetUsdMicros, 'site_settings', false),
+    providerBudgetsUsdMicros: field(budget.providerBudgetsUsdMicros, 'site_settings', false),
+    defaultProviderBudgetUsdMicros: field(budget.defaultProviderBudgetUsdMicros, 'derived', false),
+    platformBudgetUsdMicros: field(budget.platformBudgetUsdMicros, 'site_settings', false),
     lastErrorMessage: field(lastFailedRow?.error_message ?? null, 'derived', false),
     lastErrorAt: field(lastFailedRow?.created_at ?? null, 'derived', false),
     warnings: field(warnings, 'derived', false),
+
+    policyStatus: field({ version: POLICY_VERSION, classifications: [...SENSITIVITY_CLASSIFICATIONS] }, 'derived', false),
+    retentionStatus: field({ storageMode: retention.storageMode, retentionDays: retention.retentionDays, encryptionAvailable }, 'site_settings', false),
+    budgetStatus: field(budgetStatus, 'derived', false),
+    classificationDistribution30d: field(governance.classificationDistribution30d, 'derived', false),
+    providerDistribution30d: field(governance.providerDistribution30d, 'derived', false),
+    sensitivePromptCount30d: field(governance.sensitivePromptCount30d, 'derived', false),
+    maskedPromptCount30d: field(governance.maskedPromptCount30d, 'derived', false),
+    budgetBlocks30d: field(governance.budgetBlocks30d, 'derived', false),
+    policyViolations30d: field(governance.policyViolations30d, 'derived', false),
+    retentionCleanupLastRunAt: field(governance.retentionCleanupLastRunAt, 'derived', false),
+    retentionCleanupTotalPurged: field(governance.retentionCleanupTotalPurged, 'derived', false),
+    oldestStoredPromptAt: field(governance.oldestStoredPromptAt, 'derived', false),
+    newestStoredPromptAt: field(governance.newestStoredPromptAt, 'derived', false),
   };
 }
 

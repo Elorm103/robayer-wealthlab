@@ -251,6 +251,7 @@ import { sendDueReviewReminders } from '../services/customer/reviewReminderServi
 // Trigger, not a new one.
 import { handlePurchaseFollowupOptOut } from '../routes/customer/purchaseFollowup';
 import { sendDuePurchaseFollowups } from '../services/customer/purchaseFollowupService';
+import { runScheduledCleanup as runAiGatewayRetentionCleanup } from '../services/ai/retentionCleanupService';
 import { record as recordAuditEvent } from '../services/admin/auditService';
 
 export type { Env };
@@ -711,6 +712,38 @@ export default {
             actorId: null,
             action: 'cron.heartbeat',
             entityType: 'purchase_followups',
+            entityId: null,
+            metadata: { ok: false, error: message },
+          });
+        })
+    );
+
+    // Version 5.0 Milestone 1.2 (AI Governance & Safety) — same Cron
+    // Trigger, same heartbeat-audit pattern as the two jobs above.
+    // Nulls out prompt_text/response_text for ai_usage_log rows whose
+    // configured retention window has passed — see
+    // services/ai/retentionCleanupService.ts's own header comment for
+    // why this never deletes the row itself.
+    ctx.waitUntil(
+      runAiGatewayRetentionCleanup(env, logger)
+        .then((result) =>
+          recordAuditEvent(env, logger, {
+            actorType: 'system',
+            actorId: null,
+            action: 'cron.heartbeat',
+            entityType: 'ai_gateway_retention_cleanup',
+            entityId: null,
+            metadata: { ok: true, eligible: result.eligible, purged: result.purged },
+          })
+        )
+        .catch((err) => {
+          const message = err instanceof Error ? err.message : String(err);
+          logger.error('ai_gateway_retention_cleanup.run_failed', { error: message });
+          return recordAuditEvent(env, logger, {
+            actorType: 'system',
+            actorId: null,
+            action: 'cron.heartbeat',
+            entityType: 'ai_gateway_retention_cleanup',
             entityId: null,
             metadata: { ok: false, error: message },
           });

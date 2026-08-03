@@ -141,4 +141,13 @@ export type ApiErrorCode =
   // Gateway tried failed" (see services/ai/aiGateway.ts), which is an
   // upstream-provider/config problem an admin can act on (e.g. check
   // OPENAI_API_KEY), not a bug in this Worker itself.
-  | 'AI_GATEWAY_ERROR';
+  | 'AI_GATEWAY_ERROR'
+  // Version 5.0 Milestone 1.2 (AI Governance & Safety) — distinct from
+  // AI_GATEWAY_ERROR above: that code means "every candidate was
+  // tried and failed"; these two mean "the Gateway refused to try any
+  // candidate at all," because a budget/provider-policy rule would
+  // have been violated (see services/ai/aiGateway.ts's
+  // AiBudgetExceededError / AiPolicyViolationError). No provider was
+  // ever contacted, no real spend occurred.
+  | 'AI_GATEWAY_BUDGET_EXCEEDED'
+  | 'AI_GATEWAY_POLICY_VIOLATION';

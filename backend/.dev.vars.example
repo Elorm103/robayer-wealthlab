@@ -39,3 +39,11 @@ PAYSTACK_SECRET_KEY=sk_test_placeholder_replace_with_a_real_paystack_secret_key
 # server-side only, exclusively by services/ai/providers/openAiProvider.ts.
 # Get a key from https://platform.openai.com/api-keys.
 OPENAI_API_KEY=sk-placeholder_replace_with_a_real_openai_api_key
+
+# Optional — AES-256 key (base64) for encrypted prompt/response storage
+# (Version 5.0 Milestone 1.2, see services/ai/promptEncryption.ts).
+# Only needed if the AI Gateway's retention policy is set to one of the
+# 'encrypted_*' storage modes; the default mode ('metadata_only') never
+# reads this. Generate one with:
+#   node -e "console.log(require('crypto').randomBytes(32).toString('base64'))"
+# AI_PROMPT_ENCRYPTION_KEY=replace_with_a_real_base64_32_byte_key

@@ -189,14 +189,16 @@
 
         <section class="card mb-4">
           <div class="editor-field-row" style="align-items: center; justify-content: space-between;">
-            <h2 class="editor-section-title" style="margin-bottom: 0;">AI Gateway — Operations Dashboard</h2>
+            <h2 class="editor-section-title" style="margin-bottom: 0;">AI Gateway — Governance Dashboard</h2>
             <span class="badge" data-ai-gateway-status-badge></span>
           </div>
           <p class="text-small text-secondary mb-1" data-ai-gateway-status-reason></p>
           <p class="text-small text-secondary mb-3">
-            Version 5.0 Milestone 1.1. Every AI feature on this platform calls out through this Gateway only — no
-            component talks to a provider directly. Operational visibility only; no API secret is ever displayed or
-            editable here. Cloudflare Secrets remain the only source of truth. Super-admin only.
+            Version 5.0 Milestone 1.2. Every AI feature on this platform calls out through this Gateway only — no
+            component talks to a provider directly. Budgets below are now PREVENTIVE — a call estimated to exceed any
+            configured limit is refused before any provider is contacted, at zero real cost. Operational visibility
+            only; no API secret is ever displayed or editable here. Cloudflare Secrets remain the only source of
+            truth. Super-admin only.
             <a href="/admin/ai-usage/">View the full AI Usage Log &rarr;</a>
           </p>
 
@@ -208,11 +210,31 @@
           <p class="settings-field__label mt-3">Volume</p>
           <dl data-ai-gateway-diagnostics-volume></dl>
 
-          <p class="settings-field__label mt-3">Cost</p>
+          <p class="settings-field__label mt-3">Cost &amp; Budget <span class="badge" data-ai-gateway-budget-status-badge></span></p>
           <dl data-ai-gateway-diagnostics-cost></dl>
 
           <p class="settings-field__label mt-3">Latency (last 30 days)</p>
           <dl data-ai-gateway-diagnostics-latency></dl>
+
+          <p class="settings-field__label mt-3">Policy Status</p>
+          <dl data-ai-gateway-policy-status></dl>
+
+          <p class="settings-field__label mt-3">Retention Status</p>
+          <dl data-ai-gateway-retention-status></dl>
+
+          <p class="settings-field__label mt-3">Governance summary (last 30 days)</p>
+          <dl data-ai-gateway-governance-summary></dl>
+
+          <div class="editor-field-row">
+            <div class="field mb-2">
+              <p class="settings-field__label">Classification distribution</p>
+              <div data-ai-gateway-classification-distribution></div>
+            </div>
+            <div class="field mb-2">
+              <p class="settings-field__label">Provider distribution</p>
+              <div data-ai-gateway-provider-distribution></div>
+            </div>
+          </div>
 
           <p class="settings-field__label mt-3">Provider routing</p>
           <div class="admin-table-wrap mb-3">
@@ -222,21 +244,55 @@
             </table>
           </div>
 
+          <p class="settings-field__label mt-3">Budgets (preventive — refuses a call before any provider is contacted)</p>
           <div class="editor-field-row">
             <div class="field mb-2">
-              <label class="field__label" for="setting-ai-cost-cap">Per-call cost cap (USD)</label>
+              <label class="field__label" for="setting-ai-cost-cap">Per-request cost cap (USD)</label>
               <input class="field__input" type="number" step="0.0001" min="0" id="setting-ai-cost-cap" data-setting="aiGatewayCostCapUsdMicros">
-              <span class="field__hint">Any single AI call estimated above this is refused, not billed.</span>
+              <span class="field__hint">Any single AI call estimated above this is refused before the provider is contacted.</span>
             </div>
             <div class="field mb-2">
-              <label class="field__label" for="setting-ai-daily-budget">Daily budget warning (USD, optional)</label>
+              <label class="field__label" for="setting-ai-daily-budget">Daily budget (USD, optional)</label>
               <input class="field__input" type="number" step="0.01" min="0" id="setting-ai-daily-budget" data-setting="aiGatewayDailyBudgetUsdMicros" placeholder="Unconfigured">
-              <span class="field__hint">Warning only — never blocks a call. Leave blank to disable.</span>
+              <span class="field__hint">Rolling 24h, across every feature/provider. Leave blank to disable.</span>
             </div>
             <div class="field mb-2">
-              <label class="field__label" for="setting-ai-monthly-budget">Monthly budget warning (USD, optional)</label>
+              <label class="field__label" for="setting-ai-monthly-budget">Monthly budget (USD, optional)</label>
               <input class="field__input" type="number" step="0.01" min="0" id="setting-ai-monthly-budget" data-setting="aiGatewayMonthlyBudgetUsdMicros" placeholder="Unconfigured">
-              <span class="field__hint">Warning only — never blocks a call. Leave blank to disable.</span>
+              <span class="field__hint">Rolling 30 days, across every feature/provider. Leave blank to disable.</span>
+            </div>
+            <div class="field mb-2">
+              <label class="field__label" for="setting-ai-platform-budget">Platform lifetime budget (USD, optional)</label>
+              <input class="field__input" type="number" step="0.01" min="0" id="setting-ai-platform-budget" data-setting="aiGatewayPlatformBudgetUsdMicros" placeholder="Unconfigured">
+              <span class="field__hint">Absolute lifetime ceiling across every provider, ever. Leave blank to disable.</span>
+            </div>
+          </div>
+          <p class="settings-field__label mt-2">Per-provider lifetime budgets (USD, optional)</p>
+          <div data-ai-gateway-provider-budgets class="mb-2"></div>
+
+          <p class="settings-field__label mt-3">Prompt/response retention</p>
+          <div class="editor-field-row">
+            <div class="field mb-2">
+              <label class="field__label" for="setting-ai-retention-mode">Storage mode</label>
+              <select class="field__input" id="setting-ai-retention-mode" data-setting="aiGatewayRetentionStorageMode">
+                <option value="never">Never store</option>
+                <option value="metadata_only">Metadata only (default)</option>
+                <option value="encrypted_prompt">Encrypted prompt only</option>
+                <option value="encrypted_response">Encrypted response only</option>
+                <option value="encrypted_both">Encrypted prompt + response</option>
+              </select>
+              <span class="field__hint" data-ai-gateway-encryption-hint>Encrypted modes require the AI_PROMPT_ENCRYPTION_KEY secret to be set.</span>
+            </div>
+            <div class="field mb-2">
+              <label class="field__label" for="setting-ai-retention-days">Retention period</label>
+              <select class="field__input" id="setting-ai-retention-days" data-setting="aiGatewayRetentionDays">
+                <option value="30">30 days</option>
+                <option value="90">90 days</option>
+                <option value="180">180 days</option>
+                <option value="365">365 days</option>
+                <option value="null">Forever</option>
+              </select>
+              <span class="field__hint">Once past this, stored prompt/response text is purged automatically (the usage row itself is kept).</span>
             </div>
           </div>
 
@@ -284,6 +340,7 @@
   <script src="/js/components/branding.js?v=483b048741"></script>
   <script src="/js/components/admin/admin-auth.js?v=bb1cec7934"></script>
   <script src="/js/components/admin/admin-shell.js?v=7233204897"></script>
+  <script src="/js/components/admin/timeseries-chart.js?v=5ec461649c"></script>
   <script src="/js/components/admin/admin-settings.js?v=a95cbc6c0d"></script>
 </body>
 </html>

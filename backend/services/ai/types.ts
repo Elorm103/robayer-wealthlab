@@ -15,6 +15,15 @@
 
 import type { Env } from '../../worker/env';
 
+/**
+ * Shared between every AiProvider implementation (as the fallback
+ * when a caller omits `maxTokens`) and services/ai/aiGateway.ts (as
+ * the assumed output-token ceiling for preventive cost estimation —
+ * Version 5.0 Milestone 1.2, Task 1). Defined once here so the two
+ * can never drift out of sync with each other.
+ */
+export const DEFAULT_MAX_TOKENS = 512;
+
 export interface CompletionRequest {
   model: string;
   systemPrompt?: string;

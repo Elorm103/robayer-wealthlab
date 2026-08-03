@@ -93,6 +93,15 @@
             <select class="field__input" aria-label="Provider filter" data-ai-usage-provider-filter>
               <option value="">All providers</option>
             </select>
+            <select class="field__input" aria-label="Classification filter" data-ai-usage-classification-filter>
+              <option value="">All classifications</option>
+              <option value="PUBLIC">Public</option>
+              <option value="INTERNAL">Internal</option>
+              <option value="CONFIDENTIAL">Confidential</option>
+              <option value="FINANCIAL">Financial</option>
+              <option value="PERSONAL">Personal</option>
+              <option value="HIGHLY_SENSITIVE">Highly sensitive</option>
+            </select>
           </div>
           <div class="toolbar__group">
             <span class="text-small text-secondary" data-ai-usage-result-count></span>
@@ -119,6 +128,7 @@
                 <th scope="col">Timestamp</th>
                 <th scope="col">Admin / User</th>
                 <th scope="col">Feature</th>
+                <th scope="col">Classification</th>
                 <th scope="col">Provider / Model</th>
                 <th scope="col">Tokens</th>
                 <th scope="col">Cost</th>
@@ -165,6 +175,7 @@
           <p><strong>Status:</strong> <span class="badge" data-ai-usage-drawer-status-badge></span></p>
           <p><strong>Actor:</strong> <span data-ai-usage-drawer-actor></span></p>
           <p><strong>Session ID:</strong> <span data-ai-usage-drawer-session></span></p>
+          <p><strong>Sensitivity classification:</strong> <span data-ai-usage-drawer-sensitivity></span></p>
           <p><strong>Provider / Model:</strong> <span data-ai-usage-drawer-provider></span></p>
           <p><strong>Prompt key / version:</strong> <span data-ai-usage-drawer-prompt-version></span></p>
           <p><strong>Fallback used:</strong> <span data-ai-usage-drawer-fallback></span></p>
@@ -173,6 +184,18 @@
           <p><strong>Duration:</strong> <span data-ai-usage-drawer-duration></span></p>
           <p><strong>Data classification:</strong> <span data-ai-usage-drawer-classification></span></p>
           <p data-ai-usage-drawer-error-row hidden><strong>Error:</strong> <span data-ai-usage-drawer-error-message></span></p>
+        </div>
+
+        <div class="drawer__section">
+          <p class="drawer__section-title">Governance</p>
+          <p><strong>Gateway version:</strong> <span data-ai-usage-drawer-gateway-version></span></p>
+          <p><strong>Policy version:</strong> <span data-ai-usage-drawer-policy-version></span></p>
+          <p><strong>Provider decision:</strong> <span data-ai-usage-drawer-provider-decision></span></p>
+          <p><strong>Budget decision:</strong> <span data-ai-usage-drawer-budget-decision></span></p>
+          <p><strong>Retention decision:</strong> <span data-ai-usage-drawer-retention-decision></span></p>
+          <p><strong>Masking applied:</strong> <span data-ai-usage-drawer-masking></span></p>
+          <p><strong>Cleanup eligible:</strong> <span data-ai-usage-drawer-cleanup-eligible></span></p>
+          <p><strong>Purged at:</strong> <span data-ai-usage-drawer-purged-at></span></p>
         </div>
 
         <div class="drawer__section">

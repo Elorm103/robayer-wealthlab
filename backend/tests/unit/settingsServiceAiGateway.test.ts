@@ -1,22 +1,24 @@
 /**
  * Unit tests: the AI Gateway portion of settingsService — Version 5.0
- * Milestone 1.1. Scoped only to what this milestone added
- * (cost cap/budget validation, getAiGatewayBudgetConfig, and the
- * derived health-status/warnings logic in getSettingsStatus's
- * `aiGateway` field) — the pre-existing settings fields (hero content,
- * maintenance mode, etc.) have no dedicated test file of their own and
- * are out of scope here.
+ * Milestone 1.1, extended for Milestone 1.2 (AI Governance & Safety).
+ * Scoped only to what these milestones added (cost cap/budget/
+ * retention validation, and the derived health-status/warnings/
+ * governance-summary logic in getSettingsStatus's `aiGateway` field) —
+ * the pre-existing settings fields (hero content, maintenance mode,
+ * etc.) have no dedicated test file of their own and are out of scope
+ * here.
  */
 import { describe, it, expect, beforeEach } from 'vitest';
 import { env } from 'cloudflare:test';
-import { updateSettings, getAiGatewayBudgetConfig, getSettingsStatus } from '../../services/admin/settingsService';
+import { updateSettings, getSettingsStatus } from '../../services/admin/settingsService';
+import { getAiGatewayBudgetConfig } from '../../services/ai/aiGatewayConfig';
 import { createLogger } from '../../utils/logger';
 
 const logger = createLogger('test-request-id', 'test');
 const CTX = { ip: null, userAgent: null };
 const REQUEST = new Request('https://example.com/api/admin/settings/status');
 
-describe('settingsService — AI Gateway budget/cost-cap settings', () => {
+describe('settingsService — AI Gateway budget/retention settings', () => {
   let adminId: number;
 
   beforeEach(async () => {
@@ -26,21 +28,42 @@ describe('settingsService — AI Gateway budget/cost-cap settings', () => {
     adminId = Number(adminInsert.meta.last_row_id);
   });
 
-  it('defaults to the $0.001 cost cap and unconfigured budgets when never set', async () => {
+  it('defaults to the platform-configured defaults when never set (Task 2 — mandatory defaults)', async () => {
     const config = await getAiGatewayBudgetConfig(env as any);
-    expect(config.costCapUsdMicros).toBe(1000);
-    expect(config.dailyBudgetUsdMicros).toBeNull();
-    expect(config.monthlyBudgetUsdMicros).toBeNull();
+    expect(config.perRequestCapUsdMicros).toBe(1000);
+    expect(config.dailyBudgetUsdMicros).toBe(1_000_000);
+    expect(config.monthlyBudgetUsdMicros).toBe(20_000_000);
+    expect(config.platformBudgetUsdMicros).toBe(100_000_000);
+    expect(config.defaultProviderBudgetUsdMicros).toBe(50_000_000);
+    expect(config.providerBudgetsUsdMicros).toEqual({});
   });
 
-  it('accepts a valid cost cap and budgets, and persists them', async () => {
-    const result = await updateSettings(env as any, logger, adminId, { aiGatewayCostCapUsdMicros: 5000, aiGatewayDailyBudgetUsdMicros: 1_000_000, aiGatewayMonthlyBudgetUsdMicros: 20_000_000 }, CTX);
+  it('accepts valid cost cap and budgets, and persists them — read back identically via settingsService AND aiGatewayConfig (single source of truth)', async () => {
+    const result = await updateSettings(
+      env as any,
+      logger,
+      adminId,
+      {
+        aiGatewayCostCapUsdMicros: 5000,
+        aiGatewayDailyBudgetUsdMicros: 1_500_000,
+        aiGatewayMonthlyBudgetUsdMicros: 25_000_000,
+        aiGatewayPlatformBudgetUsdMicros: 200_000_000,
+        aiGatewayProviderBudgetsUsdMicros: { openai: 60_000_000 },
+      },
+      CTX
+    );
     expect(result.ok).toBe(true);
 
     const config = await getAiGatewayBudgetConfig(env as any);
-    expect(config.costCapUsdMicros).toBe(5000);
-    expect(config.dailyBudgetUsdMicros).toBe(1_000_000);
-    expect(config.monthlyBudgetUsdMicros).toBe(20_000_000);
+    expect(config.perRequestCapUsdMicros).toBe(5000);
+    expect(config.dailyBudgetUsdMicros).toBe(1_500_000);
+    expect(config.monthlyBudgetUsdMicros).toBe(25_000_000);
+    expect(config.platformBudgetUsdMicros).toBe(200_000_000);
+    expect(config.providerBudgetsUsdMicros.openai).toBe(60_000_000);
+
+    const editable = await (await import('../../services/admin/settingsService')).getEditableSettings(env as any);
+    expect(editable.aiGatewayCostCapUsdMicros.value).toBe(5000);
+    expect(editable.aiGatewayPlatformBudgetUsdMicros.value).toBe(200_000_000);
   });
 
   it('accepts null to clear a configured budget back to unconfigured', async () => {
@@ -64,6 +87,33 @@ describe('settingsService — AI Gateway budget/cost-cap settings', () => {
     const result = await updateSettings(env as any, logger, adminId, { aiGatewayMonthlyBudgetUsdMicros: -1 }, CTX);
     expect(result.ok).toBe(false);
     if (!result.ok) expect(result.errors[0].field).toBe('aiGatewayMonthlyBudgetUsdMicros');
+  });
+
+  it('rejects a malformed provider budgets object', async () => {
+    const notAnObject = await updateSettings(env as any, logger, adminId, { aiGatewayProviderBudgetsUsdMicros: 'not-an-object' }, CTX);
+    expect(notAnObject.ok).toBe(false);
+
+    const badValue = await updateSettings(env as any, logger, adminId, { aiGatewayProviderBudgetsUsdMicros: { openai: -5 } }, CTX);
+    expect(badValue.ok).toBe(false);
+  });
+
+  it('accepts a valid retention storage mode and rejects an unrecognized one', async () => {
+    const valid = await updateSettings(env as any, logger, adminId, { aiGatewayRetentionStorageMode: 'encrypted_both' }, CTX);
+    expect(valid.ok).toBe(true);
+
+    const invalid = await updateSettings(env as any, logger, adminId, { aiGatewayRetentionStorageMode: 'store_everything_forever' }, CTX);
+    expect(invalid.ok).toBe(false);
+  });
+
+  it('accepts a valid retention period (including null for forever) and rejects an unrecognized one', async () => {
+    const ninety = await updateSettings(env as any, logger, adminId, { aiGatewayRetentionDays: 90 }, CTX);
+    expect(ninety.ok).toBe(true);
+
+    const forever = await updateSettings(env as any, logger, adminId, { aiGatewayRetentionDays: null }, CTX);
+    expect(forever.ok).toBe(true);
+
+    const invalid = await updateSettings(env as any, logger, adminId, { aiGatewayRetentionDays: 45 }, CTX);
+    expect(invalid.ok).toBe(false);
   });
 });
 
@@ -121,5 +171,41 @@ describe('settingsService — AI Gateway derived health status', () => {
     expect(diagnosticRoute!.primaryProvider).toBe('openai');
     expect(diagnosticRoute!.primaryModel).toBe('gpt-4o-mini');
     expect(diagnosticRoute!.fallbackProvider).toBeNull();
+  });
+
+  it('reports policy/retention status and a healthy budget status with no activity', async () => {
+    const envWithKey = { ...(env as any), OPENAI_API_KEY: 'sk-test-fake-key' };
+    const status = await getSettingsStatus(envWithKey, REQUEST);
+    expect(status.aiGateway.policyStatus.value.classifications).toContain('HIGHLY_SENSITIVE');
+    expect(status.aiGateway.policyStatus.value.version).toBeTruthy();
+    expect(status.aiGateway.retentionStatus.value.storageMode).toBe('metadata_only');
+    expect(status.aiGateway.retentionStatus.value.encryptionAvailable).toBe(false); // OPENAI_API_KEY set above, not AI_PROMPT_ENCRYPTION_KEY
+    expect(status.aiGateway.budgetStatus.value).toBe('healthy');
+  });
+
+  it('reports budgetStatus "blocking" and a nonzero budgetBlocks30d after a recent preventive budget rejection', async () => {
+    await env.DB.prepare(
+      `INSERT INTO ai_usage_log (feature, provider, model, actor_type, actor_id, tokens_in, tokens_out, cost_usd_micros, latency_ms, fallback_used, succeeded, error_message, budget_decision)
+       VALUES ('internal.gateway-diagnostic', 'openai', 'gpt-4o-mini', 'admin', 1, 0, 0, 0, 0, 0, 0, 'rejected: daily budget would be exceeded', 'rejected: daily budget would be exceeded')`
+    ).run();
+
+    const envWithKey = { ...(env as any), OPENAI_API_KEY: 'sk-test-fake-key' };
+    const status = await getSettingsStatus(envWithKey, REQUEST);
+    expect(status.aiGateway.budgetStatus.value).toBe('blocking');
+    expect(status.aiGateway.budgetBlocks30d.value).toBe(1);
+    expect(status.aiGateway.warnings.value.some((w) => w.includes('blocked by budget enforcement'))).toBe(true);
+  });
+
+  it('counts a masked, undetected-as-stored prompt in sensitivePromptCount30d and reflects the classification distribution', async () => {
+    await env.DB.prepare(
+      `INSERT INTO ai_usage_log (feature, provider, model, actor_type, actor_id, sensitivity_classification, tokens_in, tokens_out, cost_usd_micros, latency_ms, fallback_used, succeeded, masking_applied)
+       VALUES ('internal.gateway-diagnostic', 'openai', 'gpt-4o-mini', 'admin', 1, 'CONFIDENTIAL', 10, 2, 100, 200, 0, 1, 1)`
+    ).run();
+
+    const envWithKey = { ...(env as any), OPENAI_API_KEY: 'sk-test-fake-key' };
+    const status = await getSettingsStatus(envWithKey, REQUEST);
+    expect(status.aiGateway.sensitivePromptCount30d.value).toBe(1);
+    const confidential = status.aiGateway.classificationDistribution30d.value.find((c) => c.label === 'CONFIDENTIAL');
+    expect(confidential?.value).toBe(1);
   });
 });

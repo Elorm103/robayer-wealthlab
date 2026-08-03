@@ -45,6 +45,14 @@ function initAdminSettings() {
     aiGatewayDiagnosticsVolume: root.querySelector('[data-ai-gateway-diagnostics-volume]'),
     aiGatewayDiagnosticsCost: root.querySelector('[data-ai-gateway-diagnostics-cost]'),
     aiGatewayDiagnosticsLatency: root.querySelector('[data-ai-gateway-diagnostics-latency]'),
+    aiGatewayBudgetStatusBadge: root.querySelector('[data-ai-gateway-budget-status-badge]'),
+    aiGatewayPolicyStatus: root.querySelector('[data-ai-gateway-policy-status]'),
+    aiGatewayRetentionStatus: root.querySelector('[data-ai-gateway-retention-status]'),
+    aiGatewayGovernanceSummary: root.querySelector('[data-ai-gateway-governance-summary]'),
+    aiGatewayClassificationDistribution: root.querySelector('[data-ai-gateway-classification-distribution]'),
+    aiGatewayProviderDistribution: root.querySelector('[data-ai-gateway-provider-distribution]'),
+    aiGatewayProviderBudgets: root.querySelector('[data-ai-gateway-provider-budgets]'),
+    aiGatewayEncryptionHint: root.querySelector('[data-ai-gateway-encryption-hint]'),
     aiGatewayRoutingBody: root.querySelector('[data-ai-gateway-routing-body]'),
     aiGatewayTestError: root.querySelector('[data-ai-gateway-test-error]'),
     aiGatewayTestSuccess: root.querySelector('[data-ai-gateway-test-success]'),
@@ -74,7 +82,7 @@ function initAdminSettings() {
         window.AdminAuth.adminFetch(SETTINGS_API_BASE),
         window.AdminAuth.adminFetch(`${SETTINGS_API_BASE}/status`),
       ]);
-      renderEditable(settings);
+      renderEditable(settings, status);
       renderDiagnostics(status);
       els.versionMismatch.hidden = settings.settingsSchemaVersion.value.matches;
     } catch (error) {
@@ -87,7 +95,7 @@ function initAdminSettings() {
   // Editable settings
   // ============================================================
 
-  function renderEditable(settings) {
+  function renderEditable(settings, status) {
     root.querySelector('#setting-hero-eyebrow').value = settings.heroContent.value.eyebrow;
     root.querySelector('#setting-hero-headline').value = settings.heroContent.value.headline;
     root.querySelector('#setting-hero-subheading').value = settings.heroContent.value.subheading;
@@ -106,6 +114,14 @@ function initAdminSettings() {
     root.querySelector('#setting-ai-cost-cap').value = microsToUsd(settings.aiGatewayCostCapUsdMicros.value);
     root.querySelector('#setting-ai-daily-budget').value = settings.aiGatewayDailyBudgetUsdMicros.value === null ? '' : microsToUsd(settings.aiGatewayDailyBudgetUsdMicros.value);
     root.querySelector('#setting-ai-monthly-budget').value = settings.aiGatewayMonthlyBudgetUsdMicros.value === null ? '' : microsToUsd(settings.aiGatewayMonthlyBudgetUsdMicros.value);
+    root.querySelector('#setting-ai-platform-budget').value = settings.aiGatewayPlatformBudgetUsdMicros.value === null ? '' : microsToUsd(settings.aiGatewayPlatformBudgetUsdMicros.value);
+    root.querySelector('#setting-ai-retention-mode').value = settings.aiGatewayRetentionStorageMode.value;
+    root.querySelector('#setting-ai-retention-days').value = settings.aiGatewayRetentionDays.value === null ? 'null' : String(settings.aiGatewayRetentionDays.value);
+    els.aiGatewayEncryptionHint.textContent = status.aiGateway.retentionStatus.value.encryptionAvailable
+      ? 'AI_PROMPT_ENCRYPTION_KEY is configured — encrypted modes are available.'
+      : 'AI_PROMPT_ENCRYPTION_KEY is NOT configured — an encrypted mode will silently store as metadata_only until it is set.';
+
+    renderProviderBudgets(settings, status);
 
     els.templateToggles.innerHTML = '';
     Object.entries(settings.emailTemplateEnabled.value).forEach(([template, enabled]) => {
@@ -118,6 +134,45 @@ function initAdminSettings() {
       `;
       els.templateToggles.appendChild(field);
     });
+  }
+
+  /**
+   * One numeric USD input per provider this Gateway currently knows
+   * about (from the routing snapshot — today just "openai"), rather
+   * than a raw JSON textarea, since a founder editing a dollar figure
+   * shouldn't have to hand-write JSON. Builds/reads
+   * aiGatewayProviderBudgetsUsdMicros as {provider: microsOrNull} on
+   * save() via each input's `data-provider-budget-input` attribute.
+   */
+  function renderProviderBudgets(settings, status) {
+    const known = new Set(Object.keys(settings.aiGatewayProviderBudgetsUsdMicros.value));
+    status.aiGateway.routing.value.forEach((r) => {
+      known.add(r.primaryProvider);
+      if (r.fallbackProvider) known.add(r.fallbackProvider);
+    });
+
+    els.aiGatewayProviderBudgets.innerHTML = '';
+    if (known.size === 0) {
+      els.aiGatewayProviderBudgets.innerHTML = '<p class="text-small text-secondary">No providers registered yet.</p>';
+      return;
+    }
+
+    const defaultUsd = microsToUsd(status.aiGateway.defaultProviderBudgetUsdMicros.value ?? 0);
+    const row = document.createElement('div');
+    row.className = 'editor-field-row';
+    known.forEach((provider) => {
+      const configured = settings.aiGatewayProviderBudgetsUsdMicros.value[provider];
+      const field = document.createElement('div');
+      field.className = 'field mb-2';
+      const inputId = `provider-budget-${provider}`;
+      field.innerHTML = `
+        <label class="field__label" for="${inputId}">${escapeHtml(provider)} lifetime budget (USD)</label>
+        <input class="field__input" type="number" step="0.01" min="0" id="${inputId}" data-provider-budget-input="${escapeHtml(provider)}" placeholder="Default: $${defaultUsd}">
+      `;
+      field.querySelector('input').value = configured === null || configured === undefined ? '' : microsToUsd(configured);
+      row.appendChild(field);
+    });
+    els.aiGatewayProviderBudgets.appendChild(row);
   }
 
   async function save() {
@@ -135,6 +190,15 @@ function initAdminSettings() {
     const replyToRaw = root.querySelector('#setting-reply-to').value.trim();
     const dailyBudgetRaw = root.querySelector('#setting-ai-daily-budget').value.trim();
     const monthlyBudgetRaw = root.querySelector('#setting-ai-monthly-budget').value.trim();
+    const platformBudgetRaw = root.querySelector('#setting-ai-platform-budget').value.trim();
+    const retentionDaysRaw = root.querySelector('#setting-ai-retention-days').value;
+
+    const providerBudgets = {};
+    els.aiGatewayProviderBudgets.querySelectorAll('[data-provider-budget-input]').forEach((input) => {
+      const provider = input.getAttribute('data-provider-budget-input');
+      const raw = input.value.trim();
+      providerBudgets[provider] = raw === '' ? null : usdToMicros(raw);
+    });
 
     const patch = {
       heroContent: {
@@ -159,6 +223,10 @@ function initAdminSettings() {
       aiGatewayCostCapUsdMicros: usdToMicros(root.querySelector('#setting-ai-cost-cap').value),
       aiGatewayDailyBudgetUsdMicros: dailyBudgetRaw === '' ? null : usdToMicros(dailyBudgetRaw),
       aiGatewayMonthlyBudgetUsdMicros: monthlyBudgetRaw === '' ? null : usdToMicros(monthlyBudgetRaw),
+      aiGatewayPlatformBudgetUsdMicros: platformBudgetRaw === '' ? null : usdToMicros(platformBudgetRaw),
+      aiGatewayProviderBudgetsUsdMicros: providerBudgets,
+      aiGatewayRetentionStorageMode: root.querySelector('#setting-ai-retention-mode').value,
+      aiGatewayRetentionDays: retentionDaysRaw === 'null' ? null : Number(retentionDaysRaw),
     };
 
     try {
@@ -407,13 +475,52 @@ function initAdminSettings() {
       diagnosticRow('Current cost cap', formatUsdMicros(ai.costCapUsdMicros.value) + ' / call', ai.costCapUsdMicros.source),
       diagnosticRow('Daily budget', ai.dailyBudgetUsdMicros.value === null ? 'Unconfigured' : formatUsdMicros(ai.dailyBudgetUsdMicros.value), ai.dailyBudgetUsdMicros.source),
       diagnosticRow('Monthly budget', ai.monthlyBudgetUsdMicros.value === null ? 'Unconfigured' : formatUsdMicros(ai.monthlyBudgetUsdMicros.value), ai.monthlyBudgetUsdMicros.source),
+      diagnosticRow('Platform lifetime budget', ai.platformBudgetUsdMicros.value === null ? 'Unconfigured' : formatUsdMicros(ai.platformBudgetUsdMicros.value), ai.platformBudgetUsdMicros.source),
+      diagnosticRow(
+        'Provider budgets (lifetime)',
+        Object.keys(ai.providerBudgetsUsdMicros.value).length === 0
+          ? `All using default (${formatUsdMicros(ai.defaultProviderBudgetUsdMicros.value ?? 0)})`
+          : Object.entries(ai.providerBudgetsUsdMicros.value)
+              .map(([p, v]) => `${escapeHtml(p)}: ${v === null ? 'unconfigured' : formatUsdMicros(v)}`)
+              .join(', '),
+        ai.providerBudgetsUsdMicros.source
+      ),
     ].join('');
+
+    const budgetBadge = STATUS_BADGE[ai.budgetStatus.value === 'blocking' ? 'offline' : ai.budgetStatus.value === 'near_limit' ? 'warning' : 'healthy'];
+    els.aiGatewayBudgetStatusBadge.className = `badge ${budgetBadge.variant}`;
+    els.aiGatewayBudgetStatusBadge.textContent = { healthy: 'Healthy', near_limit: 'Near limit', blocking: 'Blocking' }[ai.budgetStatus.value];
 
     els.aiGatewayDiagnosticsLatency.innerHTML = [
       diagnosticRow('Average', ai.avgLatencyMs.value === null ? 'No data yet' : `${ai.avgLatencyMs.value}ms`, ai.avgLatencyMs.source),
       diagnosticRow('Fastest', ai.fastestLatencyMs.value === null ? 'No data yet' : `${ai.fastestLatencyMs.value}ms`, ai.fastestLatencyMs.source),
       diagnosticRow('Slowest', ai.slowestLatencyMs.value === null ? 'No data yet' : `${ai.slowestLatencyMs.value}ms`, ai.slowestLatencyMs.source),
     ].join('');
+
+    els.aiGatewayPolicyStatus.innerHTML = [
+      diagnosticRow('Policy version', escapeHtml(ai.policyStatus.value.version), ai.policyStatus.source),
+      diagnosticRow('Recognized classifications', ai.policyStatus.value.classifications.join(', '), ai.policyStatus.source),
+    ].join('');
+
+    els.aiGatewayRetentionStatus.innerHTML = [
+      diagnosticRow('Storage mode', escapeHtml(ai.retentionStatus.value.storageMode), ai.retentionStatus.source),
+      diagnosticRow('Retention period', ai.retentionStatus.value.retentionDays === null ? 'Forever' : `${ai.retentionStatus.value.retentionDays} days`, ai.retentionStatus.source),
+      diagnosticRow('Encryption available', ai.retentionStatus.value.encryptionAvailable ? 'Yes (AI_PROMPT_ENCRYPTION_KEY set)' : 'No — encrypted modes fall back to metadata_only', ai.retentionStatus.source),
+    ].join('');
+
+    els.aiGatewayGovernanceSummary.innerHTML = [
+      diagnosticRow('Sensitive prompts detected', String(ai.sensitivePromptCount30d.value), ai.sensitivePromptCount30d.source),
+      diagnosticRow('Masked prompts stored', String(ai.maskedPromptCount30d.value), ai.maskedPromptCount30d.source),
+      diagnosticRow('Budget blocks', String(ai.budgetBlocks30d.value), ai.budgetBlocks30d.source),
+      diagnosticRow('Policy violations', String(ai.policyViolations30d.value), ai.policyViolations30d.source),
+      diagnosticRow('Retention cleanup last ran', formatDate(ai.retentionCleanupLastRunAt.value), ai.retentionCleanupLastRunAt.source),
+      diagnosticRow('Total purged (lifetime)', String(ai.retentionCleanupTotalPurged.value), ai.retentionCleanupTotalPurged.source),
+      diagnosticRow('Oldest stored prompt', formatDate(ai.oldestStoredPromptAt.value), ai.oldestStoredPromptAt.source),
+      diagnosticRow('Newest stored prompt', formatDate(ai.newestStoredPromptAt.value), ai.newestStoredPromptAt.source),
+    ].join('');
+
+    window.AdminCharts.renderBarChart(els.aiGatewayClassificationDistribution, ai.classificationDistribution30d.value, { color: 'var(--color-accent)' });
+    window.AdminCharts.renderBarChart(els.aiGatewayProviderDistribution, ai.providerDistribution30d.value, { color: 'var(--color-sika-gold)' });
 
     els.aiGatewayRoutingBody.innerHTML = '';
     if (ai.routing.value.length === 0) {

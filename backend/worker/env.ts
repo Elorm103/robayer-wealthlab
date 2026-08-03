@@ -71,4 +71,15 @@ export interface Env {
   OPENAI_API_KEY: string;
   /** e.g. "https://api.openai.com" */
   OPENAI_BASE_URL: string;
+
+  // Added in Version 5.0 Milestone 1.2 (AI Governance & Safety) — see
+  // services/ai/promptEncryption.ts. Optional (not every deployment
+  // needs encrypted prompt/response storage — the default retention
+  // mode, 'metadata_only', never needs this key at all): a base64-
+  // encoded 256-bit AES key, set via
+  // `wrangler secret put AI_PROMPT_ENCRYPTION_KEY`. Absent or
+  // malformed is treated as "encryption unavailable," never as a
+  // reason to fall back to storing plaintext.
+  /** Secret, optional — set via `wrangler secret put AI_PROMPT_ENCRYPTION_KEY`, never committed. Used server-side only, exclusively by services/ai/promptEncryption.ts. */
+  AI_PROMPT_ENCRYPTION_KEY?: string;
 }

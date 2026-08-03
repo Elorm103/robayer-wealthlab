@@ -13,6 +13,7 @@
 
 import type { Env } from '../../../worker/env';
 import type { AiProvider, CompletionRequest, CompletionResult } from '../types';
+import { DEFAULT_MAX_TOKENS } from '../types';
 
 /**
  * Models this provider is allowed to serve. Deliberately a small,
@@ -65,7 +66,7 @@ export const openAiProvider: AiProvider = {
         body: JSON.stringify({
           model: request.model,
           messages,
-          max_tokens: request.maxTokens ?? 512,
+          max_tokens: request.maxTokens ?? DEFAULT_MAX_TOKENS,
           temperature: request.temperature ?? 0.7,
         }),
       });
