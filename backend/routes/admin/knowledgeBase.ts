@@ -25,8 +25,9 @@ import { isRateLimited } from '../../middleware/rateLimit';
 import { requireAuth } from '../../middleware/requireAuth';
 import { requireRole } from '../../middleware/requireRole';
 import { requireCsrf } from '../../middleware/csrf';
-import { getKnowledgeBaseStatus, listKnowledgeDocuments, listIndexingRuns } from '../../services/admin/knowledgeBaseAdminService';
-import { planIncrementalIndex, planFullRebuild } from '../../services/knowledge/indexingService';
+import { getKnowledgeBaseStatus, listKnowledgeDocuments, listIndexingRuns, getEmbeddingVersionSummary, listDeadLetters } from '../../services/admin/knowledgeBaseAdminService';
+import { getSearchAnalytics } from '../../services/admin/knowledgeSearchAnalyticsService';
+import { planIncrementalIndex, planFullRebuild, retryDeadLetter } from '../../services/knowledge/indexingService';
 import { searchKnowledge } from '../../services/knowledge/searchService';
 import * as auditService from '../../services/admin/auditService';
 
@@ -150,6 +151,67 @@ export async function handleReindex(request: Request, env: Env, logger: Logger, 
 
 export async function handleRebuild(request: Request, env: Env, logger: Logger, params: RouteParams, ctx: ExecutionContext): Promise<Response> {
   return triggerRun(request, env, logger, ctx, 'full_rebuild');
+}
+
+export async function handleGetSearchAnalytics(request: Request, env: Env, logger: Logger): Promise<Response> {
+  const gated = await gateRead(request, env, logger);
+  if (!gated.ok) return gated.response;
+
+  const analytics = await getSearchAnalytics(env);
+  return jsonSuccess(analytics);
+}
+
+export async function handleGetEmbeddingVersions(request: Request, env: Env, logger: Logger): Promise<Response> {
+  const gated = await gateRead(request, env, logger);
+  if (!gated.ok) return gated.response;
+
+  const groups = await getEmbeddingVersionSummary(env);
+  return jsonSuccess({ groups });
+}
+
+export async function handleListDeadLetters(request: Request, env: Env, logger: Logger): Promise<Response> {
+  const gated = await gateRead(request, env, logger);
+  if (!gated.ok) return gated.response;
+
+  const params = new URL(request.url).searchParams;
+  const page = Math.max(1, parseInt(params.get('page') ?? '1', 10) || 1);
+  const pageSize = Math.min(50, Math.max(1, parseInt(params.get('pageSize') ?? '25', 10) || 25));
+
+  const result = await listDeadLetters(env, page, pageSize);
+  return jsonSuccess(result);
+}
+
+export async function handleRetryDeadLetter(request: Request, env: Env, logger: Logger, params: RouteParams): Promise<Response> {
+  const auth = await requireAuth(request, env, logger);
+  if (!auth.ok) return auth.response;
+  const roleFailure = await requireRole(request, env, logger, auth.auth, SUPER_ADMIN_ONLY);
+  if (roleFailure) return roleFailure;
+  const csrfFailure = await requireCsrf(request, env, logger, auth.auth);
+  if (csrfFailure) return csrfFailure;
+  if (await isRateLimited(request, env, WRITE_RATE_LIMIT)) {
+    return jsonError('RATE_LIMITED', 'Too many requests. Please try again shortly.');
+  }
+
+  const deadLetterId = parseInt(params.id ?? '', 10);
+  if (!Number.isInteger(deadLetterId)) {
+    return jsonError('VALIDATION_ERROR', 'Invalid dead letter id.');
+  }
+
+  const result = await retryDeadLetter(env, logger, deadLetterId, auth.auth.adminId);
+  if (!result.ok) {
+    return jsonError('VALIDATION_ERROR', result.reason ?? 'Could not retry this dead letter.');
+  }
+
+  await auditService.record(env, logger, {
+    actorType: 'admin',
+    actorId: auth.auth.adminId,
+    action: 'knowledge_base.dead_letter_retried',
+    entityType: 'knowledge_indexing_dead_letter',
+    entityId: deadLetterId,
+    metadata: {},
+  });
+
+  return jsonSuccess({ retried: true });
 }
 
 export async function handleSearchTest(request: Request, env: Env, logger: Logger): Promise<Response> {

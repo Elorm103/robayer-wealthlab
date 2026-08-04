@@ -161,6 +161,11 @@ export interface KnowledgeDocumentListItem {
   version: number;
   indexedAt: string | null;
   updatedAt: string;
+  /** Version 5.0 Milestone 2.2, Task 5 — null until this document has been successfully indexed at least once. */
+  embeddingModel: string | null;
+  embeddingVersion: string | null;
+  embeddedAt: string | null;
+  embeddingRefreshedAt: string | null;
 }
 
 export interface KnowledgeDocumentFilters {
@@ -208,6 +213,10 @@ export async function listKnowledgeDocuments(
         version: number;
         indexed_at: string | null;
         updated_at: string;
+        embedding_model: string | null;
+        embedding_version: string | null;
+        embedded_at: string | null;
+        embedding_refreshed_at: string | null;
       }>(),
     env.DB.prepare(`SELECT COUNT(*) AS total FROM knowledge_documents ${where}`)
       .bind(...params)
@@ -227,6 +236,10 @@ export async function listKnowledgeDocuments(
       version: r.version,
       indexedAt: r.indexed_at,
       updatedAt: r.updated_at,
+      embeddingModel: r.embedding_model,
+      embeddingVersion: r.embedding_version,
+      embeddedAt: r.embedded_at,
+      embeddingRefreshedAt: r.embedding_refreshed_at,
     })),
     total: countRow?.total ?? 0,
     page,
@@ -285,6 +298,86 @@ export async function listIndexingRuns(env: Env, page: number, pageSize: number)
       startedAt: r.started_at,
       completedAt: r.completed_at,
       errorMessage: r.error_message,
+    })),
+    total: countRow?.total ?? 0,
+    page,
+    pageSize,
+  };
+}
+
+/** Version 5.0 Milestone 2.2, Task 5 — one row per distinct (embedding_model, embedding_version) combination currently present among indexed documents, so an admin can see at a glance how many documents were embedded under an older combination and would need re-embedding after a provider model or chunking-strategy change. */
+export interface EmbeddingVersionGroup {
+  embeddingModel: string | null;
+  embeddingVersion: string | null;
+  documentCount: number;
+  oldestEmbeddedAt: string | null;
+  newestEmbeddingRefreshedAt: string | null;
+}
+
+export async function getEmbeddingVersionSummary(env: Env): Promise<EmbeddingVersionGroup[]> {
+  const rows = await env.DB.prepare(
+    `SELECT embedding_model, embedding_version, COUNT(*) AS documentCount, MIN(embedded_at) AS oldestEmbeddedAt, MAX(embedding_refreshed_at) AS newestEmbeddingRefreshedAt
+     FROM knowledge_documents
+     WHERE status = 'indexed'
+     GROUP BY embedding_model, embedding_version
+     ORDER BY documentCount DESC`
+  ).all<{ embedding_model: string | null; embedding_version: string | null; documentCount: number; oldestEmbeddedAt: string | null; newestEmbeddingRefreshedAt: string | null }>();
+
+  return rows.results.map((r) => ({
+    embeddingModel: r.embedding_model,
+    embeddingVersion: r.embedding_version,
+    documentCount: r.documentCount,
+    oldestEmbeddedAt: r.oldestEmbeddedAt,
+    newestEmbeddingRefreshedAt: r.newestEmbeddingRefreshedAt,
+  }));
+}
+
+/** Version 5.0 Milestone 2.2, Task 7 — admin visibility into indexing messages that exhausted the queue's max_retries. */
+export interface DeadLetterListItem {
+  id: number;
+  runId: number | null;
+  documentId: number | null;
+  documentKey: string;
+  sourceType: string;
+  reason: string;
+  attempts: number;
+  status: 'pending' | 'retried' | 'abandoned';
+  failedAt: string;
+  retriedAt: string | null;
+}
+
+export async function listDeadLetters(env: Env, page: number, pageSize: number): Promise<{ items: DeadLetterListItem[]; total: number; page: number; pageSize: number }> {
+  const offset = (page - 1) * pageSize;
+  const [rows, countRow] = await Promise.all([
+    env.DB.prepare(`SELECT * FROM knowledge_indexing_dead_letters ORDER BY id DESC LIMIT ? OFFSET ?`)
+      .bind(pageSize, offset)
+      .all<{
+        id: number;
+        run_id: number | null;
+        document_id: number | null;
+        document_key: string;
+        source_type: string;
+        reason: string;
+        attempts: number;
+        status: 'pending' | 'retried' | 'abandoned';
+        failed_at: string;
+        retried_at: string | null;
+      }>(),
+    env.DB.prepare(`SELECT COUNT(*) AS total FROM knowledge_indexing_dead_letters`).first<{ total: number }>(),
+  ]);
+
+  return {
+    items: rows.results.map((r) => ({
+      id: r.id,
+      runId: r.run_id,
+      documentId: r.document_id,
+      documentKey: r.document_key,
+      sourceType: r.source_type,
+      reason: r.reason,
+      attempts: r.attempts,
+      status: r.status,
+      failedAt: r.failed_at,
+      retriedAt: r.retried_at,
     })),
     total: countRow?.total ?? 0,
     page,

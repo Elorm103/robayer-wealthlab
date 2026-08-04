@@ -1,7 +1,9 @@
 /**
  * Robayer WealthLab — Knowledge Base admin page, Version 5.0
- * Milestone 2. Same list/filter/pagination shell as admin-ai-usage.js,
- * plus a dashboard summary and an inline search-diagnostics tool.
+ * Milestone 2, extended in Milestone 2.2 with a per-result score
+ * breakdown, search analytics, embedding version tracking, and dead
+ * letter queue visibility. Same list/filter/pagination shell as
+ * admin-ai-usage.js.
  *
  * Super-admin only, enforced server-side (routes/admin/knowledgeBase.ts).
  */
@@ -39,6 +41,7 @@ function initAdminKnowledgeBase() {
     storageStats: root.querySelector('[data-kb-storage-stats]'),
     embeddingStats: root.querySelector('[data-kb-embedding-stats]'),
     searchStats: root.querySelector('[data-kb-search-stats]'),
+    embeddingVersions: root.querySelector('[data-kb-embedding-versions]'),
     reindexButton: root.querySelector('[data-kb-reindex]'),
     rebuildButton: root.querySelector('[data-kb-rebuild]'),
     runStatus: root.querySelector('[data-kb-run-status]'),
@@ -59,12 +62,27 @@ function initAdminKnowledgeBase() {
     docPaginationPrev: root.querySelector('[data-kb-doc-pagination-prev]'),
     docPaginationNext: root.querySelector('[data-kb-doc-pagination-next]'),
     runsTableBody: root.querySelector('[data-kb-runs-table-body]'),
+    analyticsTotal: root.querySelector('[data-kb-analytics-total]'),
+    analyticsSuccessRate: root.querySelector('[data-kb-analytics-success-rate]'),
+    analyticsAvgConfidence: root.querySelector('[data-kb-analytics-avg-confidence]'),
+    analyticsLatency: root.querySelector('[data-kb-analytics-latency]'),
+    analyticsConfidenceDist: root.querySelector('[data-kb-analytics-confidence-dist]'),
+    analyticsTrend: root.querySelector('[data-kb-analytics-trend]'),
+    analyticsCommon: root.querySelector('[data-kb-analytics-common]'),
+    analyticsZeroResult: root.querySelector('[data-kb-analytics-zero-result]'),
+    analyticsTopDocs: root.querySelector('[data-kb-analytics-top-docs]'),
+    dlqEmpty: root.querySelector('[data-kb-dlq-empty]'),
+    dlqTableWrap: root.querySelector('[data-kb-dlq-table-wrap]'),
+    dlqTableBody: root.querySelector('[data-kb-dlq-table-body]'),
   };
 
   bindToolbar();
   loadStatus();
   loadDocuments();
   loadRuns();
+  loadEmbeddingVersions();
+  loadSearchAnalytics();
+  loadDeadLetters();
 
   async function loadStatus() {
     els.loadError.hidden = true;
@@ -217,6 +235,7 @@ function initAdminKnowledgeBase() {
 
   const CONFIDENCE_BADGE = { high: 'badge--success', medium: 'badge--warning', low: 'badge--error' };
 
+  /** Version 5.0 Milestone 2.2, Task 3 — shows exactly why a result ranked where it did: vector similarity, each boost, and the final blended score, not just the final number. */
   function renderSearchResults(results) {
     if (results.length === 0) {
       els.searchResults.innerHTML = '<p class="text-small text-secondary">No results.</p>';
@@ -228,8 +247,15 @@ function initAdminKnowledgeBase() {
       <div class="drawer__note mb-2">
         <p class="drawer__note-meta">
           <span class="badge ${CONFIDENCE_BADGE[r.confidence] || 'badge--info'}">${r.confidence}</span>
-          score ${r.score.toFixed(3)} · ${escapeHtml(labelize(r.sourceType))} ·
+          final score ${r.score.toFixed(3)} · ${escapeHtml(labelize(r.sourceType))} ·
           ${r.sourceUrl ? `<a href="${escapeHtml(r.sourceUrl)}" target="_blank" rel="noopener">${escapeHtml(r.sourceTitle)}</a>` : escapeHtml(r.sourceTitle)}
+        </p>
+        <p class="text-small text-secondary">
+          vector similarity ${r.vectorSimilarity.toFixed(3)}
+          &middot; title boost +${r.titleBoost.toFixed(3)}
+          &middot; keyword boost +${r.keywordBoost.toFixed(3)}
+          &middot; source boost +${r.sourceBoost.toFixed(3)}
+          &middot; final ${r.score.toFixed(3)} &rarr; <strong>${r.confidence}</strong>
         </p>
         <p>${escapeHtml(r.chunkText.slice(0, 300))}${r.chunkText.length > 300 ? '…' : ''}</p>
       </div>
@@ -308,10 +334,14 @@ function initAdminKnowledgeBase() {
       const versionCell = document.createElement('td');
       versionCell.textContent = String(item.version);
 
+      const embeddingCell = document.createElement('td');
+      embeddingCell.className = 'text-small';
+      embeddingCell.textContent = item.embeddingModel ? `${item.embeddingModel} (${item.embeddingVersion || '—'})` : 'Not yet embedded';
+
       const indexedCell = document.createElement('td');
       indexedCell.textContent = item.indexedAt ? formatDateTime(item.indexedAt) : 'Never';
 
-      row.append(titleCell, sourceCell, statusCell, chunksCell, versionCell, indexedCell);
+      row.append(titleCell, sourceCell, statusCell, chunksCell, versionCell, embeddingCell, indexedCell);
       els.docTableBody.appendChild(row);
     });
   }
@@ -347,6 +377,129 @@ function initAdminKnowledgeBase() {
       `;
       els.runsTableBody.appendChild(row);
     });
+  }
+
+  /** Version 5.0 Milestone 2.2, Task 5. */
+  async function loadEmbeddingVersions() {
+    try {
+      const result = await window.AdminAuth.adminFetch(`${KB_API_BASE}/embedding-versions`);
+      if (result.groups.length === 0) {
+        els.embeddingVersions.innerHTML = diagnosticRow('Embedding versions', 'No documents indexed yet');
+        return;
+      }
+      els.embeddingVersions.innerHTML = result.groups
+        .map((g) =>
+          diagnosticRow(
+            `${g.embeddingModel || 'Unknown model'} (${g.embeddingVersion || 'unknown version'})`,
+            `${g.documentCount} document(s) &middot; oldest embedded ${g.oldestEmbeddedAt ? formatDateTime(g.oldestEmbeddedAt) : '—'}`
+          )
+        )
+        .join('');
+    } catch (error) {
+      els.embeddingVersions.innerHTML = diagnosticRow('Embedding versions', 'Could not load');
+    }
+  }
+
+  /** Version 5.0 Milestone 2.2, Task 4. */
+  async function loadSearchAnalytics() {
+    try {
+      const a = await window.AdminAuth.adminFetch(`${KB_API_BASE}/search-analytics`);
+      els.analyticsTotal.textContent = String(a.totalSearches);
+      els.analyticsSuccessRate.textContent = a.searchSuccessRate === null ? '—' : `${a.searchSuccessRate}%`;
+      els.analyticsAvgConfidence.textContent = a.avgConfidenceScore === null ? '—' : String(a.avgConfidenceScore);
+      els.analyticsLatency.textContent =
+        a.latencyMs.p50 === null ? '—' : `${a.latencyMs.p50}ms / ${a.latencyMs.p95}ms / ${a.latencyMs.max}ms`;
+
+      const dist = a.confidenceDistribution;
+      const distTotal = dist.high + dist.medium + dist.low + dist.none || 1;
+      els.analyticsConfidenceDist.innerHTML = [
+        diagnosticRow('High', `${dist.high} (${Math.round((dist.high / distTotal) * 100)}%)`),
+        diagnosticRow('Medium', `${dist.medium} (${Math.round((dist.medium / distTotal) * 100)}%)`),
+        diagnosticRow('Low', `${dist.low} (${Math.round((dist.low / distTotal) * 100)}%)`),
+        diagnosticRow('Zero-result', `${dist.none} (${Math.round((dist.none / distTotal) * 100)}%)`),
+      ].join('');
+
+      els.analyticsTrend.innerHTML =
+        a.lowConfidenceTrend.length === 0
+          ? diagnosticRow('Last 14 days', 'No searches yet')
+          : a.lowConfidenceTrend.map((t) => diagnosticRow(t.date, `${t.lowConfidenceCount} / ${t.totalSearches} low-confidence`)).join('');
+
+      els.analyticsCommon.innerHTML = a.mostCommonSearches.length
+        ? a.mostCommonSearches.map((q) => `<li>${escapeHtml(q.query)} <span class="text-small text-secondary">(${q.count})</span></li>`).join('')
+        : '<li class="text-small text-secondary">No searches yet</li>';
+
+      els.analyticsZeroResult.innerHTML = a.zeroResultSearches.length
+        ? a.zeroResultSearches.map((q) => `<li>${escapeHtml(q.query)} <span class="text-small text-secondary">(${q.count})</span></li>`).join('')
+        : '<li class="text-small text-secondary">None — every search has returned at least one result</li>';
+
+      els.analyticsTopDocs.innerHTML = a.mostRetrievedDocuments.length
+        ? a.mostRetrievedDocuments.map((d) => `<li>${escapeHtml(d.title)} <span class="text-small text-secondary">(${d.count})</span></li>`).join('')
+        : '<li class="text-small text-secondary">No searches yet</li>';
+    } catch (error) {
+      // Non-fatal — the primary status load error already covers the page-level failure signal.
+    }
+  }
+
+  /** Version 5.0 Milestone 2.2, Task 7. */
+  async function loadDeadLetters() {
+    try {
+      const result = await window.AdminAuth.adminFetch(`${KB_API_BASE}/dead-letters?page=1&pageSize=25`);
+      renderDeadLetters(result.items);
+    } catch (error) {
+      // Non-fatal.
+    }
+  }
+
+  function renderDeadLetters(items) {
+    const hasItems = items.length > 0;
+    els.dlqEmpty.hidden = hasItems;
+    els.dlqTableWrap.hidden = !hasItems;
+    els.dlqTableBody.innerHTML = '';
+    if (!hasItems) return;
+
+    items.forEach((item) => {
+      const row = document.createElement('tr');
+      const docCell = document.createElement('td');
+      docCell.textContent = item.documentKey;
+      const sourceCell = document.createElement('td');
+      sourceCell.textContent = labelize(item.sourceType);
+      const reasonCell = document.createElement('td');
+      reasonCell.className = 'text-small';
+      reasonCell.textContent = item.reason;
+      const statusCell = document.createElement('td');
+      const badge = document.createElement('span');
+      badge.className = `badge ${item.status === 'retried' ? 'badge--success' : item.status === 'abandoned' ? 'badge--error' : 'badge--warning'}`;
+      badge.textContent = labelize(item.status);
+      statusCell.appendChild(badge);
+      const failedCell = document.createElement('td');
+      failedCell.textContent = formatDateTime(item.failedAt);
+      const actionCell = document.createElement('td');
+      if (item.status === 'pending') {
+        const retryButton = document.createElement('button');
+        retryButton.type = 'button';
+        retryButton.className = 'btn btn--secondary btn--small';
+        retryButton.textContent = 'Retry';
+        retryButton.addEventListener('click', () => retryDeadLetter(item.id, retryButton));
+        actionCell.appendChild(retryButton);
+      }
+
+      row.append(docCell, sourceCell, reasonCell, statusCell, failedCell, actionCell);
+      els.dlqTableBody.appendChild(row);
+    });
+  }
+
+  async function retryDeadLetter(id, button) {
+    button.disabled = true;
+    button.textContent = 'Retrying…';
+    try {
+      await window.AdminAuth.adminFetch(`${KB_API_BASE}/dead-letters/${id}/retry`, { method: 'POST' });
+      loadDeadLetters();
+      loadDocuments();
+    } catch (error) {
+      button.disabled = false;
+      button.textContent = 'Retry';
+      window.alert(error.message || 'Could not retry this dead letter.');
+    }
   }
 
   function labelize(value) {

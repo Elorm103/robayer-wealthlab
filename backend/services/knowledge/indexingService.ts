@@ -65,6 +65,19 @@ const EMBEDDING_FEATURE = 'knowledge.embed';
 const EMBED_BATCH_SIZE = 96;
 /** Cloudflare Queues' own sendBatch() cap. */
 const QUEUE_SEND_BATCH_SIZE = 100;
+/**
+ * Version 5.0 Milestone 2.2, Task 5 — an APP-level version, distinct
+ * from the provider's own model name (recorded separately as
+ * `embedding_model`, straight from `embedText()`'s response). Bump this
+ * only when this project deliberately changes its own chunking/
+ * embedding STRATEGY (e.g. a new chunk-sizing rule) — a reason a
+ * document might need re-embedding that is independent of OpenAI
+ * changing `text-embedding-3-small` itself. Lets an admin distinguish
+ * "every document needs re-embedding because we changed provider
+ * model" from "every document needs re-embedding because we changed
+ * how we chunk," without conflating the two into one field.
+ */
+const EMBEDDING_VERSION = 'v1';
 
 async function sha256Hex(text: string): Promise<string> {
   const data = new TextEncoder().encode(text);
@@ -325,10 +338,15 @@ async function writeDocumentIndexedState(
   // bumped here, or a first-ever index would incorrectly jump to
   // version 2.
   const versionClause = wasPreExisting ? 'version = version + 1, ' : '';
+  // Task 5 (embedding version tracking): embedded_at is set once, on
+  // this document's first-ever successful index, and never overwritten
+  // by a later re-index (COALESCE keeps the original value) —
+  // embedding_refreshed_at is what always reflects "most recent
+  // successful embed," on every index including the first.
   await env.DB.prepare(
-    `UPDATE knowledge_documents SET status = 'indexed', error_message = NULL, chunk_count = ?, ${versionClause}indexed_at = datetime('now'), updated_at = datetime('now') WHERE id = ?`
+    `UPDATE knowledge_documents SET status = 'indexed', error_message = NULL, chunk_count = ?, ${versionClause}embedding_model = ?, embedding_version = ?, embedded_at = COALESCE(embedded_at, datetime('now')), embedding_refreshed_at = datetime('now'), indexed_at = datetime('now'), updated_at = datetime('now') WHERE id = ?`
   )
-    .bind(chunks.length, documentId)
+    .bind(chunks.length, embeddingModel, EMBEDDING_VERSION, documentId)
     .run();
 }
 
@@ -508,4 +526,140 @@ export async function processIndexingQueueBatch(env: Env, logger: Logger, messag
       await env.DB.prepare(`UPDATE knowledge_indexing_runs SET status = 'completed', completed_at = datetime('now') WHERE id = ? AND status = 'running'`).bind(runId).run();
     }
   }
+}
+
+// ============================================================
+// Version 5.0 Milestone 2.2, Task 6 — content-change re-index
+// infrastructure. Built and tested, but deliberately NOT wired into
+// any CMS save/update route yet, per the brief's "infrastructure
+// should be ready but remain disabled." When a future milestone enables
+// this (calling it from routes/admin/blog.ts, resources.ts, products.ts
+// after a successful publish/update), it enqueues exactly ONE document
+// for re-indexing instead of requiring a full incremental/full rebuild
+// — the single-document analog of planIncrementalIndex(), reusing this
+// file's own upsertDocumentRecord()/chunkText()/queue-message shape
+// rather than introducing new machinery. `trigger_type: 'content_change'`
+// on knowledge_indexing_runs was already anticipated in migration
+// 0036's own CHECK constraint, before this milestone existed.
+// ============================================================
+
+export type ContentChangeSourceType = 'blog_post' | 'resource' | 'product';
+
+export interface ContentChangeReindexResult {
+  enqueued: boolean;
+  runId: number | null;
+  reason?: string;
+}
+
+/** NOT currently called from any route — see this section's header comment. */
+export async function enqueueContentChangeReindex(env: Env, logger: Logger, sourceType: ContentChangeSourceType, sourceId: number): Promise<ContentChangeReindexResult> {
+  const documents = sourceType === 'blog_post' ? await getBlogPostDocuments(env) : sourceType === 'resource' ? await getResourceDocuments(env) : await getProductDocuments(env, logger);
+  const doc = documents.find((d) => d.sourceId === sourceId);
+
+  if (!doc) {
+    logger.info('knowledge.content_change_reindex_skipped', { sourceType, sourceId, reason: 'not found or not currently published/active' });
+    return { enqueued: false, runId: null, reason: `No published/active ${sourceType} with id ${sourceId} found to index.` };
+  }
+
+  const runInsert = await env.DB.prepare(`INSERT INTO knowledge_indexing_runs (run_type, trigger_type, triggered_by) VALUES ('incremental', 'content_change', NULL)`).run();
+  const runId = Number(runInsert.meta.last_row_id);
+
+  const contentHash = await sha256Hex(doc.text);
+  const existing = await env.DB.prepare(`SELECT id FROM knowledge_documents WHERE document_key = ?`).bind(doc.documentKey).first<{ id: number }>();
+  const chunks = chunkText(doc.text);
+
+  if (chunks.length === 0) {
+    await upsertDocumentRecord(env, doc, contentHash, 'failed', 'No content could be extracted for chunking.', 0, existing?.id ?? null);
+    await env.DB.prepare(
+      `UPDATE knowledge_indexing_runs SET status = 'completed', documents_seen = 1, documents_failed = 1, documents_enqueued = 0, completed_at = datetime('now') WHERE id = ?`
+    )
+      .bind(runId)
+      .run();
+    return { enqueued: false, runId, reason: 'No content could be extracted for chunking.' };
+  }
+
+  const documentId = await upsertDocumentRecord(env, doc, contentHash, 'pending', null, chunks.length, existing?.id ?? null);
+  const message: KnowledgeIndexQueueMessage = {
+    runId,
+    documentId,
+    contentHash,
+    wasPreExisting: existing !== null,
+    documentKey: doc.documentKey,
+    sourceType: doc.sourceType,
+    sourceId: doc.sourceId,
+    sourceUrl: doc.url,
+    title: doc.title,
+    dataClassification: doc.dataClassification,
+    faqs: doc.faqs,
+    chunks,
+  };
+  await env.KNOWLEDGE_INDEX_QUEUE.send(message);
+
+  await env.DB.prepare(`UPDATE knowledge_indexing_runs SET documents_seen = 1, documents_enqueued = 1, status = 'running' WHERE id = ?`).bind(runId).run();
+  logger.info('knowledge.content_change_reindex_enqueued', { sourceType, sourceId, documentKey: doc.documentKey, runId });
+
+  return { enqueued: true, runId };
+}
+
+// ============================================================
+// Version 5.0 Milestone 2.2, Task 7 — dead letter tracking, reusing the
+// EXISTING indexing queue rather than provisioning a second one. The
+// brief was explicit: "Use the existing Queue... Do not create
+// unnecessary infrastructure." A genuine dead-letter scenario here is
+// already rare by construction — every DOCUMENT-level failure (bad
+// content, an embedding error, a Vectorize error) is caught and
+// recorded inside embedAndFinalizeAll() and NEVER throws, so the
+// queue's own retry mechanism only ever engages for a real
+// infrastructure-level failure (e.g. the run-counter UPDATE itself
+// failing). Rather than a second queue + consumer just to catch that
+// rare case, worker/index.ts's queue() handler wraps
+// processIndexingQueueBatch() in a try/catch: if it throws AND every
+// message in the batch has already reached wrangler.jsonc's configured
+// `max_retries`, this records each as a dead letter and swallows the
+// error (so Cloudflare stops retrying a batch that's already been
+// safely recorded); otherwise it re-throws so Cloudflare's own retry
+// redelivers the batch normally. No dead_letter_queue configuration,
+// no second consumer.
+// ============================================================
+
+export const INDEXING_QUEUE_MAX_RETRIES = 3; // must match wrangler.jsonc's queues.consumers[].max_retries for the main indexing queue
+
+/** Records one batch's worth of messages as dead letters and marks their documents 'failed' — called from worker/index.ts's queue() handler only after every message in the batch has exhausted max_retries. Never throws itself; a failure to record must not cause Cloudflare to retry a batch forever. */
+export async function recordDeadLetters(env: Env, logger: Logger, messages: KnowledgeIndexQueueMessage[], reason: string): Promise<void> {
+  for (const message of messages) {
+    try {
+      await env.DB.prepare(
+        `INSERT INTO knowledge_indexing_dead_letters (run_id, document_id, document_key, source_type, payload, reason, attempts) VALUES (?, ?, ?, ?, ?, ?, ?)`
+      )
+        .bind(message.runId, message.documentId, message.documentKey, message.sourceType, JSON.stringify(message), reason, INDEXING_QUEUE_MAX_RETRIES)
+        .run();
+
+      await markDocumentFailed(env, message.documentId, `Moved to the dead letter queue after exhausting all retries: ${reason} — see Knowledge Base admin dashboard to retry.`);
+
+      await env.DB.prepare(`UPDATE knowledge_indexing_runs SET documents_failed = documents_failed + 1, documents_resolved = documents_resolved + 1 WHERE id = ?`).bind(message.runId).run();
+    } catch (err) {
+      logger.error('knowledge.dead_letter_recording_failed', { documentKey: message.documentKey, error: err instanceof Error ? err.message : String(err) });
+    }
+  }
+}
+
+/** Re-enqueues a previously dead-lettered message onto the main indexing queue, and marks the dead-letter row 'retried' — called from the admin "Retry" action, never automatically. */
+export async function retryDeadLetter(env: Env, logger: Logger, deadLetterId: number, retriedBy: number): Promise<{ ok: boolean; reason?: string }> {
+  const row = await env.DB.prepare(`SELECT payload, status FROM knowledge_indexing_dead_letters WHERE id = ?`).bind(deadLetterId).first<{ payload: string; status: string }>();
+  if (!row) return { ok: false, reason: 'Dead letter not found.' };
+  if (row.status !== 'pending') return { ok: false, reason: `Already ${row.status}.` };
+
+  let message: KnowledgeIndexQueueMessage;
+  try {
+    message = JSON.parse(row.payload);
+  } catch {
+    return { ok: false, reason: 'Stored payload could not be parsed — cannot retry.' };
+  }
+
+  await env.DB.prepare(`UPDATE knowledge_documents SET status = 'pending', error_message = NULL WHERE id = ?`).bind(message.documentId).run();
+  await env.KNOWLEDGE_INDEX_QUEUE.send(message);
+  await env.DB.prepare(`UPDATE knowledge_indexing_dead_letters SET status = 'retried', retried_at = datetime('now'), retried_by = ? WHERE id = ?`).bind(retriedBy, deadLetterId).run();
+
+  logger.info('knowledge.dead_letter_retried', { deadLetterId, documentKey: message.documentKey, retriedBy });
+  return { ok: true };
 }

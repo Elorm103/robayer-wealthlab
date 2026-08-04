@@ -89,8 +89,19 @@ import {
 } from '../routes/admin/users';
 import { handleGetSettings, handleUpdateSettings, handleSettingsStatus, handleAiGatewayTest } from '../routes/admin/settings';
 import { handleListAiUsage, handleGetAiUsageDetail, handleExportAiUsageCsv, handleGetAiUsageAnalytics } from '../routes/admin/aiUsage';
-import { handleGetStatus as handleKnowledgeBaseStatus, handleListDocuments as handleKnowledgeBaseDocuments, handleGetRuns as handleKnowledgeBaseRuns, handleReindex as handleKnowledgeBaseReindex, handleRebuild as handleKnowledgeBaseRebuild, handleSearchTest as handleKnowledgeBaseSearchTest } from '../routes/admin/knowledgeBase';
-import { processIndexingQueueBatch } from '../services/knowledge/indexingService';
+import {
+  handleGetStatus as handleKnowledgeBaseStatus,
+  handleListDocuments as handleKnowledgeBaseDocuments,
+  handleGetRuns as handleKnowledgeBaseRuns,
+  handleReindex as handleKnowledgeBaseReindex,
+  handleRebuild as handleKnowledgeBaseRebuild,
+  handleSearchTest as handleKnowledgeBaseSearchTest,
+  handleGetSearchAnalytics as handleKnowledgeBaseSearchAnalytics,
+  handleGetEmbeddingVersions as handleKnowledgeBaseEmbeddingVersions,
+  handleListDeadLetters as handleKnowledgeBaseDeadLetters,
+  handleRetryDeadLetter as handleKnowledgeBaseRetryDeadLetter,
+} from '../routes/admin/knowledgeBase';
+import { processIndexingQueueBatch, recordDeadLetters, INDEXING_QUEUE_MAX_RETRIES } from '../services/knowledge/indexingService';
 import type { KnowledgeIndexQueueMessage } from '../services/knowledge/queueTypes';
 import {
   handleListCampaigns,
@@ -506,6 +517,10 @@ const ROUTES: Route[] = [
   { pattern: new URLPattern({ pathname: '/api/admin/knowledge-base/reindex' }), method: 'POST', handler: handleKnowledgeBaseReindex },
   { pattern: new URLPattern({ pathname: '/api/admin/knowledge-base/rebuild' }), method: 'POST', handler: handleKnowledgeBaseRebuild },
   { pattern: new URLPattern({ pathname: '/api/admin/knowledge-base/search-test' }), method: 'POST', handler: handleKnowledgeBaseSearchTest },
+  { pattern: new URLPattern({ pathname: '/api/admin/knowledge-base/search-analytics' }), method: 'GET', handler: handleKnowledgeBaseSearchAnalytics },
+  { pattern: new URLPattern({ pathname: '/api/admin/knowledge-base/embedding-versions' }), method: 'GET', handler: handleKnowledgeBaseEmbeddingVersions },
+  { pattern: new URLPattern({ pathname: '/api/admin/knowledge-base/dead-letters' }), method: 'GET', handler: handleKnowledgeBaseDeadLetters },
+  { pattern: new URLPattern({ pathname: '/api/admin/knowledge-base/dead-letters/:id/retry' }), method: 'POST', handler: handleKnowledgeBaseRetryDeadLetter },
   // Added Version 2.1 Phase 6 (Newsletter Campaigns) — see
   // docs/v2.1-phase6-design.md. `subscribed-count` is a static path
   // and must be ordered before the `:id` wildcard patterns below, the
@@ -769,21 +784,33 @@ export default {
    * services/knowledge/indexingService.ts's header comment for why that
    * is the entire point of this redesign, not an implementation detail.
    *
-   * Deliberately does NOT wrap processIndexingQueueBatch() in a
-   * try/catch that swallows everything: a document-level failure is
-   * already caught and recorded inside that function (so it never
-   * throws for a bad document), but a genuine infrastructure error
-   * (e.g. the run-counter UPDATE itself failing) is allowed to
-   * propagate, so Cloudflare Queues' own retry mechanism
-   * (wrangler.jsonc's `max_retries`) redelivers the batch to a fresh
-   * invocation rather than silently losing it.
+   * A document-level failure is already caught and recorded inside
+   * processIndexingQueueBatch() (so it never throws for a bad
+   * document) — only a genuine infrastructure error (e.g. the
+   * run-counter UPDATE itself failing) can reach the catch block below.
+   *
+   * Version 5.0 Milestone 2.2, Task 7 — that catch block is this
+   * project's dead-letter handling, reusing the EXISTING indexing queue
+   * rather than provisioning a second Cloudflare Queue purely to catch
+   * a rare case (see wrangler.jsonc's own comment on why). If every
+   * message in the batch has already reached max_retries — checked via
+   * each message's own `attempts` field, not a second binding — this
+   * records them as dead letters (services/knowledge/indexingService.ts's
+   * recordDeadLetters()) instead of losing them once Cloudflare gives
+   * up redelivering; otherwise it re-throws so Cloudflare's own retry
+   * mechanism redelivers the batch normally.
    */
   async queue(batch: MessageBatch<KnowledgeIndexQueueMessage>, env: Env, _ctx: ExecutionContext): Promise<void> {
     const logger = createLogger(generateRequestId(), `queue ${batch.queue}`);
-    await processIndexingQueueBatch(
-      env,
-      logger,
-      batch.messages.map((m) => m.body)
-    );
+    const messages = batch.messages.map((m) => m.body);
+    try {
+      await processIndexingQueueBatch(env, logger, messages);
+    } catch (err) {
+      const message = err instanceof Error ? err.message : String(err);
+      const exhausted = batch.messages.every((m) => m.attempts >= INDEXING_QUEUE_MAX_RETRIES);
+      if (!exhausted) throw err;
+      logger.error('knowledge.queue_batch_exhausted_retries', { error: message, batchSize: messages.length });
+      await recordDeadLetters(env, logger, messages, message);
+    }
   },
 };

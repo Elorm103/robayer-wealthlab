@@ -1,20 +1,25 @@
 /**
- * Knowledge Base search/retrieval — Version 5.0 Milestone 2. Embeds
- * the query via the AI Gateway's `embedText()` (the same governed
- * door every embedding call in this codebase goes through — see
+ * Knowledge Base search/retrieval — Version 5.0 Milestone 2, reranking
+ * and confidence calibration added in Milestone 2.2. Embeds the query
+ * via the AI Gateway's `embedText()` (the same governed door every
+ * embedding call in this codebase goes through — see
  * services/ai/aiGateway.ts), queries Vectorize for the nearest chunk
- * vectors, and joins back to D1 for the actual text, title, citation
- * URL, and — critically — the `visibility`/`data_classification`/
- * `status` filtering Vectorize's own metadata filter DSL is not relied
- * upon for. D1 remains the single source of truth for what's
- * currently indexed and who may see it; Vectorize only ever answers
- * "which vectors are nearest," never "is this one allowed."
+ * vectors, joins back to D1 for the actual text, title, citation URL,
+ * and — critically — the `visibility`/`data_classification`/`status`
+ * filtering Vectorize's own metadata filter DSL is not relied upon for,
+ * then reranks the candidates with lightweight lexical signals
+ * (services/knowledge/ranking.ts) before confidence-bucketing and
+ * slicing to the requested limit. D1 remains the single source of
+ * truth for what's currently indexed and who may see it; Vectorize
+ * only ever answers "which vectors are nearest," never "is this one
+ * allowed."
  */
 
 import type { Env } from '../../worker/env';
 import type { Logger } from '../../utils/logger';
 import { embedText } from '../ai/aiGateway';
 import type { KnowledgeSourceType } from './documentSources';
+import { computeRankingSignals, scoreToConfidence, type RetrievalConfidence } from './ranking';
 
 const EMBEDDING_FEATURE = 'knowledge.embed';
 
@@ -28,7 +33,7 @@ export interface KnowledgeSearchRequest {
   actorId: number | null;
 }
 
-export type RetrievalConfidence = 'high' | 'medium' | 'low';
+export type { RetrievalConfidence };
 
 export interface KnowledgeSearchResult {
   chunkId: number;
@@ -37,6 +42,12 @@ export interface KnowledgeSearchResult {
   sourceTitle: string;
   sourceUrl: string | null;
   chunkText: string;
+  /** Raw Vectorize cosine similarity — Task 3 diagnostic field, kept distinct from the blended score below. */
+  vectorSimilarity: number;
+  titleBoost: number;
+  keywordBoost: number;
+  sourceBoost: number;
+  /** vectorSimilarity + titleBoost + keywordBoost + sourceBoost — what results are actually sorted and confidence-bucketed by. */
   score: number;
   confidence: RetrievalConfidence;
 }
@@ -44,23 +55,6 @@ export interface KnowledgeSearchResult {
 export interface KnowledgeSearchResponse {
   results: KnowledgeSearchResult[];
   latencyMs: number;
-}
-
-/**
- * Cosine-similarity thresholds for the high/medium/low confidence
- * bucket shown on the admin Search Diagnostics tool. These are
- * engineering-judgment starting points (same honest caveat as the AI
- * Gateway's default budget figures) — not calibrated against real
- * query/result pairs, since no real search traffic exists yet at the
- * time this milestone shipped. Revisit once the Search Diagnostics
- * tool has accumulated enough real `knowledge_search_log` history to
- * judge whether "high" actually correlates with genuinely useful
- * results.
- */
-function scoreToConfidence(score: number): RetrievalConfidence {
-  if (score >= 0.75) return 'high';
-  if (score >= 0.5) return 'medium';
-  return 'low';
 }
 
 interface ChunkJoinRow {
@@ -96,11 +90,9 @@ export async function searchKnowledge(env: Env, logger: Logger, request: Knowled
   // those, only D1 does. returnMetadata must be the string 'none' (not
   // a boolean) on current Vectorize (V2) indexes — a boolean is only
   // valid on legacy V1 indexes and fails at the API layer with
-  // VECTOR_QUERY_ERROR 40026 on a real (V2) index, a real production
-  // bug this milestone's own test double never caught since it never
-  // validated the real request shape. We never read vector metadata
-  // anyway (every field this function needs comes from the D1 join
-  // below), so 'none' is also the most efficient choice.
+  // VECTOR_QUERY_ERROR 40026 on a real (V2) index. We never read vector
+  // metadata anyway (every field this function needs comes from the D1
+  // join below), so 'none' is also the most efficient choice.
   const matches = await env.KNOWLEDGE_INDEX.query(queryVector, { topK: limit * 4, returnMetadata: 'none' });
 
   let results: KnowledgeSearchResult[] = [];
@@ -123,7 +115,8 @@ export async function searchKnowledge(env: Env, logger: Logger, request: Knowled
       .filter((r) => r.visibility === visibility && r.status === 'indexed' && r.data_classification === 'PRODUCTION')
       .filter((r) => !request.sourceTypes || request.sourceTypes.includes(r.source_type))
       .map((r) => {
-        const score = scoreByVectorId.get(r.vector_id) ?? 0;
+        const vectorSimilarity = scoreByVectorId.get(r.vector_id) ?? 0;
+        const signals = computeRankingSignals(request.query, vectorSimilarity, r.title, r.chunk_text, r.source_type);
         return {
           chunkId: r.chunk_id,
           documentId: r.document_id,
@@ -131,8 +124,12 @@ export async function searchKnowledge(env: Env, logger: Logger, request: Knowled
           sourceTitle: r.title,
           sourceUrl: r.source_url,
           chunkText: r.chunk_text,
-          score,
-          confidence: scoreToConfidence(score),
+          vectorSimilarity: signals.vectorSimilarity,
+          titleBoost: signals.titleBoost,
+          keywordBoost: signals.keywordBoost,
+          sourceBoost: signals.sourceBoost,
+          score: signals.finalScore,
+          confidence: scoreToConfidence(signals.finalScore),
         };
       })
       .sort((a, b) => b.score - a.score)
@@ -142,8 +139,10 @@ export async function searchKnowledge(env: Env, logger: Logger, request: Knowled
   const latencyMs = Date.now() - startedAt;
 
   try {
-    await env.DB.prepare(`INSERT INTO knowledge_search_log (query_text, actor_type, actor_id, visibility_scope, result_count, top_score, latency_ms) VALUES (?, ?, ?, ?, ?, ?, ?)`)
-      .bind(request.query, request.actorType, request.actorId, visibility, results.length, results[0]?.score ?? null, latencyMs)
+    await env.DB.prepare(
+      `INSERT INTO knowledge_search_log (query_text, actor_type, actor_id, visibility_scope, result_count, top_score, top_document_id, latency_ms) VALUES (?, ?, ?, ?, ?, ?, ?, ?)`
+    )
+      .bind(request.query, request.actorType, request.actorId, visibility, results.length, results[0]?.score ?? null, results[0]?.documentId ?? null, latencyMs)
       .run();
   } catch (err) {
     // Same "never let logging break the real operation" posture as

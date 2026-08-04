@@ -193,15 +193,6 @@
   // per-invocation limit, with headroom for the account's Vectorize/D1
   // overhead to grow before this needs retuning.
   //
-  // No dead_letter_queue configured yet — a document-level failure
-  // (bad content, provider error) is already caught and recorded inside
-  // processIndexingQueueBatch() before it can throw, so genuine
-  // queue-level retries (max_retries, below) are reserved for
-  // infrastructure-level failures (a D1/Vectorize outage mid-batch),
-  // which are rare enough that a dropped message after 3 retries is an
-  // acceptable, honestly-documented gap for now — see the Known
-  // Limitations section of the Milestone 2.1 report.
-  //
   // max_concurrency: 2 — added after a real production incident:
   // leaving this unset (Cloudflare's own auto-scaled maximum) let
   // several consumer invocations fire close together, and even with
@@ -213,7 +204,22 @@
   // once — the indexing service's own retry-with-backoff is a safety
   // net on top of this, not a substitute for it.
   //
-  // index_name/queue name are real only once `wrangler queues create
+  // Dead letter tracking (Version 5.0 Milestone 2.2, Task 7) —
+  // Milestone 2.1 shipped without one, honestly documented as a known
+  // gap (an exhausted message was silently dropped). Deliberately does
+  // NOT provision a second Cloudflare Queue for this: every
+  // DOCUMENT-level failure is already caught inside
+  // embedAndFinalizeAll() and never throws, so the queue's own retry
+  // mechanism only ever engages for a genuinely rare
+  // infrastructure-level error — not common enough to justify a whole
+  // second queue + consumer just to catch it. worker/index.ts's
+  // queue() handler instead wraps processIndexingQueueBatch() in a
+  // try/catch, checking each message's own `attempts` field (no new
+  // binding needed) against max_retries below to decide whether to
+  // record dead letters (knowledge_indexing_dead_letters, migration
+  // 0038) or let Cloudflare's normal retry redeliver the batch.
+  //
+  // index_name/queue name is real only once `wrangler queues create
   // robayer-knowledge-index-queue` has actually been run.
   "queues": {
     "producers": [

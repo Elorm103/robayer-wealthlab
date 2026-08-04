@@ -25,7 +25,7 @@
 import { describe, it, expect, beforeEach } from 'vitest';
 import { env } from 'cloudflare:test';
 import { createLogger } from '../../../utils/logger';
-import { planIncrementalIndex, planFullRebuild, processIndexingQueueBatch } from '../../../services/knowledge/indexingService';
+import { planIncrementalIndex, planFullRebuild, processIndexingQueueBatch, enqueueContentChangeReindex, recordDeadLetters, retryDeadLetter } from '../../../services/knowledge/indexingService';
 import { getBlogPostDocuments } from '../../../services/knowledge/documentSources';
 import { chunkText } from '../../../services/knowledge/chunking';
 import { queueSitemapResponse, queueOpenAiEmbeddingResponse } from '../../outboundMock';
@@ -73,6 +73,7 @@ describe('indexingService', () => {
   beforeEach(async () => {
     await env.DB.exec('DELETE FROM knowledge_chunks');
     await env.DB.exec('DELETE FROM knowledge_faqs');
+    await env.DB.exec('DELETE FROM knowledge_indexing_dead_letters');
     await env.DB.exec('DELETE FROM knowledge_documents');
     await env.DB.exec('DELETE FROM knowledge_indexing_runs');
     await env.DB.exec('DELETE FROM blog_posts');
@@ -341,6 +342,148 @@ describe('indexingService', () => {
       expect(doc!.error_message).toContain('Vectorize upsert failed');
 
       expect(testEnv.KNOWLEDGE_INDEX._upsertCallCount()).toBe(1); // no retry — a dimension mismatch would fail identically on every attempt
+    });
+
+    it('records embedding_model/embedding_version/embedded_at on first index, and updates embedding_refreshed_at without touching embedded_at on re-index', async () => {
+      await seedPublishedBlogPost('embedding-version-post', '<p>Content used to verify embedding version tracking.</p>');
+      const testEnv = envWithFakeVectorize();
+
+      const plan1 = await planIncrementalIndex(testEnv, logger, null);
+      const pending1 = await getPendingDocument();
+      const msg1 = await buildBlogPostMessage(plan1.runId, pending1!.id, pending1!.content_hash, false);
+      await processIndexingQueueBatch(testEnv, logger, [msg1]);
+
+      const afterFirst = await env.DB.prepare(`SELECT embedding_model, embedding_version, embedded_at, embedding_refreshed_at FROM knowledge_documents WHERE id = ?`)
+        .bind(pending1!.id)
+        .first<{ embedding_model: string; embedding_version: string; embedded_at: string; embedding_refreshed_at: string }>();
+      expect(afterFirst!.embedding_model).toBe('text-embedding-3-small');
+      expect(afterFirst!.embedding_version).toBeTruthy();
+      expect(afterFirst!.embedded_at).toBeTruthy();
+      expect(afterFirst!.embedding_refreshed_at).toBe(afterFirst!.embedded_at); // same instant on first index
+
+      await env.DB.prepare(`UPDATE blog_posts SET body = '<p>Changed content to force a real re-index.</p>' WHERE slug = 'embedding-version-post'`).run();
+      await queueSitemapResponse(env as any, EMPTY_SITEMAP);
+      const plan2 = await planIncrementalIndex(testEnv, logger, null);
+      const pending2 = await env.DB.prepare(`SELECT id, content_hash FROM knowledge_documents WHERE id = ?`).bind(pending1!.id).first<{ id: number; content_hash: string }>();
+      const msg2 = await buildBlogPostMessage(plan2.runId, pending2!.id, pending2!.content_hash, true);
+      await processIndexingQueueBatch(testEnv, logger, [msg2]);
+
+      const afterSecond = await env.DB.prepare(`SELECT embedded_at, embedding_refreshed_at FROM knowledge_documents WHERE id = ?`).bind(pending1!.id).first<{
+        embedded_at: string;
+        embedding_refreshed_at: string;
+      }>();
+      expect(afterSecond!.embedded_at).toBe(afterFirst!.embedded_at); // never overwritten by a later re-index
+    });
+  });
+
+  describe('enqueueContentChangeReindex (Task 6 — built, not yet wired into any CMS route)', () => {
+    it('enqueues exactly one document for a real published blog post', async () => {
+      await seedPublishedBlogPost('content-change-post', '<p>Content for the content-change re-index test.</p>');
+      const blogRow = await env.DB.prepare(`SELECT id FROM blog_posts WHERE slug = 'content-change-post'`).first<{ id: number }>();
+
+      const result = await enqueueContentChangeReindex(env as any, logger, 'blog_post', blogRow!.id);
+      expect(result.enqueued).toBe(true);
+      expect(result.runId).not.toBeNull();
+
+      const run = await env.DB.prepare(`SELECT run_type, trigger_type, documents_seen, documents_enqueued, status FROM knowledge_indexing_runs WHERE id = ?`).bind(result.runId).first<{
+        run_type: string;
+        trigger_type: string;
+        documents_seen: number;
+        documents_enqueued: number;
+        status: string;
+      }>();
+      expect(run!.run_type).toBe('incremental');
+      expect(run!.trigger_type).toBe('content_change');
+      expect(run!.documents_seen).toBe(1);
+      expect(run!.documents_enqueued).toBe(1);
+      expect(run!.status).toBe('running');
+
+      const doc = await env.DB.prepare(`SELECT status FROM knowledge_documents WHERE document_key = ?`).bind(`blog_post:${blogRow!.id}`).first<{ status: string }>();
+      expect(doc!.status).toBe('pending');
+    });
+
+    it('returns enqueued: false for a source id that is not published/active, without creating a stray document row', async () => {
+      const result = await enqueueContentChangeReindex(env as any, logger, 'blog_post', 999999);
+      expect(result.enqueued).toBe(false);
+      expect(result.runId).toBeNull();
+      expect(result.reason).toBeTruthy();
+    });
+  });
+
+  describe('recordDeadLetters / retryDeadLetter (Task 7 — dead letter tracking on the existing queue)', () => {
+    it('records a dead letter and marks the document failed once a batch has exhausted retries', async () => {
+      await seedPublishedBlogPost('dlq-post', '<p>Content for the dead letter queue test.</p>');
+      const testEnv = envWithFakeVectorize();
+      const plan = await planIncrementalIndex(testEnv, logger, null);
+      const pending = await getPendingDocument();
+      const msg = await buildBlogPostMessage(plan.runId, pending!.id, pending!.content_hash, false);
+
+      await recordDeadLetters(env as any, logger, [msg], 'Exhausted max_retries on the indexing queue.');
+
+      const deadLetter = await env.DB.prepare(`SELECT * FROM knowledge_indexing_dead_letters WHERE document_id = ?`).bind(pending!.id).first<{
+        status: string;
+        document_key: string;
+        reason: string;
+        payload: string;
+      }>();
+      expect(deadLetter!.status).toBe('pending');
+      expect(deadLetter!.document_key).toBe(msg.documentKey);
+      expect(JSON.parse(deadLetter!.payload)).toEqual(msg);
+
+      const doc = await env.DB.prepare(`SELECT status, error_message FROM knowledge_documents WHERE id = ?`).bind(pending!.id).first<{ status: string; error_message: string }>();
+      expect(doc!.status).toBe('failed');
+      expect(doc!.error_message).toContain('dead letter queue');
+
+      const run = await env.DB.prepare(`SELECT documents_failed, documents_resolved FROM knowledge_indexing_runs WHERE id = ?`).bind(plan.runId).first<{
+        documents_failed: number;
+        documents_resolved: number;
+      }>();
+      expect(run!.documents_failed).toBe(1);
+      expect(run!.documents_resolved).toBe(1);
+    });
+
+    it('retries a pending dead letter: re-enqueues the message and marks it retried', async () => {
+      await seedPublishedBlogPost('dlq-retry-post', '<p>Content for the dead letter retry test.</p>');
+      const testEnv = envWithFakeVectorize();
+      const plan = await planIncrementalIndex(testEnv, logger, null);
+      const pending = await getPendingDocument();
+      const msg = await buildBlogPostMessage(plan.runId, pending!.id, pending!.content_hash, false);
+      await recordDeadLetters(env as any, logger, [msg], 'Exhausted max_retries on the indexing queue.');
+
+      const deadLetter = await env.DB.prepare(`SELECT id FROM knowledge_indexing_dead_letters WHERE document_id = ?`).bind(pending!.id).first<{ id: number }>();
+
+      const adminInsert = await env.DB.prepare(`INSERT INTO admin_users (email, password_hash, role, is_active) VALUES ('dlq-retry-admin@robayerwealthlab.com', 'x:1:x', 'super_admin', 1)`).run();
+      const adminId = Number(adminInsert.meta.last_row_id);
+
+      const result = await retryDeadLetter(env as any, logger, deadLetter!.id, adminId);
+      expect(result.ok).toBe(true);
+
+      const afterRetry = await env.DB.prepare(`SELECT status, retried_by FROM knowledge_indexing_dead_letters WHERE id = ?`).bind(deadLetter!.id).first<{ status: string; retried_by: number }>();
+      expect(afterRetry!.status).toBe('retried');
+      expect(afterRetry!.retried_by).toBe(adminId);
+
+      const doc = await env.DB.prepare(`SELECT status FROM knowledge_documents WHERE id = ?`).bind(pending!.id).first<{ status: string }>();
+      expect(doc!.status).toBe('pending'); // reset so it's picked up by the real consumer again
+    });
+
+    it('refuses to retry a dead letter that has already been retried', async () => {
+      await seedPublishedBlogPost('dlq-double-retry-post', '<p>Content for the double-retry rejection test.</p>');
+      const testEnv = envWithFakeVectorize();
+      const plan = await planIncrementalIndex(testEnv, logger, null);
+      const pending = await getPendingDocument();
+      const msg = await buildBlogPostMessage(plan.runId, pending!.id, pending!.content_hash, false);
+      await recordDeadLetters(env as any, logger, [msg], 'Exhausted max_retries on the indexing queue.');
+      const deadLetter = await env.DB.prepare(`SELECT id FROM knowledge_indexing_dead_letters WHERE document_id = ?`).bind(pending!.id).first<{ id: number }>();
+
+      const adminInsert = await env.DB.prepare(`INSERT INTO admin_users (email, password_hash, role, is_active) VALUES ('dlq-double-retry-admin@robayerwealthlab.com', 'x:1:x', 'super_admin', 1)`).run();
+      const adminId = Number(adminInsert.meta.last_row_id);
+
+      const first = await retryDeadLetter(env as any, logger, deadLetter!.id, adminId);
+      expect(first.ok).toBe(true);
+
+      const second = await retryDeadLetter(env as any, logger, deadLetter!.id, adminId);
+      expect(second.ok).toBe(false);
+      expect(second.reason).toContain('retried');
     });
   });
 });

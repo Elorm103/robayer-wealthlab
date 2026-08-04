@@ -83,6 +83,10 @@
             <p class="settings-field__label">Search diagnostics (last 30 days)</p>
             <dl data-kb-search-stats></dl>
           </div>
+          <div class="field mb-3">
+            <p class="settings-field__label">Embedding versions</p>
+            <dl data-kb-embedding-versions></dl>
+          </div>
         </div>
 
         <div class="editor-field-row mb-4">
@@ -101,6 +105,81 @@
         <p class="alert alert--error" role="alert" data-kb-search-error hidden></p>
         <p class="text-small text-secondary mb-2" data-kb-search-meta hidden></p>
         <div data-kb-search-results></div>
+
+        <h2 class="text-lg mb-3 mt-5">Search analytics</h2>
+        <p class="text-small text-secondary mb-3">
+          Version 5.0 Milestone 2.2 — aggregated from real search history (<code>knowledge_search_log</code>). The
+          beginning of search observability, not a full analytics suite.
+        </p>
+        <div class="grid grid--4 mb-4">
+          <div class="stat-card">
+            <p class="stat-card__label">Total searches</p>
+            <p class="stat-card__value" data-kb-analytics-total>—</p>
+          </div>
+          <div class="stat-card">
+            <p class="stat-card__label">Success rate</p>
+            <p class="stat-card__value" data-kb-analytics-success-rate>—</p>
+          </div>
+          <div class="stat-card">
+            <p class="stat-card__label">Avg confidence score</p>
+            <p class="stat-card__value" data-kb-analytics-avg-confidence>—</p>
+          </div>
+          <div class="stat-card">
+            <p class="stat-card__label">Latency (p50 / p95 / max)</p>
+            <p class="stat-card__value" data-kb-analytics-latency>—</p>
+          </div>
+        </div>
+
+        <div class="editor-field-row">
+          <div class="field mb-3">
+            <p class="settings-field__label">Confidence distribution</p>
+            <dl data-kb-analytics-confidence-dist></dl>
+          </div>
+          <div class="field mb-3">
+            <p class="settings-field__label">Low-confidence trend (14 days)</p>
+            <dl data-kb-analytics-trend></dl>
+          </div>
+        </div>
+
+        <div class="editor-field-row">
+          <div class="field mb-3" style="flex: 1;">
+            <p class="settings-field__label">Most common searches</p>
+            <ol data-kb-analytics-common></ol>
+          </div>
+          <div class="field mb-3" style="flex: 1;">
+            <p class="settings-field__label">Zero-result searches</p>
+            <ol data-kb-analytics-zero-result></ol>
+          </div>
+          <div class="field mb-3" style="flex: 1;">
+            <p class="settings-field__label">Most retrieved documents</p>
+            <ol data-kb-analytics-top-docs></ol>
+          </div>
+        </div>
+
+        <h2 class="text-lg mb-3 mt-5">Dead letters</h2>
+        <p class="text-small text-secondary mb-3">
+          Version 5.0 Milestone 2.2 — documents whose indexing message exhausted every retry on the indexing queue.
+          Nothing here is silently lost; retry re-enqueues the exact same message.
+        </p>
+        <div class="empty-state" data-kb-dlq-empty hidden>
+          <p class="empty-state__title">No dead letters</p>
+          <p class="empty-state__body">Nothing has exhausted its retries — indexing failures are recorded per-document above instead.</p>
+        </div>
+        <div class="admin-table-wrap" data-kb-dlq-table-wrap hidden>
+          <table class="table" aria-label="Dead letters">
+            <thead>
+              <tr>
+                <th scope="col">Document</th>
+                <th scope="col">Source type</th>
+                <th scope="col">Reason</th>
+                <th scope="col">Status</th>
+                <th scope="col">Failed at</th>
+                <th scope="col"></th>
+              </tr>
+            </thead>
+            <tbody data-kb-dlq-table-body></tbody>
+          </table>
+        </div>
 
         <h2 class="text-lg mb-3 mt-5">Documents</h2>
         <div class="toolbar">
@@ -144,6 +223,7 @@
                 <th scope="col">Status</th>
                 <th scope="col">Chunks</th>
                 <th scope="col">Version</th>
+                <th scope="col">Embedding</th>
                 <th scope="col">Last indexed</th>
               </tr>
             </thead>
@@ -190,6 +270,6 @@
   <script src="/js/components/branding.js?v=483b048741"></script>
   <script src="/js/components/admin/admin-auth.js?v=bb1cec7934"></script>
   <script src="/js/components/admin/admin-shell.js?v=7233204897"></script>
-  <script src="/js/components/admin/admin-knowledge-base.js?v=1"></script>
+  <script src="/js/components/admin/admin-knowledge-base.js?v=2"></script>
 </body>
 </html>

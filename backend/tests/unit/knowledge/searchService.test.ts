@@ -57,10 +57,14 @@ async function seedDocumentWithChunk(opts: SeedDocOptions, vectorId: string, chu
 
 describe('searchKnowledge', () => {
   beforeEach(async () => {
+    // Version 5.0 Milestone 2.2 added knowledge_search_log.top_document_id
+    // as a foreign key into knowledge_documents — search_log must be
+    // cleared BEFORE knowledge_documents, or a prior test's logged row
+    // referencing a soon-to-be-deleted document blocks the delete.
+    await env.DB.exec('DELETE FROM knowledge_search_log');
     await env.DB.exec('DELETE FROM knowledge_chunks');
     await env.DB.exec('DELETE FROM knowledge_faqs');
     await env.DB.exec('DELETE FROM knowledge_documents');
-    await env.DB.exec('DELETE FROM knowledge_search_log');
   });
 
   it('embeds the query, matches against Vectorize, and returns a cited, high-confidence result', async () => {
@@ -169,32 +173,38 @@ describe('searchKnowledge', () => {
     expect(response.results[0].sourceTitle).toBe('Resource Match');
   });
 
-  it('buckets results into high/medium/low confidence by cosine similarity to the query, ranked by score', async () => {
+  it('buckets results into high/medium/low confidence by final (boosted) score, ranked descending', async () => {
+    // Version 5.0 Milestone 2.2 thresholds: high >= 0.6, medium >= 0.45,
+    // low below — see services/knowledge/ranking.ts. Titles/chunk text
+    // here deliberately share no tokens with the query so each
+    // document's final score equals its raw cosine similarity (no
+    // boost), keeping this test about bucketing/ordering, not reranking
+    // (that's covered by its own test below).
     const testEnv = envWithFakeVectorize();
     await seedDocumentWithChunk(
       { documentKey: 'blog_post:4', sourceType: 'blog_post', title: 'High Match', sourceUrl: 'https://robayerwealthlab.com/blog/high/' },
       'vec-high',
-      'An extremely relevant chunk.',
-      [1, 0, 0, 0, 0, 0, 0, 0], // cosine 1.0 vs query [1,0,...] -> high
+      'An extremely applicable chunk.',
+      [1, 0, 0, 0, 0, 0, 0, 0], // cosine 1.0 -> high
       testEnv
     );
     await seedDocumentWithChunk(
       { documentKey: 'blog_post:5', sourceType: 'blog_post', title: 'Medium Match', sourceUrl: 'https://robayerwealthlab.com/blog/medium/' },
       'vec-medium',
-      'A somewhat relevant chunk.',
-      [0.6, 0.8, 0, 0, 0, 0, 0, 0], // cosine 0.6 vs query -> medium
+      'A somewhat applicable chunk.',
+      [0.5, Math.sqrt(1 - 0.25), 0, 0, 0, 0, 0, 0], // cosine 0.5 -> medium
       testEnv
     );
     await seedDocumentWithChunk(
       { documentKey: 'blog_post:6', sourceType: 'blog_post', title: 'Low Match', sourceUrl: 'https://robayerwealthlab.com/blog/low/' },
       'vec-low',
-      'A barely relevant chunk.',
-      [0.3, Math.sqrt(1 - 0.09), 0, 0, 0, 0, 0, 0], // cosine 0.3 vs query -> low
+      'A barely applicable chunk.',
+      [0.3, Math.sqrt(1 - 0.09), 0, 0, 0, 0, 0, 0], // cosine 0.3 -> low
       testEnv
     );
     await queueQueryVector([1, 0, 0, 0, 0, 0, 0, 0]);
 
-    const response = await searchKnowledge(testEnv, logger, { query: 'relevance test', actorType: 'customer', actorId: null, limit: 3 });
+    const response = await searchKnowledge(testEnv, logger, { query: 'zzyzx qorvath', actorType: 'customer', actorId: null, limit: 3 });
     expect(response.results).toHaveLength(3);
     expect(response.results[0].sourceTitle).toBe('High Match');
     expect(response.results[0].confidence).toBe('high');
@@ -207,15 +217,68 @@ describe('searchKnowledge', () => {
     expect(response.results[1].score).toBeGreaterThan(response.results[2].score);
   });
 
-  it('still writes a knowledge_search_log row (with zero results) when nothing matches', async () => {
+  it('reranks a lower-cosine, exact-title-match result above a higher-cosine, no-title-overlap result', async () => {
+    // Direct coverage for Task 2's real purpose: production evidence
+    // showed raw cosine similarity alone does not reliably rank an
+    // exact title match first — see ranking.ts's header comment.
+    const testEnv = envWithFakeVectorize();
+    await seedDocumentWithChunk(
+      { documentKey: 'static_page:/legal/privacy-policy/', sourceType: 'static_page', title: 'Privacy Policy | Robayer WealthLab', sourceUrl: 'https://robayerwealthlab.com/legal/privacy-policy/' },
+      'vec-exact-title',
+      'How Robayer WealthLab collects, uses, stores, and protects your privacy policy information.',
+      [0.5, Math.sqrt(1 - 0.25), 0, 0, 0, 0, 0, 0], // cosine 0.5 alone — lower than the unrelated page below
+      testEnv
+    );
+    await seedDocumentWithChunk(
+      { documentKey: 'static_page:/about/', sourceType: 'static_page', title: 'About Us | Robayer WealthLab', sourceUrl: 'https://robayerwealthlab.com/about/' },
+      'vec-higher-cosine-no-title',
+      'General information about the company with no mention of the query topic.',
+      [0.62, Math.sqrt(1 - 0.62 * 0.62), 0, 0, 0, 0, 0, 0], // cosine 0.62 — higher raw similarity, but no title/keyword overlap
+      testEnv
+    );
+    await queueQueryVector([1, 0, 0, 0, 0, 0, 0, 0]);
+
+    const response = await searchKnowledge(testEnv, logger, { query: 'What does the Privacy Policy say?', actorType: 'customer', actorId: null });
+
+    expect(response.results).toHaveLength(2);
+    expect(response.results[0].sourceTitle).toBe('Privacy Policy | Robayer WealthLab');
+    expect(response.results[0].titleBoost).toBeGreaterThan(0);
+    expect(response.results[0].keywordBoost).toBeGreaterThan(0);
+    expect(response.results[0].vectorSimilarity).toBeLessThan(response.results[1].vectorSimilarity); // raw cosine alone would have ranked these the other way
+    expect(response.results[0].score).toBeGreaterThan(response.results[1].score); // the blended score correctly reverses that
+  });
+
+  it('writes top_document_id to knowledge_search_log for the #1 result', async () => {
+    const testEnv = envWithFakeVectorize();
+    const documentId = await seedDocumentWithChunk(
+      { documentKey: 'blog_post:7', sourceType: 'blog_post', title: 'Top Doc', sourceUrl: 'https://robayerwealthlab.com/blog/top-doc/' },
+      'vec-topdoc',
+      'Content for the top-document logging test.',
+      [1, 0, 0, 0, 0, 0, 0, 0],
+      testEnv
+    );
+    await queueQueryVector([1, 0, 0, 0, 0, 0, 0, 0]);
+
+    await searchKnowledge(testEnv, logger, { query: 'top document logging', actorType: 'customer', actorId: null });
+
+    const logRow = await env.DB.prepare(`SELECT top_document_id FROM knowledge_search_log ORDER BY id DESC LIMIT 1`).first<{ top_document_id: number | null }>();
+    expect(logRow!.top_document_id).toBe(documentId);
+  });
+
+  it('still writes a knowledge_search_log row (with zero results and a null top_document_id) when nothing matches', async () => {
     const testEnv = envWithFakeVectorize();
     await queueQueryVector([1, 0, 0, 0, 0, 0, 0, 0]);
 
     const response = await searchKnowledge(testEnv, logger, { query: 'nothing indexed yet', actorType: 'system', actorId: null });
     expect(response.results).toHaveLength(0);
 
-    const logRow = await env.DB.prepare(`SELECT result_count, top_score FROM knowledge_search_log ORDER BY id DESC LIMIT 1`).first<{ result_count: number; top_score: number | null }>();
+    const logRow = await env.DB.prepare(`SELECT result_count, top_score, top_document_id FROM knowledge_search_log ORDER BY id DESC LIMIT 1`).first<{
+      result_count: number;
+      top_score: number | null;
+      top_document_id: number | null;
+    }>();
     expect(logRow!.result_count).toBe(0);
     expect(logRow!.top_score).toBeNull();
+    expect(logRow!.top_document_id).toBeNull();
   });
 });
