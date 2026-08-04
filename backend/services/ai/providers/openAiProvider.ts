@@ -12,7 +12,7 @@
  */
 
 import type { Env } from '../../../worker/env';
-import type { AiProvider, CompletionRequest, CompletionResult } from '../types';
+import type { AiProvider, CompletionRequest, CompletionResult, EmbeddingRequest, EmbeddingResult } from '../types';
 import { DEFAULT_MAX_TOKENS } from '../types';
 
 /**
@@ -34,11 +34,23 @@ import { DEFAULT_MAX_TOKENS } from '../types';
 const MODEL_PRICING_USD_PER_MILLION_TOKENS: Record<string, { input: number; output: number }> = {
   'gpt-4o-mini': { input: 0.15, output: 0.6 },
   'gpt-4o': { input: 2.5, output: 10 },
+  // Version 5.0 Milestone 2 (Knowledge Base) — an embedding model has
+  // no "output tokens" concept; output: 0 is correct, not a
+  // placeholder, and keeps estimateCostUsdMicros() uniform across
+  // completion and embedding models without a second pricing table.
+  'text-embedding-3-small': { input: 0.02, output: 0 },
 };
 
 interface OpenAiChatCompletionResponse {
   choices?: { message?: { content?: string } }[];
   usage?: { prompt_tokens?: number; completion_tokens?: number };
+  model?: string;
+  error?: { message?: string };
+}
+
+interface OpenAiEmbeddingResponse {
+  data?: { embedding?: number[]; index?: number }[];
+  usage?: { prompt_tokens?: number };
   model?: string;
   error?: { message?: string };
 }
@@ -93,6 +105,51 @@ export const openAiProvider: AiProvider = {
       model: body.model ?? request.model,
       tokensIn: body.usage?.prompt_tokens ?? 0,
       tokensOut: body.usage?.completion_tokens ?? 0,
+    };
+  },
+
+  async embed(request: EmbeddingRequest, env: Env): Promise<EmbeddingResult> {
+    let response: Response;
+    try {
+      response = await fetch(`${env.OPENAI_BASE_URL}/v1/embeddings`, {
+        method: 'POST',
+        headers: {
+          Authorization: `Bearer ${env.OPENAI_API_KEY}`,
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ model: request.model, input: request.texts }),
+      });
+    } catch (err) {
+      throw new Error(`OpenAI embeddings request failed: ${err instanceof Error ? err.message : 'unknown network error'}`);
+    }
+
+    const body = (await response.json().catch(() => null)) as OpenAiEmbeddingResponse | null;
+
+    if (!response.ok) {
+      throw new Error(`OpenAI API error (${response.status}): ${body?.error?.message ?? 'unknown error'}`);
+    }
+    if (!body) {
+      throw new Error('OpenAI response could not be parsed as JSON.');
+    }
+    if (!Array.isArray(body.data) || body.data.length !== request.texts.length) {
+      throw new Error(`OpenAI embeddings response returned ${body.data?.length ?? 0} vectors for ${request.texts.length} input texts.`);
+    }
+
+    // The API documents `data` as returned in input order via each
+    // entry's own `index`, but does not guarantee array order matches
+    // — sort explicitly rather than trusting array position, since a
+    // silently-mismatched embedding/text pairing would corrupt every
+    // downstream Vectorize upsert without ever throwing.
+    const sorted = [...body.data].sort((a, b) => (a.index ?? 0) - (b.index ?? 0));
+    const embeddings = sorted.map((entry, i) => {
+      if (!Array.isArray(entry.embedding)) throw new Error(`OpenAI embeddings response is missing a vector at index ${i}.`);
+      return entry.embedding;
+    });
+
+    return {
+      embeddings,
+      model: body.model ?? request.model,
+      tokensIn: body.usage?.prompt_tokens ?? 0,
     };
   },
 

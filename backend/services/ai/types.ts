@@ -39,6 +39,26 @@ export interface CompletionResult {
   tokensOut: number;
 }
 
+/**
+ * Version 5.0 Milestone 2 (Knowledge Base) — embedding is a distinct
+ * capability from chat completion (array-of-text in, array-of-vector
+ * out), not a variant of `complete()`. `texts` is batched (rather than
+ * one call per chunk) since every provider's real embeddings endpoint
+ * (OpenAI's included) accepts a batch natively and batching is
+ * materially cheaper in both latency and request count for the
+ * hundreds of chunks a single document's index run can produce.
+ */
+export interface EmbeddingRequest {
+  model: string;
+  texts: string[];
+}
+
+export interface EmbeddingResult {
+  embeddings: number[][];
+  model: string;
+  tokensIn: number;
+}
+
 export interface AiProvider {
   name: string;
 
@@ -53,6 +73,16 @@ export interface AiProvider {
    * "Prompt versioning"/routing-table design).
    */
   complete(request: CompletionRequest, env: Env): Promise<CompletionResult>;
+
+  /**
+   * Version 5.0 Milestone 2 — optional because not every provider a
+   * future milestone adds will necessarily offer embeddings (or the
+   * Gateway may route embedding calls to a provider subset). Absent
+   * for a provider that doesn't implement it; `providerRegistry.ts`'s
+   * caller checks for this before use, same as `supportsModel()`
+   * already guards `complete()`.
+   */
+  embed?(request: EmbeddingRequest, env: Env): Promise<EmbeddingResult>;
 
   /**
    * Returns a real integer cost in **USD micros** (1 micro =

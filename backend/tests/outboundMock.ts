@@ -73,6 +73,26 @@ export async function queueOpenAiResponse(env: MockDbEnv, response: { status: nu
   await queueResponse(env, 'openai_chat_completions', response);
 }
 
+/** Overrides the next (and only the next) OpenAI /v1/embeddings response — Version 5.0 Milestone 2 (Knowledge Base). */
+export async function queueOpenAiEmbeddingResponse(env: MockDbEnv, response: { status: number; body: unknown }): Promise<void> {
+  await queueResponse(env, 'openai_embeddings', response);
+}
+
+/**
+ * Overrides the response for GET https://robayerwealthlab.com/sitemap.xml —
+ * Version 5.0 Milestone 2's static-page crawl (services/knowledge/documentSources.ts)
+ * fetches its own live site's real sitemap; tests mock that fetch
+ * rather than hitting the real network or the real production site.
+ */
+export async function queueSitemapResponse(env: MockDbEnv, xml: string): Promise<void> {
+  await queueResponse(env, 'site_sitemap', xml);
+}
+
+/** Overrides the response for GET https://robayerwealthlab.com{pathname} — one entry per path, not consumed (a test may fetch the same page more than once). */
+export async function queueSitePageResponse(env: MockDbEnv, pathname: string, html: string): Promise<void> {
+  await queueResponse(env, `site_page:${pathname}`, html);
+}
+
 /**
  * Version 3.3 Milestone M5D.1 (Acceptance Remediation) — a PERSISTENT
  * Resend override, checked before the one-shot `queueResendResponse()`
@@ -113,6 +133,10 @@ function json(status: number, body: unknown): Response {
   return new Response(JSON.stringify(body), { status, headers: { 'Content-Type': 'application/json' } });
 }
 
+function textResponse(status: number, body: string, contentType: string): Response {
+  return new Response(body, { status, headers: { 'Content-Type': contentType } });
+}
+
 export async function outboundMock(request: Request, miniflare: Miniflare): Promise<MiniflareResponse> {
   const url = new URL(request.url);
   const { DB } = await miniflare.getBindings<MockDbEnv>();
@@ -145,6 +169,36 @@ export async function outboundMock(request: Request, miniflare: Miniflare): Prom
       body: { choices: [{ message: { content: 'OK' } }], usage: { prompt_tokens: 10, completion_tokens: 2 }, model: 'gpt-4o-mini' },
     };
     return json(result.status, result.body) as unknown as MiniflareResponse;
+  }
+
+  if (url.hostname === 'api.openai.com' && url.pathname === '/v1/embeddings' && request.method === 'POST') {
+    const queued = (await takeConsumedResponse(DB, 'openai_embeddings')) as { status: number; body: unknown } | null;
+    if (queued) return json(queued.status, queued.body) as unknown as MiniflareResponse;
+
+    // Default: one small, deterministic-length fake vector per input
+    // text, so a test that doesn't care about the exact embedding
+    // values (most don't) never needs to queue a response by hand.
+    let inputCount = 1;
+    try {
+      const parsed = JSON.parse(await request.clone().text()) as { input?: unknown };
+      if (Array.isArray(parsed.input)) inputCount = parsed.input.length;
+    } catch {
+      // fall through to the default of 1
+    }
+    const data = Array.from({ length: inputCount }, (_, i) => ({ embedding: new Array(8).fill(0).map((_, j) => (i + 1) * 0.01 + j * 0.001), index: i }));
+    return json(200, { data, usage: { prompt_tokens: 10 * inputCount }, model: 'text-embedding-3-small' }) as unknown as MiniflareResponse;
+  }
+
+  if (url.hostname === 'robayerwealthlab.com' && url.pathname === '/sitemap.xml' && request.method === 'GET') {
+    const queued = await peekResponse(DB, 'site_sitemap');
+    const xml = typeof queued === 'string' ? queued : `<?xml version="1.0"?><urlset><url><loc>https://robayerwealthlab.com/</loc></url></urlset>`;
+    return textResponse(200, xml, 'application/xml') as unknown as MiniflareResponse;
+  }
+
+  if (url.hostname === 'robayerwealthlab.com' && request.method === 'GET') {
+    const queued = await peekResponse(DB, `site_page:${url.pathname}`);
+    if (typeof queued === 'string') return textResponse(200, queued, 'text/html') as unknown as MiniflareResponse;
+    return textResponse(404, `<!doctype html><html><body><main>Not found: ${url.pathname}</main></body></html>`, 'text/html') as unknown as MiniflareResponse;
   }
 
   return json(502, { error: `outboundMock: unhandled request ${request.method} ${request.url}` }) as unknown as MiniflareResponse;

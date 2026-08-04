@@ -156,7 +156,7 @@ async function resolvePrompt(env: Env, promptKey: string): Promise<ResolvedPromp
  * preventively rejected than to slip through — see the Milestone 1.2
  * Known Limitations report for the honest precision caveat.
  */
-function estimateInputTokens(text: string): number {
+export function estimateInputTokens(text: string): number {
   return Math.ceil(text.length / 4);
 }
 
@@ -210,16 +210,22 @@ function formatUsd(micros: number): string {
   return `$${(micros / 1_000_000).toFixed(4)}`;
 }
 
+/**
+ * Takes just `maxCostUsdMicrosOverride` (not a whole request object) so
+ * both `callAi()` and Version 5.0 Milestone 2's `embedText()` — two
+ * genuinely different request shapes — can share one budget-check
+ * implementation rather than each maintaining its own copy.
+ */
 async function checkBudget(
   env: Env,
-  request: AiGatewayRequest,
+  maxCostUsdMicrosOverride: number | undefined,
   budgetConfig: AiGatewayBudgetConfig,
   spend: SpendSnapshot,
   provider: string,
   estimatedCostUsdMicros: number
 ): Promise<BudgetCheck> {
-  const usingDefaultCap = request.maxCostUsdMicros === undefined;
-  const effectiveCapUsdMicros = request.maxCostUsdMicros ?? budgetConfig.perRequestCapUsdMicros;
+  const usingDefaultCap = maxCostUsdMicrosOverride === undefined;
+  const effectiveCapUsdMicros = maxCostUsdMicrosOverride ?? budgetConfig.perRequestCapUsdMicros;
   const capNote = usingDefaultCap ? ' (default cap inherited — no maxCostUsdMicros supplied)' : '';
 
   if (estimatedCostUsdMicros > effectiveCapUsdMicros) {
@@ -463,7 +469,7 @@ export async function callAi(env: Env, logger: Logger, request: AiGatewayRequest
     // network call, no real spend) if the estimate says any budget
     // layer would be exceeded.
     const estimatedCostUsdMicros = estimateMaxCostUsdMicros(provider, candidate.model, promptText, request.maxTokens);
-    const budgetCheck = await checkBudget(env, request, budgetConfig, spend, candidate.provider, estimatedCostUsdMicros);
+    const budgetCheck = await checkBudget(env, request.maxCostUsdMicros, budgetConfig, spend, candidate.provider, estimatedCostUsdMicros);
     if (!budgetCheck.ok) {
       const storage = await prepareStorageFields(env, retentionConfig, promptText, null);
       await logUsage(env, logger, {
@@ -608,6 +614,243 @@ export async function callAi(env: Env, logger: Logger, request: AiGatewayRequest
   // (policy/budget/provider) so a caller — or a route handler mapping
   // to an ApiErrorCode — can distinguish "OpenAI is down" from
   // "governance refused this on purpose" without parsing message text.
+  if (lastErrorKind === 'budget' && lastError) throw lastError;
+  if (lastErrorKind === 'policy' && lastError) throw lastError;
+  throw lastError ?? new Error(`All routing candidates for feature "${request.feature}" failed.`);
+}
+
+// ============================================================
+// Version 5.0 Milestone 2 (Knowledge Base) — embeddings.
+//
+// `embedText()` is `callAi()`'s sibling, not a bypass of it: it is
+// still the ONLY way any code in this project may reach an embedding
+// endpoint (no module besides providerRegistry.ts imports a provider
+// file), and it reuses the exact same governance this file already
+// enforces for completions — classification is mandatory, provider
+// policy is checked per candidate, cost is estimated and checked
+// PREVENTIVELY before the provider is contacted, the text being
+// embedded is masked and subject to the same configured retention
+// policy, and every call is logged to the same ai_usage_log table
+// with the same gateway_version/policy_version/decision columns. This
+// is the literal meaning of "reuse the governance framework from
+// Milestone 1.2" — not a similar-looking parallel mechanism, the same
+// one.
+// ============================================================
+
+export interface AiEmbeddingRequest {
+  /** e.g. 'knowledge.embed' — resolved against routingConfig.ts. */
+  feature: string;
+  actorType: AiActorType;
+  actorId: number | null;
+  sessionId?: number | null;
+  classification: AiSensitivityClassification;
+  /** Batched — see services/ai/types.ts's EmbeddingRequest for why. */
+  texts: string[];
+  maxCostUsdMicros?: number;
+}
+
+export interface AiEmbeddingResponse {
+  /** Same order as the input `texts` array — index-for-index. */
+  embeddings: number[][];
+  provider: string;
+  model: string;
+  tokensIn: number;
+  costUsdMicros: number;
+  latencyMs: number;
+}
+
+export async function embedText(env: Env, logger: Logger, request: AiEmbeddingRequest): Promise<AiEmbeddingResponse> {
+  if (!isValidSensitivityClassification(request.classification)) {
+    throw new AiClassificationError(`"${request.classification}" is not a recognized sensitivity classification. No AI Gateway call may proceed without a valid one.`);
+  }
+  if (request.texts.length === 0) {
+    throw new Error('embedText() requires at least one text to embed.');
+  }
+
+  const candidates = getRoutingCandidates(request.feature);
+  // Joined only for masking/estimation/audit-logging purposes — never
+  // what's actually sent to the provider, which gets the real
+  // `texts` array batched natively (see EmbeddingRequest's own
+  // header comment on why batching, not one call per text).
+  const combinedText = request.texts.join('\n\n---\n\n');
+
+  const [budgetConfig, retentionConfig, spend] = await Promise.all([getAiGatewayBudgetConfig(env), getAiGatewayRetentionConfig(env), getSpendSnapshot(env)]);
+  providerSpendCache.clear();
+
+  let lastError: Error | null = null;
+  let lastErrorKind: 'policy' | 'budget' | 'provider' | null = null;
+
+  for (let i = 0; i < candidates.length; i++) {
+    const candidate = candidates[i];
+    const fallbackUsed = i > 0;
+    const provider = getAiProvider(candidate.provider);
+
+    if (!provider.supportsModel(candidate.model)) {
+      lastError = new Error(`Provider "${candidate.provider}" does not support model "${candidate.model}" (routing misconfiguration).`);
+      lastErrorKind = 'provider';
+      continue;
+    }
+    if (!provider.embed) {
+      lastError = new Error(`Provider "${candidate.provider}" does not implement embeddings.`);
+      lastErrorKind = 'provider';
+      continue;
+    }
+
+    if (!isProviderApprovedForClassification(candidate.provider, request.classification)) {
+      const providerDecision = `rejected: provider "${candidate.provider}" is not approved for classification ${request.classification} (policy v${POLICY_VERSION})`;
+      const storage = await prepareStorageFields(env, retentionConfig, combinedText, null);
+      await logUsage(env, logger, {
+        feature: request.feature,
+        provider: candidate.provider,
+        model: candidate.model,
+        actorType: request.actorType,
+        actorId: request.actorId,
+        sessionId: request.sessionId ?? null,
+        classification: request.classification,
+        promptKey: null,
+        promptVersion: null,
+        storage,
+        tokensIn: 0,
+        tokensOut: 0,
+        costUsdMicros: 0,
+        latencyMs: 0,
+        fallbackUsed,
+        succeeded: false,
+        errorMessage: providerDecision,
+        providerDecision,
+        budgetDecision: 'not evaluated: rejected by provider policy before budget check',
+      });
+      lastError = new AiPolicyViolationError(providerDecision);
+      lastErrorKind = 'policy';
+      continue;
+    }
+
+    const estimatedCostUsdMicros = provider.estimateCostUsdMicros(estimateInputTokens(combinedText), 0, candidate.model);
+    const budgetCheck = await checkBudget(env, request.maxCostUsdMicros, budgetConfig, spend, candidate.provider, estimatedCostUsdMicros);
+    if (!budgetCheck.ok) {
+      const storage = await prepareStorageFields(env, retentionConfig, combinedText, null);
+      await logUsage(env, logger, {
+        feature: request.feature,
+        provider: candidate.provider,
+        model: candidate.model,
+        actorType: request.actorType,
+        actorId: request.actorId,
+        sessionId: request.sessionId ?? null,
+        classification: request.classification,
+        promptKey: null,
+        promptVersion: null,
+        storage,
+        tokensIn: 0,
+        tokensOut: 0,
+        costUsdMicros: 0,
+        latencyMs: 0,
+        fallbackUsed,
+        succeeded: false,
+        errorMessage: budgetCheck.decision,
+        providerDecision: `${candidate.provider}/${candidate.model}: policy-approved, not attempted (rejected before call)`,
+        budgetDecision: budgetCheck.decision,
+      });
+      lastError = new AiBudgetExceededError(budgetCheck.decision);
+      lastErrorKind = 'budget';
+      continue;
+    }
+
+    const startedAt = Date.now();
+    try {
+      const result = await provider.embed({ model: candidate.model, texts: request.texts }, env);
+      const latencyMs = Date.now() - startedAt;
+      const costUsdMicros = provider.estimateCostUsdMicros(result.tokensIn, 0, result.model);
+
+      if (costUsdMicros > budgetCheck.effectiveCapUsdMicros) {
+        const storage = await prepareStorageFields(env, retentionConfig, combinedText, null);
+        await logUsage(env, logger, {
+          feature: request.feature,
+          provider: candidate.provider,
+          model: candidate.model,
+          actorType: request.actorType,
+          actorId: request.actorId,
+          sessionId: request.sessionId ?? null,
+          classification: request.classification,
+          promptKey: null,
+          promptVersion: null,
+          storage,
+          tokensIn: result.tokensIn,
+          tokensOut: 0,
+          costUsdMicros,
+          latencyMs,
+          fallbackUsed,
+          succeeded: false,
+          errorMessage: `Actual cost ${formatUsd(costUsdMicros)} exceeded cap ${formatUsd(budgetCheck.effectiveCapUsdMicros)} (post-call check — the pre-call estimate under-predicted this one).`,
+          providerDecision: `${candidate.provider}/${candidate.model}: called, response received`,
+          budgetDecision: `post-call rejection: actual cost exceeded the cap the pre-call estimate said would be safe`,
+        });
+        lastError = new AiBudgetExceededError(`Candidate "${candidate.provider}/${candidate.model}" exceeded the cost cap after the call completed.`);
+        lastErrorKind = 'budget';
+        continue;
+      }
+
+      const storage = await prepareStorageFields(env, retentionConfig, combinedText, null);
+      await logUsage(env, logger, {
+        feature: request.feature,
+        provider: candidate.provider,
+        model: candidate.model,
+        actorType: request.actorType,
+        actorId: request.actorId,
+        sessionId: request.sessionId ?? null,
+        classification: request.classification,
+        promptKey: null,
+        promptVersion: null,
+        storage,
+        tokensIn: result.tokensIn,
+        tokensOut: 0,
+        costUsdMicros,
+        latencyMs,
+        fallbackUsed,
+        succeeded: true,
+        errorMessage: null,
+        providerDecision: `${candidate.provider}/${candidate.model}: policy-approved and used`,
+        budgetDecision: budgetCheck.decision,
+      });
+
+      return {
+        embeddings: result.embeddings,
+        provider: candidate.provider,
+        model: result.model,
+        tokensIn: result.tokensIn,
+        costUsdMicros,
+        latencyMs,
+      };
+    } catch (err) {
+      const latencyMs = Date.now() - startedAt;
+      const errorMessage = err instanceof Error ? err.message : 'Unknown AI provider error';
+      const storage = await prepareStorageFields(env, retentionConfig, combinedText, null);
+      await logUsage(env, logger, {
+        feature: request.feature,
+        provider: candidate.provider,
+        model: candidate.model,
+        actorType: request.actorType,
+        actorId: request.actorId,
+        sessionId: request.sessionId ?? null,
+        classification: request.classification,
+        promptKey: null,
+        promptVersion: null,
+        storage,
+        tokensIn: 0,
+        tokensOut: 0,
+        costUsdMicros: 0,
+        latencyMs,
+        fallbackUsed,
+        succeeded: false,
+        errorMessage,
+        providerDecision: `${candidate.provider}/${candidate.model}: called, request failed`,
+        budgetDecision: budgetCheck.decision,
+      });
+      lastError = err instanceof Error ? err : new Error(errorMessage);
+      lastErrorKind = 'provider';
+      logger.error('ai_gateway.embedding_candidate_failed', { feature: request.feature, provider: candidate.provider, model: candidate.model, error: errorMessage });
+    }
+  }
+
   if (lastErrorKind === 'budget' && lastError) throw lastError;
   if (lastErrorKind === 'policy' && lastError) throw lastError;
   throw lastError ?? new Error(`All routing candidates for feature "${request.feature}" failed.`);

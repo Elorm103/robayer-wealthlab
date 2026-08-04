@@ -24,6 +24,14 @@ export interface RoutingCandidate {
 
 const ROUTING_TABLE: Record<string, RoutingCandidate[]> = {
   'internal.gateway-diagnostic': [{ provider: 'openai', model: 'gpt-4o-mini' }],
+  // Version 5.0 Milestone 2 (Knowledge Base) — the embedding model
+  // used for both indexing (chunk text → vector) and search (query
+  // text → vector). MUST stay the same model for both, since vectors
+  // from two different embedding models are not comparable — changing
+  // this value means every existing Vectorize vector is now stale and
+  // requires a full rebuild (services/knowledge/indexingService.ts's
+  // runFullRebuild()), not just a routing-table edit.
+  'knowledge.embed': [{ provider: 'openai', model: 'text-embedding-3-small' }],
 };
 
 export function getRoutingCandidates(feature: string): RoutingCandidate[] {

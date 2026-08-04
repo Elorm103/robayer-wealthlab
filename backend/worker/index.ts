@@ -89,6 +89,7 @@ import {
 } from '../routes/admin/users';
 import { handleGetSettings, handleUpdateSettings, handleSettingsStatus, handleAiGatewayTest } from '../routes/admin/settings';
 import { handleListAiUsage, handleGetAiUsageDetail, handleExportAiUsageCsv, handleGetAiUsageAnalytics } from '../routes/admin/aiUsage';
+import { handleGetStatus as handleKnowledgeBaseStatus, handleListDocuments as handleKnowledgeBaseDocuments, handleGetRuns as handleKnowledgeBaseRuns, handleReindex as handleKnowledgeBaseReindex, handleRebuild as handleKnowledgeBaseRebuild, handleSearchTest as handleKnowledgeBaseSearchTest } from '../routes/admin/knowledgeBase';
 import {
   handleListCampaigns,
   handleGetCampaign,
@@ -496,6 +497,13 @@ const ROUTES: Route[] = [
   { pattern: new URLPattern({ pathname: '/api/admin/ai-usage/analytics' }), method: 'GET', handler: handleGetAiUsageAnalytics },
   { pattern: new URLPattern({ pathname: '/api/admin/ai-usage' }), method: 'GET', handler: handleListAiUsage },
   { pattern: new URLPattern({ pathname: '/api/admin/ai-usage/:id' }), method: 'GET', handler: handleGetAiUsageDetail },
+  // Version 5.0 Milestone 2 (Knowledge Base).
+  { pattern: new URLPattern({ pathname: '/api/admin/knowledge-base/status' }), method: 'GET', handler: handleKnowledgeBaseStatus },
+  { pattern: new URLPattern({ pathname: '/api/admin/knowledge-base/documents' }), method: 'GET', handler: handleKnowledgeBaseDocuments },
+  { pattern: new URLPattern({ pathname: '/api/admin/knowledge-base/runs' }), method: 'GET', handler: handleKnowledgeBaseRuns },
+  { pattern: new URLPattern({ pathname: '/api/admin/knowledge-base/reindex' }), method: 'POST', handler: handleKnowledgeBaseReindex },
+  { pattern: new URLPattern({ pathname: '/api/admin/knowledge-base/rebuild' }), method: 'POST', handler: handleKnowledgeBaseRebuild },
+  { pattern: new URLPattern({ pathname: '/api/admin/knowledge-base/search-test' }), method: 'POST', handler: handleKnowledgeBaseSearchTest },
   // Added Version 2.1 Phase 6 (Newsletter Campaigns) — see
   // docs/v2.1-phase6-design.md. `subscribed-count` is a static path
   // and must be ordered before the `:id` wildcard patterns below, the

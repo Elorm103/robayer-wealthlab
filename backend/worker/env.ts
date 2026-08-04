@@ -82,4 +82,10 @@ export interface Env {
   // reason to fall back to storing plaintext.
   /** Secret, optional — set via `wrangler secret put AI_PROMPT_ENCRYPTION_KEY`, never committed. Used server-side only, exclusively by services/ai/promptEncryption.ts. */
   AI_PROMPT_ENCRYPTION_KEY?: string;
+
+  // Added in Version 5.0 Milestone 2 (Knowledge Base) — see
+  // wrangler.jsonc's own "vectorize" binding comment for the full
+  // reasoning. Stores chunk embeddings only; chunk text/metadata lives
+  // in D1 (knowledge_chunks).
+  KNOWLEDGE_INDEX: VectorizeIndex;
 }

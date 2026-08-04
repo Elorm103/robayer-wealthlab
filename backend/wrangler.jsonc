@@ -143,6 +143,21 @@
     }
   ],
 
+  // Vectorize — Version 5.0 Milestone 2 (Knowledge Base). Stores chunk
+  // embeddings only; the chunk text/metadata itself lives in D1
+  // (knowledge_chunks, migration 0036) — the same "D1 holds the
+  // structured record, a binding holds the large payload" pattern
+  // already established by R2/media_assets. 1536 dimensions matches
+  // OpenAI's text-embedding-3-small (services/ai/providers/openAiProvider.ts),
+  // cosine matches that model's own documented similarity metric.
+  // index_name is real only once `wrangler vectorize create
+  // robayer-knowledge-base --dimensions 1536 --metric cosine` has
+  // actually been run — see the Milestone 2 Migration Report for
+  // exactly when that happens relative to this file being deployed.
+  "vectorize": [
+    { "binding": "KNOWLEDGE_INDEX", "index_name": "robayer-knowledge-base" }
+  ],
+
   // Bundles each backend/emails/**/*.html file as an importable string
   // constant at build time — Workers have no runtime filesystem access,
   // so email templates must be inlined this way rather than read from
