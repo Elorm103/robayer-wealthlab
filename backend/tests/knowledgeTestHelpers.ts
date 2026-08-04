@@ -60,7 +60,19 @@ export function createFakeVectorizeIndex(options: FakeVectorizeOptions = {}) {
     async getByIds(ids: string[]) {
       return ids.map((id) => store.get(id)).filter((v): v is FakeVector => v !== undefined);
     },
-    async query(vector: number[], options?: { topK?: number }) {
+    async query(vector: number[], options?: { topK?: number; returnMetadata?: 'none' | 'indexed' | 'all' }) {
+      // Version 5.0 Milestone 2.1 — mirrors a real production bug this
+      // fake previously let slip through silently: the real Vectorize
+      // (V2) API requires returnMetadata to be the STRING 'none' |
+      // 'indexed' | 'all', not a boolean (that's only valid on legacy
+      // V1 indexes) — a boolean caused VECTOR_QUERY_ERROR 40026 against
+      // the real index, undetected here because this fake used to
+      // accept anything. Validating the same shape the real API
+      // enforces turns this class of bug into a failing test instead of
+      // a silent pass.
+      if (options?.returnMetadata !== undefined && !['none', 'indexed', 'all'].includes(options.returnMetadata)) {
+        throw new Error(`VECTOR_QUERY_ERROR (code = 40026): Failed to parse the request body as JSON: returnMetadata: expected value`);
+      }
       const topK = options?.topK ?? 5;
       const matches = [...store.values()]
         .map((v) => ({ id: v.id, score: cosineSimilarity(vector, v.values), metadata: v.metadata }))

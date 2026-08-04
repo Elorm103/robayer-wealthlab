@@ -93,8 +93,15 @@ export async function searchKnowledge(env: Env, logger: Logger, request: Knowled
   // Over-fetch from Vectorize (4x the requested limit) since some
   // matches get filtered out below by visibility/classification/
   // source-type/status — Vectorize itself has no knowledge of any of
-  // those, only D1 does.
-  const matches = await env.KNOWLEDGE_INDEX.query(queryVector, { topK: limit * 4, returnMetadata: false });
+  // those, only D1 does. returnMetadata must be the string 'none' (not
+  // a boolean) on current Vectorize (V2) indexes — a boolean is only
+  // valid on legacy V1 indexes and fails at the API layer with
+  // VECTOR_QUERY_ERROR 40026 on a real (V2) index, a real production
+  // bug this milestone's own test double never caught since it never
+  // validated the real request shape. We never read vector metadata
+  // anyway (every field this function needs comes from the D1 join
+  // below), so 'none' is also the most efficient choice.
+  const matches = await env.KNOWLEDGE_INDEX.query(queryVector, { topK: limit * 4, returnMetadata: 'none' });
 
   let results: KnowledgeSearchResult[] = [];
   if (matches.matches.length > 0) {
