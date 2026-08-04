@@ -1,0 +1,43 @@
+-- ============================================================
+-- 0037_knowledge_indexing_queue.sql — Version 5.0 Milestone 2.1.
+-- See docs/v5.0-milestone-2.1-production-verification-report.md.
+--
+-- Production's first full rebuild proved the original synchronous,
+-- single-invocation indexing design does not scale: D1/Vectorize
+-- binding calls count against the SAME per-invocation subrequest
+-- budget as fetch(), and processing every document's chunk/embed/
+-- write cycle inside one ctx.waitUntil() job costs ~6-8 subrequests
+-- PER DOCUMENT (irreducible — every document genuinely needs its own
+-- D1 write and its own Vectorize upsert). At 38 documents that was
+-- already ~300 subrequests in one invocation; at "hundreds or
+-- thousands" it is unbounded. The fix is a genuine architecture
+-- change: a lightweight planning phase enqueues one Cloudflare Queue
+-- message per document, and a queue consumer processes small batches
+-- — each consumer invocation is a SEPARATE Worker invocation with its
+-- own fresh subrequest budget, which is what actually makes this
+-- scale, not a bigger batch size.
+--
+-- These two columns are what let a run be tracked/checkpointed across
+-- many independent consumer invocations instead of one synchronous
+-- loop:
+--
+-- documents_enqueued: how many documents this run pushed onto the
+-- queue during planning — the target the run is waiting to reach.
+--
+-- documents_resolved: how many of those have come back (indexed or
+-- failed) from a consumer batch so far. A run flips from 'running' to
+-- 'completed' once documents_resolved >= documents_enqueued, checked
+-- by whichever consumer invocation's update happens to cross that
+-- line — safe under concurrent consumer invocations since the
+-- increment itself is a single atomic UPDATE per invocation, and the
+-- completion flip is idempotent if two invocations both cross the
+-- line at nearly the same moment.
+--
+-- Rollback: `ALTER TABLE knowledge_indexing_runs DROP COLUMN
+-- documents_enqueued; ALTER TABLE knowledge_indexing_runs DROP COLUMN
+-- documents_resolved;` — safe, both are additive with safe defaults
+-- and nothing outside this milestone's own code reads them.
+-- ============================================================
+
+ALTER TABLE knowledge_indexing_runs ADD COLUMN documents_enqueued INTEGER NOT NULL DEFAULT 0;
+ALTER TABLE knowledge_indexing_runs ADD COLUMN documents_resolved INTEGER NOT NULL DEFAULT 0;

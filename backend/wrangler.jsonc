@@ -175,6 +175,47 @@
   // sendDueReviewReminders(). See docs/v3.3-m5c-analytics-architecture.md.
   "triggers": {
     "crons": ["0 6 * * *"]
+  },
+
+  // Queues — Version 5.0 Milestone 2.1. Added after production's first
+  // Knowledge Base full rebuild proved the original synchronous,
+  // single-invocation indexing design (Milestone 2) does not scale: D1
+  // and Vectorize binding calls count against the SAME per-invocation
+  // subrequest budget as fetch(), and every document's chunk/embed/write
+  // cycle costs ~6-8 subrequests, irreducibly, per document. One
+  // invocation processing an entire catalog is bounded by definition; a
+  // queue is not, because each consumer invocation gets its own fresh
+  // subrequest budget. See docs/v5.0-milestone-2.1-engineering-report.md.
+  //
+  // max_batch_size: 5 — sized so one consumer invocation's total
+  // subrequest cost (1 shared embed call ~8 subrequests + 5 documents'
+  // finalization ~6-7 each ~= 40-45) stays comfortably under any plan's
+  // per-invocation limit, with headroom for the account's Vectorize/D1
+  // overhead to grow before this needs retuning.
+  //
+  // No dead_letter_queue configured yet — a document-level failure
+  // (bad content, provider error) is already caught and recorded inside
+  // processIndexingQueueBatch() before it can throw, so genuine
+  // queue-level retries (max_retries, below) are reserved for
+  // infrastructure-level failures (a D1/Vectorize outage mid-batch),
+  // which are rare enough that a dropped message after 3 retries is an
+  // acceptable, honestly-documented gap for now — see the Known
+  // Limitations section of the Milestone 2.1 report.
+  //
+  // index_name/queue name are real only once `wrangler queues create
+  // robayer-knowledge-index-queue` has actually been run.
+  "queues": {
+    "producers": [
+      { "binding": "KNOWLEDGE_INDEX_QUEUE", "queue": "robayer-knowledge-index-queue" }
+    ],
+    "consumers": [
+      {
+        "queue": "robayer-knowledge-index-queue",
+        "max_batch_size": 5,
+        "max_batch_timeout": 5,
+        "max_retries": 3
+      }
+    ]
   }
 
   // Staging environment: intentionally not configured yet. No staging

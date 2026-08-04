@@ -7,6 +7,8 @@
  * Must match ../wrangler.jsonc's d1_databases/r2_buckets/kv_namespaces/
  * vars bindings exactly.
  */
+import type { KnowledgeIndexQueueMessage } from '../services/knowledge/queueTypes';
+
 export interface Env {
   DB: D1Database;
   STORAGE: R2Bucket;
@@ -88,4 +90,13 @@ export interface Env {
   // reasoning. Stores chunk embeddings only; chunk text/metadata lives
   // in D1 (knowledge_chunks).
   KNOWLEDGE_INDEX: VectorizeIndex;
+
+  // Added in Version 5.0 Milestone 2.1 — see wrangler.jsonc's own
+  // "queues" binding comment for why: production's first full rebuild
+  // proved a single-invocation indexing design does not scale past a
+  // few dozen documents, since D1/Vectorize binding calls count against
+  // the same per-invocation subrequest budget as fetch(). Each queue
+  // consumer invocation gets its own fresh subrequest budget, which is
+  // what actually makes this scale.
+  KNOWLEDGE_INDEX_QUEUE: Queue<KnowledgeIndexQueueMessage>;
 }

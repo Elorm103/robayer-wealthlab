@@ -90,6 +90,8 @@ import {
 import { handleGetSettings, handleUpdateSettings, handleSettingsStatus, handleAiGatewayTest } from '../routes/admin/settings';
 import { handleListAiUsage, handleGetAiUsageDetail, handleExportAiUsageCsv, handleGetAiUsageAnalytics } from '../routes/admin/aiUsage';
 import { handleGetStatus as handleKnowledgeBaseStatus, handleListDocuments as handleKnowledgeBaseDocuments, handleGetRuns as handleKnowledgeBaseRuns, handleReindex as handleKnowledgeBaseReindex, handleRebuild as handleKnowledgeBaseRebuild, handleSearchTest as handleKnowledgeBaseSearchTest } from '../routes/admin/knowledgeBase';
+import { processIndexingQueueBatch } from '../services/knowledge/indexingService';
+import type { KnowledgeIndexQueueMessage } from '../services/knowledge/queueTypes';
 import {
   handleListCampaigns,
   handleGetCampaign,
@@ -756,6 +758,32 @@ export default {
             metadata: { ok: false, error: message },
           });
         })
+    );
+  },
+
+  /**
+   * Version 5.0 Milestone 2.1 (Knowledge Base indexing scale fix) —
+   * this project's first Queue consumer. Each invocation of this
+   * handler is a SEPARATE Worker invocation from whatever produced the
+   * batch, with its own fresh subrequest budget — see
+   * services/knowledge/indexingService.ts's header comment for why that
+   * is the entire point of this redesign, not an implementation detail.
+   *
+   * Deliberately does NOT wrap processIndexingQueueBatch() in a
+   * try/catch that swallows everything: a document-level failure is
+   * already caught and recorded inside that function (so it never
+   * throws for a bad document), but a genuine infrastructure error
+   * (e.g. the run-counter UPDATE itself failing) is allowed to
+   * propagate, so Cloudflare Queues' own retry mechanism
+   * (wrangler.jsonc's `max_retries`) redelivers the batch to a fresh
+   * invocation rather than silently losing it.
+   */
+  async queue(batch: MessageBatch<KnowledgeIndexQueueMessage>, env: Env, _ctx: ExecutionContext): Promise<void> {
+    const logger = createLogger(generateRequestId(), `queue ${batch.queue}`);
+    await processIndexingQueueBatch(
+      env,
+      logger,
+      batch.messages.map((m) => m.body)
     );
   },
 };

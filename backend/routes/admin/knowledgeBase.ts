@@ -26,7 +26,7 @@ import { requireAuth } from '../../middleware/requireAuth';
 import { requireRole } from '../../middleware/requireRole';
 import { requireCsrf } from '../../middleware/csrf';
 import { getKnowledgeBaseStatus, listKnowledgeDocuments, listIndexingRuns } from '../../services/admin/knowledgeBaseAdminService';
-import { runIncrementalIndex, runFullRebuild } from '../../services/knowledge/indexingService';
+import { planIncrementalIndex, planFullRebuild } from '../../services/knowledge/indexingService';
 import { searchKnowledge } from '../../services/knowledge/searchService';
 import * as auditService from '../../services/admin/auditService';
 
@@ -99,19 +99,32 @@ async function triggerRun(request: Request, env: Env, logger: Logger, ctx: Execu
     return jsonError('RATE_LIMITED', 'Too many requests. Please try again shortly.');
   }
 
-  const runner = runType === 'incremental' ? runIncrementalIndex : runFullRebuild;
+  // Version 5.0 Milestone 2.1 — planIncrementalIndex/planFullRebuild
+  // only run the lightweight PLANNING phase (gather, hash-compare,
+  // enqueue) inside this ctx.waitUntil() job; actual indexing happens
+  // across however many separate queue-consumer invocations it takes
+  // to drain, tracked in knowledge_indexing_runs' own
+  // documents_enqueued/documents_resolved columns and polled by the
+  // dashboard (handleGetRuns) — see indexingService.ts's header comment
+  // for why this replaced the original single-invocation design.
+  const planner = runType === 'incremental' ? planIncrementalIndex : planFullRebuild;
   const adminId = auth.auth.adminId;
 
   ctx.waitUntil(
-    runner(env, logger, adminId)
+    planner(env, logger, adminId)
       .then((summary) =>
         auditService.record(env, logger, {
           actorType: 'admin',
           actorId: adminId,
-          action: `knowledge_base.${runType}_completed`,
+          action: `knowledge_base.${runType}_planned`,
           entityType: 'knowledge_indexing_run',
           entityId: summary.runId,
-          metadata: { documentsSeen: summary.documentsSeen, documentsIndexed: summary.documentsIndexed, documentsFailed: summary.documentsFailed, chunksCreated: summary.chunksCreated },
+          metadata: {
+            documentsSeen: summary.documentsSeen,
+            documentsUnchanged: summary.documentsUnchanged,
+            documentsFailedAtPlanning: summary.documentsFailedAtPlanning,
+            documentsEnqueued: summary.documentsEnqueued,
+          },
         })
       )
       .catch((err) => {
