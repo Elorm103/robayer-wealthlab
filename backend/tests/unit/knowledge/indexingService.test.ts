@@ -35,6 +35,7 @@ describe('indexingService', () => {
     await env.DB.exec('DELETE FROM knowledge_indexing_runs');
     await env.DB.exec('DELETE FROM blog_posts');
     await env.DB.exec('DELETE FROM resources');
+    await env.DB.exec('DELETE FROM ai_usage_log');
     await env.DB.prepare(`DELETE FROM products WHERE slug = 'not-used-here'`).run();
     await queueSitemapResponse(env as any, EMPTY_SITEMAP);
   });
@@ -60,6 +61,29 @@ describe('indexingService', () => {
     const run = await env.DB.prepare(`SELECT * FROM knowledge_indexing_runs ORDER BY id DESC LIMIT 1`).first<{ status: string; run_type: string }>();
     expect(run!.status).toBe('completed');
     expect(run!.run_type).toBe('incremental');
+  });
+
+  it('batches embedding calls across multiple documents into a single provider call, rather than one call per document', async () => {
+    // Regression test for a real production incident: a per-document embed
+    // call caused a full-catalog run to exceed Cloudflare's per-invocation
+    // subrequest limit (see indexingService.ts's header comment and the
+    // Milestone 2 Production Verification Report). Two small documents
+    // together produce well under EMBED_BATCH_SIZE (96) chunks, so both
+    // should be covered by exactly one ai_usage_log row for
+    // 'knowledge.embed' — not two.
+    await seedPublishedBlogPost('batch-post-one', '<p>Treasury bills are a common first investment in Ghana.</p>');
+    await env.DB.prepare(
+      `INSERT INTO resources (resource_id, slug, title, short_description, description, category, format, status) VALUES ('batch-r1','batch-resource','Batch Resource','A short template','<p>Some resource content for batching.</p>','budgeting','template','published')`
+    ).run();
+    const testEnv = envWithFakeVectorize();
+
+    const summary = await runIncrementalIndex(testEnv, logger, null);
+    expect(summary.documentsSeen).toBe(2);
+    expect(summary.documentsIndexed).toBe(2);
+    expect(summary.documentsFailed).toBe(0);
+
+    const embedCallCount = await env.DB.prepare(`SELECT COUNT(*) AS count FROM ai_usage_log WHERE feature = 'knowledge.embed'`).first<{ count: number }>();
+    expect(embedCallCount!.count).toBe(1);
   });
 
   it('incremental indexing skips a document whose content has not changed since the last successful index', async () => {

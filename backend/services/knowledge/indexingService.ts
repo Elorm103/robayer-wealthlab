@@ -22,16 +22,30 @@
  * single Worker invocation's wall-clock budget comfortably covers a
  * full run; a genuine Queue would be the right next step if that
  * volume grows by an order of magnitude or more.
+ *
+ * Embedding calls are batched ACROSS documents, not one call per
+ * document — a real production run (Milestone 2's first full rebuild)
+ * hit Cloudflare's per-invocation subrequest ceiling with a per-document
+ * embed call, because the static-page crawl's page fetches (one
+ * subrequest each) plus one embed call per document together exceeded
+ * the limit partway through a full catalog run. Grouping many
+ * documents' chunks into as few embed calls as possible (bounded by
+ * EMBED_BATCH_SIZE) is what keeps a full run's subrequest count low
+ * enough to actually complete. The trade-off: fault isolation on an
+ * embedding failure is now per-BATCH (a group of documents that happen
+ * to share a provider call) rather than strictly per-document — see the
+ * Milestone 2 Production Verification Report for the real incident this
+ * fixed and why that trade-off was accepted.
  */
 
 import type { Env } from '../../worker/env';
 import type { Logger } from '../../utils/logger';
 import { embedText } from '../ai/aiGateway';
-import { chunkText } from './chunking';
+import { chunkText, type TextChunk } from './chunking';
 import { getBlogPostDocuments, getResourceDocuments, getProductDocuments, getStaticPageDocuments, getCmsSettingDocuments, type SourceDocument } from './documentSources';
 
 const EMBEDDING_FEATURE = 'knowledge.embed';
-/** Vectorize upsert accepts a batch; OpenAI's embeddings endpoint also accepts a batch — chunked into groups of this size so one document's chunk count never produces an unreasonably large single request. */
+/** Target chunk count per embed call — bounds both the OpenAI request size and (via fewer total calls) this run's Worker-subrequest footprint. */
 const EMBED_BATCH_SIZE = 96;
 
 async function sha256Hex(text: string): Promise<string> {
@@ -66,48 +80,16 @@ async function gatherAllDocuments(env: Env, logger: Logger): Promise<SourceDocum
   return [...blogDocs, ...resourceDocs, ...productDocs, ...cmsDocs, ...staticDocs];
 }
 
-async function embedChunksInBatches(env: Env, logger: Logger, texts: string[]): Promise<{ embeddings: number[][]; model: string }> {
-  const allEmbeddings: number[][] = [];
-  let model = '';
-  for (let i = 0; i < texts.length; i += EMBED_BATCH_SIZE) {
-    const batch = texts.slice(i, i + EMBED_BATCH_SIZE);
-    const result = await embedText(env, logger, {
-      feature: EMBEDDING_FEATURE,
-      actorType: 'system',
-      actorId: null,
-      classification: 'PUBLIC', // every source this milestone indexes is public-facing platform content — see documentSources.ts's own dataClassification reasoning
-      texts: batch,
-    });
-    allEmbeddings.push(...result.embeddings);
-    model = result.model;
-  }
-  return { embeddings: allEmbeddings, model };
+interface PreparedDocument {
+  doc: SourceDocument;
+  contentHash: string;
+  existingId: number | null;
+  chunks: TextChunk[];
 }
 
-/** Processes ONE document end-to-end: chunk, embed, upsert to Vectorize, write knowledge_chunks/knowledge_faqs, update knowledge_documents. Returns 'indexed' or 'failed'; never throws — a single bad document must not abort the whole run. */
-async function processDocument(env: Env, logger: Logger, doc: SourceDocument, contentHash: string, existingId: number | null): Promise<{ outcome: 'indexed' | 'failed'; chunksCreated: number }> {
-  const chunks = chunkText(doc.text);
-  if (chunks.length === 0) {
-    await upsertDocumentRecord(env, doc, contentHash, 'failed', 'No content could be extracted for chunking.', 0);
-    return { outcome: 'failed', chunksCreated: 0 };
-  }
-
-  let embeddings: number[][];
-  let embeddingModel: string;
-  try {
-    const result = await embedChunksInBatches(
-      env,
-      logger,
-      chunks.map((c) => c.text)
-    );
-    embeddings = result.embeddings;
-    embeddingModel = result.model;
-  } catch (err) {
-    const message = err instanceof Error ? err.message : 'Unknown embedding error';
-    logger.error('knowledge.embedding_failed', { documentKey: doc.documentKey, error: message });
-    await upsertDocumentRecord(env, doc, contentHash, 'failed', `Embedding failed: ${message}`, 0);
-    return { outcome: 'failed', chunksCreated: 0 };
-  }
+/** Writes the final indexed state for ONE document, given its already-computed embeddings. No provider calls here — only Vectorize/D1 binding calls, which do not count against the Worker subrequest limit that batching (below) exists to protect. */
+async function finalizeDocument(env: Env, logger: Logger, prepared: PreparedDocument, embeddings: number[][], embeddingModel: string): Promise<{ outcome: 'indexed' | 'failed'; chunksCreated: number }> {
+  const { doc, contentHash, existingId, chunks } = prepared;
 
   if (embeddings.length !== chunks.length) {
     await upsertDocumentRecord(env, doc, contentHash, 'failed', `Embedding count mismatch: ${embeddings.length} vectors for ${chunks.length} chunks.`, 0);
@@ -208,6 +190,73 @@ async function upsertDocumentRecord(env: Env, doc: SourceDocument, contentHash: 
   return Number(insert.meta.last_row_id);
 }
 
+/**
+ * Embeds every prepared document's chunks and finalizes each one, using
+ * as few embed calls as the run's total chunk volume allows. Documents
+ * are packed into a batch (by accumulated chunk count, capped at
+ * EMBED_BATCH_SIZE) without ever splitting one document's own chunks
+ * across two calls — simpler to reason about than a chunk-level split,
+ * and the isolation unit a caller actually cares about ("did THIS
+ * document index or not") stays intact. A document large enough on its
+ * own to exceed EMBED_BATCH_SIZE chunks is sent alone, in one call,
+ * rather than looped on forever.
+ */
+async function embedAndFinalizeAll(env: Env, logger: Logger, prepared: PreparedDocument[]): Promise<{ indexed: number; failed: number; chunksCreated: number }> {
+  let indexed = 0;
+  let failed = 0;
+  let chunksCreated = 0;
+  let i = 0;
+
+  while (i < prepared.length) {
+    const batch: PreparedDocument[] = [prepared[i]];
+    let count = prepared[i].chunks.length;
+    i++;
+    while (i < prepared.length && count + prepared[i].chunks.length <= EMBED_BATCH_SIZE) {
+      batch.push(prepared[i]);
+      count += prepared[i].chunks.length;
+      i++;
+    }
+
+    const allTexts = batch.flatMap((p) => p.chunks.map((c) => c.text));
+
+    try {
+      const result = await embedText(env, logger, {
+        feature: EMBEDDING_FEATURE,
+        actorType: 'system',
+        actorId: null,
+        classification: 'PUBLIC', // every source this milestone indexes is public-facing platform content — see documentSources.ts's own dataClassification reasoning
+        texts: allTexts,
+      });
+
+      if (result.embeddings.length !== allTexts.length) {
+        throw new Error(`Embedding count mismatch: ${result.embeddings.length} vectors for ${allTexts.length} input texts.`);
+      }
+
+      let offset = 0;
+      for (const p of batch) {
+        const docEmbeddings = result.embeddings.slice(offset, offset + p.chunks.length);
+        offset += p.chunks.length;
+        const outcome = await finalizeDocument(env, logger, p, docEmbeddings, result.model);
+        if (outcome.outcome === 'indexed') {
+          indexed++;
+          chunksCreated += outcome.chunksCreated;
+        } else {
+          failed++;
+        }
+      }
+    } catch (err) {
+      const message = err instanceof Error ? err.message : 'Unknown embedding error';
+      for (const p of batch) {
+        logger.error('knowledge.embedding_failed', { documentKey: p.doc.documentKey, error: message });
+        await upsertDocumentRecord(env, p.doc, p.contentHash, 'failed', `Embedding failed: ${message}`, 0);
+        failed++;
+      }
+    }
+  }
+
+  return { indexed, failed, chunksCreated };
+}
+
 async function runIndexing(env: Env, logger: Logger, runType: 'incremental' | 'full_rebuild', triggeredBy: number | null): Promise<IndexingRunSummary> {
   const runInsert = await env.DB.prepare(`INSERT INTO knowledge_indexing_runs (run_type, trigger_type, triggered_by) VALUES (?, 'admin_manual', ?)`).bind(runType, triggeredBy).run();
   const runId = Number(runInsert.meta.last_row_id);
@@ -220,6 +269,7 @@ async function runIndexing(env: Env, logger: Logger, runType: 'incremental' | 'f
 
   try {
     const documents = await gatherAllDocuments(env, logger);
+    const prepared: PreparedDocument[] = [];
 
     for (const doc of documents) {
       documentsSeen++;
@@ -235,14 +285,20 @@ async function runIndexing(env: Env, logger: Logger, runType: 'incremental' | 'f
         continue;
       }
 
-      const result = await processDocument(env, logger, doc, contentHash, existing?.id ?? null);
-      if (result.outcome === 'indexed') {
-        documentsIndexed++;
-        chunksCreated += result.chunksCreated;
-      } else {
+      const chunks = chunkText(doc.text);
+      if (chunks.length === 0) {
+        await upsertDocumentRecord(env, doc, contentHash, 'failed', 'No content could be extracted for chunking.', 0);
         documentsFailed++;
+        continue;
       }
+
+      prepared.push({ doc, contentHash, existingId: existing?.id ?? null, chunks });
     }
+
+    const embedResult = await embedAndFinalizeAll(env, logger, prepared);
+    documentsIndexed += embedResult.indexed;
+    documentsFailed += embedResult.failed;
+    chunksCreated += embedResult.chunksCreated;
 
     await env.DB.prepare(
       `UPDATE knowledge_indexing_runs SET status = 'completed', documents_seen = ?, documents_indexed = ?, documents_unchanged = ?, documents_failed = ?, chunks_created = ?, completed_at = datetime('now') WHERE id = ?`
