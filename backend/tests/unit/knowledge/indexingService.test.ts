@@ -29,7 +29,7 @@ import { planIncrementalIndex, planFullRebuild, processIndexingQueueBatch } from
 import { getBlogPostDocuments } from '../../../services/knowledge/documentSources';
 import { chunkText } from '../../../services/knowledge/chunking';
 import { queueSitemapResponse, queueOpenAiEmbeddingResponse } from '../../outboundMock';
-import { createFakeVectorizeIndex } from '../../knowledgeTestHelpers';
+import { createFakeVectorizeIndex, type FakeVectorizeOptions } from '../../knowledgeTestHelpers';
 import type { KnowledgeIndexQueueMessage } from '../../../services/knowledge/queueTypes';
 
 const logger = createLogger('test-request-id', 'test');
@@ -41,8 +41,8 @@ async function seedPublishedBlogPost(slug: string, body: string): Promise<void> 
     .run();
 }
 
-function envWithFakeVectorize() {
-  return { ...(env as any), KNOWLEDGE_INDEX: createFakeVectorizeIndex() };
+function envWithFakeVectorize(options?: FakeVectorizeOptions) {
+  return { ...(env as any), KNOWLEDGE_INDEX: createFakeVectorizeIndex(options) };
 }
 
 /** Reconstructs the exact queue message planning would have produced for the ONE blog post currently in D1 — real reader, real chunker, not duplicated logic. */
@@ -160,12 +160,15 @@ describe('indexingService', () => {
       expect(run!.chunks_created).toBe(doc!.chunk_count);
     });
 
-    it('batches embedding calls across every document in ONE queue batch into a single provider call', async () => {
-      // Direct regression coverage for the real production incident this
-      // milestone fixed: Milestone 2's per-document embed calls (later
-      // batched per-RUN, still not enough — see indexingService.ts's
-      // header comment) are now batched per queue BATCH, so N documents
-      // delivered together cost one embed call, not N.
+    it('batches both embedding calls AND Vectorize upserts across every document in ONE queue batch into a single call each', async () => {
+      // Direct regression coverage for TWO real production incidents:
+      // (1) per-document embed calls exceeding the Worker subrequest
+      // budget, fixed by batching embed calls per queue batch; (2) even
+      // after that fix, per-document Vectorize upsert() calls still hit
+      // VECTOR_UPSERT_ERROR 40014 ("Too Many Requests") under concurrent
+      // consumer invocations — fixed by combining every document's
+      // vectors in one batch into a single upsert() call too. See
+      // indexingService.ts's header comment for both incidents.
       await seedPublishedBlogPost('batch-post', '<p>Treasury bills are a common first investment in Ghana.</p>');
       await env.DB.prepare(
         `INSERT INTO resources (resource_id, slug, title, short_description, description, category, format, status) VALUES ('batch-r1','batch-resource','Batch Resource','A short template','<p>Some resource content for batching.</p>','budgeting','template','published')`
@@ -208,6 +211,7 @@ describe('indexingService', () => {
 
       const embedCallCount = await env.DB.prepare(`SELECT COUNT(*) AS count FROM ai_usage_log WHERE feature = 'knowledge.embed'`).first<{ count: number }>();
       expect(embedCallCount!.count).toBe(1);
+      expect(testEnv.KNOWLEDGE_INDEX._upsertCallCount()).toBe(1);
     });
 
     it('re-processes a document whose content changed: bumps version and cleans up old vectors, without aborting the run', async () => {
@@ -295,6 +299,48 @@ describe('indexingService', () => {
       expect(run!.status).toBe('completed'); // resolved (as failed) still counts toward completion — the run itself did not hang or crash
       expect(run!.documents_failed).toBe(1);
       expect(run!.documents_resolved).toBe(1);
+    });
+
+    it('retries a Vectorize upsert that fails with a rate-limit error (40014), and succeeds once the retry goes through', async () => {
+      await seedPublishedBlogPost('rate-limited-post', '<p>Content whose first upsert attempt gets rate-limited.</p>');
+      const testEnv = envWithFakeVectorize({ upsertFailures: [new Error('VECTOR_UPSERT_ERROR (40014): Too Many Requests')] });
+
+      const plan = await planIncrementalIndex(testEnv, logger, null);
+      const pending = await getPendingDocument();
+      const msg = await buildBlogPostMessage(plan.runId, pending!.id, pending!.content_hash, false);
+
+      await processIndexingQueueBatch(testEnv, logger, [msg]);
+
+      const doc = await env.DB.prepare(`SELECT status FROM knowledge_documents WHERE id = ?`).bind(pending!.id).first<{ status: string }>();
+      expect(doc!.status).toBe('indexed'); // the retry succeeded — a transient rate-limit must not permanently fail a good document
+
+      expect(testEnv.KNOWLEDGE_INDEX._upsertCallCount()).toBe(2); // 1 failed attempt + 1 successful retry
+
+      const run = await env.DB.prepare(`SELECT status, documents_indexed, documents_failed FROM knowledge_indexing_runs WHERE id = ?`).bind(plan.runId).first<{
+        status: string;
+        documents_indexed: number;
+        documents_failed: number;
+      }>();
+      expect(run!.status).toBe('completed');
+      expect(run!.documents_indexed).toBe(1);
+      expect(run!.documents_failed).toBe(0);
+    });
+
+    it('does NOT retry a non-rate-limit Vectorize error — fails immediately since retrying would just fail identically', async () => {
+      await seedPublishedBlogPost('bad-vector-post', '<p>Content whose upsert fails for a real, non-transient reason.</p>');
+      const testEnv = envWithFakeVectorize({ upsertFailures: [new Error('VECTOR_INSERT_ERROR (40006): Vector dimensions do not match index configuration')] });
+
+      const plan = await planIncrementalIndex(testEnv, logger, null);
+      const pending = await getPendingDocument();
+      const msg = await buildBlogPostMessage(plan.runId, pending!.id, pending!.content_hash, false);
+
+      await processIndexingQueueBatch(testEnv, logger, [msg]);
+
+      const doc = await env.DB.prepare(`SELECT status, error_message FROM knowledge_documents WHERE id = ?`).bind(pending!.id).first<{ status: string; error_message: string }>();
+      expect(doc!.status).toBe('failed');
+      expect(doc!.error_message).toContain('Vectorize upsert failed');
+
+      expect(testEnv.KNOWLEDGE_INDEX._upsertCallCount()).toBe(1); // no retry — a dimension mismatch would fail identically on every attempt
     });
   });
 });

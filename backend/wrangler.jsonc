@@ -202,6 +202,17 @@
   // acceptable, honestly-documented gap for now — see the Known
   // Limitations section of the Milestone 2.1 report.
   //
+  // max_concurrency: 2 — added after a real production incident:
+  // leaving this unset (Cloudflare's own auto-scaled maximum) let
+  // several consumer invocations fire close together, and even with
+  // ONE Vectorize upsert call per invocation (indexingService.ts's own
+  // batching fix), enough concurrent invocations still collided against
+  // Vectorize's write-rate limit (`VECTOR_UPSERT_ERROR 40014: Too Many
+  // Requests`) on 2 of 38 documents. Capping concurrency directly
+  // bounds how many invocations can hit the same Vectorize index at
+  // once — the indexing service's own retry-with-backoff is a safety
+  // net on top of this, not a substitute for it.
+  //
   // index_name/queue name are real only once `wrangler queues create
   // robayer-knowledge-index-queue` has actually been run.
   "queues": {
@@ -213,7 +224,8 @@
         "queue": "robayer-knowledge-index-queue",
         "max_batch_size": 5,
         "max_batch_timeout": 5,
-        "max_retries": 3
+        "max_retries": 3,
+        "max_concurrency": 2
       }
     ]
   }

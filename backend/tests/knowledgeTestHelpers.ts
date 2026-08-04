@@ -30,11 +30,21 @@ function cosineSimilarity(a: number[], b: number[]): number {
   return dot / (Math.sqrt(normA) * Math.sqrt(normB));
 }
 
-export function createFakeVectorizeIndex() {
+export interface FakeVectorizeOptions {
+  /** Errors thrown on the first N upsert() calls (consumed one per call, in order) — Version 5.0 Milestone 2.1, for testing withVectorizeRateLimitRetry()'s retry/no-retry behavior without a real Vectorize outage. */
+  upsertFailures?: Error[];
+}
+
+export function createFakeVectorizeIndex(options: FakeVectorizeOptions = {}) {
   const store = new Map<string, FakeVector>();
+  const upsertFailures = [...(options.upsertFailures ?? [])];
+  let upsertCallCount = 0;
+  let deleteByIdsCallCount = 0;
 
   return {
     async upsert(vectors: FakeVector[]) {
+      upsertCallCount++;
+      if (upsertFailures.length > 0) throw upsertFailures.shift();
       for (const v of vectors) store.set(v.id, v);
       return { ids: vectors.map((v) => v.id), count: vectors.length };
     },
@@ -43,6 +53,7 @@ export function createFakeVectorizeIndex() {
       return { ids: vectors.map((v) => v.id), count: vectors.length };
     },
     async deleteByIds(ids: string[]) {
+      deleteByIdsCallCount++;
       for (const id of ids) store.delete(id);
       return { ids, count: ids.length };
     },
@@ -60,9 +71,16 @@ export function createFakeVectorizeIndex() {
     async describe() {
       return { vectorCount: store.size, dimensions: 8, processedUpToDatetime: Date.now(), processedUpToMutation: '0' };
     },
-    /** Test-only inspection helper, not part of the real VectorizeIndex interface. */
+    /** Test-only inspection helpers, not part of the real VectorizeIndex interface. */
     _size(): number {
       return store.size;
+    },
+    /** Version 5.0 Milestone 2.1 — verifies the fix for VECTOR_UPSERT_ERROR 40014: every document in one consumer batch should share ONE upsert() call, not one call per document. */
+    _upsertCallCount(): number {
+      return upsertCallCount;
+    },
+    _deleteByIdsCallCount(): number {
+      return deleteByIdsCallCount;
     },
   };
 }

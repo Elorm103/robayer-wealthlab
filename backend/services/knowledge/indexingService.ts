@@ -231,43 +231,78 @@ interface FinalizeOutcome {
   chunksCreated: number;
 }
 
-/** Writes the final indexed state for ONE document, given its already-computed embeddings. Only Vectorize/D1 binding calls — no provider calls, no fetch. The document's knowledge_documents row already exists (created 'pending' during planning), so this only ever does direct `WHERE id = ?` writes, never an insert-or-update lookup. */
-async function finalizeDocument(env: Env, logger: Logger, prepared: PreparedDocument, embeddings: number[][], embeddingModel: string): Promise<FinalizeOutcome> {
-  const { documentId, wasPreExisting, documentKey, sourceType, sourceUrl, faqs, chunks } = prepared;
+interface VectorRecord {
+  id: string;
+  values: number[];
+  metadata: { documentId: number; sourceType: KnowledgeSourceType; sourceUrl: string };
+}
 
-  if (embeddings.length !== chunks.length) {
-    await env.DB.prepare(`UPDATE knowledge_documents SET status = 'failed', error_message = ?, updated_at = datetime('now') WHERE id = ?`)
-      .bind(`Embedding count mismatch: ${embeddings.length} vectors for ${chunks.length} chunks.`, documentId)
-      .run();
-    return { outcome: 'failed', chunksCreated: 0 };
+const VECTORIZE_RATE_LIMIT_MAX_ATTEMPTS = 4;
+const VECTORIZE_RATE_LIMIT_BASE_DELAY_MS = 250;
+
+/**
+ * Version 5.0 Milestone 2.1's second production incident: even after
+ * the subrequest-scaling fix above, a full rebuild still failed 2 of 38
+ * documents with `VECTOR_UPSERT_ERROR (40014): Too Many Requests` — a
+ * genuine Vectorize write-rate limit, distinct from the Worker
+ * subrequest budget. Cloudflare's Vectorize docs don't publish an exact
+ * requests-per-second ceiling, but they do explicitly recommend
+ * "batch more vectors into fewer requests... important for write-heavy
+ * workloads" (developers.cloudflare.com/vectorize/best-practices/insert-vectors/).
+ * The real cause: every document in a consumer batch was still issuing
+ * its OWN separate `upsert()` call (up to 5 sequential calls per
+ * invocation), and with wrangler.jsonc's queue consumer concurrency
+ * unbounded, multiple invocations could fire near-simultaneously,
+ * collectively bursting past Vectorize's per-index write ceiling.
+ *
+ * Fixed on two fronts: (1) every document's vectors in one consumer
+ * batch are now upserted in ONE combined call (below), cutting
+ * Vectorize write-call volume up to 5x per invocation; (2)
+ * wrangler.jsonc's consumer now sets an explicit `max_concurrency`
+ * rather than leaving it to Cloudflare's auto-scaled maximum, capping
+ * how many invocations can hit the same index at once. This retry
+ * helper is a bounded safety net on top of both — not a substitute for
+ * them — for the residual case where a rate-limit is still hit despite
+ * batching and concurrency control. Only a genuine rate-limit error
+ * (40014 / "Too Many Requests" / HTTP 429) is retried; any other
+ * Vectorize error (bad dimensions, malformed id) is not, since retrying
+ * an error that isn't transient would just fail identically.
+ */
+function isVectorizeRateLimitError(err: unknown): boolean {
+  const message = err instanceof Error ? err.message : String(err);
+  return message.includes('40014') || message.includes('Too Many Requests') || message.includes('429');
+}
+
+async function withVectorizeRateLimitRetry<T>(logger: Logger, operation: string, fn: () => Promise<T>): Promise<T> {
+  let lastError: unknown;
+  for (let attempt = 1; attempt <= VECTORIZE_RATE_LIMIT_MAX_ATTEMPTS; attempt++) {
+    try {
+      return await fn();
+    } catch (err) {
+      lastError = err;
+      if (!isVectorizeRateLimitError(err) || attempt === VECTORIZE_RATE_LIMIT_MAX_ATTEMPTS) throw err;
+      const delayMs = VECTORIZE_RATE_LIMIT_BASE_DELAY_MS * 2 ** (attempt - 1);
+      logger.error('knowledge.vectorize_rate_limited_retrying', { operation, attempt, delayMs, error: err instanceof Error ? err.message : String(err) });
+      await new Promise((resolve) => setTimeout(resolve, delayMs));
+    }
   }
+  throw lastError;
+}
 
-  // Old chunk vector ids, fetched BEFORE any write — deleted only after
-  // the new chunks are successfully in place, per this file's own
-  // versioning discipline (see header comment).
-  const oldChunks = wasPreExisting
-    ? (await env.DB.prepare(`SELECT vector_id FROM knowledge_chunks WHERE document_id = ?`).bind(documentId).all<{ vector_id: string }>()).results
-    : [];
+async function markDocumentFailed(env: Env, documentId: number, message: string): Promise<void> {
+  await env.DB.prepare(`UPDATE knowledge_documents SET status = 'failed', error_message = ?, updated_at = datetime('now') WHERE id = ?`).bind(message, documentId).run();
+}
 
-  const newVersionSuffix = Date.now();
-  const vectorRecords = chunks.map((chunk, i) => ({
-    id: `chunk-${documentId}-${i}-${newVersionSuffix}`,
-    values: embeddings[i],
-    metadata: { documentId, sourceType, sourceUrl: sourceUrl ?? '' },
-  }));
-
-  try {
-    await env.KNOWLEDGE_INDEX.upsert(vectorRecords);
-  } catch (err) {
-    const message = err instanceof Error ? err.message : 'Unknown Vectorize error';
-    logger.error('knowledge.vectorize_upsert_failed', { documentKey, error: message });
-    await env.DB.prepare(`UPDATE knowledge_documents SET status = 'failed', error_message = ?, updated_at = datetime('now') WHERE id = ?`)
-      .bind(`Vectorize upsert failed: ${message}`, documentId)
-      .run();
-    return { outcome: 'failed', chunksCreated: 0 };
-  }
-
-  // New chunks are live in Vectorize — safe to replace the D1 rows now.
+/** Writes the final indexed D1 state for ONE document, given its vectors are ALREADY confirmed live in Vectorize (upserted as part of the whole batch — see embedAndFinalizeAll). No Vectorize calls here. */
+async function writeDocumentIndexedState(
+  env: Env,
+  documentId: number,
+  wasPreExisting: boolean,
+  faqs: { question: string; answer: string }[],
+  chunks: TextChunk[],
+  vectorRecords: VectorRecord[],
+  embeddingModel: string
+): Promise<void> {
   await env.DB.batch([
     env.DB.prepare(`DELETE FROM knowledge_chunks WHERE document_id = ?`).bind(documentId),
     ...chunks.map((chunk, i) =>
@@ -284,21 +319,6 @@ async function finalizeDocument(env: Env, logger: Logger, prepared: PreparedDocu
     ...faqs.map((faq) => env.DB.prepare(`INSERT INTO knowledge_faqs (document_id, question, answer) VALUES (?, ?, ?)`).bind(documentId, faq.question, faq.answer)),
   ]);
 
-  if (oldChunks.length > 0) {
-    const oldVectorIds = oldChunks.map((c) => c.vector_id).filter((id) => !vectorRecords.some((v) => v.id === id));
-    if (oldVectorIds.length > 0) {
-      try {
-        await env.KNOWLEDGE_INDEX.deleteByIds(oldVectorIds);
-      } catch (err) {
-        // A failure to clean up OLD vectors does not make this
-        // document's re-index a failure — the new vectors are already
-        // live and correct; a few orphaned old vectors are a cleanup
-        // concern, not a correctness one.
-        logger.error('knowledge.old_vector_cleanup_failed', { documentKey, error: err instanceof Error ? err.message : String(err) });
-      }
-    }
-  }
-
   // A brand-new document already started at version = 1 (the schema
   // default, set when planning INSERTed its 'pending' row) — only a
   // document that existed BEFORE this run should have its version
@@ -310,17 +330,18 @@ async function finalizeDocument(env: Env, logger: Logger, prepared: PreparedDocu
   )
     .bind(chunks.length, documentId)
     .run();
-
-  return { outcome: 'indexed', chunksCreated: chunks.length };
 }
 
 /**
  * Embeds every prepared document's chunks and finalizes each one, using
- * as few embed calls as this batch's total chunk volume allows —
- * documents are packed by accumulated chunk count (capped at
+ * as few embed calls (and as few Vectorize write calls) as this batch
+ * allows. Documents are packed by accumulated chunk count (capped at
  * EMBED_BATCH_SIZE) without splitting one document's own chunks across
- * two calls. Returns one outcome per input document, in the same order,
- * so the caller can attribute results back to the right run/message.
+ * two embed calls; every document's resulting vectors are then upserted
+ * to Vectorize in ONE combined call per embed-batch, not one call per
+ * document (see this file's header comment on VECTOR_UPSERT_ERROR
+ * 40014). Returns one outcome per input document, in the same order, so
+ * the caller can attribute results back to the right run/message.
  */
 async function embedAndFinalizeAll(env: Env, logger: Logger, prepared: PreparedDocument[]): Promise<FinalizeOutcome[]> {
   const results: FinalizeOutcome[] = new Array(prepared.length);
@@ -339,35 +360,88 @@ async function embedAndFinalizeAll(env: Env, logger: Logger, prepared: PreparedD
     const batch = batchIndices.map((idx) => prepared[idx]);
     const allTexts = batch.flatMap((p) => p.chunks.map((c) => c.text));
 
-    try {
-      const result = await embedText(env, logger, {
-        feature: EMBEDDING_FEATURE,
-        actorType: 'system',
-        actorId: null,
-        classification: 'PUBLIC', // every source this milestone indexes is public-facing platform content — see documentSources.ts's own dataClassification reasoning
-        texts: allTexts,
-      });
-
-      if (result.embeddings.length !== allTexts.length) {
-        throw new Error(`Embedding count mismatch: ${result.embeddings.length} vectors for ${allTexts.length} input texts.`);
+    processBatch: {
+      let embeddings: number[][];
+      let embeddingModel: string;
+      try {
+        const result = await embedText(env, logger, {
+          feature: EMBEDDING_FEATURE,
+          actorType: 'system',
+          actorId: null,
+          classification: 'PUBLIC', // every source this milestone indexes is public-facing platform content — see documentSources.ts's own dataClassification reasoning
+          texts: allTexts,
+        });
+        if (result.embeddings.length !== allTexts.length) {
+          throw new Error(`Embedding count mismatch: ${result.embeddings.length} vectors for ${allTexts.length} input texts.`);
+        }
+        embeddings = result.embeddings;
+        embeddingModel = result.model;
+      } catch (err) {
+        const message = err instanceof Error ? err.message : 'Unknown embedding error';
+        for (let bi = 0; bi < batch.length; bi++) {
+          logger.error('knowledge.embedding_failed', { documentKey: batch[bi].documentKey, error: message });
+          await markDocumentFailed(env, batch[bi].documentId, `Embedding failed: ${message}`);
+          results[batchIndices[bi]] = { outcome: 'failed', chunksCreated: 0 };
+        }
+        break processBatch;
       }
 
+      const newVersionSuffix = Date.now();
+      const perDocVectorRecords: VectorRecord[][] = [];
       let offset = 0;
-      for (let bi = 0; bi < batch.length; bi++) {
-        const p = batch[bi];
-        const docEmbeddings = result.embeddings.slice(offset, offset + p.chunks.length);
+      for (const p of batch) {
+        const docEmbeddings = embeddings.slice(offset, offset + p.chunks.length);
         offset += p.chunks.length;
-        results[batchIndices[bi]] = await finalizeDocument(env, logger, p, docEmbeddings, result.model);
+        perDocVectorRecords.push(
+          p.chunks.map((chunk, idx) => ({
+            id: `chunk-${p.documentId}-${idx}-${newVersionSuffix}`,
+            values: docEmbeddings[idx],
+            metadata: { documentId: p.documentId, sourceType: p.sourceType, sourceUrl: p.sourceUrl ?? '' },
+          }))
+        );
       }
-    } catch (err) {
-      const message = err instanceof Error ? err.message : 'Unknown embedding error';
+      const allVectorRecords = perDocVectorRecords.flat();
+
+      try {
+        await withVectorizeRateLimitRetry(logger, 'upsert', () => env.KNOWLEDGE_INDEX.upsert(allVectorRecords));
+      } catch (err) {
+        const message = err instanceof Error ? err.message : 'Unknown Vectorize error';
+        for (let bi = 0; bi < batch.length; bi++) {
+          logger.error('knowledge.vectorize_upsert_failed', { documentKey: batch[bi].documentKey, error: message });
+          await markDocumentFailed(env, batch[bi].documentId, `Vectorize upsert failed: ${message}`);
+          results[batchIndices[bi]] = { outcome: 'failed', chunksCreated: 0 };
+        }
+        break processBatch;
+      }
+
+      // New vectors are live — write each document's D1 state (cheap,
+      // per-document; D1 write volume was never the reported problem),
+      // collecting old vector ids for ONE combined cleanup delete
+      // afterward rather than one deleteByIds() call per document.
+      const allOldVectorIdsToDelete: string[] = [];
       for (let bi = 0; bi < batch.length; bi++) {
         const p = batch[bi];
-        logger.error('knowledge.embedding_failed', { documentKey: p.documentKey, error: message });
-        await env.DB.prepare(`UPDATE knowledge_documents SET status = 'failed', error_message = ?, updated_at = datetime('now') WHERE id = ?`)
-          .bind(`Embedding failed: ${message}`, p.documentId)
-          .run();
-        results[batchIndices[bi]] = { outcome: 'failed', chunksCreated: 0 };
+        const vectorRecords = perDocVectorRecords[bi];
+        const oldChunks = p.wasPreExisting
+          ? (await env.DB.prepare(`SELECT vector_id FROM knowledge_chunks WHERE document_id = ?`).bind(p.documentId).all<{ vector_id: string }>()).results
+          : [];
+        await writeDocumentIndexedState(env, p.documentId, p.wasPreExisting, p.faqs, p.chunks, vectorRecords, embeddingModel);
+        results[batchIndices[bi]] = { outcome: 'indexed', chunksCreated: p.chunks.length };
+        for (const c of oldChunks) {
+          if (!vectorRecords.some((v) => v.id === c.vector_id)) allOldVectorIdsToDelete.push(c.vector_id);
+        }
+      }
+
+      if (allOldVectorIdsToDelete.length > 0) {
+        try {
+          await withVectorizeRateLimitRetry(logger, 'deleteByIds', () => env.KNOWLEDGE_INDEX.deleteByIds(allOldVectorIdsToDelete));
+        } catch (err) {
+          // Same posture as Milestone 2: failing to clean up OLD vectors
+          // does not make the re-index itself a failure — the new
+          // vectors are already live and correct; a few orphaned old
+          // vectors are a cleanup concern, not a correctness one.
+          logger.error('knowledge.old_vector_cleanup_failed', { count: allOldVectorIdsToDelete.length, error: err instanceof Error ? err.message : String(err) });
+        }
       }
     }
   }
