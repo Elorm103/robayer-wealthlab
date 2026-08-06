@@ -232,6 +232,14 @@ function initAdminKnowledgeBase() {
       els.searchMeta.hidden = false;
       els.searchMeta.textContent = `${result.results.length} result(s) in ${result.latencyMs}ms.`;
       renderSearchResults(result.results);
+      // Version 5.0 Milestone 2.2 refinement pass — loadSearchAnalytics()
+      // was previously only called once, on page load, so a new
+      // diagnostic search never updated Total Searches/Most Retrieved
+      // Documents/etc. until a manual page reload. Every real search
+      // this function runs writes to knowledge_search_log, so refresh
+      // the analytics panel right after, same as the run-status polling
+      // does after triggering a reindex.
+      loadSearchAnalytics();
     } catch (error) {
       els.searchError.textContent = error.message || 'Search failed.';
       els.searchError.hidden = false;
