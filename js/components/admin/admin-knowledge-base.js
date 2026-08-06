@@ -217,10 +217,17 @@ function initAdminKnowledgeBase() {
     els.searchButton.disabled = true;
     els.searchResults.innerHTML = '';
     try {
+      // Version 5.0 Milestone 2.2 refinement pass — the diagnostics tool
+      // requests the maximum allowed limit (20, vs. the 5 a real caller
+      // would typically use) so an admin investigating a retrieval gap
+      // sees the full candidate pool Vectorize actually returned
+      // (topK = limit * 4 in searchService.ts), not just the top 5.
+      // This is a measurement/diagnostic-breadth change only — it does
+      // not alter ranking logic or the topK formula itself.
       const result = await window.AdminAuth.adminFetch(`${KB_API_BASE}/search-test`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ query, visibility: 'public' }),
+        body: JSON.stringify({ query, visibility: 'public', limit: 20 }),
       });
       els.searchMeta.hidden = false;
       els.searchMeta.textContent = `${result.results.length} result(s) in ${result.latencyMs}ms.`;
