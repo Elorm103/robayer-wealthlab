@@ -1,0 +1,132 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+
+  <title>Ask the Robayer WealthLab Assistant | Robayer WealthLab</title>
+  <meta name="description" content="Ask a question about saving, investing, or building wealth in Ghana. Answers come from Robayer WealthLab's own guides and articles, always cited, never invented.">
+  <link rel="canonical" href="https://robayerwealthlab.com/ai-assistant/">
+
+  <meta property="og:type" content="website">
+  <meta property="og:title" content="Ask the Robayer WealthLab Assistant | Robayer WealthLab">
+  <meta property="og:description" content="Ask a question about saving, investing, or building wealth in Ghana. Answers come from Robayer WealthLab's own guides and articles, always cited, never invented.">
+  <meta property="og:url" content="https://robayerwealthlab.com/ai-assistant/">
+  <meta property="og:image" content="https://robayerwealthlab.com/assets/branding/social/og-image.jpg">
+  <meta property="og:site_name" content="Robayer WealthLab">
+
+  <meta name="twitter:card" content="summary_large_image">
+  <meta name="twitter:title" content="Ask the Robayer WealthLab Assistant | Robayer WealthLab">
+  <meta name="twitter:description" content="Ask a question about saving, investing, or building wealth in Ghana — answers cited from our own content, never invented.">
+
+  <meta name="robots" content="noindex, follow">
+  <!-- Version 5.0 Milestone 3: noindex — a chat interface has no fixed
+       content for search engines to index; every other public page on
+       the site remains indexable. -->
+
+  <link rel="icon" type="image/svg+xml" href="/assets/icons/favicon.svg">
+  <link rel="icon" type="image/png" sizes="32x32" href="/assets/icons/favicon-32.png">
+  <link rel="apple-touch-icon" href="/assets/icons/apple-touch-icon.png">
+
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Newsreader:ital,wght@0,600;1,500&family=Space+Grotesk:wght@500&family=Work+Sans:wght@400;500&family=IBM+Plex+Mono:wght@400;500&display=swap" rel="stylesheet">
+
+  <link rel="stylesheet" href="/css/tokens.css?v=167327e0c9">
+  <link rel="stylesheet" href="/css/base.css?v=57a963bc6f">
+  <link rel="stylesheet" href="/css/layout.css?v=a6fb0c7359">
+  <link rel="stylesheet" href="/css/components.css?v=m3ai1">
+  <link rel="stylesheet" href="/css/utilities.css?v=406dfe7300">
+
+  <script type="application/ld+json">
+  {
+    "@context": "https://schema.org",
+    "@type": "Organization",
+    "name": "Robayer WealthLab",
+    "url": "https://robayerwealthlab.com",
+    "logo": "https://robayerwealthlab.com/assets/branding/logo/logo.png",
+    "description": "Financial education for ordinary Ghanaians: practical, honest guidance on saving, investing, and building wealth.",
+    "telephone": "+233 53 780 6352",
+    "address": { "@type": "PostalAddress", "addressLocality": "Accra", "addressCountry": "GH" },
+    "founder": { "@type": "Person", "name": "Robert Loh Kobla" },
+    "sameAs": [
+      "https://facebook.com/RobayerWealthLab",
+      "https://www.instagram.com/robayerwealthlab/",
+      "https://linkedin.com/company/robayerwealthlab",
+      "https://www.youtube.com/@RobayerWealthLab",
+      "https://wa.me/233537806352",
+      "https://www.tiktok.com/@robayerwealthlab"
+    ]
+  }
+  </script>
+</head>
+<body>
+  <a href="#main-content" class="skip-link">Skip to main content</a>
+
+  <div data-include="/partials/header.html"></div>
+
+  <main id="main-content">
+
+    <section class="hero bg-paper" style="padding-bottom: var(--space-4);">
+      <div class="container hero__content">
+        <p class="hero__eyebrow eyebrow">Ask Robayer WealthLab</p>
+        <h1 class="hero__title">Your financial education assistant</h1>
+        <p class="hero__subtitle">Ask a question about saving, investing, or building wealth in Ghana. Every answer is grounded in our own guides and articles, cited so you can read further — never invented.</p>
+      </div>
+    </section>
+
+    <section class="section section--tight">
+      <div class="container" style="max-width: 760px;">
+
+        <div class="ai-chat" data-ai-chat>
+          <div class="alert alert--info" role="note">
+            This assistant answers using Robayer WealthLab's own published content and is an educational guide, not a licensed financial advisor — it never gives personalized investment advice. For guidance specific to your situation, see our <a href="/consultation/">consultation service</a>.
+          </div>
+
+          <div class="ai-chat__messages" data-ai-messages aria-live="polite" aria-label="Conversation"></div>
+
+          <div class="ai-chat__suggestions" data-ai-suggestions hidden></div>
+
+          <div class="alert alert--error ai-chat__error-banner" data-ai-error hidden>
+            <span data-ai-error-text>Something went wrong. Please try again.</span>
+            <button type="button" class="btn btn--secondary btn--sm" data-ai-retry>Retry</button>
+          </div>
+
+          <form class="ai-chat__composer" data-ai-composer>
+            <label for="ai-question" class="sr-only">Ask a question</label>
+            <textarea
+              id="ai-question"
+              class="field__textarea ai-chat__input"
+              data-ai-input
+              placeholder="Ask about saving, investing, treasury bills…"
+              rows="2"
+              maxlength="500"
+              required
+            ></textarea>
+            <div class="ai-chat__composer-actions">
+              <span class="ai-chat__hint">Press Enter to send, Shift+Enter for a new line.</span>
+              <div class="cluster gap-2">
+                <button type="button" class="btn btn--secondary btn--sm" data-ai-reset>Reset conversation</button>
+                <button type="submit" class="btn btn--primary" data-ai-send>Ask</button>
+              </div>
+            </div>
+          </form>
+        </div>
+
+      </div>
+    </section>
+
+  </main>
+
+  <div data-include="/partials/footer.html"></div>
+
+  <script src="/js/includes.js?v=cba95d9aa1"></script>
+  <script src="/js/components/analytics.js?v=dd6f93b38e"></script>
+  <script src="/js/components/nav.js?v=c2889cbb06"></script>
+  <script src="/js/components/theme-toggle.js?v=eebe98960c"></script>
+  <script src="/js/components/branding.js?v=483b048741"></script>
+  <script src="/js/content-inject.js?v=10a4d215c2"></script>
+  <script src="/js/components/ai-assistant.js?v=1"></script>
+  <script src="/js/main.js?v=7050d1e123"></script>
+</body>
+</html>

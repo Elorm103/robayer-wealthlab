@@ -1,0 +1,123 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+
+  <title>Customer AI | Robayer WealthLab Admin</title>
+  <meta name="description" content="Customer AI assistant analytics — conversations, confidence, latency, and feedback. Version 5.0 Milestone 3.">
+  <link rel="canonical" href="https://robayerwealthlab.com/admin/customer-ai/">
+  <meta name="robots" content="noindex, nofollow">
+
+  <link rel="icon" type="image/svg+xml" href="/assets/icons/favicon.svg">
+  <link rel="icon" type="image/png" sizes="32x32" href="/assets/icons/favicon-32.png">
+  <link rel="apple-touch-icon" href="/assets/icons/apple-touch-icon.png">
+
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Newsreader:ital,wght@0,600;1,500&family=Space+Grotesk:wght@500&family=Work+Sans:wght@400;500&family=IBM+Plex+Mono:wght@400;500&display=swap" rel="stylesheet">
+
+  <link rel="stylesheet" href="/css/tokens.css?v=167327e0c9">
+  <link rel="stylesheet" href="/css/base.css?v=57a963bc6f">
+  <link rel="stylesheet" href="/css/layout.css?v=a6fb0c7359">
+  <link rel="stylesheet" href="/css/components.css?v=m3ai1">
+  <link rel="stylesheet" href="/css/utilities.css?v=406dfe7300">
+  <link rel="stylesheet" href="/css/admin.css?v=2d07c9c939">
+</head>
+<body>
+  <a href="#main-content" class="skip-link">Skip to main content</a>
+
+  <div class="admin-shell" data-sidebar-collapsed="false">
+    <div class="admin-include" data-include="/partials/admin-sidebar.html"></div>
+
+    <div class="admin-main">
+      <div class="admin-include" data-include="/partials/admin-topbar.html"></div>
+
+      <main class="admin-content" id="main-content" data-cai-root>
+        <p class="text-small text-secondary mb-4">
+          Version 5.0 Milestone 3. Analytics for the customer-facing AI assistant (<a href="/ai-assistant/">/ai-assistant/</a>) —
+          every conversation turn logged here, retrieval detail also available via Knowledge Base &gt; Search Analytics
+          (searchKnowledge() is reused unmodified for every turn). Super-admin only.
+        </p>
+
+        <p class="alert alert--error" role="alert" data-cai-load-error hidden></p>
+
+        <h2 class="text-lg mb-3">Overview</h2>
+        <div class="grid grid--4 mb-4">
+          <div class="stat-card">
+            <p class="stat-card__label">Total messages</p>
+            <p class="stat-card__value" data-cai-total>—</p>
+          </div>
+          <div class="stat-card">
+            <p class="stat-card__label">Answered</p>
+            <p class="stat-card__value" data-cai-answered>—</p>
+          </div>
+          <div class="stat-card">
+            <p class="stat-card__label">Declined (very low confidence)</p>
+            <p class="stat-card__value" data-cai-declined>—</p>
+          </div>
+          <div class="stat-card">
+            <p class="stat-card__label">Errors</p>
+            <p class="stat-card__value" data-cai-errors>—</p>
+          </div>
+        </div>
+
+        <div class="grid grid--2 mb-4">
+          <div>
+            <h2 class="text-lg mb-3">Confidence distribution</h2>
+            <dl data-cai-confidence-dist></dl>
+          </div>
+          <div>
+            <h2 class="text-lg mb-3">Feedback</h2>
+            <dl data-cai-feedback></dl>
+          </div>
+        </div>
+
+        <h2 class="text-lg mb-3">Latency</h2>
+        <div class="grid grid--4 mb-4">
+          <div class="stat-card">
+            <p class="stat-card__label">Avg retrieval</p>
+            <p class="stat-card__value" data-cai-latency-retrieval>—</p>
+          </div>
+          <div class="stat-card">
+            <p class="stat-card__label">Avg LLM</p>
+            <p class="stat-card__value" data-cai-latency-llm>—</p>
+          </div>
+          <div class="stat-card">
+            <p class="stat-card__label">Avg total</p>
+            <p class="stat-card__value" data-cai-latency-total>—</p>
+          </div>
+          <div class="stat-card">
+            <p class="stat-card__label">p95 total</p>
+            <p class="stat-card__value" data-cai-latency-p95>—</p>
+          </div>
+        </div>
+
+        <h2 class="text-lg mb-3">Recent conversations</h2>
+        <div class="admin-table-wrap">
+          <table class="table" aria-label="Recent customer AI conversations">
+            <thead>
+              <tr>
+                <th>Question</th>
+                <th>Status</th>
+                <th>Confidence</th>
+                <th>Latency</th>
+                <th>Feedback</th>
+                <th>When</th>
+              </tr>
+            </thead>
+            <tbody data-cai-recent-body></tbody>
+          </table>
+        </div>
+      </main>
+    </div>
+  </div>
+
+  <script src="/js/includes.js?v=cba95d9aa1"></script>
+  <script src="/js/components/theme-toggle.js?v=eebe98960c"></script>
+  <script src="/js/components/branding.js?v=483b048741"></script>
+  <script src="/js/components/admin/admin-auth.js?v=bb1cec7934"></script>
+  <script src="/js/components/admin/admin-shell.js?v=7233204897"></script>
+  <script src="/js/components/admin/admin-customer-ai.js?v=1"></script>
+</body>
+</html>

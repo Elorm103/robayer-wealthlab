@@ -101,6 +101,8 @@ import {
   handleListDeadLetters as handleKnowledgeBaseDeadLetters,
   handleRetryDeadLetter as handleKnowledgeBaseRetryDeadLetter,
 } from '../routes/admin/knowledgeBase';
+import { handleAskCustomerAi, handleCustomerAiFeedback } from '../routes/customer/aiAssistant';
+import { handleGetCustomerAiAnalytics } from '../routes/admin/customerAi';
 import { processIndexingQueueBatch, recordDeadLetters, INDEXING_QUEUE_MAX_RETRIES } from '../services/knowledge/indexingService';
 import type { KnowledgeIndexQueueMessage } from '../services/knowledge/queueTypes';
 import {
@@ -610,6 +612,12 @@ const ROUTES: Route[] = [
   { pattern: new URLPattern({ pathname: '/api/customer/reviews/:id' }), method: 'DELETE', handler: handleDeleteOwnReview },
   { pattern: new URLPattern({ pathname: '/api/admin/reviews' }), method: 'GET', handler: handleAdminReviewsList },
   { pattern: new URLPattern({ pathname: '/api/admin/reviews/:id/moderate' }), method: 'POST', handler: handleAdminReviewModerate },
+
+  // Version 5.0 Milestone 3 (Customer AI) — public, unauthenticated
+  // (see routes/customer/aiAssistant.ts's own header comment for why).
+  { pattern: new URLPattern({ pathname: '/api/customer/ai-assistant/ask' }), method: 'POST', handler: handleAskCustomerAi },
+  { pattern: new URLPattern({ pathname: '/api/customer/ai-assistant/feedback' }), method: 'POST', handler: handleCustomerAiFeedback },
+  { pattern: new URLPattern({ pathname: '/api/admin/customer-ai/analytics' }), method: 'GET', handler: handleGetCustomerAiAnalytics },
 
   // Version 3.2 Milestone M4 — Coupon Engine, schema corrected per the
   // M4B Required Amendment 1.

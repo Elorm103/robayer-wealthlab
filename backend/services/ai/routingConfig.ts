@@ -32,6 +32,12 @@ const ROUTING_TABLE: Record<string, RoutingCandidate[]> = {
   // requires a full rebuild (services/knowledge/indexingService.ts's
   // runFullRebuild()), not just a routing-table edit.
   'knowledge.embed': [{ provider: 'openai', model: 'text-embedding-3-small' }],
+  // Version 5.0 Milestone 3 (Customer AI) — the chat-completion model
+  // used to phrase a grounded answer from retrieved Knowledge Base
+  // chunks. gpt-4o-mini, matching the model already validated by
+  // 'internal.gateway-diagnostic' above — no new provider, no new
+  // pricing entry needed in openAiProvider.ts.
+  'customer.chat': [{ provider: 'openai', model: 'gpt-4o-mini' }],
 };
 
 export function getRoutingCandidates(feature: string): RoutingCandidate[] {
