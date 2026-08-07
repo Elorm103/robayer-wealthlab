@@ -153,9 +153,25 @@ const SITEMAP_URL_PATTERN = /<loc>\s*([^<\s]+)\s*<\/loc>/gi;
  * Centre, Services, Calculators, Legal/Policies, and every other
  * top-level public page). Excludes any URL already covered by a
  * richer, D1-backed reader above (`/blog/{slug}/` for a real
- * published post, `/books/{slug}/` for a real active product,
- * `/resources/` entirely) so the same content is never indexed twice
- * under two different document_keys.
+ * published post, `/books/{slug}/` for a real active product) so the
+ * same content is never indexed twice under two different
+ * document_keys.
+ *
+ * The `/resources/` LISTING page itself is deliberately included, not
+ * excluded — Version 5.0 Milestone 2.2's real production verification
+ * found "What resources are available?" retrieved only adjacent static
+ * pages, never the one indexed resource item. Root cause, confirmed
+ * with hard evidence (raising Vectorize's oversampling to cover 89% of
+ * the entire corpus still didn't surface it): the resource item's own
+ * title/description share essentially no vocabulary with how someone
+ * asks "what's available," so no amount of reranking or wider
+ * candidate pooling helps — the query needs a genuine catalog-level
+ * document to match against. The sitemap has exactly one URL
+ * containing "resources" (confirmed directly against the real
+ * sitemap.xml) — the listing page — so including it here adds one new
+ * `static_page:/resources/` document with no risk of colliding with or
+ * duplicating the individual `resource:{id}` documents
+ * getResourceDocuments() already indexes.
  */
 export async function getStaticPageDocuments(
   env: Env,
@@ -178,7 +194,6 @@ export async function getStaticPageDocuments(
   const documents: SourceDocument[] = [];
   for (const url of urls) {
     if (excludeUrls.has(url)) continue;
-    if (url.includes('/resources/')) continue; // fully covered by getResourceDocuments()
 
     try {
       const response = await fetch(url);

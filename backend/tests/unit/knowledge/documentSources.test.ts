@@ -75,12 +75,11 @@ describe('documentSources', () => {
     expect(docs).toHaveLength(0);
   });
 
-  it('getStaticPageDocuments crawls the real sitemap, excludes given URLs, and always excludes /resources/', async () => {
+  it('getStaticPageDocuments crawls the real sitemap and excludes given URLs', async () => {
     await queueSitemapResponse(
       env as any,
       `<?xml version="1.0"?><urlset>
         <url><loc>https://robayerwealthlab.com/investment-centre/treasury-bills/</loc></url>
-        <url><loc>https://robayerwealthlab.com/resources/</loc></url>
         <url><loc>https://robayerwealthlab.com/blog/already-covered/</loc></url>
       </urlset>`
     );
@@ -95,6 +94,28 @@ describe('documentSources', () => {
     expect(docs[0].url).toBe('https://robayerwealthlab.com/investment-centre/treasury-bills/');
     expect(docs[0].sourceType).toBe('static_page');
     expect(docs[0].documentKey).toBe('static_page:/investment-centre/treasury-bills/');
+  });
+
+  it('getStaticPageDocuments now includes the /resources/ listing page itself, not just individual resource items', async () => {
+    // Version 5.0 Milestone 2.2 refinement — real production evidence
+    // showed "What resources are available?" never retrieved anything
+    // useful because the listing page was excluded from the crawl on
+    // the assumption individual resource items covered it; they don't
+    // share the query's vocabulary. See documentSources.ts's own header
+    // comment on getStaticPageDocuments() for the full reasoning.
+    await queueSitemapResponse(env as any, `<?xml version="1.0"?><urlset><url><loc>https://robayerwealthlab.com/resources/</loc></url></urlset>`);
+    await queueSitePageResponse(
+      env as any,
+      '/resources/',
+      `<!doctype html><html><head><title>Resources | Robayer WealthLab</title></head><body><main><p>Free guides, templates, and tools to help you build wealth.</p></main></body></html>`
+    );
+
+    const docs = await getStaticPageDocuments(env as any, new Set(), logger);
+    expect(docs).toHaveLength(1);
+    expect(docs[0].url).toBe('https://robayerwealthlab.com/resources/');
+    expect(docs[0].sourceType).toBe('static_page');
+    expect(docs[0].documentKey).toBe('static_page:/resources/');
+    expect(docs[0].text).toContain('Free guides, templates, and tools');
   });
 
   it('getCmsSettingDocuments reads hero_content when configured, and returns nothing when absent', async () => {
