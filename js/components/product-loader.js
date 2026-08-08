@@ -352,9 +352,15 @@
       ? ' style="background-image:url(\'' + escapeHtml(cardImage) + '\');background-size:cover;background-position:center;"'
       : '';
 
+    // "Buy Now" jumps straight to the product page's own #buy purchase
+    // widget (backend/routes/books.ts's renderBookDetail() gives that
+    // section a stable id) instead of landing at the top of the page —
+    // matches the same fix applied server-side to renderProductCard(),
+    // so both the client-rendered and server-rendered versions of this
+    // card behave identically, not two diverging copies of the same rule.
     const actions = isUpcoming
       ? '<a href="/newsletter/" class="btn btn--secondary">Get notified</a>'
-      : '<a href="' + href + '" class="btn btn--primary">Buy Now</a><a href="' + href + '" class="btn btn--secondary">Learn More</a>';
+      : '<a href="' + href + '#buy" class="btn btn--primary">Buy Now</a><a href="' + href + '" class="btn btn--secondary">Learn More</a>';
 
     return (
       // data-category aliases data-topic and data-title exposes the
