@@ -339,7 +339,7 @@ async function renderFreeGuideIndex(env: Env): Promise<Response> {
     extraHead: breadcrumbJsonLd + faqJsonLd(),
     breadcrumb,
     bodyContent: body,
-    scripts: ['/js/main.js?v=a1b2c3d5e0'],
+    scripts: ['/js/main.js?v=b2c3d4e6f1'],
   });
 
   return htmlResponse(html, 200);

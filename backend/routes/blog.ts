@@ -458,12 +458,13 @@ ${NEWSLETTER_BAND}`;
 
   // Version 5.0 (Customer Acquisition Phase 2) — see
   // backend/routes/books.ts's identical pageContentScript for the full
-  // reasoning. Omitted on a preview render (isPreview) — a draft/
-  // preview view is never a real ViewContent.
+  // reasoning (a <meta> tag, not an inline <script>, per this site's
+  // CSP). Omitted on a preview render (isPreview) — a draft/preview
+  // view is never a real ViewContent.
   const pageContentScript = isPreview
     ? ''
     : `
-  <script>window.__robayerPageContent = ${JSON.stringify({ contentType: 'article', contentId: post.slug, contentName: post.title })};</script>`;
+  <meta name="robayer-page-content" content="${escapeHtml(JSON.stringify({ contentType: 'article', contentId: post.slug, contentName: post.title }))}">`;
 
   const html = renderShell({
     title: post.seoTitle ?? `${post.title} | ${SITE_NAME}`,

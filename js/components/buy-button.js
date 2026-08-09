@@ -52,6 +52,17 @@
 const CHECKOUT_API_URL = '/api/checkout/sessions';
 const COUPON_VALIDATE_API_URL = '/api/coupons/validate';
 
+/** Version 5.0 (Customer Acquisition Phase 3) — see js/components/meta-pixel.js's own header comment for why this reads a <meta> tag, not an inline script. */
+function readPageContent() {
+  const tag = document.querySelector('meta[name="robayer-page-content"]');
+  if (!tag) return {};
+  try {
+    return JSON.parse(tag.getAttribute('content')) || {};
+  } catch (err) {
+    return {};
+  }
+}
+
 function formatPesewas(pesewas) {
   const symbol = 'GH₵';
   const rounded = Math.round(pesewas) / 100;
@@ -242,12 +253,14 @@ function initBuyButtons() {
       // checkout, before the network round-trip (matching Meta's own
       // "as close to the real intent as possible" guidance for this
       // event) — never on a validation failure above, which isn't a
-      // real checkout attempt. window.__robayerPageContent (see
-      // backend/routes/books.ts) supplies value/content_name when this
-      // page set one; InitiateCheckout still fires without it rather
-      // than blocking on data that isn't essential to the event.
+      // real checkout attempt. The <meta name="robayer-page-content">
+      // tag (see js/components/meta-pixel.js's own header comment on
+      // why a <meta> tag, not an inline script, given this site's CSP)
+      // supplies value/content_name when the page set one;
+      // InitiateCheckout still fires without it rather than blocking
+      // on data that isn't essential to the event.
       if (window.RobayerTracking) {
-        const pageContent = window.__robayerPageContent || {};
+        const pageContent = readPageContent();
         window.RobayerTracking.track('InitiateCheckout', {
           content_ids: [productSlug],
           content_name: pageContent.contentName,

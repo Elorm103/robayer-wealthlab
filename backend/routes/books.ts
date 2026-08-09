@@ -1227,17 +1227,22 @@ ${NEWSLETTER_BAND}`;
   </script>`;
 
   // Version 5.0 (Customer Acquisition Phase 2) — the ViewContent
-  // signal js/components/meta-pixel.js reads (see that file's own
-  // header comment). A plain inline global, not a data attribute,
-  // since this is real per-page data rather than markup config — same
-  // judgment call as the JSON-LD blocks already on this page.
+  // signal js/components/meta-pixel.js reads. A <meta> tag, not an
+  // inline <script>: this site's own Content-Security-Policy
+  // (script-src 'self', no 'unsafe-inline' — see
+  // backend/middleware/securityHeaders.ts) blocks inline scripts by
+  // design, confirmed the hard way when an earlier inline-script
+  // version of this signal was silently CSP-blocked in production. A
+  // <meta> tag isn't subject to that directive at all.
   const pageContentScript = `
-  <script>window.__robayerPageContent = ${JSON.stringify({
-    contentType: 'product',
-    contentId: product.slug,
-    contentName: product.title,
-    value: product.pricePesewas !== null ? Number((product.pricePesewas / 100).toFixed(2)) : undefined,
-  })};</script>`;
+  <meta name="robayer-page-content" content="${escapeHtml(
+    JSON.stringify({
+      contentType: 'product',
+      contentId: product.slug,
+      contentName: product.title,
+      value: product.pricePesewas !== null ? Number((product.pricePesewas / 100).toFixed(2)) : undefined,
+    })
+  )}">`;
 
   const html = renderShell({
     title: product.seoTitle ?? `${product.title} | ${SITE_NAME}`,

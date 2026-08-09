@@ -88,7 +88,7 @@
 
     const script = document.createElement('script');
     script.defer = true;
-    script.src = '/js/components/meta-pixel.js';
+    script.src = '/js/components/meta-pixel.js?v=1';
     script.setAttribute('data-pixel-id', pixelId);
     document.head.appendChild(script);
   }

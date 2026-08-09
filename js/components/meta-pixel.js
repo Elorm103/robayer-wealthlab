@@ -97,14 +97,25 @@
   window.RobayerTracking = { track: track, standardEvents: STANDARD_EVENTS };
 
   // Phase 2 — ViewContent on any page that declares what content it
-  // is. `window.__robayerPageContent` is a small, per-page-template
-  // inline object (set by the product/blog/investment-centre/
-  // resources/Customer AI page itself, before this deferred script
-  // runs — see backend/routes/books.ts, backend/routes/blog.ts, and
-  // the equivalent static pages) — never guessed from the URL, so a
-  // page that doesn't genuinely represent one product/article never
-  // fires a misleading ViewContent.
-  var pageContent = window.__robayerPageContent;
+  // is, via a <meta name="robayer-page-content"> tag (set by the
+  // product/blog/investment-centre/resources/Customer AI page itself —
+  // see backend/routes/books.ts, backend/routes/blog.ts, and the
+  // equivalent static pages). Deliberately a <meta> tag, not an inline
+  // <script>: this site's own Content-Security-Policy (script-src
+  // 'self', no 'unsafe-inline' — see backend/middleware/securityHeaders.ts)
+  // blocks inline scripts by design, and a <meta> tag isn't subject to
+  // that directive at all. Never guessed from the URL, so a page that
+  // doesn't genuinely represent one product/article never fires a
+  // misleading ViewContent.
+  var pageContentTag = document.querySelector('meta[name="robayer-page-content"]');
+  var pageContent = null;
+  if (pageContentTag) {
+    try {
+      pageContent = JSON.parse(pageContentTag.getAttribute('content'));
+    } catch (err) {
+      pageContent = null;
+    }
+  }
   if (pageContent && pageContent.contentType) {
     track('ViewContent', {
       content_type: pageContent.contentType,

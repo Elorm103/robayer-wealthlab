@@ -374,11 +374,12 @@ ${NEWSLETTER_BAND}`;
 
   // Version 5.0 (Customer Acquisition Phase 2) — see
   // backend/routes/books.ts's identical pageContentScript for the full
-  // reasoning. This is a listing page, not one item, so there's no
+  // reasoning (a <meta> tag, not an inline <script>, per this site's
+  // CSP). This is a listing page, not one item, so there's no
   // contentId/value — 'resources_listing' still lets a ViewContent be
   // attributed distinctly from every other content type.
   const pageContentScript = `
-  <script>window.__robayerPageContent = ${JSON.stringify({ contentType: 'resources_listing' })};</script>`;
+  <meta name="robayer-page-content" content="${escapeHtml(JSON.stringify({ contentType: 'resources_listing' }))}">`;
 
   const html = renderShell({
     title: 'Free Financial Resources & Tools | Robayer WealthLab',
