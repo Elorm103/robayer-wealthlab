@@ -107,13 +107,15 @@ function initFulfilmentStatus() {
     productEl.textContent = `${status.productTitle} (${status.amountDisplay})`;
     referenceEl.textContent = status.purchaseReference;
 
+    trackPurchaseOnce(status);
+
     downloadsEl.innerHTML = '';
     status.assets.forEach((asset) => {
       const button = document.createElement('button');
       button.type = 'button';
       button.className = 'btn btn--accent';
       button.textContent = `Download ${asset.displayName}`;
-      button.addEventListener('click', () => requestDownload(reference, asset.assetId, button));
+      button.addEventListener('click', () => requestDownload(reference, asset.assetId, asset.displayName, asset.fileType, button));
       downloadsEl.appendChild(button);
     });
 
@@ -125,6 +127,48 @@ function initFulfilmentStatus() {
     }
   }
 
+  /**
+   * Version 5.0 (Customer Acquisition Phase 3) — the browser-side half
+   * of Purchase tracking; services/commerceService.ts's
+   * dispatchPurchase() sends the authoritative server-side half via
+   * Conversions API from the one place a payment is actually verified
+   * (Phase 7). Both use the identical `purchase:{reference}` event_id
+   * so Meta's own deduplication collapses them into one conversion,
+   * never two — see migration 0040's header comment.
+   *
+   * showReady() re-runs on every page load that lands on an
+   * already-verified purchase (a refresh, or returning to a bookmarked
+   * confirmation link) — localStorage (not sessionStorage) guards
+   * against re-firing Purchase on any of those, since the real
+   * purchase event happened exactly once, no matter how many times
+   * this page is viewed afterward.
+   */
+  function trackPurchaseOnce(status) {
+    if (!window.RobayerTracking) return;
+    const guardKey = 'robayer_purchase_tracked_' + status.purchaseReference;
+    if (localStorage.getItem(guardKey)) return;
+    localStorage.setItem(guardKey, '1');
+
+    // content_ids is deliberately omitted here: this status endpoint
+    // never exposes the product's own slug/id to the client (see this
+    // file's header comment on not exposing internal identifiers), so
+    // the authoritative content_ids comes from the server-side
+    // Conversions API dispatch (commerceService.ts's dispatchPurchase())
+    // instead — Meta's own deduplication merges both into one
+    // conversion by event_id regardless.
+    const numericValue = parseFloat(String(status.amountDisplay).replace(/[^0-9.]/g, ''));
+    window.RobayerTracking.track(
+      'Purchase',
+      {
+        value: Number.isFinite(numericValue) ? numericValue : undefined,
+        currency: 'GHS',
+        content_name: status.productTitle,
+        transaction_id: status.purchaseReference,
+      },
+      { eventId: 'purchase:' + status.purchaseReference }
+    );
+  }
+
   function showUnavailable(message) {
     processingEl.hidden = true;
     readyEl.hidden = true;
@@ -132,7 +176,7 @@ function initFulfilmentStatus() {
     if (message) unavailableMessageEl.textContent = message;
   }
 
-  async function requestDownload(ref, assetId, button) {
+  async function requestDownload(ref, assetId, displayName, fileType, button) {
     clearDownloadError();
     const defaultLabel = button.textContent;
     button.disabled = true;
@@ -148,6 +192,23 @@ function initFulfilmentStatus() {
 
       if (!response.ok || !body.success || !body.data || !body.data.downloadUrl) {
         throw new Error((body && body.error && body.error.message) || 'This download is not available right now.');
+      }
+
+      // Version 5.0 (Customer Acquisition Phase 4) — Meta has no
+      // standard "download" event, so this is a custom one (per that
+      // phase's own "if a standard event is unsuitable" instruction).
+      // Fired once a real, single-use download link was genuinely
+      // minted for this asset — the closest honest signal available
+      // client-side, since the actual file transfer that follows is a
+      // full-page navigation this script has no further visibility
+      // into (see this function's own header comment on why it's a
+      // navigation, not fetch+blob).
+      if (window.RobayerTracking) {
+        window.RobayerTracking.track('Download', {
+          content_ids: [assetId],
+          content_name: displayName,
+          content_type: fileType,
+        });
       }
 
       // A direct navigation, not fetch+blob: GET /api/download/:token's

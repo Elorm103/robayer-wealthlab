@@ -38,6 +38,14 @@ import { requireAuth } from '../middleware/requireAuth';
 const SITE_NAME = 'Robayer WealthLab';
 const SITE_ORIGIN = 'https://robayerwealthlab.com';
 
+// media_assets.public_url is always site-relative (/api/media/file/...) —
+// correct for CSS background-image (resolves against the current page),
+// but og:image/JSON-LD image must be absolute for social crawlers and
+// schema.org consumers to resolve them.
+function absoluteMediaUrl(url: string): string {
+  return url.startsWith('/') ? `${SITE_ORIGIN}${url}` : url;
+}
+
 function escapeHtml(value: unknown): string {
   if (value === null || value === undefined) return '';
   return String(value)
@@ -199,7 +207,7 @@ function renderBlogCard(post: BlogPostRecord): string {
   const dateLine = post.publishedAt ? `<time datetime="${escapeHtml(post.publishedAt.slice(0, 10))}">${escapeHtml(formatDate(post.publishedAt))}</time> &bull; ${readingTime} min read` : '';
 
   return `<div class="blog-card" id="${escapeHtml(post.slug)}" data-category="${escapeHtml(post.category)}" data-title="${escapeHtml(post.title)}">
-  <div class="blog-card__image"${coverStyle}></div>
+  <div class="blog-card__image" aria-hidden="true"${coverStyle}></div>
   <span class="eyebrow">${escapeHtml(labelize(post.category))}</span>
   <p class="blog-card__title"><a href="/blog/${escapeHtml(post.slug)}/">${escapeHtml(post.title)}</a></p>
   ${post.excerpt ? `<p class="blog-card__excerpt">${escapeHtml(post.excerpt)}</p>` : ''}
@@ -401,7 +409,7 @@ ${previewBanner}
     </section>
     <section class="section">
       <div class="container content-column">
-        <div class="blog-card__image mb-5"${coverStyle} role="img" aria-label=""></div>
+        <div class="blog-card__image mb-5"${coverStyle} role="img" aria-label="${escapeHtml(post.coverAltText ?? post.title)}"></div>
         <div class="article-body">
           ${post.body ?? ''}
         </div>
@@ -435,7 +443,7 @@ ${NEWSLETTER_BAND}`;
     "@type": "Article",
     "headline": ${JSON.stringify(post.title)},
     "description": ${JSON.stringify(post.excerpt ?? '')},
-    "image": ${JSON.stringify(post.coverPublicUrl ?? `${SITE_ORIGIN}/assets/branding/social/og-image.jpg`)},
+    "image": ${JSON.stringify(post.coverPublicUrl ? absoluteMediaUrl(post.coverPublicUrl) : `${SITE_ORIGIN}/assets/branding/social/og-image.jpg`)},
     "author": { "@type": "Person", "name": ${JSON.stringify(post.authorName ?? 'Robayer WealthLab')} },
     "publisher": {
       "@type": "Organization",
@@ -448,12 +456,21 @@ ${NEWSLETTER_BAND}`;
   }
   </script>`;
 
+  // Version 5.0 (Customer Acquisition Phase 2) — see
+  // backend/routes/books.ts's identical pageContentScript for the full
+  // reasoning. Omitted on a preview render (isPreview) — a draft/
+  // preview view is never a real ViewContent.
+  const pageContentScript = isPreview
+    ? ''
+    : `
+  <script>window.__robayerPageContent = ${JSON.stringify({ contentType: 'article', contentId: post.slug, contentName: post.title })};</script>`;
+
   const html = renderShell({
     title: post.seoTitle ?? `${post.title} | ${SITE_NAME}`,
     description: post.seoDescription ?? post.excerpt ?? '',
     canonical: post.seoCanonicalUrl ?? `${SITE_ORIGIN}/blog/${post.slug}/`,
-    ogImage: post.coverPublicUrl ?? `${SITE_ORIGIN}/assets/branding/social/og-image.jpg`,
-    extraHead: breadcrumbJsonLd + (isPreview ? '' : articleJsonLd),
+    ogImage: post.coverPublicUrl ? absoluteMediaUrl(post.coverPublicUrl) : `${SITE_ORIGIN}/assets/branding/social/og-image.jpg`,
+    extraHead: breadcrumbJsonLd + (isPreview ? '' : articleJsonLd) + pageContentScript,
     breadcrumb,
     bodyContent: body,
     scripts: ['/js/components/article-reading.js?v=954b78747a', '/js/main.js?v=7050d1e123'],

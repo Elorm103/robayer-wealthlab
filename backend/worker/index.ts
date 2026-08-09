@@ -183,12 +183,14 @@ import {
   handleOrderResendReceipt,
   handleOrderResendDownload,
   handleOrderRefund,
+  handleOrderReprocess,
 } from '../routes/admin/orders';
 import {
   handleAnalyticsSummary,
   handleAnalyticsTimeseries,
   handleAnalyticsTopProducts,
   handleAnalyticsActivationSummary,
+  handleAnalyticsConversionDispatch,
 } from '../routes/admin/analytics';
 import {
   handleResourcesMeta,
@@ -268,6 +270,7 @@ import { sendDueReviewReminders } from '../services/customer/reviewReminderServi
 import { handlePurchaseFollowupOptOut } from '../routes/customer/purchaseFollowup';
 import { sendDuePurchaseFollowups } from '../services/customer/purchaseFollowupService';
 import { runScheduledCleanup as runAiGatewayRetentionCleanup } from '../services/ai/retentionCleanupService';
+import { retryFailedConversions } from '../services/analytics/conversionDispatchService';
 import { record as recordAuditEvent } from '../services/admin/auditService';
 
 export type { Env };
@@ -446,12 +449,16 @@ const ROUTES: Route[] = [
   // Milestone M2 (Orders, Receipts & Customer Library) — internal,
   // admin-triggered refund/revocation action (ADR-003).
   { pattern: new URLPattern({ pathname: '/api/admin/orders/:reference/refund' }), method: 'POST', handler: handleOrderRefund },
+  // Remediation for a purchase wrongly marked failed/expired by a bug —
+  // see commerceService.adminReprocessPurchase()'s own doc comment.
+  { pattern: new URLPattern({ pathname: '/api/admin/orders/:reference/reprocess' }), method: 'POST', handler: handleOrderReprocess },
   // Analytics (Phase 3 Stage 4) — read-only, no role gate beyond auth.
   { pattern: new URLPattern({ pathname: '/api/admin/analytics/summary' }), method: 'GET', handler: handleAnalyticsSummary },
   { pattern: new URLPattern({ pathname: '/api/admin/analytics/timeseries' }), method: 'GET', handler: handleAnalyticsTimeseries },
   { pattern: new URLPattern({ pathname: '/api/admin/analytics/top-products' }), method: 'GET', handler: handleAnalyticsTopProducts },
   // Version 3.3 Milestone M5C — activation/reconciliation/conversion-funnel metrics for the Business Dashboard extension.
   { pattern: new URLPattern({ pathname: '/api/admin/analytics/activation-summary' }), method: 'GET', handler: handleAnalyticsActivationSummary },
+  { pattern: new URLPattern({ pathname: '/api/admin/analytics/conversion-dispatch' }), method: 'GET', handler: handleAnalyticsConversionDispatch },
   // Added Version 2.1 Phase 1 (Resources CMS) — see
   // docs/v2.1-architecture-plan.md Section 3. Mirrors Products' exact
   // admin route shape (editor/super_admin writes, every role reads);
@@ -777,6 +784,39 @@ export default {
             actorId: null,
             action: 'cron.heartbeat',
             entityType: 'ai_gateway_retention_cleanup',
+            entityId: null,
+            metadata: { ok: false, error: message },
+          });
+        })
+    );
+
+    // Version 5.0 (Customer Acquisition Phase 1) — same Cron Trigger,
+    // same heartbeat-audit pattern as the three jobs above. Gives a
+    // conversion event that exhausted dispatchServerEvent()'s own
+    // inline retry budget one more daily chance before it's given up
+    // on — see conversionDispatchService.ts's retryFailedConversions()
+    // header comment for why this reuses the existing Cron rather than
+    // a new Queue.
+    ctx.waitUntil(
+      retryFailedConversions(env, logger)
+        .then((result) =>
+          recordAuditEvent(env, logger, {
+            actorType: 'system',
+            actorId: null,
+            action: 'cron.heartbeat',
+            entityType: 'analytics_conversion_retry',
+            entityId: null,
+            metadata: { ok: true, eligible: result.eligible, retried: result.retried, nowSent: result.nowSent },
+          })
+        )
+        .catch((err) => {
+          const message = err instanceof Error ? err.message : String(err);
+          logger.error('analytics_conversion_retry.run_failed', { error: message });
+          return recordAuditEvent(env, logger, {
+            actorType: 'system',
+            actorId: null,
+            action: 'cron.heartbeat',
+            entityType: 'analytics_conversion_retry',
             entityId: null,
             metadata: { ok: false, error: message },
           });

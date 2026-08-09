@@ -80,6 +80,22 @@ function initNewsletterForms() {
     confirmation.setAttribute('role', 'status');
     confirmation.textContent = customMessage || "You're in. Look out for your first tip soon.";
     form.replaceWith(confirmation);
+
+    // Version 5.0 (Customer Acquisition Phase 5) — fired exactly once
+    // per genuinely successful subscribe (this function only ever runs
+    // after the server confirmed success), covering every newsletter
+    // form on the site including /free-guide/'s lead-magnet form,
+    // which reuses this exact same component — see
+    // backend/routes/free-guide.ts's header comment on why the free
+    // guide is deliberately built on the newsletter subscribe flow,
+    // not a separate one.
+    if (window.RobayerTracking) {
+      const isFreeGuide = window.location.pathname.replace(/^\/|\/$/g, '') === 'free-guide';
+      window.RobayerTracking.track('Lead', {
+        content_name: isFreeGuide ? 'free_guide' : 'newsletter',
+        content_category: 'newsletter_signup',
+      });
+    }
   }
 
   function showServerError(form, message) {

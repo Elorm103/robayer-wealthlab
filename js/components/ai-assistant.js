@@ -175,6 +175,17 @@ function initAiAssistant() {
         await appendAssistantMessage(result);
         history.push({ question, answer: result.answer });
         saveHistory();
+
+        // Version 5.0 (Customer Acquisition Phase 6) — a genuinely
+        // answered turn only (not 'declined'/'error', which aren't a
+        // real, useful AI interaction). Never includes the visitor's
+        // question text itself — Meta receives only the confidence
+        // tier, matching this feature's own "nothing about a visitor's
+        // identity or content is ever stored/sent" stance (see this
+        // file's header comment).
+        if (window.RobayerTracking) {
+          window.RobayerTracking.track('AskAI', { content_category: result.confidenceTier });
+        }
       }
 
       renderSuggestions(result.suggestedFollowUps || []);

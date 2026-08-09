@@ -106,3 +106,16 @@ export async function handleAnalyticsActivationSummary(request: Request, env: En
   const summary = await analyticsService.getActivationSummary(env, range);
   return jsonSuccess({ range, ...summary });
 }
+
+/** Version 5.0 (Customer Acquisition Phase 10) — the admin observability panel for services/analytics/'s conversion dispatch layer. See services/admin/analyticsService.ts's getConversionDispatchSummary() for the full reasoning, including why Leads/Downloads are sourced from their real underlying business tables rather than analytics_conversion_log. */
+export async function handleAnalyticsConversionDispatch(request: Request, env: Env, logger: Logger): Promise<Response> {
+  const auth = await requireAuth(request, env, logger);
+  if (!auth.ok) return auth.response;
+
+  if (await isRateLimited(request, env, READ_RATE_LIMIT)) {
+    return jsonError('RATE_LIMITED', 'Too many requests. Please try again shortly.');
+  }
+
+  const summary = await analyticsService.getConversionDispatchSummary(env);
+  return jsonSuccess(summary);
+}

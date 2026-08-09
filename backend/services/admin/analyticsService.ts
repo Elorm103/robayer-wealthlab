@@ -13,6 +13,7 @@
 
 import type { Env } from '../../worker/env';
 import { exclusiveEndDate, previousPeriod, deltaPercent, everyDateInRange, type PeriodRange } from '../../utils/dateRange';
+import { metaProvider } from '../analytics/metaProvider';
 
 export interface KpiMetric {
   current: number;
@@ -269,5 +270,140 @@ export async function getActivationSummary(env: Env, range: PeriodRange): Promis
     dashboardActiveCustomers: toMetric(dashboardActiveCurrent, dashboardActivePrevious),
     repeatPurchases: toMetric(repeatCurrent, repeatPrevious),
     purchasesReconciled: toMetric(reconciledCurrent, reconciledPrevious),
+  };
+}
+
+// ============================================================
+// Conversion Dispatch Observability — Version 5.0 (Customer
+// Acquisition Phase 1, Phase 10). Reads analytics_conversion_log
+// (migration 0040) — the record of every SERVER-SIDE conversion
+// dispatch attempt (Purchase, via Meta Conversions API today; see
+// services/analytics/conversionDispatchService.ts).
+//
+// "Recent Leads sent" and "Recent Downloads sent" are deliberately NOT
+// sourced from analytics_conversion_log: Lead and Download are
+// browser-pixel-only events (Phases 4/5's own scope — Phase 7 scopes
+// server-side/CAPI dispatch to Purchase specifically), which means
+// they fire directly from the visitor's browser to Meta and this
+// backend genuinely never observes them. Rather than fabricate a
+// "sent to Meta" confirmation this backend cannot honestly make,
+// these two lists are sourced from the real underlying business
+// events that trigger each browser-side fire — newsletter_subscribers/
+// consultation_requests for Leads (js/components/newsletter-form.js /
+// consultation-form.js), download_tokens for Downloads
+// (js/components/fulfilment-status.js) — labeled as such in the
+// admin UI. See docs/v5.0-analytics-architecture.md and this phase's
+// own Known Limitations for the full reasoning.
+// ============================================================
+
+export interface ConversionProviderHealth {
+  provider: string;
+  configured: boolean;
+  lastEventSentAt: string | null;
+  recentFailureCount: number;
+}
+
+export interface ConversionFailedEvent {
+  id: number;
+  provider: string;
+  eventName: string;
+  status: string;
+  attemptCount: number;
+  lastError: string | null;
+  createdAt: string;
+}
+
+export interface RecentConversionEvent {
+  id: number;
+  provider: string;
+  eventName: string;
+  status: string;
+  createdAt: string;
+  sentAt: string | null;
+}
+
+export interface RecentLeadEvent {
+  source: 'newsletter' | 'consultation';
+  email: string;
+  createdAt: string;
+}
+
+export interface RecentDownloadEvent {
+  productSlug: string;
+  assetId: string;
+  usedAt: string;
+}
+
+export interface ConversionDispatchSummary {
+  providers: ConversionProviderHealth[];
+  retryQueueCount: number;
+  failedEvents: ConversionFailedEvent[];
+  recentPurchasesSent: RecentConversionEvent[];
+  recentLeads: RecentLeadEvent[];
+  recentDownloads: RecentDownloadEvent[];
+}
+
+const RECENT_LIMIT = 20;
+const RECENT_WINDOW_FAILURE_HOURS = 24;
+
+export async function getConversionDispatchSummary(env: Env): Promise<ConversionDispatchSummary> {
+  const [lastSentRow, recentFailureRow, retryQueueRow, failedRows, purchaseRows, newsletterRows, consultationRows, downloadRows] = await Promise.all([
+    env.DB.prepare(`SELECT sent_at FROM analytics_conversion_log WHERE provider = ? AND status = 'sent' ORDER BY sent_at DESC LIMIT 1`)
+      .bind(metaProvider.name)
+      .first<{ sent_at: string }>(),
+    env.DB.prepare(
+      `SELECT COUNT(*) AS c FROM analytics_conversion_log WHERE provider = ? AND status IN ('failed', 'permanently_failed') AND created_at >= datetime('now', ?)`
+    )
+      .bind(metaProvider.name, `-${RECENT_WINDOW_FAILURE_HOURS} hours`)
+      .first<{ c: number }>(),
+    env.DB.prepare(`SELECT COUNT(*) AS c FROM analytics_conversion_log WHERE status = 'failed'`).first<{ c: number }>(),
+    env.DB.prepare(
+      `SELECT id, provider, event_name AS eventName, status, attempt_count AS attemptCount, last_error AS lastError, created_at AS createdAt
+       FROM analytics_conversion_log WHERE status IN ('failed', 'permanently_failed') ORDER BY created_at DESC LIMIT ?`
+    )
+      .bind(RECENT_LIMIT)
+      .all<ConversionFailedEvent>(),
+    env.DB.prepare(
+      `SELECT id, provider, event_name AS eventName, status, created_at AS createdAt, sent_at AS sentAt
+       FROM analytics_conversion_log WHERE event_name = 'Purchase' AND status = 'sent' ORDER BY sent_at DESC LIMIT ?`
+    )
+      .bind(RECENT_LIMIT)
+      .all<RecentConversionEvent>(),
+    env.DB.prepare(`SELECT email, subscribed_at AS createdAt FROM newsletter_subscribers ORDER BY subscribed_at DESC LIMIT ?`)
+      .bind(RECENT_LIMIT)
+      .all<{ email: string; createdAt: string }>(),
+    env.DB.prepare(`SELECT email, created_at AS createdAt FROM consultation_requests WHERE deleted_at IS NULL ORDER BY created_at DESC LIMIT ?`)
+      .bind(RECENT_LIMIT)
+      .all<{ email: string; createdAt: string }>(),
+    env.DB.prepare(
+      `SELECT d.product_slug AS productSlug, d.asset_id AS assetId, dt.used_at AS usedAt
+       FROM download_tokens dt JOIN deliveries d ON d.id = dt.delivery_id
+       WHERE dt.used_at IS NOT NULL ORDER BY dt.used_at DESC LIMIT ?`
+    )
+      .bind(RECENT_LIMIT)
+      .all<RecentDownloadEvent>(),
+  ]);
+
+  const recentLeads: RecentLeadEvent[] = [
+    ...newsletterRows.results.map((r) => ({ source: 'newsletter' as const, email: r.email, createdAt: r.createdAt })),
+    ...consultationRows.results.map((r) => ({ source: 'consultation' as const, email: r.email, createdAt: r.createdAt })),
+  ]
+    .sort((a, b) => (a.createdAt < b.createdAt ? 1 : -1))
+    .slice(0, RECENT_LIMIT);
+
+  return {
+    providers: [
+      {
+        provider: metaProvider.name,
+        configured: metaProvider.isConfigured(env),
+        lastEventSentAt: lastSentRow?.sent_at ?? null,
+        recentFailureCount: recentFailureRow?.c ?? 0,
+      },
+    ],
+    retryQueueCount: retryQueueRow?.c ?? 0,
+    failedEvents: failedRows.results,
+    recentPurchasesSent: purchaseRows.results,
+    recentLeads,
+    recentDownloads: downloadRows.results,
   };
 }

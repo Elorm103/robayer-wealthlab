@@ -57,4 +57,41 @@
   }
 
   document.addEventListener('DOMContentLoaded', loadCloudflareWebAnalytics);
+
+  /**
+   * Version 5.0 (Customer Acquisition Phase 1) — Meta Pixel + the
+   * site's extensible conversion-event layer. Loaded from js/main.js
+   * for the exact same reason loadCloudflareWebAnalytics() above is:
+   * this is the one script tag every real customer-facing page on the
+   * site already includes (admin/* pages deliberately do not, and
+   * correctly shouldn't carry an ad-tracking pixel), so this is the
+   * genuine "install once, everywhere, with no build step" mechanism
+   * this codebase has — not a hack, the same precedent already
+   * established and documented above.
+   *
+   * `assets/config/site.json`'s analytics.meta.pixelId is the real,
+   * non-secret Pixel ID (unlike webAnalyticsToken, this one is already
+   * set — no manual dashboard step was needed). If it's ever unset,
+   * this is a genuine no-op, never a fabricated placeholder, matching
+   * this project's own "never fake a data source" principle.
+   */
+  async function loadMetaPixel() {
+    let pixelId;
+    try {
+      const response = await fetch('/assets/config/site.json');
+      const config = await response.json();
+      pixelId = config && config.analytics && config.analytics.meta && config.analytics.meta.pixelId;
+    } catch {
+      return;
+    }
+    if (!pixelId || typeof pixelId !== 'string') return;
+
+    const script = document.createElement('script');
+    script.defer = true;
+    script.src = '/js/components/meta-pixel.js';
+    script.setAttribute('data-pixel-id', pixelId);
+    document.head.appendChild(script);
+  }
+
+  document.addEventListener('DOMContentLoaded', loadMetaPixel);
 })();

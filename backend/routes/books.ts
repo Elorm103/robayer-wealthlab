@@ -43,6 +43,15 @@ import { listPublicReviews, getReviewSummary } from '../services/reviewService';
 const SITE_NAME = 'Robayer WealthLab';
 const SITE_ORIGIN = 'https://robayerwealthlab.com';
 
+// media_assets.public_url is always site-relative (/api/media/file/...) —
+// correct for CSS background-image (resolves against the current page),
+// but og:image must be absolute for social crawlers to resolve it.
+// Same fix already applied to blog.ts; see that file's comment for the
+// original bug this mirrors (relative og:image on published content).
+function absoluteMediaUrl(url: string): string {
+  return url.startsWith('/') ? `${SITE_ORIGIN}${url}` : url;
+}
+
 function escapeHtml(value: unknown): string {
   if (value === null || value === undefined) return '';
   return String(value)
@@ -285,9 +294,18 @@ async function renderProductCard(env: Env, product: Omit<ProductRecord, 'files' 
       ? `<p class="star-rating"><span class="star-rating__stars" aria-hidden="true">${renderStars(reviewSummary.averageRating)}</span><span class="sr-only">Rating: ${reviewSummary.averageRating} out of 5</span><span class="star-rating__count">${escapeHtml(reviewSummary.averageRating.toFixed(1))} (${reviewSummary.count} review${reviewSummary.count === 1 ? '' : 's'})</span></p>`
       : '';
 
+  // Both buttons used to link to the exact same URL — no real
+  // difference in behaviour despite the different labels. There is no
+  // separate standalone checkout page in this architecture (buying
+  // requires the product page's own buy-button.js widget: consent
+  // checkboxes + email, then POST /api/checkout/sessions) — so "Buy
+  // Now" now jumps straight to that widget via the #buy anchor added
+  // to its container above, while "Learn More" still lands at the top
+  // of the page to read first. Same destination page, genuinely
+  // different arrival point — not two links to the same place.
   const actions = isUpcoming
     ? '<a href="/newsletter/" class="btn btn--secondary">Get notified</a>'
-    : `<a href="${href}" class="btn btn--primary">Buy Now</a><a href="${href}" class="btn btn--secondary">Learn More</a>`;
+    : `<a href="${href}#buy" class="btn btn--primary">Buy Now</a><a href="${href}" class="btn btn--secondary">Learn More</a>`;
 
   return `<div class="${cardClasses.join(' ')}" data-topic="${escapeHtml(product.topic)}" data-product-type="${escapeHtml(product.productType)}" data-category="${escapeHtml(product.topic)}" data-title="${escapeHtml(product.title)}">
   <div class="book-card__cover"${coverStyle}></div>
@@ -440,7 +458,16 @@ ${NEWSLETTER_BAND}`;
     ogImage: `${SITE_ORIGIN}/assets/branding/social/og-image.jpg`,
     extraHead: faqJsonLd,
     bodyContent: body,
-    scripts: ['/js/components/content-filters.js?v=bff036747e', '/js/main.js?v=7050d1e123'],
+    // Version 3.4.2 Milestone M6.2's countdown.js was never added to this
+    // page's own scripts list — renderProductCard() above already emits
+    // the exact same [data-sale-ends-at]/countdown markup the book detail
+    // page uses (same function, same data), so without this script every
+    // card's countdown just sat frozen at its server-rendered "00:00:00:00"
+    // starting value instead of ticking live, while the detail page (which
+    // does load it) worked correctly. Same script, no new/duplicate
+    // countdown logic — just wiring this page into the one that already
+    // exists.
+    scripts: ['/js/components/content-filters.js?v=bff036747e', '/js/components/countdown.js?v=b2f79caeca', '/js/main.js?v=7050d1e123'],
   });
 
   return htmlResponse(html, 200);
@@ -583,7 +610,7 @@ function parseFaqPairs(html: string): FaqPair[] {
   }));
 }
 
-async function renderBookDetail(env: Env, slug: string): Promise<Response> {
+export async function renderBookDetail(env: Env, slug: string): Promise<Response> {
   const product = await productService.getProductBySlug(env, slug);
   if (!product || !isPubliclyListedStatus(product.status)) {
     return render404(env, slug);
@@ -750,7 +777,7 @@ async function renderBookDetail(env: Env, slug: string): Promise<Response> {
     ? '<a href="/newsletter/" class="btn btn--accent">Get notified when this launches</a>'
     : priceLabel === null
       ? '<span class="badge badge--warning">Price coming soon</span>'
-      : `<div data-sales-mode><div class="book-card__actions"><a href="#" class="btn btn--accent" data-buy-button data-product-slug="${escapeHtml(product.slug)}">Buy Now (${escapeHtml(chargeableLabel ?? '')})</a></div>${purchaseConsentBlock}</div>${ownerActionsBlock}`;
+      : `<div id="buy" data-sales-mode><div class="book-card__actions"><a href="#" class="btn btn--accent" data-buy-button data-product-slug="${escapeHtml(product.slug)}">Buy Now (${escapeHtml(chargeableLabel ?? '')})</a></div>${purchaseConsentBlock}</div>${ownerActionsBlock}`;
 
   const tagsLine = product.tags
     ? `<p class="text-secondary text-small mb-3">Tags: ${escapeHtml(
@@ -1199,12 +1226,28 @@ ${NEWSLETTER_BAND}`;
   }
   </script>`;
 
+  // Version 5.0 (Customer Acquisition Phase 2) — the ViewContent
+  // signal js/components/meta-pixel.js reads (see that file's own
+  // header comment). A plain inline global, not a data attribute,
+  // since this is real per-page data rather than markup config — same
+  // judgment call as the JSON-LD blocks already on this page.
+  const pageContentScript = `
+  <script>window.__robayerPageContent = ${JSON.stringify({
+    contentType: 'product',
+    contentId: product.slug,
+    contentName: product.title,
+    value: product.pricePesewas !== null ? Number((product.pricePesewas / 100).toFixed(2)) : undefined,
+  })};</script>`;
+
   const html = renderShell({
     title: product.seoTitle ?? `${product.title} | ${SITE_NAME}`,
     description: product.seoDescription ?? product.shortDescription ?? product.subtitle ?? '',
     canonical: product.seoCanonicalUrl ?? `${SITE_ORIGIN}/books/${product.slug}/`,
-    ogImage: product.ogPublicUrl ?? product.coverPublicUrl ?? `${SITE_ORIGIN}/assets/branding/social/og-image.jpg`,
-    extraHead: breadcrumbJsonLd + bookJsonLd + faqJsonLd,
+    ogImage: (() => {
+      const url = product.ogPublicUrl ?? product.coverPublicUrl;
+      return url ? absoluteMediaUrl(url) : `${SITE_ORIGIN}/assets/branding/social/og-image.jpg`;
+    })(),
+    extraHead: breadcrumbJsonLd + bookJsonLd + faqJsonLd + pageContentScript,
     breadcrumb,
     bodyContent: body,
     scripts: [

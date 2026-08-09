@@ -40,6 +40,7 @@ import { fulfilPurchase } from './fulfilmentService';
 import { findOrCreateCustomer } from './customer/identityService';
 import { createOrderArtifacts } from './orders/orderService';
 import { validateCoupon, redeemCoupon, checkFirstPurchaseOnlyViolation } from './couponService';
+import { dispatchPurchase } from './analytics/conversionDispatchService';
 
 /** A pending session outlives a genuinely slow checkout, but doesn't sit "pending" forever if the visitor abandons it — see docs/commerce-foundation.md. */
 const PURCHASE_SESSION_TTL_MINUTES = 30;
@@ -532,6 +533,30 @@ export async function handlePaymentWebhook(env: Env, logger: Logger, input: Hand
   await markTransactionOutcome(env, providerReference, 'success');
   logger.info('verification.passed', { reference: providerReference, productSlug: session.productSlug });
 
+  await completeVerifiedPurchase(env, logger, session, verifyResult, product, providerReference);
+}
+
+/**
+ * Everything that happens AFTER a purchase session has already,
+ * atomically, become 'verified' — customer provisioning, coupon
+ * redemption, order/receipt artifacts, and fulfilment (download
+ * token + email). Factored out of `handlePaymentWebhook()` so
+ * `adminReprocessPurchase()` (below) can drive the exact same
+ * real completion logic for a purchase that was wrongly marked
+ * `failed`/`expired` by a bug already fixed, instead of
+ * duplicating ~60 lines of "never block or undo a real payment"
+ * logic a second time. Never throws — every step here already
+ * follows that same discipline individually; this wrapper doesn't
+ * add a new failure mode on top.
+ */
+async function completeVerifiedPurchase(
+  env: Env,
+  logger: Logger,
+  session: PurchaseSessionRow,
+  verifyResult: { customerEmail: string | null },
+  product: { title: string; taxBehavior: string },
+  providerReference: string
+): Promise<void> {
   // Milestone M1 (Customer Identity & Guest Checkout) — "inside the
   // same verification transaction," per the ratified
   // docs/v3.0.2-commerce-architecture-blueprint.md's Checkout
@@ -625,6 +650,112 @@ export async function handlePaymentWebhook(env: Env, logger: Logger, input: Hand
     customerId,
     isNewCustomer,
   });
+
+  // Version 5.0 (Customer Acquisition Phase 1, Phase 7 Conversions
+  // API) — the one server-side conversion event this phase fires,
+  // from the one place a purchase is known to have genuinely
+  // succeeded, alongside fulfilment above. dispatchPurchase() never
+  // throws (see conversionDispatchService.ts's own header comment) —
+  // a conversion-tracking failure must never affect fulfilment or the
+  // verification outcome already recorded. eventSourceUrl matches
+  // sendFulfilmentEmails()'s own fulfilmentUrl exactly, since that is
+  // the real page a customer's browser fires the client-side Purchase
+  // pixel from (js/components/fulfilment-status.js) — using the same
+  // URL here isn't required for dedup (event_id alone does that) but
+  // keeps Meta's own event_source_url honest.
+  let couponCode: string | null = null;
+  if (session.couponId) {
+    const couponRow = await env.DB.prepare(`SELECT code FROM coupons WHERE id = ?`).bind(session.couponId).first<{ code: string }>();
+    couponCode = couponRow?.code ?? null;
+  }
+  await dispatchPurchase(env, logger, {
+    purchaseSessionId: session.id,
+    purchaseReference: providerReference,
+    eventSourceUrl: `${env.SITE_BASE_URL}/checkout/callback/?ref=${encodeURIComponent(providerReference)}`,
+    customerEmail: verifyResult.customerEmail,
+    amountPesewas: session.amountPesewas,
+    currency: session.currency,
+    productTitle: product.title,
+    productId: session.productId,
+    productSlug: session.productSlug,
+    couponCode,
+  });
+}
+
+export type AdminReprocessResult =
+  | { ok: true }
+  | { ok: false; reason: 'not_found' | 'not_reprocessable' | 'provider_error' | 'provider_status_not_success' | 'amount_or_currency_mismatch' | 'metadata_mismatch' | 'product_no_longer_valid' | 'concurrent_resolution' };
+
+/**
+ * Admin-triggered remediation for a purchase session stuck `failed` or
+ * `expired` that a bug — since fixed — should never have rejected in the
+ * first place. Deliberately NOT a general "force-verify anything" tool:
+ * every one of the nine verification rules `handlePaymentWebhook()` itself
+ * enforces still runs here, against a FRESH `provider.verifyPayment()`
+ * call (never the old cached webhook data), so this can only ever move a
+ * session to `verified` if Paystack, right now, genuinely confirms the
+ * payment. The one intentional difference from the normal webhook path:
+ * the atomic transition guard is `WHERE status IN ('failed','expired')`
+ * instead of `WHERE status = 'pending'` — this is the one case docs/
+ * payment-verification.md anticipated needing "a manual, out-of-band
+ * action... until an admin dashboard exists." This *is* that dashboard
+ * feature, scoped as narrowly as the anticipated need.
+ */
+export async function adminReprocessPurchase(env: Env, logger: Logger, adminId: number, purchaseReference: string): Promise<AdminReprocessResult> {
+  const session = await getPurchaseSessionByReference(env, purchaseReference);
+  if (!session) return { ok: false, reason: 'not_found' };
+  if (session.status !== 'failed' && session.status !== 'expired') return { ok: false, reason: 'not_reprocessable' };
+
+  const provider = getPaymentProvider(env);
+  let verifyResult;
+  try {
+    verifyResult = await provider.verifyPayment(purchaseReference, env);
+  } catch (err) {
+    logger.error('admin.reprocess_provider_error', {
+      purchaseReference,
+      adminId,
+      error: err instanceof Error ? err.message : String(err),
+    });
+    return { ok: false, reason: 'provider_error' };
+  }
+
+  if (verifyResult.status !== 'success') {
+    logger.warn('admin.reprocess_failed', { purchaseReference, adminId, reason: 'provider_status_not_success', providerStatus: verifyResult.status });
+    return { ok: false, reason: 'provider_status_not_success' };
+  }
+  if (verifyResult.amountPesewas !== session.amountPesewas || verifyResult.currency !== session.currency) {
+    logger.error('admin.reprocess_failed', { purchaseReference, adminId, reason: 'amount_or_currency_mismatch' });
+    return { ok: false, reason: 'amount_or_currency_mismatch' };
+  }
+  if (!metadataMatches(verifyResult.metadata, session, purchaseReference)) {
+    logger.error('admin.reprocess_failed', { purchaseReference, adminId, reason: 'metadata_mismatch' });
+    return { ok: false, reason: 'metadata_mismatch' };
+  }
+  const product = await fetchCatalogProduct(env, session.productSlug);
+  if (!product || !isPurchasable(product)) {
+    logger.warn('admin.reprocess_failed', { purchaseReference, adminId, reason: 'product_no_longer_valid' });
+    return { ok: false, reason: 'product_no_longer_valid' };
+  }
+
+  const result = await env.DB.prepare(
+    `UPDATE purchase_sessions
+     SET status = 'verified', customer_email = COALESCE(?, customer_email), provider_status = ?, verified_at = datetime('now'), updated_at = datetime('now')
+     WHERE id = ? AND status IN ('failed', 'expired')`
+  )
+    .bind(verifyResult.customerEmail, verifyResult.status, session.id)
+    .run();
+  if (result.meta.changes !== 1) {
+    // Another request (e.g. a concurrent admin click, or the session
+    // genuinely resolving through some other path in the meantime)
+    // already moved this session — never double-process.
+    logger.info('admin.reprocess_concurrent', { purchaseReference, adminId });
+    return { ok: false, reason: 'concurrent_resolution' };
+  }
+
+  logger.warn('admin.purchase_reprocessed', { purchaseReference, adminId, productSlug: session.productSlug });
+
+  await completeVerifiedPurchase(env, logger, session, verifyResult, product, purchaseReference);
+  return { ok: true };
 }
 
 /**
@@ -650,8 +781,23 @@ function metadataMatches(
   );
 }
 
+/**
+ * A product with no version set is locked onto purchase_sessions as a real
+ * SQL `NULL` — but a live Paystack account round-trips a `null` metadata
+ * field back through its webhook as an empty string `""`, not `null` (
+ * confirmed against a real production webhook payload: `productVersion`
+ * was sent as `null` in the `initialize` call's metadata and came back as
+ * `""` in the verify/webhook response). The original implementation only
+ * distinguished "is this a string" from "is this anything else," so `""`
+ * and `null` compared unequal and every real purchase of a version-unset
+ * product failed metadata verification — a payment-verification.md
+ * "Known limitations" risk that only surfaced once a live account existed.
+ * Treating an empty string as `null` here closes that gap without weakening
+ * the check for any product that actually has a version string set.
+ */
 function normalizeVersionField(value: unknown): string | null {
-  return typeof value === 'string' ? value : null;
+  if (typeof value !== 'string') return null;
+  return value === '' ? null : value;
 }
 
 async function getPurchaseSessionByReference(env: Env, reference: string): Promise<PurchaseSessionRow | null> {

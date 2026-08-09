@@ -140,6 +140,13 @@ function initConsultationForms() {
       '<p class="mt-2">This isn\'t an automatic booking. Robert reviews every request personally, and there is no live calendar or scheduling system yet. We\'ll get back to you using your preferred contact method within 2–3 business days to confirm details and arrange next steps.</p>' +
       '<p class="mt-2">Need to reach us sooner? Email <a href="' + href + '">' + text + '</a> directly.</p>';
     form.replaceWith(confirmation);
+
+    // Version 5.0 (Customer Acquisition Phase 5) — fired exactly once
+    // per genuinely successful submission (this function only ever
+    // runs after the server confirmed success).
+    if (window.RobayerTracking) {
+      window.RobayerTracking.track('Lead', { content_name: 'consultation', content_category: 'consultation_request' });
+    }
   }
 
   function showServerError(form, message) {

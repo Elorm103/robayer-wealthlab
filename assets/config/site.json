@@ -53,6 +53,10 @@
   },
   "analytics": {
     "_comment": "Version 3.3 Milestone M5C (Activation, Analytics and Customer Reconciliation). webAnalyticsToken is the real Cloudflare Web Analytics site-tag token, generated once, manually, from the Cloudflare dashboard (Analytics & Logs > Web Analytics > Add a site) — there is no API to create one, and this project's own principle (docs/v2-analytics-spec.md) is to never fake a data source. Left null until that one-time manual step happens; js/main.js's loadCloudflareWebAnalytics() is a genuine no-op until then, never a fabricated placeholder token. See docs/v3.3-m5c-analytics-architecture.md's Known Limitations.",
-    "webAnalyticsToken": null
+    "webAnalyticsToken": null,
+    "meta": {
+      "_comment": "Version 5.0 (Customer Acquisition Phase 1). pixelId is the real Meta Events Manager Dataset/Pixel ID — non-secret (publicly visible in every page's own network requests once the pixel loads), same reasoning as webAnalyticsToken above. js/main.js's loadMetaPixel() dynamically loads js/components/meta-pixel.js only when this is set — a genuine no-op otherwise, never a fabricated placeholder ID.",
+      "pixelId": "1556171269307402"
+    }
   }
 }

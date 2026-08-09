@@ -99,4 +99,24 @@ export interface Env {
   // consumer invocation gets its own fresh subrequest budget, which is
   // what actually makes this scale.
   KNOWLEDGE_INDEX_QUEUE: Queue<KnowledgeIndexQueueMessage>;
+
+  // Added in Version 5.0 (Customer Acquisition Phase 1) — see
+  // services/analytics/'s AnalyticsProvider abstraction and
+  // docs/v5.0-analytics-architecture.md. META_PIXEL_ID is non-secret
+  // (the Pixel ID is publicly visible in every page's own network
+  // requests once the browser pixel loads — same reasoning as
+  // PAYSTACK_PUBLIC_KEY) and doubles as part of the Conversions API
+  // URL path (`/{pixel-id}/events`), so the backend needs it too, not
+  // just the frontend (which reads its own copy from
+  // assets/config/site.json — see js/main.js's loadMetaPixel()).
+  /** Non-secret — also embedded in assets/config/site.json for the browser pixel. Real value: the Meta Events Manager Dataset/Pixel ID. */
+  META_PIXEL_ID?: string;
+  /** Secret — set via `wrangler secret put META_CAPI_ACCESS_TOKEN`, never committed. Used server-side only, exclusively by services/analytics/metaProvider.ts. Absent means Meta's provider.isConfigured() returns false and every dispatch is skipped, never faked. */
+  META_CAPI_ACCESS_TOKEN?: string;
+  /** e.g. "https://graph.facebook.com" — kept configurable rather than hardcoded, same reasoning as PAYSTACK_BASE_URL/OPENAI_BASE_URL above. */
+  META_GRAPH_API_BASE_URL: string;
+  /** e.g. "v21.0" — Meta's Graph API version segment, kept configurable so a version bump is a var change, not a code change. */
+  META_GRAPH_API_VERSION: string;
+  /** Secret-adjacent, optional — set only while verifying in Meta's Test Events tool (Phase 12); never set in real production traffic. Not a true secret (it doesn't grant access to anything) but kept out of wrangler.jsonc anyway since its presence changes real event routing — see docs/v5.0-analytics-architecture.md's "Configuration." */
+  META_TEST_EVENT_CODE?: string;
 }

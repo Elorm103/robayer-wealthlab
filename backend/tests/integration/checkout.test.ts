@@ -59,7 +59,7 @@ describe('POST /api/checkout/sessions', () => {
     const res = await SELF.fetch('https://example.com/api/checkout/sessions', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ productId: TEST_PRODUCT_SLUG, termsAccepted: true, licenseAccepted: true, marketingOptIn: true }),
+      body: JSON.stringify({ productId: TEST_PRODUCT_SLUG, termsAccepted: true, licenseAccepted: true, marketingOptIn: true, email: 'checkout-test@example.com' }),
     });
     const body = await res.json<any>();
     expect(body.success).toBe(true);
@@ -81,7 +81,7 @@ describe('POST /api/checkout/sessions', () => {
     const res = await SELF.fetch('https://example.com/api/checkout/sessions', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ productId: TEST_PRODUCT_SLUG, termsAccepted: true, licenseAccepted: true }),
+      body: JSON.stringify({ productId: TEST_PRODUCT_SLUG, termsAccepted: true, licenseAccepted: true, email: 'checkout-test@example.com' }),
     });
     const body = await res.json<any>();
     const row = await env.DB.prepare('SELECT marketing_opt_in FROM purchase_sessions WHERE purchase_reference = ?')
@@ -94,7 +94,7 @@ describe('POST /api/checkout/sessions', () => {
     const res = await SELF.fetch('https://example.com/api/checkout/sessions', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ productId: 'this-product-does-not-exist', termsAccepted: true, licenseAccepted: true }),
+      body: JSON.stringify({ productId: 'this-product-does-not-exist', termsAccepted: true, licenseAccepted: true, email: 'checkout-test@example.com' }),
     });
     const body = await res.json<any>();
     expect(body.success).toBe(false);
@@ -107,7 +107,7 @@ describe('POST /api/checkout/sessions', () => {
     const res = await SELF.fetch('https://example.com/api/checkout/sessions', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ productId: TEST_PRODUCT_SLUG, termsAccepted: true, licenseAccepted: true }),
+      body: JSON.stringify({ productId: TEST_PRODUCT_SLUG, termsAccepted: true, licenseAccepted: true, email: 'checkout-test@example.com' }),
     });
     const body = await res.json<any>();
     expect(body.success).toBe(false);

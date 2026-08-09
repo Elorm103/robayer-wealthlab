@@ -217,6 +217,100 @@
           </div>
         </div>
 
+        <!-- ============================================================
+             CONVERSION TRACKING (Meta Pixel + Conversions API)
+             Version 5.0 (Customer Acquisition Phase 1, Phase 10). Reads
+             analytics_conversion_log (migration 0040) via
+             services/admin/analyticsService.ts's
+             getConversionDispatchSummary(). "Recent leads"/"Recent
+             downloads" are sourced from their real underlying business
+             tables, not from analytics_conversion_log — those two
+             events are browser-pixel-only and this backend never
+             observes their delivery to Meta; see that function's own
+             header comment for the full reasoning.
+             ============================================================ -->
+        <div class="card mb-5" data-conversion-root>
+          <h2 class="text-lg mb-3">Conversion tracking (Meta Pixel + Conversions API)</h2>
+          <p class="text-secondary text-small mb-3" data-conversion-load-error hidden role="alert"></p>
+
+          <div class="grid grid--3 mb-5">
+            <div class="stat-card">
+              <p class="stat-card__label">
+                <svg class="icon stat-card__icon" viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 3"/></svg>
+                Meta Pixel + CAPI status
+              </p>
+              <p class="stat-card__value" data-conversion-status><span class="skeleton skeleton--title" aria-hidden="true"></span></p>
+              <p class="stat-card__meta" data-conversion-status-meta></p>
+            </div>
+            <div class="stat-card">
+              <p class="stat-card__label">
+                <svg class="icon stat-card__icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M12 8v4l3 3"/><circle cx="12" cy="12" r="9"/></svg>
+                Last event sent
+              </p>
+              <p class="stat-card__value" data-conversion-last-sent><span class="skeleton skeleton--title" aria-hidden="true"></span></p>
+              <p class="stat-card__meta">Most recent successful Conversions API dispatch</p>
+            </div>
+            <div class="stat-card">
+              <p class="stat-card__label">
+                <svg class="icon stat-card__icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M17 1l4 4-4 4M3 11V9a4 4 0 0 1 4-4h14M7 23l-4-4 4-4M21 13v2a4 4 0 0 1-4 4H3"/></svg>
+                Retry queue
+              </p>
+              <p class="stat-card__value" data-conversion-retry-queue><span class="skeleton skeleton--title" aria-hidden="true"></span></p>
+              <p class="stat-card__meta">Awaiting the next daily retry sweep</p>
+            </div>
+          </div>
+
+          <h3 class="text-body mb-2 mt-4">Failed events</h3>
+          <div class="empty-state empty-state--compact" data-conversion-failed-empty hidden>
+            <svg class="icon empty-state__icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M20 6L9 17l-5-5"/></svg>
+            <p class="empty-state__title">No failed conversion events</p>
+          </div>
+          <div class="admin-table-wrap" data-conversion-failed-table-wrap hidden>
+            <table class="table" aria-label="Failed conversion events">
+              <thead><tr><th scope="col">Event</th><th scope="col">Provider</th><th scope="col">Status</th><th scope="col">Attempts</th><th scope="col">Last error</th><th scope="col">When</th></tr></thead>
+              <tbody data-conversion-failed-body></tbody>
+            </table>
+          </div>
+
+          <h3 class="text-body mb-2 mt-4">Recent Purchases sent</h3>
+          <div class="empty-state empty-state--compact" data-conversion-purchases-empty hidden>
+            <svg class="icon empty-state__icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M6 2l1.5 5M18 2l-1.5 5M4 7h16l-1.5 12a2 2 0 0 1-2 1.8H7.5A2 2 0 0 1 5.5 19L4 7z"/></svg>
+            <p class="empty-state__title">No Purchase events sent yet</p>
+          </div>
+          <div class="admin-table-wrap" data-conversion-purchases-table-wrap hidden>
+            <table class="table" aria-label="Recent Purchase events sent">
+              <thead><tr><th scope="col">Provider</th><th scope="col">Status</th><th scope="col">Sent at</th></tr></thead>
+              <tbody data-conversion-purchases-body></tbody>
+            </table>
+          </div>
+
+          <h3 class="text-body mb-2 mt-4">Recent Leads</h3>
+          <p class="text-secondary text-small mb-2">Newsletter subscriptions and consultation requests — the real events behind each browser-side Meta Lead fire (Conversions API isn't used for Lead; see this page's own header comment).</p>
+          <div class="empty-state empty-state--compact" data-conversion-leads-empty hidden>
+            <svg class="icon empty-state__icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M20.59 13.41L11 3.83A2 2 0 0 0 9.59 3.24H4a1 1 0 0 0-1 1v5.59a2 2 0 0 0 .59 1.41l9.58 9.58a2 2 0 0 0 2.82 0l4.6-4.6a2 2 0 0 0 0-2.82z"/></svg>
+            <p class="empty-state__title">No recent leads</p>
+          </div>
+          <div class="admin-table-wrap" data-conversion-leads-table-wrap hidden>
+            <table class="table" aria-label="Recent leads">
+              <thead><tr><th scope="col">Source</th><th scope="col">Email</th><th scope="col">When</th></tr></thead>
+              <tbody data-conversion-leads-body></tbody>
+            </table>
+          </div>
+
+          <h3 class="text-body mb-2 mt-4">Recent Downloads</h3>
+          <p class="text-secondary text-small mb-2">Real download-token redemptions — the events behind each browser-side Meta Download fire.</p>
+          <div class="empty-state empty-state--compact" data-conversion-downloads-empty hidden>
+            <svg class="icon empty-state__icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M12 3v12m0 0l-4-4m4 4l4-4M4 21h16"/></svg>
+            <p class="empty-state__title">No recent downloads</p>
+          </div>
+          <div class="admin-table-wrap" data-conversion-downloads-table-wrap hidden>
+            <table class="table" aria-label="Recent downloads">
+              <thead><tr><th scope="col">Product</th><th scope="col">Asset</th><th scope="col">When</th></tr></thead>
+              <tbody data-conversion-downloads-body></tbody>
+            </table>
+          </div>
+        </div>
+
         <div class="card">
           <h2 class="text-lg mb-2">Device- and country-level traffic</h2>
           <p class="text-secondary text-small mb-3">Cloudflare Web Analytics can show visitor counts by device and country with zero backend engineering, but requires a one-time setup step in the Cloudflare dashboard (adding a site under Analytics &amp; Logs → Web Analytics) that hasn't been completed yet — confirmed not currently active on this site. Once enabled there, its own dashboard has no API to embed here, so it will always be a separate, linked-out view rather than a number this page can show directly.</p>
@@ -308,5 +402,6 @@
   <script src="/js/components/admin/timeseries-chart.js?v=5ec461649c"></script>
   <script src="/js/components/admin/admin-analytics.js?v=416f7ae50a"></script>
   <script src="/js/components/admin/admin-traffic.js?v=34110bd6df"></script>
+  <script src="/js/components/admin/admin-conversions.js?v=1"></script>
 </body>
 </html>

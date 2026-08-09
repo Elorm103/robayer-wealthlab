@@ -372,12 +372,20 @@ ${popularSection}
 ${FAQ_SECTION}
 ${NEWSLETTER_BAND}`;
 
+  // Version 5.0 (Customer Acquisition Phase 2) — see
+  // backend/routes/books.ts's identical pageContentScript for the full
+  // reasoning. This is a listing page, not one item, so there's no
+  // contentId/value — 'resources_listing' still lets a ViewContent be
+  // attributed distinctly from every other content type.
+  const pageContentScript = `
+  <script>window.__robayerPageContent = ${JSON.stringify({ contentType: 'resources_listing' })};</script>`;
+
   const html = renderShell({
     title: 'Free Financial Resources & Tools | Robayer WealthLab',
     description: 'Free checklists, worksheets, and calculators to help you budget, save, and invest in Ghana, no sign-up required. Browse the resource library.',
     canonical: `${SITE_ORIGIN}/resources/`,
     ogImage: `${SITE_ORIGIN}/assets/branding/social/og-image.jpg`,
-    extraHead: faqJsonLd(),
+    extraHead: faqJsonLd() + pageContentScript,
     bodyContent: body,
     scripts: ['/js/components/content-filters.js?v=bff036747e', '/js/main.js?v=7050d1e123'],
   });

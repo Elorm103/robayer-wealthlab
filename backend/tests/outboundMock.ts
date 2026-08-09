@@ -117,6 +117,30 @@ export async function clearResendResponseStickyOverride(env: MockDbEnv): Promise
   await env.DB.prepare(`DELETE FROM test_mock_responses WHERE key = 'resend_send_sticky'`).run();
 }
 
+/** Overrides the next (and only the next) Meta Conversions API /events response — Version 5.0 (Customer Acquisition Phase 1). */
+export async function queueMetaEventsResponse(env: MockDbEnv, response: { status: number; body: unknown }): Promise<void> {
+  await queueResponse(env, 'meta_capi_events', response);
+}
+
+/**
+ * A PERSISTENT Meta Conversions API override — same reasoning as
+ * queueResendResponseStickyOverride() above: dispatchServerEvent()
+ * itself retries once internally on a transient failure
+ * (services/analytics/conversionDispatchService.ts's own
+ * RETRY_MAX_ATTEMPTS loop), so a one-shot queued response only covers
+ * the first of those two attempts. Use this to simulate a failure that
+ * persists across both. Call clearMetaEventsResponseStickyOverride()
+ * when the test is done simulating the outage.
+ */
+export async function queueMetaEventsResponseStickyOverride(env: MockDbEnv, response: { status: number; body: unknown }): Promise<void> {
+  await queueResponse(env, 'meta_capi_events_sticky', response);
+}
+
+/** Clears a sticky override set by queueMetaEventsResponseStickyOverride(), so normal (default-success or one-shot-queued) behavior resumes. */
+export async function clearMetaEventsResponseStickyOverride(env: MockDbEnv): Promise<void> {
+  await env.DB.prepare(`DELETE FROM test_mock_responses WHERE key = 'meta_capi_events_sticky'`).run();
+}
+
 async function takeConsumedResponse(db: D1Database, key: string): Promise<unknown | null> {
   const row = await db.prepare('SELECT response FROM test_mock_responses WHERE key = ?').bind(key).first<{ response: string }>();
   if (!row) return null;
@@ -187,6 +211,14 @@ export async function outboundMock(request: Request, miniflare: Miniflare): Prom
     }
     const data = Array.from({ length: inputCount }, (_, i) => ({ embedding: new Array(8).fill(0).map((_, j) => (i + 1) * 0.01 + j * 0.001), index: i }));
     return json(200, { data, usage: { prompt_tokens: 10 * inputCount }, model: 'text-embedding-3-small' }) as unknown as MiniflareResponse;
+  }
+
+  if (url.hostname === 'graph.facebook.com' && url.pathname.endsWith('/events') && request.method === 'POST') {
+    const sticky = (await peekResponse(DB, 'meta_capi_events_sticky')) as { status: number; body: unknown } | null;
+    if (sticky) return json(sticky.status, sticky.body) as unknown as MiniflareResponse;
+    const queued = (await takeConsumedResponse(DB, 'meta_capi_events')) as { status: number; body: unknown } | null;
+    const result = queued ?? { status: 200, body: { events_received: 1, fbtrace_id: 'mock-fbtrace-id' } };
+    return json(result.status, result.body) as unknown as MiniflareResponse;
   }
 
   if (url.hostname === 'robayerwealthlab.com' && url.pathname === '/sitemap.xml' && request.method === 'GET') {

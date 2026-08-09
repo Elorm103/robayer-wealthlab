@@ -104,7 +104,16 @@
     // Added in Version 5.0 Milestone 1 (AI Gateway Foundation) —
     // OPENAI_API_KEY is a genuine secret, deliberately absent from this
     // file (set via `wrangler secret put OPENAI_API_KEY`).
-    "OPENAI_BASE_URL": "https://api.openai.com"
+    "OPENAI_BASE_URL": "https://api.openai.com",
+    // Added in Version 5.0 (Customer Acquisition Phase 1) — see
+    // services/analytics/ and docs/v5.0-analytics-architecture.md.
+    // META_PIXEL_ID is real and non-secret (see env.ts's own comment on
+    // why); META_CAPI_ACCESS_TOKEN is a genuine secret, deliberately
+    // absent from this file (set via
+    // `wrangler secret put META_CAPI_ACCESS_TOKEN`).
+    "META_PIXEL_ID": "1556171269307402",
+    "META_GRAPH_API_BASE_URL": "https://graph.facebook.com",
+    "META_GRAPH_API_VERSION": "v21.0"
   },
 
   // D1 — structured data (Phase 2 schema: backend/database/schema.sql).

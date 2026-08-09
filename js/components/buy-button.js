@@ -112,6 +112,18 @@ function initCouponInput() {
         feedbackEl.textContent = `Coupon applied: -${formatPesewas(result.data.discountPesewas)}. New total: ${formatPesewas(result.data.finalAmountPesewas)}.`;
         feedbackEl.hidden = false;
         codeInput.setAttribute('data-coupon-applied', 'true');
+        // Version 5.0 (Customer Acquisition Phase 6) — a genuinely
+        // successful, server-validated coupon application, not the
+        // raw keystroke — matches this file's own "createCheckoutSession()
+        // re-validates it from scratch either way" trust boundary.
+        if (window.RobayerTracking) {
+          window.RobayerTracking.track('CouponApplied', {
+            coupon: couponCode,
+            content_ids: [productSlug],
+            value: result.data.discountPesewas / 100,
+            currency: 'GHS',
+          });
+        }
       }
     } catch (error) {
       feedbackEl.textContent = error instanceof TypeError
@@ -223,6 +235,26 @@ function initBuyButtons() {
         setLoading(button, false, defaultLabel);
         if (emailInput) emailInput.focus();
         return;
+      }
+
+      // Version 5.0 (Customer Acquisition Phase 3) — fired once
+      // validation has passed and the visitor is genuinely starting
+      // checkout, before the network round-trip (matching Meta's own
+      // "as close to the real intent as possible" guidance for this
+      // event) — never on a validation failure above, which isn't a
+      // real checkout attempt. window.__robayerPageContent (see
+      // backend/routes/books.ts) supplies value/content_name when this
+      // page set one; InitiateCheckout still fires without it rather
+      // than blocking on data that isn't essential to the event.
+      if (window.RobayerTracking) {
+        const pageContent = window.__robayerPageContent || {};
+        window.RobayerTracking.track('InitiateCheckout', {
+          content_ids: [productSlug],
+          content_name: pageContent.contentName,
+          value: pageContent.value,
+          currency: pageContent.value ? 'GHS' : undefined,
+          coupon: couponCode || undefined,
+        });
       }
 
       try {
