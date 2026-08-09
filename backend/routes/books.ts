@@ -198,7 +198,7 @@ ${opts.bodyContent}
   <script src="/js/components/theme-toggle.js?v=eebe98960c"></script>
   <script src="/js/components/branding.js?v=483b048741"></script>
   <script src="/js/content-inject.js?v=10a4d215c2"></script>
-  <script src="/js/components/newsletter-form.js?v=e84b578fd7"></script>
+  <script src="/js/components/newsletter-form.js?v=f95c689ae8"></script>
 ${opts.scripts.map((s) => `  <script src="${s}"></script>`).join('\n')}
 </body>
 </html>`;
@@ -467,7 +467,7 @@ ${NEWSLETTER_BAND}`;
     // does load it) worked correctly. Same script, no new/duplicate
     // countdown logic — just wiring this page into the one that already
     // exists.
-    scripts: ['/js/components/content-filters.js?v=bff036747e', '/js/components/countdown.js?v=b2f79caeca', '/js/main.js?v=7050d1e123'],
+    scripts: ['/js/components/content-filters.js?v=bff036747e', '/js/components/countdown.js?v=b2f79caeca', '/js/main.js?v=a1b2c3d5e0'],
   });
 
   return htmlResponse(html, 200);
@@ -548,7 +548,7 @@ function render404(env: Env, slug: string): Response {
         <a href="/books/" class="btn btn--primary">Browse all guides</a>
       </div>
     </section>`,
-    scripts: ['/js/main.js?v=7050d1e123'],
+    scripts: ['/js/main.js?v=a1b2c3d5e0'],
   });
   return htmlResponse(html, 404);
 }
@@ -1251,13 +1251,13 @@ ${NEWSLETTER_BAND}`;
     breadcrumb,
     bodyContent: body,
     scripts: [
-      '/js/components/buy-button.js?v=c689e6c1a2',
+      '/js/components/buy-button.js?v=d791f2a3b4',
       '/js/components/founder-bio.js?v=4e2cad6615',
       '/js/components/product-reviews.js?v=52dfc03feb',
       '/js/components/countdown.js?v=b2f79caeca',
       '/js/components/ownership-helpers.js?v=9272ea5c97',
       '/js/components/book-purchase-state.js?v=25f3d3e770',
-      '/js/main.js?v=7050d1e123',
+      '/js/main.js?v=a1b2c3d5e0',
     ],
   });
 

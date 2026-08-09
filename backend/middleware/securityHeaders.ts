@@ -34,9 +34,26 @@ const HTML_CONTENT_SECURITY_POLICY = [
   "default-src 'self'",
   "style-src 'self' 'unsafe-inline' https://fonts.googleapis.com", // 'unsafe-inline' covers this Worker's own inline `style="background-image:...url(cover)"` attributes (routes/books.ts) — a fixed, developer-authored pattern, not user-controllable CSS
   "font-src 'self' https://fonts.gstatic.com",
-  "script-src 'self'",
+  // Version 5.0 (Customer Acquisition Phase 1) — connect.facebook.net
+  // is Meta Pixel's own base-code script origin (js/components/meta-pixel.js,
+  // loaded from js/main.js). static.cloudflareinsights.com was already
+  // a real, intended origin (js/main.js's pre-existing
+  // loadCloudflareWebAnalytics(), Version 3.3 Milestone M5C) but had
+  // been silently blocked by this exact same 'self'-only policy since
+  // the day it shipped — never caught because analytics.webAnalyticsToken
+  // has stayed null (no real Cloudflare Web Analytics site-tag created
+  // yet), so that loader has never actually attempted to inject its
+  // script until this project's own token is set. Fixed alongside the
+  // Meta origin below since it's the identical root cause.
+  "script-src 'self' https://connect.facebook.net https://static.cloudflareinsights.com",
   "img-src 'self' https: data:",
-  "connect-src 'self'",
+  // www.facebook.com — Meta Pixel's own event-send endpoint
+  // (https://www.facebook.com/tr), called by fbevents.js for every
+  // fbq('track'/'trackCustom') call, not just the <noscript> fallback
+  // pixel (which img-src's existing "https:" wildcard already covers).
+  // cloudflareinsights.com — the Web Analytics beacon's own event-send
+  // endpoint, same reasoning as script-src above.
+  "connect-src 'self' https://www.facebook.com https://cloudflareinsights.com",
   "frame-ancestors 'none'",
 ].join('; ');
 

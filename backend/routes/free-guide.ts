@@ -148,7 +148,7 @@ ${opts.bodyContent}
   <script src="/js/components/theme-toggle.js?v=eebe98960c"></script>
   <script src="/js/components/branding.js?v=483b048741"></script>
   <script src="/js/content-inject.js?v=10a4d215c2"></script>
-  <script src="/js/components/newsletter-form.js?v=e84b578fd7"></script>
+  <script src="/js/components/newsletter-form.js?v=f95c689ae8"></script>
 ${opts.scripts.map((s) => `  <script src="${s}"></script>`).join('\n')}
 </body>
 </html>`;
@@ -339,7 +339,7 @@ async function renderFreeGuideIndex(env: Env): Promise<Response> {
     extraHead: breadcrumbJsonLd + faqJsonLd(),
     breadcrumb,
     bodyContent: body,
-    scripts: ['/js/main.js?v=7050d1e123'],
+    scripts: ['/js/main.js?v=a1b2c3d5e0'],
   });
 
   return htmlResponse(html, 200);
