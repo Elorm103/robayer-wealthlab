@@ -23,13 +23,31 @@
         <li><a href="/books/">Books</a></li>
         <li><a href="/blog/">Blog</a></li>
         <li><a href="/resources/">Resources</a></li>
-        <li><a href="/calculators/">Calculators</a></li>
-        <li><a href="/goal-planner/">Goal Planner</a></li>
-        <li><a href="/services/">Services</a></li>
-        <li><a href="/investment-centre/">Investment Centre</a></li>
-        <li><a href="/learn/">Learn</a></li>
         <li><a href="/ai-assistant/">Ask AI</a></li>
         <li><a href="/about/">About</a></li>
+        <li class="nav__more">
+          <p class="nav__more-label" aria-hidden="true">More</p>
+          <button
+            class="nav__more-trigger"
+            type="button"
+            aria-expanded="false"
+            aria-haspopup="true"
+            aria-controls="nav-more-panel"
+          >
+            More
+            <svg class="nav__more-chevron" width="10" height="6" viewBox="0 0 10 6" aria-hidden="true">
+              <path d="M1 1l4 4 4-4" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" fill="none"/>
+            </svg>
+          </button>
+          <div class="nav__more-panel" id="nav-more-panel">
+            <a href="/investment-centre/">Investment Centre</a>
+            <a href="/calculators/">Calculators</a>
+            <a href="/goal-planner/">Goal Planner</a>
+            <a href="/services/">Services</a>
+            <a href="/learn/">Learn</a>
+            <a href="/contact/">Contact</a>
+          </div>
+        </li>
       </ul>
       <button
         class="theme-toggle"

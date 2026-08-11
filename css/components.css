@@ -140,20 +140,15 @@
   min-height: var(--header-height);
 }
 
-/* Header gets more breathing room than the standard 1200px site container:
-   at 9 nav items the natural content width leaves near-zero slack inside
-   1200px, producing the cramped edge-to-edge look the header redesign was
-   meant to fix. Scoped to .site-header only, so every other section keeps
-   the shared .container width and responsive behaviour unchanged.
-   Widened again from 1360px to 1440px in the launch-stabilization pass:
-   adding "Home" as a 10th nav item plus the larger logo mark (24px to
-   40px) and its bigger tap-safe hit area pushed natural content to
-   ~1326px, which overflowed the old 1360px cap (1312px available) by
-   ~14px — verified live, not estimated. See the matching 1439px
-   collapse breakpoint below, same "no squeezed in-between state"
-   principle as the original 1360px calibration. */
+/* Prior to the Header/Typography Modernisation pass, this carried its
+   own widened max-width (grew from 1200px to 1440px, sprint by sprint,
+   chasing an 11-item flat nav that no longer fit). The "More" disclosure
+   (see .nav__more below) cut that back down to 6 links + one trigger,
+   whose measured natural width fits the shared 1200px .container with
+   real breathing room, so the special-case override is gone — this
+   section's spacing now behaves exactly like every other section on
+   the site, one less thing to keep in sync. */
 .site-header .nav {
-  max-width: 1440px;
   min-height: var(--site-header-height);
 }
 
@@ -194,7 +189,12 @@
   align-items: center;
   gap: var(--space-5);
   font-family: var(--font-heading);
-  font-weight: var(--weight-medium);
+  /* Header/Typography Modernisation: medium -> semibold. At the small
+     nav text size, medium (500) read as visually weak next to the
+     surrounding body/heading weights — semibold gives navigation the
+     "clear readability" the redesign calls for without needing a
+     larger font-size. */
+  font-weight: var(--weight-semibold);
   font-size: var(--text-small);
 }
 
@@ -217,6 +217,151 @@
   color: var(--color-accent);
   border-bottom-color: var(--color-accent);
   font-weight: var(--weight-semibold);
+}
+
+/* ============================================================
+   NAV — "MORE" DISCLOSURE
+   A plain disclosure (button + list of links), not an ARIA `menu` —
+   these are ordinary navigation destinations, not application
+   commands, so the simpler, more robust APG "Disclosure" pattern
+   applies, not the stricter roving-tabindex menu pattern.
+
+   Visible on two independent conditions, combined so neither can
+   suppress the other:
+     1. `:hover` on the whole `.nav__more` — pure CSS, for desktop mouse
+        users. The panel sits with zero gap under the trigger (padding,
+        not margin, creates the visual space) so the hoverable box is
+        contiguous — the pointer can move from trigger to panel without
+        ever leaving `.nav__more` and closing it.
+     2. `.is-open` — set by js/components/nav.js on click/tap/Enter/
+        Space (native <button> activation already fires `click` for
+        Enter/Space, no extra JS needed for that part), so touch
+        devices (no real :hover) and keyboard users who tab to the
+        trigger and press Enter get the same reveal. Escape and
+        outside-click close it again (nav.js) and return focus to the
+        trigger — hover closing is automatic (CSS) the moment the
+        pointer leaves.
+
+   Deliberately NOT `:focus-within`: the panel's own links are
+   `visibility: hidden` (untabbable) until opened, so within
+   `.nav__more` only the trigger itself can ever hold focus —
+   `:focus-within` would therefore only ever mean "the trigger is
+   focused," which conflicts with Escape returning focus to that same
+   trigger (the panel would immediately reappear via :focus-within
+   right after Escape closed it via `.is-open`, defeating "Escape to
+   close"). Confirmed live: this was implemented and then removed after
+   exactly that conflict was caught in testing. */
+.nav__more {
+  position: relative;
+}
+
+.nav__more-label {
+  display: none; /* mobile-only static section label, see @media block below */
+}
+
+.nav__more-trigger {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-1);
+  min-height: 44px; /* touch target floor, matches .btn's own convention */
+  color: var(--color-ink-navy);
+  font: inherit;
+  padding-bottom: var(--space-2);
+  border-bottom: 2px solid transparent;
+  transition: color var(--duration-base) var(--ease-standard);
+}
+
+.nav__more:hover .nav__more-trigger,
+.nav__more-trigger:hover,
+.nav__more-trigger[aria-expanded="true"] {
+  color: var(--color-accent);
+}
+
+.nav__more-chevron {
+  transition: transform var(--duration-base) var(--ease-standard);
+}
+
+.nav__more:hover .nav__more-chevron,
+.nav__more-trigger[aria-expanded="true"] .nav__more-chevron {
+  transform: rotate(180deg);
+}
+
+/* A current page living under More still gets the same accent
+   treatment on the trigger itself, so "where am I" stays answerable
+   without opening the panel. Progressive enhancement — browsers
+   without :has() simply skip this rule; the panel's own
+   aria-current styling (inherited from .nav__list a[aria-current]
+   below) still applies either way. */
+.nav__more:has(.nav__more-panel a[aria-current="page"]) .nav__more-trigger {
+  color: var(--color-accent);
+}
+
+.nav__more-panel {
+  position: absolute;
+  top: 100%;
+  right: 0;
+  padding-top: var(--space-3); /* the hoverable bridge, see header comment above */
+  width: max-content;
+  min-width: 200px;
+  opacity: 0;
+  visibility: hidden;
+  transform: translateY(-4px);
+  transition: opacity var(--duration-fast) var(--ease-standard),
+              transform var(--duration-fast) var(--ease-standard),
+              visibility var(--duration-fast);
+  z-index: var(--z-sticky);
+}
+
+.nav__more-panel > a {
+  position: relative; /* stack above the ::before card surface below */
+  display: block;
+  padding: var(--space-3) var(--space-4);
+  color: var(--color-ink-navy);
+  font-weight: var(--weight-medium);
+  transition: background-color var(--duration-fast) var(--ease-standard),
+              color var(--duration-fast) var(--ease-standard);
+}
+
+/* The actual visible card — a separate layer from .nav__more-panel
+   itself (which also contains the invisible padding-top bridge), so
+   that bridge never shows as a colored strip above the real card. */
+.nav__more-panel::before {
+  content: '';
+  position: absolute;
+  inset: var(--space-3) 0 0 0;
+  background-color: var(--color-surface);
+  border: 0.5px solid var(--color-border);
+  border-radius: var(--radius-md);
+  box-shadow: var(--shadow-2);
+  z-index: -1;
+}
+
+.nav__more-panel > a:first-child { border-radius: var(--radius-md) var(--radius-md) 0 0; }
+.nav__more-panel > a:last-child { border-radius: 0 0 var(--radius-md) var(--radius-md); }
+
+.nav__more-panel > a:hover {
+  background-color: var(--color-bg-alt);
+  color: var(--color-accent);
+  text-decoration: none;
+}
+
+.nav__more-panel > a[aria-current="page"] {
+  color: var(--color-accent);
+  font-weight: var(--weight-semibold);
+  background-color: var(--color-bg-alt);
+}
+
+.nav__more:hover .nav__more-panel,
+.nav__more-panel.is-open {
+  opacity: 1;
+  visibility: visible;
+  transform: translateY(0);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .nav__more-panel {
+    transform: none;
+  }
 }
 
 .nav__toggle {
@@ -268,36 +413,22 @@
 }
 
 /* Mobile navigation
-   Breakpoint widened from 767px to 999px in Version 1.1 Sprint 2: with
-   6 nav items (Books/Blog/Resources/Calculators/Services/About) plus
-   the theme toggle and CTA button, the horizontal nav no longer fits
-   in the 768–999px range — verified by measuring its natural width
-   (~940–990px) against the available space at those viewports.
-   Widened again from 999px to 1199px in Version 1.1 Sprint 5: adding
-   Goal Planner (Sprint 4) and Learn (Sprint 5) brought the nav to 8
-   items, with a measured natural width of ~1099px — reusing the
-   existing 1199px breakpoint already defined for .grid--2/.grid--3
-   rather than introducing a new arbitrary value.
-   Widened again from 1199px to 1359px in the Header Modernization pass:
-   a 9th item (Investment Centre) had since been added without revisiting
-   this breakpoint, leaving the desktop nav's natural width (~1264px,
-   measured live: logo ~168px + menu ~1096px) only ~7px under the
-   1152px-1360px available range at the old spacing — the header was
-   being forced to compress with zero breathing room at every desktop
-   width, which is what read as "cramped". The header now gets its own
-   wider 1360px max-width (see .site-header .nav above, not the shared
-   1200px .container), and the collapse point is set to match it exactly:
-   below 1360px there's no partial/squeezed desktop state, it goes
-   straight to the clean mobile panel.
-   Widened again from 1359px to 1439px in the launch-stabilization pass:
-   a 10th item (Home) plus the larger 40px logo (was 24px) and its new
-   tap-safe padding pushed natural content to ~1326px, overflowing the
-   1360px cap's 1312px available width by ~14px (measured live). The
-   header's own max-width moved to 1440px to match (see .site-header
-   .nav above), and this breakpoint moves with it for the same reason
-   as before — no partial/squeezed state between "full nav" and
-   "hamburger". */
-@media (max-width: 1439px) {
+   Breakpoint widened from 767px to 999px in Version 1.1 Sprint 2, then
+   999px -> 1199px -> 1359px -> 1439px across several later sprints, each
+   time chasing a growing flat item count (eventually 11 items) that no
+   longer fit horizontally at any reasonable desktop width — see prior
+   revisions of this comment in git history for the full trail.
+
+   Header/Typography Modernisation pass: the "More" disclosure above
+   moved 6 of those 11 items off the visible bar, cutting the nav back
+   down to 6 links + one trigger. Measured live (desktop preview,
+   real rendered width): logo + 6 links + More trigger + theme toggle +
+   CTA button now totals ~810-850px, comfortably inside the existing
+   1199px breakpoint already used elsewhere (.grid--2/.grid--3) — no
+   need for the header's own wider special-case breakpoint or
+   1440px max-width anymore. Both reverted to the shared values (see
+   .site-header .nav above) now that they're no longer needed. */
+@media (max-width: 1199px) {
   .nav__toggle {
     display: flex;
   }
@@ -310,6 +441,7 @@
     gap: 0;
     background-color: var(--color-bg);
     padding: var(--space-4);
+    overflow-y: auto;
     transform: translateY(-8px);
     opacity: 0;
     visibility: hidden;
@@ -332,8 +464,76 @@
 
   .nav__list a {
     display: block;
-    padding: var(--space-3) 0;
+    padding: var(--space-3) var(--space-2);
     border-bottom: 0.5px solid var(--color-border);
+  }
+
+  /* The More disclosure flattens into an ordinary section of the
+     mobile panel — a full-height slide-down sheet has plenty of room
+     to just list everything, so the desktop-only crowding problem the
+     dropdown solves doesn't exist here. The interactive trigger
+     (desktop: click/hover/keyboard) is replaced by a plain, non-focusable
+     label so mobile has exactly one, uninterrupted way to reach every
+     link: scroll and tap, matching the rest of the panel. */
+  .nav__more {
+    display: contents;
+  }
+
+  .nav__more-label {
+    display: block;
+    margin-top: var(--space-4);
+    padding: var(--space-2);
+    font-family: var(--font-heading);
+    font-size: var(--text-eyebrow);
+    font-weight: var(--weight-semibold);
+    letter-spacing: var(--tracking-eyebrow);
+    text-transform: uppercase;
+    color: var(--color-text-muted);
+  }
+
+  .nav__more-trigger {
+    display: none;
+  }
+
+  .nav__more-panel {
+    position: static;
+    padding-top: 0;
+    width: auto;
+    min-width: 0;
+    transform: none;
+    transition: none;
+    /* opacity/visibility are intentionally NOT reset here — see the
+       .nav__menu.is-open rule just below. The panel has its own
+       direct opacity:0/visibility:hidden in its base (desktop, closed-
+       dropdown) rule above; that has nothing to do with inheritance
+       from .nav__menu, so it needs its own explicit override, not
+       just "leave it unset." Two wrong versions were tried and caught
+       live before this one: forcing `visibility: visible`
+       unconditionally here made the links focusable/screen-reader-
+       exposed even while the mobile menu itself was fully closed
+       (its own visibility:hidden couldn't suppress a child's own
+       direct override); leaving both properties unset entirely left
+       the panel permanently hidden at mobile, since nothing was ever
+       setting .nav__more-panel.is-open (that class only ever gets
+       toggled by the desktop trigger, which is display:none here).
+       Tying the override to .nav__menu.is-open instead ties the
+       panel's visibility to the ONE state that actually matters at
+       this breakpoint: whether the mobile menu itself is open. */
+  }
+
+  .nav__menu.is-open .nav__more-panel {
+    opacity: 1;
+    visibility: visible;
+  }
+
+  .nav__more-panel::before {
+    display: none;
+  }
+
+  .nav__more-panel > a {
+    padding: var(--space-3) var(--space-2);
+    border-bottom: 0.5px solid var(--color-border);
+    font-weight: var(--weight-medium);
   }
 
   .nav__cta {
@@ -374,12 +574,21 @@
   color: var(--color-text-secondary);
 }
 
+/* Header/Typography Modernisation: previously the exact same secondary
+   grey as the surrounding non-link separators/current-page text — a
+   breadcrumb link was only identifiable by trial-and-error hovering.
+   Medium weight (the plain trail text stays regular) is enough
+   distinction at this small size without needing the accent color
+   used everywhere else, which would compete with the current-page
+   segment for attention. */
 .breadcrumbs a {
   color: var(--color-text-secondary);
+  font-weight: var(--weight-medium);
 }
 
 .breadcrumbs a:hover {
   color: var(--color-accent);
+  text-decoration: underline;
 }
 
 .breadcrumbs__separator {
@@ -733,6 +942,7 @@
   display: block;
   padding-block: var(--space-1);
   font-size: var(--text-small);
+  font-weight: var(--weight-medium);
   color: var(--color-text-secondary);
 }
 
@@ -1818,6 +2028,30 @@ a.resource-card {
    ============================================================ */
 .article-body {
   max-width: 680px;
+}
+
+/* Header/Typography Modernisation: in running prose, color alone
+   (base.css's global `a { color: var(--color-accent) }`, no underline
+   until :hover) isn't always enough to mark a link at a glance —
+   especially for readers who don't perceive the green/charcoal
+   distinction strongly. A permanent, subtle underline (thin, offset,
+   and — unlike the hover state — softened via a translucent version of
+   the link's own color rather than solid) fixes that without every
+   link shouting for attention. */
+.article-body a {
+  font-weight: var(--weight-medium);
+  text-decoration: underline;
+  text-decoration-color: rgba(32, 111, 52, 0.35); /* --color-growth-green at low opacity */
+  text-decoration-thickness: 1px;
+  text-underline-offset: 2px;
+}
+
+.article-body a:hover {
+  text-decoration-color: currentColor;
+}
+
+[data-theme="dark"] .article-body a {
+  text-decoration-color: rgba(83, 198, 121, 0.4); /* dark-mode --color-accent at low opacity */
 }
 
 .article-body > * + * {

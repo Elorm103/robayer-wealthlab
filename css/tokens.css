@@ -79,6 +79,21 @@
   --color-text-primary:    var(--color-charcoal-ink);
   --color-text-heading:    var(--color-ink-navy);
   --color-text-secondary:  var(--color-slate);
+  /* Header/Typography Modernisation pass: a deliberate third text tier,
+     between --color-text-secondary (~5.2-5.6:1, AA-safe for real body
+     copy) and pure decoration. #7C775F clears 4.5:1 on white / 4.2:1 on
+     warm-paper — a genuine step down from secondary, but still
+     comfortably readable, never the "washed out" illegible grey a
+     naive lighter-grey would produce. For supporting text that's
+     intentionally de-emphasized (timestamps, captions, metadata) but
+     must still be read, not decoration. */
+  --color-text-muted:      #7C775F;
+  /* Reuses the existing --color-stone-grey token rather than inventing
+     a new color — it was already documented above as "border/
+     decoration-only" specifically because its ~2.8-3.0:1 ratio is too
+     low for real text, which is exactly the right (and only) strength
+     for a genuinely disabled control's label. */
+  --color-text-disabled:   var(--color-stone-grey);
   --color-text-on-dark:    var(--color-white);
   --color-text-on-accent:  #4A3607; /* dark gold-brown, passes contrast on Sika Gold */
   --color-border:          var(--color-light-sand);
@@ -189,6 +204,13 @@
   --color-text-primary:    #E4E1D8;
   --color-text-heading:    #FFFFFF;
   --color-text-secondary:  #A8ACB3;
+  /* Same three-tier logic as light mode: a dimmer step than secondary
+     (7.97:1/7.02:1) that still clears AA — 4.71:1 on --color-bg, 4.15:1
+     on --color-surface. */
+  --color-text-muted:      #7E828A;
+  /* ~2.9:1 on --color-bg — deliberately below AA, matching light mode's
+     reuse of an already-too-weak-for-text token for the same purpose. */
+  --color-text-disabled:   #5C6068;
   --color-text-on-dark:    var(--color-ink-navy);
   --color-border:          rgba(255, 255, 255, 0.12);
   --color-border-strong:   rgba(255, 255, 255, 0.28);
