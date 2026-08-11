@@ -1211,6 +1211,102 @@
 }
 
 /* ============================================================
+   FREE GUIDE HERO — book-led, dark variant of .hero--split, used
+   only on /free-guide/. Reuses the shared .hero/.hero--split grid
+   as-is (the book is simply the first child in .hero__content now,
+   so it lands in the left column on desktop and leads on mobile —
+   no [order] override needed); these rules add only the
+   page-specific dark background, text-on-navy color overrides, and
+   the premium book presentation (elevation + ambient glow) that the
+   light-background .hero--split variant elsewhere doesn't need.
+   Same "deliberately dark regardless of site theme" convention as
+   .bg-navy/.feature-banner (see utilities.css) — no [data-theme]
+   override needed for the same reason those have none. */
+.hero--free-guide {
+  position: relative;
+  overflow: hidden;
+  background-color: var(--color-ink-navy);
+  background-image:
+    radial-gradient(circle at 16% 18%, rgba(230, 175, 25, 0.16), transparent 55%),
+    radial-gradient(circle at 84% 82%, rgba(32, 111, 52, 0.18), transparent 55%);
+}
+
+.hero--free-guide .hero__title {
+  color: var(--color-white);
+}
+
+.hero--free-guide .hero__subtitle {
+  color: var(--color-light-sand);
+}
+
+.hero--free-guide .text-secondary {
+  color: rgba(255, 255, 255, 0.65);
+}
+
+.hero--free-guide .check-item__icon {
+  color: var(--color-sika-gold);
+}
+
+.hero--free-guide .check-item__text {
+  color: var(--color-light-sand);
+}
+
+.hero--free-guide .btn--accent {
+  padding-inline: var(--space-5);
+  font-size: var(--text-body);
+}
+
+.free-guide-hero__emphasis {
+  font-family: var(--font-heading);
+  font-style: italic;
+  color: var(--color-light-sand);
+  margin-bottom: var(--space-4);
+}
+
+/* Premium book presentation: large, elevated, with a soft ambient
+   glow behind it. The glow and shadow are applied to this wrapper,
+   never to the cover image itself — the artwork is never filtered,
+   cropped, or altered. */
+.free-guide-hero__book {
+  position: relative;
+  width: 100%;
+  max-width: 340px;
+  margin-inline: auto;
+}
+
+.free-guide-hero__book::before {
+  content: '';
+  position: absolute;
+  inset: -14%;
+  background: radial-gradient(circle, rgba(230, 175, 25, 0.30), transparent 70%);
+  filter: blur(28px);
+  z-index: -1;
+}
+
+/* height: auto (never object-fit: cover) so the real cover's true
+   aspect ratio always renders intact — nothing here can crop or
+   stretch it regardless of the source file's actual dimensions. */
+.free-guide-hero__cover {
+  display: block;
+  width: 100%;
+  height: auto;
+  border-radius: var(--radius-sm);
+  box-shadow: var(--shadow-3), 0 0 0 1px rgba(230, 175, 25, 0.18);
+}
+
+@media (max-width: 1199px) {
+  .free-guide-hero__book {
+    max-width: 280px;
+  }
+}
+
+@media (max-width: 767px) {
+  .free-guide-hero__book {
+    max-width: 220px;
+  }
+}
+
+/* ============================================================
    BOOK CARD
    ============================================================ */
 .book-card {

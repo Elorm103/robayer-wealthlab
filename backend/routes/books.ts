@@ -467,7 +467,7 @@ ${NEWSLETTER_BAND}`;
     // does load it) worked correctly. Same script, no new/duplicate
     // countdown logic — just wiring this page into the one that already
     // exists.
-    scripts: ['/js/components/content-filters.js?v=bff036747e', '/js/components/countdown.js?v=b2f79caeca', '/js/main.js?v=a1b2c3d5e0'],
+    scripts: ['/js/components/content-filters.js?v=bff036747e', '/js/components/countdown.js?v=b2f79caeca', '/js/main.js?v=b2c3d4e6f1'],
   });
 
   return htmlResponse(html, 200);
@@ -548,7 +548,7 @@ function render404(env: Env, slug: string): Response {
         <a href="/books/" class="btn btn--primary">Browse all guides</a>
       </div>
     </section>`,
-    scripts: ['/js/main.js?v=a1b2c3d5e0'],
+    scripts: ['/js/main.js?v=b2c3d4e6f1'],
   });
   return htmlResponse(html, 404);
 }
@@ -1256,13 +1256,13 @@ ${NEWSLETTER_BAND}`;
     breadcrumb,
     bodyContent: body,
     scripts: [
-      '/js/components/buy-button.js?v=d791f2a3b4',
+      '/js/components/buy-button.js?v=e802a4c5d1',
       '/js/components/founder-bio.js?v=4e2cad6615',
       '/js/components/product-reviews.js?v=52dfc03feb',
       '/js/components/countdown.js?v=b2f79caeca',
       '/js/components/ownership-helpers.js?v=9272ea5c97',
       '/js/components/book-purchase-state.js?v=25f3d3e770',
-      '/js/main.js?v=a1b2c3d5e0',
+      '/js/main.js?v=b2c3d4e6f1',
     ],
   });
 

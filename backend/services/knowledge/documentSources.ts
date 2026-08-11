@@ -21,6 +21,7 @@
 
 import type { Env } from '../../worker/env';
 import { extractPageContent, extractFaqsFromJsonLd } from './htmlExtraction';
+import { renderBookDetail } from '../../routes/books';
 
 export type KnowledgeSourceType = 'blog_post' | 'resource' | 'product' | 'static_page' | 'cms_setting';
 
@@ -117,7 +118,14 @@ export async function getProductDocuments(env: Env, logger: { error(msg: string,
   for (const row of results) {
     const url = `${env.SITE_BASE_URL}/books/${row.slug}/`;
     try {
-      const response = await fetch(url);
+      // Calls the same render function the live route handler calls,
+      // in-process — no network self-fetch. A same-zone fetch() from
+      // inside this Worker was confirmed (via live production logs) to
+      // return 404 for this exact URL despite the URL genuinely working
+      // for every external caller (browser, curl); calling the renderer
+      // directly sidesteps whatever routing layer that self-fetch was
+      // hitting instead of this Worker.
+      const response = await renderBookDetail(env, row.slug);
       if (!response.ok) {
         logger.error('knowledge.product_fetch_failed', { slug: row.slug, status: response.status });
         continue;

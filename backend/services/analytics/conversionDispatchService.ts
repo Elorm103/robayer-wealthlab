@@ -24,7 +24,7 @@
 import type { Env } from '../../worker/env';
 import type { Logger } from '../../utils/logger';
 import { getAnalyticsProviders } from './index';
-import { hashEmail } from './hashing';
+import { hashEmail, hashExternalId } from './hashing';
 import type { ConversionEventName, ServerEventInput } from './types';
 
 const RETRY_MAX_ATTEMPTS = 2; // matches emailService.ts's own inline retry budget
@@ -36,6 +36,13 @@ export interface DispatchServerEventInput {
   eventSourceUrl: string;
   /** Raw email — hashed exactly once, here, before any provider or log row ever sees it. Never persisted in raw form. */
   customerEmail: string | null;
+  /** Event Match Quality — this project's own numeric customer id, hashed exactly once, here, same discipline as customerEmail above. Absent for an event with no provisioned customer yet (e.g. a guest-checkout edge case). */
+  customerId?: number | null;
+  /** Event Match Quality — all four read from a real, direct customer request (see migration 0041's header comment); never hashed (Meta's own documented spec), never fabricated when absent. */
+  clientIpAddress?: string | null;
+  clientUserAgent?: string | null;
+  fbc?: string | null;
+  fbp?: string | null;
   customData: ServerEventInput['customData'];
   entityType: string;
   entityId: number;
@@ -101,12 +108,19 @@ function isPermanentFailure(status: number): boolean {
  * state (not every environment runs every ad platform).
  */
 export async function dispatchServerEvent(env: Env, logger: Logger, input: DispatchServerEventInput): Promise<void> {
-  const emailHash = await hashEmail(input.customerEmail);
+  const [emailHash, externalIdHash] = await Promise.all([hashEmail(input.customerEmail), hashExternalId(input.customerId ?? null)]);
   const eventInput: ServerEventInput = {
     eventName: input.eventName,
     eventId: input.eventId,
     eventSourceUrl: input.eventSourceUrl,
-    userData: { emailHash },
+    userData: {
+      emailHash,
+      externalIdHash,
+      clientIpAddress: input.clientIpAddress ?? null,
+      clientUserAgent: input.clientUserAgent ?? null,
+      fbc: input.fbc ?? null,
+      fbp: input.fbp ?? null,
+    },
     customData: input.customData,
   };
   const requestPayload = JSON.stringify(eventInput);
@@ -179,6 +193,12 @@ export interface DispatchPurchaseInput {
   productId: string;
   productSlug: string;
   couponCode: string | null;
+  /** Event Match Quality — see DispatchServerEventInput's own doc comments; all optional, all sourced from a real customer request, never fabricated. */
+  customerId?: number | null;
+  clientIpAddress?: string | null;
+  clientUserAgent?: string | null;
+  fbc?: string | null;
+  fbp?: string | null;
 }
 
 /**
@@ -197,6 +217,11 @@ export async function dispatchPurchase(env: Env, logger: Logger, input: Dispatch
     eventId: `purchase:${input.purchaseReference}`,
     eventSourceUrl: input.eventSourceUrl,
     customerEmail: input.customerEmail,
+    customerId: input.customerId,
+    clientIpAddress: input.clientIpAddress,
+    clientUserAgent: input.clientUserAgent,
+    fbc: input.fbc,
+    fbp: input.fbp,
     entityType: 'purchase_session',
     entityId: input.purchaseSessionId,
     customData: {

@@ -63,8 +63,20 @@ import type { KnowledgeIndexQueueMessage } from './queueTypes';
 const EMBEDDING_FEATURE = 'knowledge.embed';
 /** Target chunk count per embed call — bounds both the OpenAI request size and (via fewer total calls) subrequest footprint within one consumer invocation. */
 const EMBED_BATCH_SIZE = 96;
-/** Cloudflare Queues' own sendBatch() cap. */
+/** Cloudflare Queues' own sendBatch() cap: at most 100 messages per call. */
 const QUEUE_SEND_BATCH_SIZE = 100;
+/**
+ * Cloudflare Queues also caps total sendBatch() payload size at 256,000
+ * bytes, independent of the 100-message count cap above. A batch of
+ * fewer than 100 messages can still exceed this once individual
+ * documents carry substantial real chunk text (confirmed in production:
+ * a batch of 66 messages hit "batch size of 314038 bytes exceeds limit
+ * of 256000 bytes" once the site's real content volume grew past what
+ * the original message-count-only batching was sized for). Kept below
+ * the real 256,000 byte limit to leave headroom for JSON-encoding
+ * overhead this rough per-message estimate doesn't capture exactly.
+ */
+const QUEUE_SEND_BATCH_MAX_BYTES = 200_000;
 /**
  * Version 5.0 Milestone 2.2, Task 5 — an APP-level version, distinct
  * from the provider's own model name (recorded separately as
@@ -188,10 +200,27 @@ async function planIndexingRun(env: Env, logger: Logger, runType: 'incremental' 
       });
     }
 
-    for (let i = 0; i < toEnqueue.length; i += QUEUE_SEND_BATCH_SIZE) {
-      const batch = toEnqueue.slice(i, i + QUEUE_SEND_BATCH_SIZE);
-      await env.KNOWLEDGE_INDEX_QUEUE.sendBatch(batch.map((m) => ({ body: m })));
+    // Chunk by both message count AND serialized byte size — either cap
+    // alone is insufficient once real documents carry substantial chunk
+    // text (see QUEUE_SEND_BATCH_MAX_BYTES's comment for the production
+    // failure this fixes).
+    let currentBatch: KnowledgeIndexQueueMessage[] = [];
+    let currentBatchBytes = 0;
+    const flush = async () => {
+      if (currentBatch.length === 0) return;
+      await env.KNOWLEDGE_INDEX_QUEUE.sendBatch(currentBatch.map((m) => ({ body: m })));
+      currentBatch = [];
+      currentBatchBytes = 0;
+    };
+    for (const message of toEnqueue) {
+      const messageBytes = new TextEncoder().encode(JSON.stringify(message)).length;
+      if (currentBatch.length > 0 && (currentBatch.length >= QUEUE_SEND_BATCH_SIZE || currentBatchBytes + messageBytes > QUEUE_SEND_BATCH_MAX_BYTES)) {
+        await flush();
+      }
+      currentBatch.push(message);
+      currentBatchBytes += messageBytes;
     }
+    await flush();
 
     const status = documentsEnqueued > 0 ? 'running' : 'completed';
     await env.DB.prepare(
@@ -306,9 +335,50 @@ async function markDocumentFailed(env: Env, documentId: number, message: string)
   await env.DB.prepare(`UPDATE knowledge_documents SET status = 'failed', error_message = ?, updated_at = datetime('now') WHERE id = ?`).bind(message, documentId).run();
 }
 
+/**
+ * Confirmed in production (live wrangler tail logs, this milestone):
+ * `env.DB.batch()` in writeDocumentIndexedState below intermittently
+ * throws "FOREIGN KEY constraint failed" against knowledge_chunks /
+ * knowledge_faqs's `document_id` reference, even though the referenced
+ * knowledge_documents row was written (via upsertDocumentRecord) before
+ * this document's queue message was ever sent, and confirmed still
+ * present in D1 both before and after the failure. Not reproducible via
+ * a direct, isolated query — only inside the queue consumer's batch
+ * write, consistent with a D1 replication/consistency race rather than
+ * a real, permanently-missing row. A bounded retry (same shape as
+ * withVectorizeRateLimitRetry above, for the same "known-transient,
+ * worth one more attempt" reasoning) is the pragmatic fix: cheap,
+ * bounded, and does not mask a genuine permanent failure, since a real
+ * FK violation (document truly deleted) would fail identically on retry.
+ */
+function isForeignKeyConstraintError(err: unknown): boolean {
+  const message = err instanceof Error ? err.message : String(err);
+  return message.includes('FOREIGN KEY constraint failed') || message.includes('SQLITE_CONSTRAINT_FOREIGNKEY');
+}
+
+const D1_FK_RETRY_MAX_ATTEMPTS = 3;
+const D1_FK_RETRY_BASE_DELAY_MS = 300;
+
+async function withD1ForeignKeyRetry<T>(logger: Logger, operation: string, fn: () => Promise<T>): Promise<T> {
+  let lastError: unknown;
+  for (let attempt = 1; attempt <= D1_FK_RETRY_MAX_ATTEMPTS; attempt++) {
+    try {
+      return await fn();
+    } catch (err) {
+      lastError = err;
+      if (!isForeignKeyConstraintError(err) || attempt === D1_FK_RETRY_MAX_ATTEMPTS) throw err;
+      const delayMs = D1_FK_RETRY_BASE_DELAY_MS * 2 ** (attempt - 1);
+      logger.error('knowledge.d1_fk_conflict_retrying', { operation, attempt, delayMs, error: err instanceof Error ? err.message : String(err) });
+      await new Promise((resolve) => setTimeout(resolve, delayMs));
+    }
+  }
+  throw lastError;
+}
+
 /** Writes the final indexed D1 state for ONE document, given its vectors are ALREADY confirmed live in Vectorize (upserted as part of the whole batch — see embedAndFinalizeAll). No Vectorize calls here. */
 async function writeDocumentIndexedState(
   env: Env,
+  logger: Logger,
   documentId: number,
   wasPreExisting: boolean,
   faqs: { question: string; answer: string }[],
@@ -316,21 +386,23 @@ async function writeDocumentIndexedState(
   vectorRecords: VectorRecord[],
   embeddingModel: string
 ): Promise<void> {
-  await env.DB.batch([
-    env.DB.prepare(`DELETE FROM knowledge_chunks WHERE document_id = ?`).bind(documentId),
-    ...chunks.map((chunk, i) =>
-      env.DB.prepare(`INSERT INTO knowledge_chunks (document_id, chunk_index, chunk_text, chunk_tokens, vector_id, embedding_model) VALUES (?, ?, ?, ?, ?, ?)`).bind(
-        documentId,
-        chunk.index,
-        chunk.text,
-        chunk.tokens,
-        vectorRecords[i].id,
-        embeddingModel
-      )
-    ),
-    env.DB.prepare(`DELETE FROM knowledge_faqs WHERE document_id = ?`).bind(documentId),
-    ...faqs.map((faq) => env.DB.prepare(`INSERT INTO knowledge_faqs (document_id, question, answer) VALUES (?, ?, ?)`).bind(documentId, faq.question, faq.answer)),
-  ]);
+  await withD1ForeignKeyRetry(logger, 'writeDocumentIndexedState', () =>
+    env.DB.batch([
+      env.DB.prepare(`DELETE FROM knowledge_chunks WHERE document_id = ?`).bind(documentId),
+      ...chunks.map((chunk, i) =>
+        env.DB.prepare(`INSERT INTO knowledge_chunks (document_id, chunk_index, chunk_text, chunk_tokens, vector_id, embedding_model) VALUES (?, ?, ?, ?, ?, ?)`).bind(
+          documentId,
+          chunk.index,
+          chunk.text,
+          chunk.tokens,
+          vectorRecords[i].id,
+          embeddingModel
+        )
+      ),
+      env.DB.prepare(`DELETE FROM knowledge_faqs WHERE document_id = ?`).bind(documentId),
+      ...faqs.map((faq) => env.DB.prepare(`INSERT INTO knowledge_faqs (document_id, question, answer) VALUES (?, ?, ?)`).bind(documentId, faq.question, faq.answer)),
+    ])
+  );
 
   // A brand-new document already started at version = 1 (the schema
   // default, set when planning INSERTed its 'pending' row) — only a
@@ -443,7 +515,7 @@ async function embedAndFinalizeAll(env: Env, logger: Logger, prepared: PreparedD
         const oldChunks = p.wasPreExisting
           ? (await env.DB.prepare(`SELECT vector_id FROM knowledge_chunks WHERE document_id = ?`).bind(p.documentId).all<{ vector_id: string }>()).results
           : [];
-        await writeDocumentIndexedState(env, p.documentId, p.wasPreExisting, p.faqs, p.chunks, vectorRecords, embeddingModel);
+        await writeDocumentIndexedState(env, logger, p.documentId, p.wasPreExisting, p.faqs, p.chunks, vectorRecords, embeddingModel);
         results[batchIndices[bi]] = { outcome: 'indexed', chunksCreated: p.chunks.length };
         for (const c of oldChunks) {
           if (!vectorRecords.some((v) => v.id === c.vector_id)) allOldVectorIdsToDelete.push(c.vector_id);

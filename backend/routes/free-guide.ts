@@ -69,7 +69,7 @@ const HEAD_ASSETS = `
   <link rel="stylesheet" href="/css/tokens.css?v=9c1fa2346d">
   <link rel="stylesheet" href="/css/base.css?v=57a963bc6f">
   <link rel="stylesheet" href="/css/layout.css?v=a6fb0c7359">
-  <link rel="stylesheet" href="/css/components.css?v=abc0d769d5">
+  <link rel="stylesheet" href="/css/components.css?v=a8c7c81eda">
   <link rel="stylesheet" href="/css/utilities.css?v=406dfe7300">
 `;
 
@@ -197,13 +197,29 @@ async function renderFreeGuideIndex(env: Env): Promise<Response> {
   const bookTitle = book?.title ?? FALLBACK_BOOK_TITLE;
 
   const body = `
-    <section class="hero hero--split bg-paper">
+    <section class="hero hero--split hero--free-guide">
       <div class="container">
         <div class="hero__content">
+          <div class="hero__visual">
+            <div class="free-guide-hero__book">
+              <img
+                class="free-guide-hero__cover"
+                src="/assets/branding/books/the-7-money-mistakes-free-guide-cover.jpg"
+                alt="${escapeHtml(title)} — free guide cover"
+                width="1024"
+                height="1535"
+                loading="eager"
+                fetchpriority="high"
+                decoding="async"
+              >
+            </div>
+          </div>
+
           <div>
-            <span class="eyebrow hero__eyebrow">Free Guide</span>
+            <span class="eyebrow eyebrow--gold hero__eyebrow">Free Financial Guide</span>
             <h1 class="hero__title">${escapeHtml(title)}</h1>
-            <p class="hero__subtitle">(And How to Avoid Them.) ${escapeHtml(shortDescription.replace(/^A free,? ?/i, ''))}</p>
+            <p class="hero__subtitle">(And How to Avoid Them.) ${escapeHtml(shortDescription.replace(/^A free,? ?/i, '').replace(/\s*No jargon,?\s*no hype,?\s*no get-rich-quick promises\.?\s*$/i, ''))}</p>
+            <p class="free-guide-hero__emphasis">No jargon. No hype. No get-rich-quick promises.</p>
 
             <ul class="grid grid--2 gap-3 mb-4" aria-label="What's inside the guide">
               <li class="check-item"><svg class="icon check-item__icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M5 12l4 4 10-10"/></svg><span class="check-item__text">The 7 mistakes, explained without judgment</span></li>
@@ -221,10 +237,6 @@ async function renderFreeGuideIndex(env: Env): Promise<Response> {
               <span class="field__error" hidden>Enter a valid email to get the guide.</span>
               <p class="text-secondary text-small">Free, no spam, unsubscribe any time.</p>
             </form>
-          </div>
-
-          <div>
-            <div class="book-card__cover" aria-hidden="true"></div>
           </div>
         </div>
       </div>

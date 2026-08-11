@@ -54,6 +54,19 @@ function isSafeUrl(value: string | null): boolean {
 export async function sanitizeRichTextHtml(html: string | null): Promise<string | null> {
   if (!html) return html;
 
+  // `a` and `img` are handled entirely within their own single-pass
+  // handler below (read the attribute, strip everything, re-apply the
+  // validated value — all inside one element() call) rather than
+  // splitting the read and the strip across two separately-registered
+  // `.on()` handlers. An earlier version relied on `.on('a', ...)` and
+  // `.on('*', ...)` both matching `<a>` and assumed HTMLRewriter would
+  // run them in registration order per element — it does not
+  // reliably do so across independently-registered selectors, which in
+  // production silently stripped every `href` a real save ever wrote
+  // (confirmed: a live PATCH with correct `href="https://..."` values
+  // came back with bare `<a>` tags). Keeping each tag's full
+  // read-strip-reapply sequence inside a single handler removes any
+  // dependency on cross-handler ordering.
   class ElementSanitizer {
     element(element: Element) {
       const tag = element.tagName.toLowerCase();
@@ -61,6 +74,7 @@ export async function sanitizeRichTextHtml(html: string | null): Promise<string 
         element.removeAndKeepContent();
         return;
       }
+      if (tag === 'a' || tag === 'img') return; // handled below, in their own single-pass handlers
       // Remove every attribute first, then re-add only what's allowed —
       // simpler and safer than an attribute denylist, which would need
       // updating every time a new dangerous attribute is invented.
@@ -77,21 +91,15 @@ export async function sanitizeRichTextHtml(html: string | null): Promise<string 
     }
   }
 
-  class LinkSanitizer {
-    element(element: Element) {
-      if (element.tagName.toLowerCase() !== 'a') return;
-      // At this point handled by ElementSanitizer's attribute-strip above
-      // (registered first in the same .on('*') pass would race) — links
-      // are handled in a dedicated pass instead, reading the ORIGINAL
-      // href before ElementSanitizer strips it. See registration order below.
-    }
-  }
-  void LinkSanitizer; // kept for documentation of intent; actual link/img handling is done in the two dedicated passes below
-
   class AnchorHrefSanitizer {
     element(element: Element) {
       const href = element.getAttribute('href');
-      if (isSafeUrl(href)) {
+      const safe = isSafeUrl(href);
+      const attributeNames = [...element.attributes].map(([name]) => name);
+      for (const name of attributeNames) {
+        element.removeAttribute(name);
+      }
+      if (safe) {
         element.setAttribute('href', href as string);
         element.setAttribute('rel', 'noopener noreferrer');
         element.setAttribute('target', '_blank');
@@ -103,19 +111,20 @@ export async function sanitizeRichTextHtml(html: string | null): Promise<string 
     element(element: Element) {
       const src = element.getAttribute('src');
       const alt = element.getAttribute('alt') ?? '';
-      if (isSafeUrl(src)) {
-        element.setAttribute('src', src as string);
-        element.setAttribute('alt', alt);
-      } else {
+      const safe = isSafeUrl(src);
+      if (!safe) {
         element.remove();
+        return;
       }
+      const attributeNames = [...element.attributes].map(([name]) => name);
+      for (const name of attributeNames) {
+        element.removeAttribute(name);
+      }
+      element.setAttribute('src', src as string);
+      element.setAttribute('alt', alt);
     }
   }
 
-  // Order matters: read the original href/src attributes BEFORE
-  // ElementSanitizer's blanket attribute-strip runs, then re-apply the
-  // validated value — HTMLRewriter runs registered handlers on each
-  // element in registration order for a single pass over the stream.
   const rewriter = new HTMLRewriter()
     .on('a', new AnchorHrefSanitizer())
     .on('img', new ImgSrcSanitizer())

@@ -22,6 +22,7 @@ import { sendEmail } from '../emailService';
 import { exclusiveEndDate } from '../../utils/dateRange';
 import * as auditService from './auditService';
 import { revokePurchase } from '../orders/revocationService';
+import { ensureEntitlementsGranted } from '../fulfilmentService';
 
 export const ORDER_STATUSES = ['pending', 'verified', 'failed', 'expired', 'cancelled', 'refunded'] as const;
 export type OrderStatus = (typeof ORDER_STATUSES)[number];
@@ -331,6 +332,7 @@ export type ResendResult = { ok: true } | { ok: false; reason: 'not_found' | 'no
 interface ResendableSession {
   id: number;
   purchase_reference: string;
+  product_slug: string;
   product_title: string;
   amount_pesewas: number;
   currency: string;
@@ -340,7 +342,7 @@ interface ResendableSession {
 
 async function loadResendableSession(env: Env, reference: string): Promise<ResendableSession | null> {
   return env.DB.prepare(
-    `SELECT id, purchase_reference, product_title, amount_pesewas, currency, customer_email, status
+    `SELECT id, purchase_reference, product_slug, product_title, amount_pesewas, currency, customer_email, status
      FROM purchase_sessions WHERE purchase_reference = ?`
   )
     .bind(reference)
@@ -397,6 +399,14 @@ export async function resendDownload(env: Env, logger: Logger, actorId: number, 
   const session = await loadResendableSession(env, reference);
   if (!session) return { ok: false, reason: 'not_found' };
   if (session.status !== 'verified' || !session.customer_email) return { ok: false, reason: 'not_verified' };
+
+  // Re-check for entitlements before resending — not just a re-send of a
+  // stale email. Covers the real gap this closes: a product activated and
+  // sold before its digital files were attached, where the original
+  // fulfilment pass had nothing to grant (see
+  // fulfilmentService.ts's "fulfilment.no_published_assets"). Idempotent:
+  // an asset already entitled from a prior pass is a no-op here.
+  await ensureEntitlementsGranted(env, logger, session.id, session.product_slug);
 
   const fulfilmentUrl = `${env.SITE_BASE_URL}/checkout/callback/?ref=${encodeURIComponent(session.purchase_reference)}`;
 

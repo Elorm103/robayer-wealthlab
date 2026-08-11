@@ -31,6 +31,23 @@ export const metaProvider: AnalyticsProvider = {
   },
 
   async sendServerEvent(input: ServerEventInput, env: Env): Promise<ServerEventResult> {
+    // Event Match Quality — Meta's own documented "Customer
+    // Information Parameters" spec: em/external_id are arrays (even
+    // for one value); client_ip_address/client_user_agent/fbc/fbp are
+    // plain scalar strings and must NOT be hashed. Every field is
+    // conditionally spread in, never present-but-empty — an empty
+    // array or empty string is treated by Meta as a malformed
+    // identifier, not "no identifier," so an absent value is always
+    // fully omitted from user_data rather than sent as "".
+    const userData: Record<string, unknown> = {
+      ...(input.userData.emailHash ? { em: [input.userData.emailHash] } : {}),
+      ...(input.userData.externalIdHash ? { external_id: [input.userData.externalIdHash] } : {}),
+      ...(input.userData.clientIpAddress ? { client_ip_address: input.userData.clientIpAddress } : {}),
+      ...(input.userData.clientUserAgent ? { client_user_agent: input.userData.clientUserAgent } : {}),
+      ...(input.userData.fbc ? { fbc: input.userData.fbc } : {}),
+      ...(input.userData.fbp ? { fbp: input.userData.fbp } : {}),
+    };
+
     const payload: Record<string, unknown> = {
       data: [
         {
@@ -39,12 +56,7 @@ export const metaProvider: AnalyticsProvider = {
           event_id: input.eventId,
           event_source_url: input.eventSourceUrl,
           action_source: 'website',
-          // Meta requires each identifier as an array, even a single
-          // value — its own documented `user_data` shape. Omitted
-          // entirely (not sent as an empty array) when there's no
-          // hash available, since Meta treats a present-but-empty `em`
-          // array as a malformed identifier, not "no identifier."
-          user_data: input.userData.emailHash ? { em: [input.userData.emailHash] } : {},
+          user_data: userData,
           custom_data: input.customData,
         },
       ],

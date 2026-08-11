@@ -63,6 +63,7 @@ export interface BlogPostRecord {
   featured: boolean;
   coverMediaId: number | null;
   coverPublicUrl: string | null;
+  coverAltText: string | null;
   authorId: number | null;
   authorName: string | null;
   seoTitle: string | null;
@@ -89,6 +90,7 @@ interface BlogPostRow {
   featured: number;
   cover_media_id: number | null;
   cover_public_url: string | null;
+  cover_alt_text: string | null;
   author_id: number | null;
   author_name: string | null;
   seo_title: string | null;
@@ -105,7 +107,7 @@ interface BlogPostRow {
 const BLOG_SELECT_COLUMNS = `
   b.id, b.post_id, b.slug, b.title, b.excerpt, b.body,
   b.category, b.tags, b.status, b.featured,
-  b.cover_media_id, cover.public_url AS cover_public_url,
+  b.cover_media_id, cover.public_url AS cover_public_url, cover.alt_text AS cover_alt_text,
   b.author_id, author.name AS author_name,
   b.seo_title, b.seo_description, b.seo_canonical_url, b.published_at,
   b.created_by, b.updated_by, b.created_at, b.updated_at, b.deleted_at
@@ -131,6 +133,7 @@ function fromRow(row: BlogPostRow): BlogPostRecord {
     featured: row.featured === 1,
     coverMediaId: row.cover_media_id,
     coverPublicUrl: row.cover_public_url,
+    coverAltText: row.cover_alt_text,
     authorId: row.author_id,
     authorName: row.author_name,
     seoTitle: row.seo_title,

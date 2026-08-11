@@ -111,6 +111,23 @@ export interface CreateCheckoutSessionInput {
    * the full trace.
    */
   customerEmail: unknown;
+  /**
+   * Version 5.0 (Customer Acquisition Phase 1, Event Match Quality) —
+   * read by routes/checkout.ts from the real customer request itself
+   * (CF-Connecting-IP / User-Agent headers, `_fbc`/`_fbp` cookies
+   * already set by js/components/meta-pixel.js's base Pixel script).
+   * This is the one point in the whole purchase flow with a direct
+   * customer request — stored on the purchase_sessions row and
+   * forwarded to Meta's Conversions API at verification time, since
+   * the later Paystack webhook is a server-to-server call with no
+   * customer request to read these from. All genuinely optional: a
+   * visitor with an ad-blocker, or no CF-Connecting-IP in a given
+   * environment, legitimately has none of these — never fabricated.
+   */
+  clientIpAddress: string | null;
+  clientUserAgent: string | null;
+  fbc: string | null;
+  fbp: string | null;
 }
 
 export interface CreateCheckoutSessionResult {
@@ -202,6 +219,10 @@ export async function createCheckoutSession(
     couponId,
     discountPesewas,
     customerEmail,
+    clientIpAddress: input.clientIpAddress,
+    clientUserAgent: input.clientUserAgent,
+    fbc: input.fbc,
+    fbp: input.fbp,
   });
 
   const provider = getPaymentProvider(env);
@@ -260,6 +281,11 @@ interface InsertPurchaseSessionInput {
    * final answer.
    */
   customerEmail: string;
+  /** Version 5.0 (Customer Acquisition Phase 1, Event Match Quality) — see CreateCheckoutSessionInput's own doc comment. */
+  clientIpAddress: string | null;
+  clientUserAgent: string | null;
+  fbc: string | null;
+  fbp: string | null;
 }
 
 /**
@@ -286,8 +312,9 @@ async function insertPurchaseSession(env: Env, input: InsertPurchaseSessionInput
   const inserted = await env.DB.prepare(
     `INSERT INTO purchase_sessions
        (purchase_reference, product_slug, product_id, product_version, product_title, amount_pesewas, currency, status, provider, expires_at,
-        terms_accepted_at, terms_version, license_accepted_at, license_version, marketing_opt_in, coupon_id, discount_pesewas, customer_email)
-     VALUES (NULL, ?, ?, ?, ?, ?, ?, 'pending', ?, ?, datetime('now'), ?, datetime('now'), ?, ?, ?, ?, ?)`
+        terms_accepted_at, terms_version, license_accepted_at, license_version, marketing_opt_in, coupon_id, discount_pesewas, customer_email,
+        client_ip_address, client_user_agent, fbc, fbp)
+     VALUES (NULL, ?, ?, ?, ?, ?, ?, 'pending', ?, ?, datetime('now'), ?, datetime('now'), ?, ?, ?, ?, ?, ?, ?, ?, ?)`
   )
     .bind(
       input.productSlug,
@@ -303,7 +330,11 @@ async function insertPurchaseSession(env: Env, input: InsertPurchaseSessionInput
       input.marketingOptIn ? 1 : 0,
       input.couponId,
       input.discountPesewas,
-      input.customerEmail
+      input.customerEmail,
+      input.clientIpAddress,
+      input.clientUserAgent,
+      input.fbc,
+      input.fbp
     )
     .run();
 
@@ -363,6 +394,11 @@ interface PurchaseSessionRow {
   /** Version 3.2 Milestone M4 — both locked at checkout-session creation time; amountPesewas above already reflects the discount. */
   couponId: number | null;
   discountPesewas: number;
+  /** Version 5.0 (Customer Acquisition Phase 1, Event Match Quality) — locked at checkout-session creation time (the one point with a real customer request); see CreateCheckoutSessionInput's own doc comment. */
+  clientIpAddress: string | null;
+  clientUserAgent: string | null;
+  fbc: string | null;
+  fbp: string | null;
 }
 
 /**
@@ -679,6 +715,15 @@ async function completeVerifiedPurchase(
     productId: session.productId,
     productSlug: session.productSlug,
     couponCode,
+    // Event Match Quality — customerId is already in scope from
+    // provisioning above; the other three were captured at
+    // checkout-session creation, the one point with a real customer
+    // request (see CreateCheckoutSessionInput's own doc comment).
+    customerId,
+    clientIpAddress: session.clientIpAddress,
+    clientUserAgent: session.clientUserAgent,
+    fbc: session.fbc,
+    fbp: session.fbp,
   });
 }
 
@@ -804,7 +849,8 @@ async function getPurchaseSessionByReference(env: Env, reference: string): Promi
   const row = await env.DB.prepare(
     `SELECT id, product_slug AS productSlug, product_id AS productId, product_version AS productVersion,
             amount_pesewas AS amountPesewas, currency, status, expires_at AS expiresAt, marketing_opt_in AS marketingOptIn,
-            license_version AS licenseVersion, coupon_id AS couponId, discount_pesewas AS discountPesewas
+            license_version AS licenseVersion, coupon_id AS couponId, discount_pesewas AS discountPesewas,
+            client_ip_address AS clientIpAddress, client_user_agent AS clientUserAgent, fbc, fbp
      FROM purchase_sessions WHERE purchase_reference = ?`
   )
     .bind(reference)

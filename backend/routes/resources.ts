@@ -388,7 +388,7 @@ ${NEWSLETTER_BAND}`;
     ogImage: `${SITE_ORIGIN}/assets/branding/social/og-image.jpg`,
     extraHead: faqJsonLd() + pageContentScript,
     bodyContent: body,
-    scripts: ['/js/components/content-filters.js?v=bff036747e', '/js/main.js?v=a1b2c3d5e0'],
+    scripts: ['/js/components/content-filters.js?v=bff036747e', '/js/main.js?v=b2c3d4e6f1'],
   });
 
   return htmlResponse(html, 200);

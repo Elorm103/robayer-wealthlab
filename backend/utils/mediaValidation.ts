@@ -40,6 +40,11 @@ export const SUPPORTED_TYPES: readonly MediaTypeSpec[] = [
   { kind: 'image', mimeType: 'image/webp', extension: 'webp', maxSizeBytes: MAX_IMAGE_BYTES }, // signature checked separately — RIFF....WEBP, not one contiguous run
   { kind: 'image', mimeType: 'image/svg+xml', extension: 'svg', maxSizeBytes: MAX_IMAGE_BYTES }, // text-based; validated by content sniff below, not a byte signature
   { kind: 'document', mimeType: 'application/pdf', extension: 'pdf', maxSizeBytes: MAX_DOCUMENT_BYTES, signature: [0x25, 0x50, 0x44, 0x46] }, // "%PDF"
+  // EPUB is itself a ZIP archive (its own spec requires "PK\x03\x04" as
+  // the first four bytes, same as any ZIP's local file header) — real
+  // book files need this now that a digital guide's EPUB edition is a
+  // genuine downloadable format, matching Print PDF and Mobile PDF.
+  { kind: 'document', mimeType: 'application/epub+zip', extension: 'epub', maxSizeBytes: MAX_DOCUMENT_BYTES, signature: [0x50, 0x4b, 0x03, 0x04] },
 ];
 
 export const ALLOWED_FOLDERS = ['books', 'blog', 'resources', 'branding', 'uncategorized'] as const;

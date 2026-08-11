@@ -92,7 +92,7 @@ function serveStatic(req, res) {
 // a stale static HTML file left over from before the Products migration instead
 // of the real server-rendered page, making an admin edit look like it hadn't
 // taken effect when it actually had.
-const WORKER_OWNED_PREFIXES = ['/api/', '/books/'];
+const WORKER_OWNED_PREFIXES = ['/api/', '/books/', '/free-guide/'];
 
 const server = http.createServer((req, res) => {
   if (WORKER_OWNED_PREFIXES.some((prefix) => req.url.startsWith(prefix))) {

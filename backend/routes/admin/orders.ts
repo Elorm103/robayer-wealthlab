@@ -28,6 +28,7 @@ import { requireRole } from '../../middleware/requireRole';
 import { requireCsrf } from '../../middleware/csrf';
 import * as orderService from '../../services/admin/orderService';
 import { isValidOrderStatus } from '../../services/admin/orderService';
+import { adminReprocessPurchase } from '../../services/commerceService';
 
 const EDITOR_ROLES = ['super_admin', 'editor'] as const;
 
@@ -185,4 +186,48 @@ export async function handleOrderRefund(request: Request, env: Env, logger: Logg
   }
 
   return jsonSuccess({ refunded: true });
+}
+
+const REPROCESS_ERROR_MESSAGES: Record<string, string> = {
+  not_found: 'This order could not be found.',
+  not_reprocessable: 'Only a purchase currently marked failed or expired can be reprocessed.',
+  provider_error: 'Could not reach the payment provider to re-verify this purchase. Please try again shortly.',
+  provider_status_not_success: 'The payment provider does not report this transaction as successful.',
+  amount_or_currency_mismatch: 'The amount or currency confirmed by the payment provider does not match this purchase.',
+  metadata_mismatch: 'The payment provider’s confirmed details do not match this purchase.',
+  product_no_longer_valid: 'This product is no longer purchasable, so this purchase cannot be reprocessed.',
+  concurrent_resolution: 'This purchase was already resolved by another request.',
+};
+
+/**
+ * Re-verifies a `failed`/`expired` purchase fresh against Paystack and, if
+ * every check now genuinely passes, completes it exactly as the webhook
+ * would have — see commerceService.adminReprocessPurchase()'s own doc
+ * comment for why this exists and how it stays safe. `super_admin`/`editor`
+ * only, same gating as the refund action above (a real, external,
+ * customer-facing consequence — an email and a granted download).
+ */
+export async function handleOrderReprocess(request: Request, env: Env, logger: Logger, params: RouteParams): Promise<Response> {
+  const auth = await requireAuth(request, env, logger);
+  if (!auth.ok) return auth.response;
+  const roleFailure = await requireRole(request, env, logger, auth.auth, EDITOR_ROLES);
+  if (roleFailure) return roleFailure;
+  const csrfFailure = await requireCsrf(request, env, logger, auth.auth);
+  if (csrfFailure) return csrfFailure;
+
+  if (await isRateLimited(request, env, WRITE_RATE_LIMIT)) {
+    return jsonError('RATE_LIMITED', 'Too many requests. Please try again shortly.');
+  }
+
+  const reference = params.reference;
+  if (!isPlausibleReference(reference)) {
+    return jsonError('NOT_FOUND', 'This order could not be found.');
+  }
+
+  const result = await adminReprocessPurchase(env, logger, auth.auth.adminId, reference);
+  if (!result.ok) {
+    return jsonError('VALIDATION_ERROR', REPROCESS_ERROR_MESSAGES[result.reason] ?? 'This purchase could not be reprocessed.');
+  }
+
+  return jsonSuccess({ reprocessed: true });
 }

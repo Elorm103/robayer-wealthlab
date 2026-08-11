@@ -44,6 +44,16 @@ export interface ConversionUserData {
    * retry from a logged row never needs raw PII again.
    */
   emailHash?: string | null;
+  /** Event Match Quality — already SHA-256 hashed (hashing.ts's hashExternalId()), same discipline as emailHash above. This project's own numeric customers.id, never a client-supplied value. */
+  externalIdHash?: string | null;
+  /** Event Match Quality — Meta's own documented spec: never hashed. Read from the real customer request at checkout time (see migration 0041's header comment). */
+  clientIpAddress?: string | null;
+  /** Event Match Quality — never hashed. See clientIpAddress above. */
+  clientUserAgent?: string | null;
+  /** Event Match Quality — Meta's own first-party click-id cookie, never hashed. See clientIpAddress above. */
+  fbc?: string | null;
+  /** Event Match Quality — Meta's own first-party browser-id cookie, never hashed. See clientIpAddress above. */
+  fbp?: string | null;
 }
 
 export interface ServerEventInput {

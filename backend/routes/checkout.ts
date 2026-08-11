@@ -26,6 +26,7 @@ import { validateBody } from '../middleware/validate';
 import { isPlausibleSlug } from '../services/productCatalogService';
 import { createCheckoutSession, CommerceError } from '../services/commerceService';
 import { isValidEmail } from '../utils/validation';
+import { parseCookies } from '../utils/cookies';
 
 // Slightly more generous than the form endpoints (newsletter/contact/
 // consultation: 5/min) since a visitor legitimately retrying checkout
@@ -88,6 +89,25 @@ export async function handleCreateCheckoutSession(request: Request, env: Env, lo
 
   const { productId, marketingOptIn, couponCode, email } = body as { productId: string; marketingOptIn?: unknown; couponCode?: unknown; email: string };
 
+  // Version 5.0 (Customer Acquisition Phase 1, Event Match Quality) —
+  // this request IS the one direct, real request from the customer's
+  // own browser anywhere in the purchase flow (the later Paystack
+  // webhook that completes the purchase is server-to-server, with no
+  // customer request to read these from). CF-Connecting-IP matches
+  // this codebase's existing convention (middleware/rateLimit.ts) —
+  // set by Cloudflare's edge itself, not client-supplied, so it can't
+  // be spoofed. `_fbc`/`_fbp` are Meta's own first-party cookies,
+  // already set automatically by fbevents.js
+  // (js/components/meta-pixel.js) on every page load; read here from
+  // the Cookie header of this same-origin request, never generated.
+  // All four are genuinely optional — absent (null) whenever they
+  // simply don't exist for this visitor, never a fabricated fallback.
+  const cookies = parseCookies(request.headers.get('Cookie'));
+  const clientIpAddress = request.headers.get('CF-Connecting-IP');
+  const clientUserAgent = request.headers.get('User-Agent');
+  const fbc = cookies['_fbc'] ?? null;
+  const fbp = cookies['_fbp'] ?? null;
+
   try {
     const result = await createCheckoutSession(env, logger, {
       productSlug: productId,
@@ -102,6 +122,10 @@ export async function handleCreateCheckoutSession(request: Request, env: Env, lo
       // existing "never accepts price from the client" invariant
       // unchanged. See docs/v3.2-m4c-amendment-2-coupon-security-review.md.
       couponCode: typeof couponCode === 'string' ? couponCode : null,
+      clientIpAddress,
+      clientUserAgent,
+      fbc,
+      fbp,
     });
     return jsonSuccess({ purchaseReference: result.purchaseReference, checkoutUrl: result.checkoutUrl });
   } catch (err) {

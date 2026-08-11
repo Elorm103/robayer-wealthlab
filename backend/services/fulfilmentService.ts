@@ -50,6 +50,51 @@ export interface FulfilPurchaseInput {
 }
 
 /**
+ * Grants an entitlement for every currently-published asset on a
+ * product that doesn't already have one for this purchase — the entitlement
+ * half of `fulfilPurchase()`, factored out so it can also be run AFTER
+ * verification, for a purchase whose product had zero published assets at
+ * the time it was first verified (a content-authoring gap, not a payment
+ * one — see this file's own "fulfilment.no_published_assets" log line).
+ * Never sends email itself; the caller decides whether/what to send once
+ * it knows what, if anything, was newly granted. Safe to call any number
+ * of times for the same purchase — `grantEntitlement()`'s own
+ * `INSERT OR IGNORE` makes a second call for an already-granted asset a
+ * true no-op.
+ */
+export async function ensureEntitlementsGranted(env: Env, logger: Logger, purchaseSessionId: number, productSlug: string): Promise<string[]> {
+  const product = await fetchCatalogProduct(env, productSlug);
+  if (!product) {
+    logger.error('fulfilment.product_not_found', { purchaseSessionId, productSlug });
+    return [];
+  }
+
+  const publishedAssets = product.digitalAssets.filter(isAssetPublished);
+  if (publishedAssets.length === 0) {
+    logger.error('fulfilment.no_published_assets', { purchaseSessionId, productSlug });
+    return [];
+  }
+
+  const newlyGrantedAssetIds: string[] = [];
+  for (const asset of publishedAssets) {
+    // Version 4.0 Milestone D (Second Product Ecosystem & Bundles) —
+    // asset.productSlug, NOT productSlug: for a normal product these are
+    // identical, but for a bundle purchase productSlug is the bundle's
+    // own slug while each asset carries the real item product's slug it
+    // actually came from (see productCatalogService.ts's
+    // DigitalAsset.productSlug comment) — this one substitution is what
+    // makes deliveries.product_slug correctly attribute each entitlement
+    // to its real source product.
+    const granted = await grantEntitlement(env, purchaseSessionId, asset.productSlug, asset, product.downloadPolicy);
+    if (granted) newlyGrantedAssetIds.push(asset.assetId);
+  }
+  if (newlyGrantedAssetIds.length > 0) {
+    await markDelivered(env, purchaseSessionId, newlyGrantedAssetIds);
+  }
+  return newlyGrantedAssetIds;
+}
+
+/**
  * Fulfils a verified purchase: grants an entitlement for every
  * published asset on the product, then emails the buyer. Never throws
  * back into the caller — a fulfilment failure must never affect the
@@ -61,35 +106,7 @@ export interface FulfilPurchaseInput {
  */
 export async function fulfilPurchase(env: Env, logger: Logger, input: FulfilPurchaseInput): Promise<void> {
   try {
-    const product = await fetchCatalogProduct(env, input.productSlug);
-    if (!product) {
-      logger.error('fulfilment.product_not_found', { purchaseReference: input.purchaseReference, productSlug: input.productSlug });
-      return;
-    }
-
-    const publishedAssets = product.digitalAssets.filter(isAssetPublished);
-    if (publishedAssets.length === 0) {
-      // Honest, not silent: a purchasable product with zero published
-      // assets is a content-authoring gap, not a customer-facing
-      // error — logged at error severity so it gets noticed, never
-      // thrown back to break the (already-succeeded) verification.
-      logger.error('fulfilment.no_published_assets', { purchaseReference: input.purchaseReference, productSlug: input.productSlug });
-      return;
-    }
-
-    const newlyGrantedAssetIds: string[] = [];
-    for (const asset of publishedAssets) {
-      // Version 4.0 Milestone D (Second Product Ecosystem & Bundles) —
-      // asset.productSlug, NOT input.productSlug: for a normal product
-      // these are identical, but for a bundle purchase input.productSlug
-      // is the bundle's own slug while each asset carries the real item
-      // product's slug it actually came from (see
-      // productCatalogService.ts's DigitalAsset.productSlug comment) —
-      // this one substitution is what makes deliveries.product_slug
-      // correctly attribute each entitlement to its real source product.
-      const granted = await grantEntitlement(env, input.purchaseSessionId, asset.productSlug, asset, product.downloadPolicy);
-      if (granted) newlyGrantedAssetIds.push(asset.assetId);
-    }
+    const newlyGrantedAssetIds = await ensureEntitlementsGranted(env, logger, input.purchaseSessionId, input.productSlug);
 
     if (newlyGrantedAssetIds.length === 0) {
       // Every asset already had a delivery row — this purchase was
@@ -113,8 +130,8 @@ export async function fulfilPurchase(env: Env, logger: Logger, input: FulfilPurc
       return;
     }
 
-    await sendFulfilmentEmails(env, logger, input, product.title);
-    await markDelivered(env, input.purchaseSessionId, newlyGrantedAssetIds);
+    const product = await fetchCatalogProduct(env, input.productSlug);
+    await sendFulfilmentEmails(env, logger, input, product?.title ?? input.productSlug);
 
     logger.info('fulfilment.delivered', { purchaseReference: input.purchaseReference, assetIds: newlyGrantedAssetIds });
   } catch (err) {

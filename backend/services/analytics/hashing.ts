@@ -23,3 +23,17 @@ export async function hashEmail(email: string | null | undefined): Promise<strin
   if (!normalized) return null;
   return sha256Hex(normalized);
 }
+
+/**
+ * Meta's `external_id` field only recommends hashing (unlike em/ph,
+ * which require it) — hashed anyway here, matching this project's own
+ * existing privacy discipline of never sending a raw internal
+ * identifier to a third party when a hash serves the same matching
+ * purpose. Takes this project's own numeric `customers.id`, never a
+ * client-supplied value, so a stable hash always refers to the same
+ * real, already-provisioned customer.
+ */
+export async function hashExternalId(customerId: number | null | undefined): Promise<string | null> {
+  if (customerId === null || customerId === undefined) return null;
+  return sha256Hex(String(customerId));
+}
