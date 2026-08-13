@@ -1,0 +1,25 @@
+-- ============================================================
+-- 0042_payment_transaction_fee.sql — P0-A (Revenue, Trust &
+-- Measurement Foundation).
+--
+-- Adds one nullable column to payment_transactions, the platform's
+-- one financial-transaction audit record ("financial transaction
+-- records are never deleted, soft or hard" — schema.sql's own header
+-- comment). Captures Paystack's own reported transaction fee, read
+-- from provider.verifyPayment()'s confirmed response (never estimated
+-- or hardcoded) at the exact point commerceService.ts already marks a
+-- transaction's outcome as 'success'.
+--
+-- Deliberately does NOT add a stored "net amount" column — net is
+-- always amount_pesewas - fee_pesewas, and storing it separately would
+-- itself be the duplicated financial truth this table exists to avoid.
+--
+-- Null for every transaction recorded before this migration, and for
+-- any future transaction whose provider response genuinely omits a
+-- fee (rare, but never assumed present).
+--
+-- Rollback: `ALTER TABLE payment_transactions DROP COLUMN fee_pesewas;`
+-- — safe, additive-only, no other column or table depends on this one.
+-- ============================================================
+
+ALTER TABLE payment_transactions ADD COLUMN fee_pesewas INTEGER;

@@ -98,6 +98,15 @@ export interface VerifyPaymentResult {
    * docs/payment-verification.md's "Metadata verification."
    */
   metadata: Record<string, unknown> | null;
+  /**
+   * The provider's own transaction fee (smallest currency unit), as
+   * reported at verify time — never estimated or hardcoded by this
+   * codebase. Null when the provider's response doesn't include one.
+   * Persisted on payment_transactions.fee_pesewas, the platform's one
+   * financial-transaction audit table — net amount is deliberately
+   * never stored separately; it's always amountPesewas - feePesewas.
+   */
+  feePesewas: number | null;
 }
 
 export type RefundStatus = 'refunded' | 'failed' | 'pending';

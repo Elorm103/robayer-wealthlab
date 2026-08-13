@@ -562,11 +562,11 @@ export async function handlePaymentWebhook(env: Env, logger: Logger, input: Hand
   const verified = await verifySessionAtomic(env, session.id, verifyResult.customerEmail, verifyResult.status);
   if (!verified) {
     logger.info('webhook.duplicate', { reference: providerReference, event, reason: 'concurrent_resolution' });
-    await markTransactionOutcome(env, providerReference, 'success');
+    await markTransactionOutcome(env, providerReference, 'success', verifyResult.feePesewas);
     return;
   }
 
-  await markTransactionOutcome(env, providerReference, 'success');
+  await markTransactionOutcome(env, providerReference, 'success', verifyResult.feePesewas);
   logger.info('verification.passed', { reference: providerReference, productSlug: session.productSlug });
 
   await completeVerifiedPurchase(env, logger, session, verifyResult, product, providerReference);
@@ -894,13 +894,21 @@ async function recordPaymentTransaction(env: Env, input: RecordPaymentTransactio
   return result.meta.changes === 1;
 }
 
-/** Marks the payment_transactions row's final outcome. `verified_at` is set only on success, matching schema.sql's own documented meaning for that column. */
-async function markTransactionOutcome(env: Env, paystackReference: string, status: 'success' | 'failed'): Promise<void> {
+/**
+ * Marks the payment_transactions row's final outcome. `verified_at` is
+ * set only on success, matching schema.sql's own documented meaning
+ * for that column. `feePesewas` (P0-A, payment-verification.md's
+ * "canonical financial transaction record") is only ever written on
+ * success, from provider.verifyPayment()'s own confirmed response —
+ * never estimated. Defaults to null so every pre-existing 'failed'
+ * call site (which never had a fee to report anyway) needs no change.
+ */
+async function markTransactionOutcome(env: Env, paystackReference: string, status: 'success' | 'failed', feePesewas: number | null = null): Promise<void> {
   if (status === 'success') {
     await env.DB.prepare(
-      `UPDATE payment_transactions SET status = ?, verified_at = datetime('now'), updated_at = datetime('now') WHERE paystack_reference = ?`
+      `UPDATE payment_transactions SET status = ?, fee_pesewas = ?, verified_at = datetime('now'), updated_at = datetime('now') WHERE paystack_reference = ?`
     )
-      .bind(status, paystackReference)
+      .bind(status, feePesewas, paystackReference)
       .run();
   } else {
     await env.DB.prepare(`UPDATE payment_transactions SET status = ?, updated_at = datetime('now') WHERE paystack_reference = ?`)

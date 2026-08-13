@@ -38,6 +38,17 @@ beforeEach(async () => {
   await env.DB.exec('DELETE FROM analytics_conversion_log');
   await cleanupTestProduct(env as any);
   await seedTestProduct(env as any);
+  // Every request in this file omits CF-Connecting-IP (never set by
+  // SELF.fetch() here), so middleware/rateLimit.ts's `ip` defaults to
+  // 'unknown' for all of them — every test in this file shares one
+  // checkout rate-limit counter (RATE_LIMIT = 10/60s, routes/checkout.ts),
+  // never reset between tests otherwise. Discovered when adding two more
+  // checkout-calling tests pushed the file's cumulative count over that
+  // ceiling and started failing unrelated, later-running tests — same
+  // "every shared table gets wiped" discipline this beforeEach already
+  // applies everywhere else, just extended to the one piece of state
+  // that lived in KV instead of D1.
+  await env.RATE_LIMIT_KV.delete('ratelimit:checkout:unknown');
   // Only set for these tests so dispatchServerEvent() actually attempts
   // a send (metaProvider.isConfigured() gates on this being truthy) —
   // real production sets this via `wrangler secret put`, never here.
@@ -175,6 +186,44 @@ describe('POST /api/webhooks/paystack — verification, provisioning, fulfilment
     expect(payload.customData.transaction_id).toBe(reference);
     expect(payload.customData.content_ids).toEqual([TEST_PRODUCT_SLUG]);
     expect(JSON.stringify(payload)).not.toContain('conversion-test@example.com');
+  });
+
+  // P0-A (Revenue, Trust & Measurement Foundation) — Paystack's own
+  // verify response includes a real transaction fee; this is the only
+  // place it's ever read from (never estimated/hardcoded elsewhere).
+  it('captures the real Paystack transaction fee onto payment_transactions.fee_pesewas', async () => {
+    const reference = await createPendingSession();
+    await queueVerifyResponse(env as any, reference, {
+      status: true,
+      message: 'ok',
+      data: {
+        reference,
+        amount: 3900,
+        currency: 'GHS',
+        status: 'success',
+        customer: { email: 'fee-test@example.com' },
+        metadata: { purchaseReference: reference, productId: 'prod-test-guide', productSlug: TEST_PRODUCT_SLUG, productVersion: null },
+        fees: 76, // Paystack's own reported fee, smallest currency unit — not derived or assumed by this codebase
+      },
+    });
+
+    const res = await SELF.fetch(await signedWebhookRequest(chargeSuccessPayload(reference, 'fee-test@example.com')));
+    expect((await res.json<any>()).success).toBe(true);
+
+    const tx = await env.DB.prepare('SELECT fee_pesewas, amount_pesewas FROM payment_transactions WHERE paystack_reference = ?').bind(reference).first<any>();
+    expect(tx.fee_pesewas).toBe(76);
+    expect(tx.amount_pesewas).toBe(3900); // unchanged — fee capture never alters the gross amount already recorded
+  });
+
+  it('a Paystack verify response with no fees field leaves fee_pesewas null, never a guessed value', async () => {
+    const reference = await createPendingSession();
+    await mockPaystackVerifySuccess(reference, 'no-fee-field@example.com'); // this helper's payload has no `fees` key at all
+
+    const res = await SELF.fetch(await signedWebhookRequest(chargeSuccessPayload(reference, 'no-fee-field@example.com')));
+    expect((await res.json<any>()).success).toBe(true);
+
+    const tx = await env.DB.prepare('SELECT fee_pesewas FROM payment_transactions WHERE paystack_reference = ?').bind(reference).first<any>();
+    expect(tx.fee_pesewas).toBeNull();
   });
 
   it('a Meta Conversions API failure never blocks or undoes the purchase — fulfilment still succeeds and the failure is logged for retry', async () => {

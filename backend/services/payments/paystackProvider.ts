@@ -44,6 +44,8 @@ interface PaystackVerifyResponse {
     currency?: string;
     customer?: { email?: string };
     metadata?: Record<string, unknown> | null;
+    /** Paystack's own transaction fee, smallest currency unit — present on a settled transaction, absent on some (e.g. certain failure states). Never assumed; read as-is. */
+    fees?: number;
   };
 }
 
@@ -158,6 +160,7 @@ export const paystackProvider: PaymentProvider = {
       customerEmail: data.customer?.email ?? null,
       providerReference: data.reference,
       metadata: data.metadata ?? null,
+      feePesewas: typeof data.fees === 'number' ? data.fees : null,
     };
   },
 
