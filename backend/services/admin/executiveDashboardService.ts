@@ -62,7 +62,7 @@ function firstOfMonth(dateStr: string): string {
 
 export type AnalyticsMode = 'production' | 'production_internal' | 'all';
 
-const ANALYTICS_MODE_CLASSIFICATIONS: Record<AnalyticsMode, string[] | null> = {
+export const ANALYTICS_MODE_CLASSIFICATIONS: Record<AnalyticsMode, string[] | null> = {
   production: ['PRODUCTION'],
   production_internal: ['PRODUCTION', 'INTERNAL'],
   all: null,
@@ -85,7 +85,7 @@ export function parseAnalyticsMode(value: string | null, fallback: AnalyticsMode
  * (e.g. `ps.data_classification`) when a query joins more than one
  * classified table.
  */
-function classificationPredicate(classifications: string[] | null, column: string = 'data_classification'): { sql: string; params: string[] } {
+export function classificationPredicate(classifications: string[] | null, column: string = 'data_classification'): { sql: string; params: string[] } {
   if (!classifications) return { sql: '1=1', params: [] };
   return { sql: `${column} IN (${classifications.map(() => '?').join(', ')})`, params: classifications };
 }

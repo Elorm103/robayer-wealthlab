@@ -1,0 +1,145 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+
+  <title>Profitability | Robayer WealthLab Admin</title>
+  <meta name="description" content="Contribution and campaign performance based on verified purchases, recorded payment fees, and advertising spend.">
+  <link rel="canonical" href="https://robayerwealthlab.com/admin/profitability/">
+  <meta name="robots" content="noindex, nofollow">
+
+  <link rel="icon" type="image/svg+xml" href="/assets/icons/favicon.svg">
+  <link rel="icon" type="image/png" sizes="32x32" href="/assets/icons/favicon-32.png">
+  <link rel="apple-touch-icon" href="/assets/icons/apple-touch-icon.png">
+
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Newsreader:ital,wght@0,600;1,500&family=Space+Grotesk:wght@500&family=Work+Sans:wght@400;500&family=IBM+Plex+Mono:wght@400;500&display=swap" rel="stylesheet">
+
+  <link rel="stylesheet" href="/css/tokens.css?v=9c1fa2346d">
+  <link rel="stylesheet" href="/css/base.css?v=57a963bc6f">
+  <link rel="stylesheet" href="/css/layout.css?v=a6fb0c7359">
+  <link rel="stylesheet" href="/css/components.css?v=abc0d769d5">
+  <link rel="stylesheet" href="/css/utilities.css?v=406dfe7300">
+  <link rel="stylesheet" href="/css/admin.css?v=2d07c9c939">
+</head>
+<body>
+  <a href="#main-content" class="skip-link">Skip to main content</a>
+
+  <div class="admin-shell" data-sidebar-collapsed="false">
+    <div class="admin-include" data-include="/partials/admin-sidebar.html"></div>
+
+    <div class="admin-main">
+      <div class="admin-include" data-include="/partials/admin-topbar.html"></div>
+
+      <main class="admin-content" id="main-content" data-profitability-root>
+        <div class="mb-4">
+          <span class="eyebrow">Business Intelligence backbone</span>
+          <h1 class="mt-1 mb-1">Profitability</h1>
+          <p class="text-secondary text-small">
+            Contribution and campaign performance based on verified purchases, recorded payment fees, and
+            advertising spend. Contribution is revenue minus Paystack fees minus advertising spend — not gross
+            profit or net profit, since costs like tax, refunds handling, or overhead are not tracked here.
+          </p>
+        </div>
+
+        <p class="alert alert--error" role="alert" data-profitability-load-error hidden></p>
+
+        <div class="toolbar mb-4">
+          <div class="toolbar__group">
+            <button type="button" class="media-filter-chip" aria-pressed="false" data-profitability-preset="7">Last 7 days</button>
+            <button type="button" class="media-filter-chip" aria-pressed="true" data-profitability-preset="30">Last 30 days</button>
+            <button type="button" class="media-filter-chip" aria-pressed="false" data-profitability-preset="90">Last 90 days</button>
+          </div>
+          <div class="toolbar__group">
+            <input type="date" class="field__input" aria-label="From date" data-profitability-date-from>
+            <span class="text-secondary text-small">to</span>
+            <input type="date" class="field__input" aria-label="To date" data-profitability-date-to>
+          </div>
+        </div>
+
+        <div class="grid grid--3 mb-3">
+          <div class="stat-card">
+            <p class="stat-card__label">Gross Revenue</p>
+            <p class="stat-card__value" data-stat-gross-revenue><span class="skeleton skeleton--title" aria-hidden="true"></span></p>
+            <p class="stat-card__meta">Verified purchases only — refunded purchases already excluded</p>
+          </div>
+          <div class="stat-card">
+            <p class="stat-card__label">Paystack Fees</p>
+            <p class="stat-card__value" data-stat-paystack-fees><span class="skeleton skeleton--title" aria-hidden="true"></span></p>
+            <p class="stat-card__meta" data-stat-fee-meta></p>
+          </div>
+          <div class="stat-card">
+            <p class="stat-card__label">Ad Spend</p>
+            <p class="stat-card__value" data-stat-ad-spend><span class="skeleton skeleton--title" aria-hidden="true"></span></p>
+            <p class="stat-card__meta">By currency — never converted or blended</p>
+          </div>
+          <div class="stat-card">
+            <p class="stat-card__label">Contribution</p>
+            <p class="stat-card__value" data-stat-contribution><span class="skeleton skeleton--title" aria-hidden="true"></span></p>
+            <p class="stat-card__meta">Gross Revenue &minus; Paystack Fees &minus; GHS Ad Spend</p>
+          </div>
+          <div class="stat-card">
+            <p class="stat-card__label">Contribution Margin</p>
+            <p class="stat-card__value" data-stat-contribution-margin><span class="skeleton skeleton--title" aria-hidden="true"></span></p>
+            <p class="stat-card__meta">Contribution as a share of Gross Revenue</p>
+          </div>
+          <div class="stat-card">
+            <p class="stat-card__label">Attributed Revenue</p>
+            <p class="stat-card__value" data-stat-attributed-revenue><span class="skeleton skeleton--title" aria-hidden="true"></span></p>
+            <p class="stat-card__meta">Purchases with a real UTM campaign source</p>
+          </div>
+          <div class="stat-card">
+            <p class="stat-card__label">Unattributed Revenue</p>
+            <p class="stat-card__value" data-stat-unattributed-revenue><span class="skeleton skeleton--title" aria-hidden="true"></span></p>
+            <p class="stat-card__meta">Not lost revenue — just no campaign this platform can name</p>
+          </div>
+        </div>
+
+        <p class="alert alert--warning" role="status" data-fee-caveat hidden></p>
+        <p class="alert alert--warning" role="status" data-currency-caveat hidden></p>
+
+        <div class="card">
+          <h2 class="text-lg mb-2">Campaign performance</h2>
+          <p class="text-secondary text-small mb-3">
+            Only purchases with high-confidence UTM attribution (<code>attribution_confidence = 'utm'</code>) are
+            credited to a campaign here. Meta-click-only and unknown-attribution purchases still count in Gross
+            and Unattributed Revenue above, never in a specific campaign row.
+          </p>
+
+          <div class="empty-state empty-state--compact" data-campaigns-empty hidden>
+            <p class="empty-state__title">No campaign activity in this range</p>
+            <p class="empty-state__body text-small">A campaign appears here once it has GHS ad spend logged, or at least one UTM-attributed purchase, in the selected dates.</p>
+          </div>
+          <div class="admin-table-wrap" data-campaigns-table-wrap hidden>
+            <table class="table" aria-label="Campaign performance">
+              <thead>
+                <tr>
+                  <th scope="col">Campaign</th>
+                  <th scope="col">Spend</th>
+                  <th scope="col">Purchases</th>
+                  <th scope="col">Attributed Revenue</th>
+                  <th scope="col">Paystack Fees</th>
+                  <th scope="col">Contribution</th>
+                  <th scope="col">Revenue ROAS</th>
+                  <th scope="col">Contribution ROAS</th>
+                  <th scope="col">Cost / Attributed Purchase</th>
+                </tr>
+              </thead>
+              <tbody data-campaigns-table-body></tbody>
+            </table>
+          </div>
+        </div>
+      </main>
+    </div>
+  </div>
+
+  <script src="/js/includes.js?v=cba95d9aa1"></script>
+  <script src="/js/components/theme-toggle.js?v=eebe98960c"></script>
+  <script src="/js/components/branding.js?v=483b048741"></script>
+  <script src="/js/components/admin/admin-auth.js?v=bb1cec7934"></script>
+  <script src="/js/components/admin/admin-shell.js?v=7233204897"></script>
+  <script src="/js/components/admin/admin-profitability.js?v=1"></script>
+</body>
+</html>

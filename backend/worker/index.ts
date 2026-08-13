@@ -254,6 +254,15 @@ import { handleAdminReviewsList, handleAdminReviewModerate } from '../routes/adm
 // M4B Required Amendment 1 (docs/v3.2-m4c-amendment-1-resolution.md).
 import { handleValidateCoupon } from '../routes/coupons';
 import { handleAdminCouponsList, handleAdminCouponCreate, handleAdminCouponUpdate } from '../routes/admin/coupons';
+// P0-B (Business Intelligence backbone, first component) — advertising
+// spend ledger. Read-only for now: no attribution, no CPA/ROAS. See
+// routes/admin/adSpend.ts's own header comment.
+import { handleAdminAdSpendList, handleAdminAdSpendCreate, handleAdminAdSpendUpdate, handleAdminAdSpendDelete } from '../routes/admin/adSpend';
+// P0-D (Business Intelligence backbone) — read-only profitability and
+// campaign-performance reporting, built on P0-A (fees) + P0-B (ad
+// spend) + P0-C (attribution). See routes/admin/profitability.ts's own
+// header comment.
+import { handleProfitabilitySummary, handleProfitabilityCampaigns } from '../routes/admin/profitability';
 // Version 3.3 Milestone M5C (Activation, Analytics and Customer
 // Reconciliation) — historical guest-purchase account claiming. See
 // docs/v3.3-m5c-customer-reconciliation-architecture.md. A second,
@@ -632,6 +641,16 @@ const ROUTES: Route[] = [
   { pattern: new URLPattern({ pathname: '/api/admin/coupons' }), method: 'GET', handler: handleAdminCouponsList },
   { pattern: new URLPattern({ pathname: '/api/admin/coupons' }), method: 'POST', handler: handleAdminCouponCreate },
   { pattern: new URLPattern({ pathname: '/api/admin/coupons/:id' }), method: 'PATCH', handler: handleAdminCouponUpdate },
+
+  // P0-B — Advertising spend ledger (Business Intelligence backbone,
+  // first component). No attribution, no CPA/ROAS here yet.
+  { pattern: new URLPattern({ pathname: '/api/admin/ad-spend' }), method: 'GET', handler: handleAdminAdSpendList },
+  { pattern: new URLPattern({ pathname: '/api/admin/ad-spend' }), method: 'POST', handler: handleAdminAdSpendCreate },
+  { pattern: new URLPattern({ pathname: '/api/admin/ad-spend/:id' }), method: 'PATCH', handler: handleAdminAdSpendUpdate },
+  { pattern: new URLPattern({ pathname: '/api/admin/ad-spend/:id' }), method: 'DELETE', handler: handleAdminAdSpendDelete },
+  // P0-D — read-only, open to all authenticated admin roles (see routes/admin/profitability.ts's own header comment).
+  { pattern: new URLPattern({ pathname: '/api/admin/profitability/summary' }), method: 'GET', handler: handleProfitabilitySummary },
+  { pattern: new URLPattern({ pathname: '/api/admin/profitability/campaigns' }), method: 'GET', handler: handleProfitabilityCampaigns },
 ];
 
 export default {
