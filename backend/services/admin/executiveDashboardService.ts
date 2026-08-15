@@ -968,6 +968,7 @@ export async function getBusinessAlerts(env: Env, analyticsMode: AnalyticsMode):
     failedWebhooks,
     missingCovers,
     missingFiles,
+    missingBundleComponentFiles,
     hiddenProducts,
     failedNewsletterCampaigns,
     cronHeartbeat,
@@ -1008,13 +1009,36 @@ export async function getBusinessAlerts(env: Env, analyticsMode: AnalyticsMode):
       .all<{
         title: string;
       }>(),
+    // Bundle products (Version 4.0 Milestone D) are deliberately excluded
+    // here (`p.is_bundle = 0`) — a bundle correctly has zero product_files
+    // of its own; everything it delivers belongs to its bundle_items (see
+    // productCatalogService.ts's fetchCatalogProduct() and migration
+    // 0027's own header comment). Checking a bundle against this query
+    // would always false-positive. See missingBundleComponentFiles below
+    // for the check that's actually meaningful for a bundle.
     env.DB.prepare(
       `SELECT p.title AS title FROM products p
-       WHERE p.status = 'active' AND p.deleted_at IS NULL AND p.price_pesewas IS NOT NULL AND p.price_pesewas > 0 AND ${clsP.sql}
+       WHERE p.status = 'active' AND p.deleted_at IS NULL AND p.price_pesewas IS NOT NULL AND p.price_pesewas > 0 AND p.is_bundle = 0 AND ${clsP.sql}
          AND NOT EXISTS (SELECT 1 FROM product_files f WHERE f.product_id = p.id AND f.status = 'published')`
     )
       .bind(...clsP.params)
       .all<{ title: string }>(),
+    // The bundle-specific equivalent of the check above: an active bundle
+    // is only genuinely fulfillable if every one of its bundle_items has
+    // at least one published file of its own — that's what fulfilment
+    // actually delivers (see fulfilmentService.ts's ensureEntitlementsGranted()).
+    // Reports which specific component is missing, not just that the
+    // bundle has a problem.
+    env.DB.prepare(
+      `SELECT DISTINCT p.title AS bundleTitle, ip.title AS missingComponentTitle
+       FROM products p
+       JOIN bundle_items bi ON bi.bundle_product_id = p.id
+       JOIN products ip ON ip.id = bi.item_product_id AND ip.deleted_at IS NULL
+       WHERE p.status = 'active' AND p.deleted_at IS NULL AND p.is_bundle = 1 AND ${clsP.sql}
+         AND NOT EXISTS (SELECT 1 FROM product_files f WHERE f.product_id = ip.id AND f.status = 'published')`
+    )
+      .bind(...clsP.params)
+      .all<{ bundleTitle: string; missingComponentTitle: string }>(),
     env.DB.prepare(`SELECT title, status FROM products WHERE status IN ('hidden', 'unavailable') AND deleted_at IS NULL AND ${clsProducts.sql}`)
       .bind(...clsProducts.params)
       .all<{
@@ -1050,6 +1074,14 @@ export async function getBusinessAlerts(env: Env, analyticsMode: AnalyticsMode):
 
   for (const row of missingFiles.results) {
     alerts.push({ key: `missing-file-${row.title}`, severity: 'critical', message: `"${row.title}" is a paid, active product with no published download file.` });
+  }
+
+  for (const row of missingBundleComponentFiles.results) {
+    alerts.push({
+      key: `missing-bundle-component-file-${row.bundleTitle}-${row.missingComponentTitle}`,
+      severity: 'critical',
+      message: `"${row.bundleTitle}" is a paid, active bundle, but its component "${row.missingComponentTitle}" has no published download file.`,
+    });
   }
 
   for (const row of hiddenProducts.results) {
