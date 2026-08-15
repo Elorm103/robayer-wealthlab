@@ -1,0 +1,149 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+
+  <title>Advertising Spend | Robayer WealthLab Admin</title>
+  <meta name="description" content="Record advertising spend by campaign, source, and currency.">
+  <link rel="canonical" href="https://robayerwealthlab.com/admin/ad-spend/">
+  <meta name="robots" content="noindex, nofollow">
+
+  <link rel="icon" type="image/svg+xml" href="/assets/icons/favicon.svg">
+  <link rel="icon" type="image/png" sizes="32x32" href="/assets/icons/favicon-32.png">
+  <link rel="apple-touch-icon" href="/assets/icons/apple-touch-icon.png">
+
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Newsreader:ital,wght@0,600;1,500&family=Space+Grotesk:wght@500&family=Work+Sans:wght@400;500&family=IBM+Plex+Mono:wght@400;500&display=swap" rel="stylesheet">
+
+  <link rel="stylesheet" href="/css/tokens.css?v=9c1fa2346d">
+  <link rel="stylesheet" href="/css/base.css?v=57a963bc6f">
+  <link rel="stylesheet" href="/css/layout.css?v=a6fb0c7359">
+  <link rel="stylesheet" href="/css/components.css?v=abc0d769d5">
+  <link rel="stylesheet" href="/css/utilities.css?v=406dfe7300">
+  <link rel="stylesheet" href="/css/admin.css?v=2d07c9c939">
+</head>
+<body>
+  <a href="#main-content" class="skip-link">Skip to main content</a>
+
+  <div class="admin-shell" data-sidebar-collapsed="false">
+    <div class="admin-include" data-include="/partials/admin-sidebar.html"></div>
+
+    <div class="admin-main">
+      <div class="admin-include" data-include="/partials/admin-topbar.html"></div>
+
+      <main class="admin-content" id="main-content" data-ad-spend-root>
+        <div class="mb-4">
+          <span class="eyebrow">Business Intelligence backbone — component 1</span>
+          <h1 class="mt-1 mb-1">Advertising Spend</h1>
+          <p class="text-secondary text-small">
+            A record of what was spent, by campaign label and source, in its original currency. This is a ledger,
+            not a profitability report — it does not yet calculate CPA, ROAS, or connect spend to individual
+            purchases.
+          </p>
+        </div>
+
+        <p class="alert alert--error" role="alert" data-ad-spend-load-error hidden></p>
+        <p class="alert alert--success" role="status" data-ad-spend-action-success hidden></p>
+
+        <div class="toolbar">
+          <div class="toolbar__group">
+            <span class="text-small text-secondary" data-ad-spend-result-count></span>
+          </div>
+          <div class="toolbar__group">
+            <button type="button" class="btn btn--primary" data-ad-spend-new-toggle>New spend entry</button>
+          </div>
+        </div>
+
+        <div class="mb-4" data-ad-spend-form-panel hidden style="border:1px solid var(--color-border);border-radius:var(--radius-md);padding:var(--space-4);">
+          <form data-ad-spend-form class="stack gap-3">
+            <p class="alert alert--error" role="alert" data-ad-spend-form-error hidden></p>
+            <div class="drawer__field-row">
+              <div class="field">
+                <label class="field__label" for="ad-spend-date">Date</label>
+                <input type="date" id="ad-spend-date" name="entryDate" class="field__input" required>
+              </div>
+              <div class="field">
+                <label class="field__label" for="ad-spend-source">Source</label>
+                <select id="ad-spend-source" name="source" class="field__select">
+                  <option value="meta">Meta</option>
+                  <option value="google">Google</option>
+                  <option value="linkedin">LinkedIn</option>
+                  <option value="other">Other</option>
+                </select>
+              </div>
+            </div>
+            <div class="drawer__field-row">
+              <div class="field">
+                <label class="field__label" for="ad-spend-campaign">Campaign label</label>
+                <input type="text" id="ad-spend-campaign" name="campaignLabel" class="field__input" maxlength="200" placeholder="e.g. RWL | Book 3 | Ghana | Purchase" required>
+              </div>
+            </div>
+            <div class="drawer__field-row">
+              <div class="field">
+                <label class="field__label" for="ad-spend-amount">Amount</label>
+                <input type="number" id="ad-spend-amount" name="amount" class="field__input" min="0" step="0.01" required>
+                <span class="field__hint text-small text-secondary">In the currency below — never converted.</span>
+              </div>
+              <div class="field">
+                <label class="field__label" for="ad-spend-currency">Currency</label>
+                <input type="text" id="ad-spend-currency" name="currency" class="field__input" maxlength="3" placeholder="e.g. USD" style="text-transform:uppercase;" required>
+              </div>
+            </div>
+            <div class="field">
+              <label class="field__label" for="ad-spend-notes">Notes (optional)</label>
+              <textarea id="ad-spend-notes" name="notes" class="field__textarea" rows="2"></textarea>
+            </div>
+            <div class="toolbar__group">
+              <button type="submit" class="btn btn--primary">Save spend entry</button>
+              <button type="button" class="btn btn--secondary" data-ad-spend-new-cancel>Cancel</button>
+            </div>
+          </form>
+        </div>
+
+        <div class="empty-state" data-ad-spend-empty hidden>
+          <svg class="icon empty-state__icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M3 3v18h18M7 15l4-4 3 3 5-6"/></svg>
+          <p class="empty-state__title">No spend entries yet</p>
+          <p class="empty-state__body">Record what was spent, by campaign, above.</p>
+        </div>
+
+        <div class="admin-table-wrap" data-ad-spend-table-wrap hidden>
+          <table class="table" aria-label="Advertising spend entries">
+            <thead>
+              <tr>
+                <th scope="col">Date</th>
+                <th scope="col">Source</th>
+                <th scope="col">Campaign</th>
+                <th scope="col">Amount</th>
+                <th scope="col">Notes</th>
+                <th scope="col">Actions</th>
+              </tr>
+            </thead>
+            <tbody data-ad-spend-table-body></tbody>
+          </table>
+        </div>
+
+        <div class="pagination" data-ad-spend-pagination>
+          <span data-ad-spend-pagination-label></span>
+          <div class="pagination__controls">
+            <button type="button" class="pagination__button" data-ad-spend-pagination-prev aria-label="Previous page">
+              <svg class="icon" width="16" height="16" viewBox="0 0 24 24" aria-hidden="true"><path d="M15 18l-6-6 6-6"/></svg>
+            </button>
+            <button type="button" class="pagination__button" data-ad-spend-pagination-next aria-label="Next page">
+              <svg class="icon" width="16" height="16" viewBox="0 0 24 24" aria-hidden="true"><path d="M9 6l6 6-6 6"/></svg>
+            </button>
+          </div>
+        </div>
+      </main>
+    </div>
+  </div>
+
+  <script src="/js/includes.js?v=cba95d9aa1"></script>
+  <script src="/js/components/theme-toggle.js?v=eebe98960c"></script>
+  <script src="/js/components/branding.js?v=483b048741"></script>
+  <script src="/js/components/admin/admin-auth.js?v=bb1cec7934"></script>
+  <script src="/js/components/admin/admin-shell.js?v=7233204897"></script>
+  <script src="/js/components/admin/admin-ad-spend.js?v=1"></script>
+</body>
+</html>
