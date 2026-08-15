@@ -40,6 +40,9 @@ function initFulfilmentStatus() {
   const referenceEl = root.querySelector('[data-fulfilment-reference]');
   const downloadsEl = root.querySelector('[data-fulfilment-downloads]');
   const downloadErrorEl = root.querySelector('[data-fulfilment-download-error]');
+  const bundleUpsellEl = root.querySelector('[data-bundle-upsell]');
+  const bundleUpsellCopyEl = root.querySelector('[data-bundle-upsell-copy]');
+  const bundleUpsellCtaEl = root.querySelector('[data-bundle-upsell-cta]');
 
   const reference = new URLSearchParams(window.location.search).get('ref');
   if (!reference) {
@@ -124,6 +127,38 @@ function initFulfilmentStatus() {
       notice.className = 'text-secondary';
       notice.textContent = 'Your download is being prepared. Check back shortly or contact support.';
       downloadsEl.appendChild(notice);
+    }
+
+    showBundleUpsellIfEligible(status);
+  }
+
+  /**
+   * Revenue Engine Phase 6 — status.bundleUpsell is null unless the
+   * Worker (fulfilmentService.ts's getFulfilmentStatus()) already
+   * determined, server-side, that this exact purchase qualifies for
+   * the "complete the collection" offer. This function only ever
+   * renders what the server decided; it never computes eligibility
+   * itself. The CTA is a plain link to the bundle's own product page
+   * — not a checkout call — so buy-button.js there handles the actual
+   * purchase through the normal flow.
+   */
+  function showBundleUpsellIfEligible(status) {
+    if (!bundleUpsellEl || !status.bundleUpsell) return;
+
+    const offer = status.bundleUpsell;
+    bundleUpsellCopyEl.textContent = `Since you got ${status.productTitle}, complete the collection with all 3 books for ${offer.priceDisplay}${offer.savedDisplay ? ` (save ${offer.savedDisplay})` : ''}.`;
+    bundleUpsellCtaEl.href = `/books/${encodeURIComponent(offer.bundleSlug)}/`;
+    bundleUpsellEl.hidden = false;
+
+    if (window.RobayerTracking) {
+      const guardKey = 'robayer_bundle_upsell_viewed_' + status.purchaseReference;
+      if (!sessionStorage.getItem(guardKey)) {
+        sessionStorage.setItem(guardKey, '1');
+        window.RobayerTracking.track('BundleUpsellViewed', {
+          content_ids: [offer.bundleSlug],
+          content_name: offer.bundleTitle,
+        });
+      }
     }
   }
 

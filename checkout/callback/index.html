@@ -99,6 +99,22 @@
             required, and your download above works the same either
             way. Already have a password? <a href="/checkout/sign-in/">Sign in to your library</a>.
           </p>
+
+          <!-- ============================================================
+               Revenue Engine Phase 6 — post-purchase bundle offer.
+               Hidden by default; js/components/fulfilment-status.js
+               reveals it only when the Worker's own response says this
+               specific purchase is eligible (computed server-side in
+               fulfilmentService.ts — never a client-side ownership
+               check). Not a one-click upsell: the CTA is a normal link
+               into the bundle's own product page, using the existing
+               checkout flow like any other purchase.
+               ============================================================ -->
+          <div class="card mt-5 text-left" data-bundle-upsell hidden>
+            <span class="eyebrow">Complete Your Financial Literacy Library</span>
+            <p class="mt-2 mb-3" data-bundle-upsell-copy>&nbsp;</p>
+            <a href="#" class="btn btn--secondary" data-bundle-upsell-cta>Get the Complete Bundle</a>
+          </div>
         </div>
 
         <!-- Unavailable / error state -->

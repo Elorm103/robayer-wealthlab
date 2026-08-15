@@ -96,6 +96,13 @@
     { selector: '[data-placeholder-action]', id: 'resource-download-placeholder' },
     { selector: '.hero__actions a.btn--primary', id: 'hero-primary-cta' },
     { selector: '.hero__actions a.btn--secondary', id: 'hero-secondary-cta' },
+    // Revenue Engine Phase 5 (Financial Literacy Bundle) — the
+    // individual-book-page cross-sell and post-purchase-confirmation
+    // upsell CTAs, both plain links to the bundle's own product page
+    // (not a checkout call themselves), see routes/books.ts and
+    // js/components/fulfilment-status.js.
+    { selector: '[data-bundle-cross-sell-cta]', id: 'bundle-cross-sell-cta' },
+    { selector: '[data-bundle-upsell-cta]', id: 'bundle-post-purchase-cta' },
   ];
 
   function trackCtaClicks() {

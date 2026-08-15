@@ -857,6 +857,43 @@ export async function renderBookDetail(env: Env, slug: string): Promise<Response
     </section>`
       : '';
 
+  // Revenue Engine Phase 3 (Financial Literacy Bundle cross-sell) —
+  // shown on every individual (non-bundle) product page, pointing at
+  // the one real bundle product created for this launch. Deliberately
+  // NOT product.relations-driven (that mechanism exists but renders
+  // generic "You might also like" copy - see relatedSection below);
+  // this is its own, purpose-written section with the specific
+  // savings-framed copy the launch calls for, reusing the same
+  // section/container/card markup conventions as every other section
+  // on this page. Fetched fresh (not cached) so the offer disappears
+  // automatically if the bundle is ever unpublished, and never breaks
+  // this page if the bundle doesn't exist or isn't active yet.
+  let crossSellBundleSection = '';
+  if (!product.isBundle) {
+    const bundleProduct = await productService.getProductBySlug(env, 'financial-literacy-bundle');
+    if (bundleProduct && isPubliclyListedStatus(bundleProduct.status)) {
+      const bundleSale = computeSaleState(bundleProduct);
+      const bundleChargeable = bundleSale.isActive ? bundleSale.effectivePricePesewas : bundleProduct.pricePesewas;
+      const bundlePriceLabel = bundleChargeable === null ? null : formatGHS(bundleChargeable / 100);
+      const bundleSavedLabel = bundleSale.isActive ? formatGHS((bundleSale.amountSavedPesewas as number) / 100) : null;
+      crossSellBundleSection = `
+    <section class="section bg-sand" aria-labelledby="bundle-cross-sell-heading" data-bundle-cross-sell>
+      <div class="container">
+        <div class="stack gap-3" style="max-width:640px;">
+          <span class="eyebrow">Complete the collection</span>
+          <h2 id="bundle-cross-sell-heading" class="mt-1 mb-1">Want the Complete Financial Literacy Collection?</h2>
+          <p class="text-secondary mb-2">
+            Get all 3 Robayer WealthLab books together${bundlePriceLabel ? ` for ${escapeHtml(bundlePriceLabel)}` : ''}${bundleSavedLabel ? ` and save ${escapeHtml(bundleSavedLabel)}` : ''}.
+          </p>
+          <div>
+            <a href="/books/${escapeHtml(bundleProduct.slug)}/" class="btn btn--secondary" data-bundle-cross-sell-cta>Get the Complete Bundle</a>
+          </div>
+        </div>
+      </div>
+    </section>`;
+    }
+  }
+
   const relatedItems = product.relations.filter((r) => r.relationType === 'related');
   const relatedSection =
     relatedItems.length > 0
@@ -1132,7 +1169,7 @@ export async function renderBookDetail(env: Env, slug: string): Promise<Response
         ${intro || (product.description ?? `<p>${escapeHtml(product.shortDescription ?? '')}</p>`)}
       </div>
     </section>
-${whyHtml}${learnHtml}${TRUST_SIGNALS}${audienceHtml}${insideHtml}${otherSectionsHtml}${bundleContentsSection}${galleryHtml}${ABOUT_AUTHOR}${faqHtml}${reviewsHtml}${relatedSection}
+${whyHtml}${learnHtml}${TRUST_SIGNALS}${audienceHtml}${insideHtml}${otherSectionsHtml}${bundleContentsSection}${galleryHtml}${ABOUT_AUTHOR}${faqHtml}${reviewsHtml}${crossSellBundleSection}${relatedSection}
     <section class="section--tight">
       <div class="container content-column">
         <p class="alert alert--warning">Robayer WealthLab provides financial education, not licensed financial advice. This guide is for informational purposes only. Always do your own research and consider your personal circumstances before making investment decisions.</p>

@@ -26,6 +26,7 @@ import type { Logger } from '../utils/logger';
 import { fetchCatalogProduct, isAssetPublished, type DigitalAsset, type DownloadPolicy } from './productCatalogService';
 import { sendEmail } from './emailService';
 import { issuePasswordToken } from './customer/authService';
+import { computeSaleState } from './productService';
 
 export interface FulfilPurchaseInput {
   purchaseSessionId: number;
@@ -278,6 +279,14 @@ export interface FulfilmentStatusAsset {
 // services/orders/revocationService.ts sets it.
 export type CustomerFacingStatus = 'processing' | 'ready' | 'unavailable' | 'refunded';
 
+/** Revenue Engine Phase 6 — the "complete the collection" post-purchase offer, see getFulfilmentStatus()'s own comment for eligibility. */
+export interface FulfilmentBundleUpsell {
+  bundleSlug: string;
+  bundleTitle: string;
+  priceDisplay: string;
+  savedDisplay: string | null;
+}
+
 export interface FulfilmentStatus {
   status: CustomerFacingStatus;
   purchaseReference: string;
@@ -287,6 +296,20 @@ export interface FulfilmentStatus {
   assets: FulfilmentStatusAsset[];
   /** Milestone M2 — null until the order-artifacts pass has run (or if it failed and hasn't yet been retried). */
   receiptNumber: string | null;
+  /**
+   * Revenue Engine Phase 6 (Financial Literacy Bundle post-purchase
+   * upsell). `null` unless ALL of: this purchase's own product is one
+   * of the bundle's components, the bundle itself is `status='active'`,
+   * and — computed here, server-side, never trusting anything the
+   * client could claim — this customer's email has no OTHER verified
+   * purchase of any bundle component from before this exact purchase
+   * (the approved ownership-eligibility rule: showing the bundle to
+   * someone who already owns part of it would mean selling them
+   * content they already paid for, which this rule exists to prevent).
+   * A `purchase_reference` is a public URL parameter with no login
+   * required, so this can never be computed client-side.
+   */
+  bundleUpsell: FulfilmentBundleUpsell | null;
 }
 
 interface PurchaseSessionSummaryRow {
@@ -295,6 +318,99 @@ interface PurchaseSessionSummaryRow {
   productTitle: string;
   amountPesewas: number;
   currency: string;
+  purchaseReference: string;
+  /** Read only to compute bundleUpsell below — never included in the returned FulfilmentStatus itself, matching this file's existing "no internal identifiers exposed" convention. */
+  customerEmail: string | null;
+}
+
+interface BundleProductRow {
+  id: number;
+  slug: string;
+  title: string;
+  status: string;
+  price_pesewas: number | null;
+  sale_price_pesewas: number | null;
+  sale_enabled: number;
+  sale_starts_at: string | null;
+  sale_ends_at: string | null;
+}
+
+function formatGHSPesewas(pesewas: number): string {
+  const rounded = Math.round(pesewas) / 100;
+  const withSeparators = Math.abs(rounded).toFixed(2).replace(/\B(?=(\d{3})+(?!\d))/g, ',');
+  return `GH₵${withSeparators}`;
+}
+
+const BUNDLE_SLUG = 'financial-literacy-bundle';
+
+/**
+ * Business decision (Financial Literacy Bundle launch, approved
+ * release phase) — the post-purchase "complete the collection" offer
+ * at the bundle's flat full price is economically unfavorable to the
+ * customer in 2 of its 3 possible first-purchase scenarios (buying the
+ * two missing books individually is cheaper than the GH₵99.99 bundle
+ * in those cases). The public bundle page, its cross-sell CTA on
+ * individual book pages, checkout, fulfilment, and analytics all stay
+ * fully live — only this one post-purchase offer is disabled, by
+ * short-circuiting computeBundleUpsell() to always return null,
+ * without touching its eligibility logic. Flip back to `false` once a
+ * proper partial-completion ("missing books only") offer replaces the
+ * current flat-price one — a separate, later phase, not built here.
+ */
+const POST_PURCHASE_BUNDLE_UPSELL_DISABLED = true;
+
+async function computeBundleUpsell(env: Env, session: PurchaseSessionSummaryRow): Promise<FulfilmentBundleUpsell | null> {
+  if (POST_PURCHASE_BUNDLE_UPSELL_DISABLED) return null;
+  if (!session.customerEmail) return null;
+
+  const bundleRow = await env.DB.prepare(
+    `SELECT id, slug, title, status, price_pesewas, sale_price_pesewas, sale_enabled, sale_starts_at, sale_ends_at
+     FROM products WHERE slug = ? AND is_bundle = 1 AND deleted_at IS NULL`
+  )
+    .bind(BUNDLE_SLUG)
+    .first<BundleProductRow>();
+  if (!bundleRow || bundleRow.status !== 'active') return null;
+
+  const { results: itemRows } = await env.DB.prepare(
+    `SELECT ip.slug FROM bundle_items bi JOIN products ip ON ip.id = bi.item_product_id AND ip.deleted_at IS NULL WHERE bi.bundle_product_id = ?`
+  )
+    .bind(bundleRow.id)
+    .all<{ slug: string }>();
+  const itemSlugs = itemRows.map((r) => r.slug);
+  if (itemSlugs.length === 0) return null;
+
+  // Only offer "complete the collection" on the confirmation page of a
+  // purchase that is itself one of the bundle's own components — never
+  // on an unrelated product's confirmation page.
+  if (!itemSlugs.includes(session.productSlug)) return null;
+
+  // Approved ownership rule: show only if, excluding this exact
+  // purchase, the customer owns none of the bundle's components yet.
+  const placeholders = itemSlugs.map(() => '?').join(',');
+  const priorOwned = await env.DB.prepare(
+    `SELECT COUNT(*) AS n FROM purchase_sessions
+     WHERE customer_email = ? AND status = 'verified' AND product_slug IN (${placeholders}) AND purchase_reference != ?`
+  )
+    .bind(session.customerEmail, ...itemSlugs, session.purchaseReference)
+    .first<{ n: number }>();
+  if (!priorOwned || priorOwned.n > 0) return null;
+
+  const sale = computeSaleState({
+    pricePesewas: bundleRow.price_pesewas,
+    salePricePesewas: bundleRow.sale_price_pesewas,
+    saleEnabled: bundleRow.sale_enabled === 1,
+    saleStartsAt: bundleRow.sale_starts_at,
+    saleEndsAt: bundleRow.sale_ends_at,
+  });
+  const chargeablePesewas = sale.isActive ? sale.effectivePricePesewas : bundleRow.price_pesewas;
+  if (chargeablePesewas === null) return null;
+
+  return {
+    bundleSlug: bundleRow.slug,
+    bundleTitle: bundleRow.title,
+    priceDisplay: formatGHSPesewas(chargeablePesewas),
+    savedDisplay: sale.isActive ? formatGHSPesewas(sale.amountSavedPesewas as number) : null,
+  };
 }
 
 /**
@@ -306,7 +422,8 @@ interface PurchaseSessionSummaryRow {
 export async function getFulfilmentStatus(env: Env, purchaseReference: string): Promise<FulfilmentStatus | null> {
   const session = await env.DB.prepare(
     `SELECT status, product_slug AS productSlug, product_title AS productTitle,
-            amount_pesewas AS amountPesewas, currency
+            amount_pesewas AS amountPesewas, currency, purchase_reference AS purchaseReference,
+            customer_email AS customerEmail
      FROM purchase_sessions WHERE purchase_reference = ?`
   )
     .bind(purchaseReference)
@@ -325,6 +442,7 @@ export async function getFulfilmentStatus(env: Env, purchaseReference: string): 
 
   let assets: FulfilmentStatusAsset[] = [];
   let receiptNumber: string | null = null;
+  let bundleUpsell: FulfilmentBundleUpsell | null = null;
   if (customerStatus === 'ready') {
     // Deliberately NOT populated for 'refunded' — a revoked entitlement
     // must never be listed as downloadable, even though the real
@@ -337,6 +455,7 @@ export async function getFulfilmentStatus(env: Env, purchaseReference: string): 
         .filter(isAssetPublished)
         .map((asset) => ({ assetId: asset.assetId, displayName: asset.displayName, fileType: asset.fileType }));
     }
+    bundleUpsell = await computeBundleUpsell(env, session);
   }
   if (customerStatus === 'ready' || customerStatus === 'refunded') {
     // The receipt itself remains viewable/downloadable even after a
@@ -359,6 +478,7 @@ export async function getFulfilmentStatus(env: Env, purchaseReference: string): 
     amountDisplay: formatAmount(session.amountPesewas, session.currency),
     assets,
     receiptNumber,
+    bundleUpsell,
   };
 }
 
