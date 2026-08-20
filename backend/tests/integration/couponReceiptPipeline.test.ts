@@ -137,7 +137,7 @@ describe('Full financial pipeline: Coupon -> Checkout -> Purchase Session -> Web
     const checkoutRes = await SELF.fetch('https://example.com/api/checkout/sessions', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ productId: TEST_PRODUCT_SLUG, termsAccepted: true, licenseAccepted: true, couponCode: 'PIPELINE10' }),
+      body: JSON.stringify({ productId: TEST_PRODUCT_SLUG, termsAccepted: true, licenseAccepted: true, email: 'pipeline-buyer@example.com', couponCode: 'PIPELINE10' }),
     });
     const checkoutBody = await checkoutRes.json<any>();
     expect(checkoutBody.success).toBe(true);
@@ -213,7 +213,7 @@ describe('Full financial pipeline: Coupon -> Checkout -> Purchase Session -> Web
     const checkoutRes = await SELF.fetch('https://example.com/api/checkout/sessions', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ productId: TEST_PRODUCT_SLUG, termsAccepted: true, licenseAccepted: true }),
+      body: JSON.stringify({ productId: TEST_PRODUCT_SLUG, termsAccepted: true, licenseAccepted: true, email: 'no-coupon-buyer@example.com' }),
     });
     const checkoutBody = await checkoutRes.json<any>();
     const reference = checkoutBody.data.purchaseReference as string;

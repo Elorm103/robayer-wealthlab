@@ -107,7 +107,7 @@ describe('POST /api/checkout/sessions with a coupon code', () => {
     const res = await SELF.fetch('https://example.com/api/checkout/sessions', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ productId: TEST_PRODUCT_SLUG, termsAccepted: true, licenseAccepted: true, couponCode: 'CHECKOUT10' }),
+      body: JSON.stringify({ productId: TEST_PRODUCT_SLUG, termsAccepted: true, licenseAccepted: true, email: 'buyer@example.com', couponCode: 'CHECKOUT10' }),
     });
     const body = await res.json<any>();
     expect(body.success).toBe(true);
@@ -126,7 +126,7 @@ describe('POST /api/checkout/sessions with a coupon code', () => {
     const res = await SELF.fetch('https://example.com/api/checkout/sessions', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ productId: TEST_PRODUCT_SLUG, termsAccepted: true, licenseAccepted: true, couponCode: 'BOGUS' }),
+      body: JSON.stringify({ productId: TEST_PRODUCT_SLUG, termsAccepted: true, licenseAccepted: true, email: 'buyer@example.com', couponCode: 'BOGUS' }),
     });
     const body = await res.json<any>();
     expect(body.success).toBe(false);
@@ -140,7 +140,7 @@ describe('POST /api/checkout/sessions with a coupon code', () => {
     const res = await SELF.fetch('https://example.com/api/checkout/sessions', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ productId: TEST_PRODUCT_SLUG, termsAccepted: true, licenseAccepted: true }),
+      body: JSON.stringify({ productId: TEST_PRODUCT_SLUG, termsAccepted: true, licenseAccepted: true, email: 'buyer@example.com' }),
     });
     const body = await res.json<any>();
     expect(body.success).toBe(true);
@@ -160,6 +160,7 @@ describe('POST /api/checkout/sessions with a coupon code', () => {
         productId: TEST_PRODUCT_SLUG,
         termsAccepted: true,
         licenseAccepted: true,
+        email: 'buyer@example.com',
         discountPesewas: 999999, // attempted price tampering — must be silently ignored
         amountPesewas: 1,
       }),

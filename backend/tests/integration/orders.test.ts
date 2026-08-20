@@ -30,7 +30,7 @@ async function createPendingSession(): Promise<string> {
   const res = await SELF.fetch('https://example.com/api/checkout/sessions', {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ productId: TEST_PRODUCT_SLUG, termsAccepted: true, licenseAccepted: true }),
+    body: JSON.stringify({ productId: TEST_PRODUCT_SLUG, termsAccepted: true, licenseAccepted: true, email: 'order-buyer@example.com' }),
   });
   const body = await res.json<any>();
   return body.data.purchaseReference as string;

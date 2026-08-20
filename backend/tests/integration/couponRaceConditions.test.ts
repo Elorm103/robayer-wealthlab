@@ -68,7 +68,7 @@ async function createSessionWithCoupon(couponCode: string): Promise<{ reference:
   const res = await SELF.fetch('https://example.com/api/checkout/sessions', {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ productId: TEST_PRODUCT_SLUG, termsAccepted: true, licenseAccepted: true, couponCode }),
+    body: JSON.stringify({ productId: TEST_PRODUCT_SLUG, termsAccepted: true, licenseAccepted: true, email: 'race-buyer@example.com', couponCode }),
   });
   const body = await res.json<any>();
   const session = await env.DB.prepare('SELECT amount_pesewas AS amountPesewas FROM purchase_sessions WHERE purchase_reference = ?')

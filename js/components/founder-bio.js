@@ -8,8 +8,8 @@
  *
  * The existing hand-written text already in these elements is the
  * fallback: if the fetch fails for any reason, nothing changes and the
- * page keeps showing its current, correct copy. Founder *name*/*title*
- * are deliberately left alone here — those stay owned by
+ * page keeps showing its current, correct copy. The founder's name and
+ * title are deliberately left alone here — those stay owned by
  * assets/config/site.json via js/content-inject.js, so each fact has
  * exactly one source rather than two competing ones.
  */
