@@ -69,3 +69,29 @@
     </div>
   </div>
 </header>
+
+<!-- Phase C (Announcement / Notification System) — a single, optional
+     site-wide strip. Lives in this shared partial, not on individual
+     pages, so it's included everywhere header.html already is (one
+     data-include, every page) with no per-page markup duplication.
+     Hidden by default; js/components/site-announcement.js only shows
+     it after confirming a real, enabled announcement exists and the
+     visitor hasn't already dismissed this exact one. Deliberately NOT
+     sticky/fixed: it sits in normal document flow directly below the
+     already-sticky .site-header, so it scrolls away naturally and
+     never competes with .site-header's or .dashboard-nav's own sticky
+     positioning. -->
+<div class="site-announcement" data-announcement-root hidden>
+  <div class="container site-announcement__inner">
+    <p class="site-announcement__text">
+      <strong data-announcement-title></strong>
+      <span data-announcement-message></span>
+    </p>
+    <div class="site-announcement__actions">
+      <a href="#" class="btn btn--accent site-announcement__button" data-announcement-button hidden></a>
+      <button type="button" class="site-announcement__dismiss" data-announcement-dismiss aria-label="Dismiss this announcement" hidden>
+        <svg class="icon" width="16" height="16" viewBox="0 0 24 24" aria-hidden="true"><path d="M6 6l12 12M18 6L6 18" stroke="currentColor" stroke-width="2" stroke-linecap="round" fill="none"/></svg>
+      </button>
+    </div>
+  </div>
+</div>

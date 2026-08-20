@@ -143,6 +143,7 @@ import { handleMediaFile } from '../routes/media';
 import { handleGetBranding, handleUpdateBranding } from '../routes/admin/branding';
 import { handleGetPublicBranding } from '../routes/branding';
 import { handleGetPublicHero } from '../routes/hero';
+import { handleGetPublicAnnouncement } from '../routes/announcement';
 import {
   handleProductsMeta,
   handleProductsList,
@@ -402,6 +403,7 @@ const ROUTES: Route[] = [
   { pattern: new URLPattern({ pathname: '/api/admin/branding' }), method: 'PATCH', handler: handleUpdateBranding },
   { pattern: new URLPattern({ pathname: '/api/branding' }), method: 'GET', handler: handleGetPublicBranding },
   { pattern: new URLPattern({ pathname: '/api/hero' }), method: 'GET', handler: handleGetPublicHero },
+  { pattern: new URLPattern({ pathname: '/api/announcement' }), method: 'GET', handler: handleGetPublicAnnouncement },
   // Version 3.5.1 (Homepage CMS Completion) - see routes/resources.ts's own header comment on this endpoint.
   { pattern: new URLPattern({ pathname: '/api/resources/featured' }), method: 'GET', handler: handleGetFeaturedResource },
   // Added Version 2.0 Phase 2 (Products Module) — see

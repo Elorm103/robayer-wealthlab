@@ -94,4 +94,23 @@
   }
 
   document.addEventListener('DOMContentLoaded', loadMetaPixel);
+
+  /**
+   * Phase C (Announcement / Notification System) — same "one script
+   * tag every real customer-facing page already includes, no build
+   * step to inject it any other way" reasoning as
+   * loadCloudflareWebAnalytics()/loadMetaPixel() above. Unlike those
+   * two, this needs no config gate: js/components/site-announcement.js
+   * itself is a safe no-op whenever no announcement is enabled, so it
+   * can simply always load on every page main.js already runs on
+   * (admin/* pages correctly excluded, same as the other two).
+   */
+  function loadSiteAnnouncement() {
+    const script = document.createElement('script');
+    script.defer = true;
+    script.src = '/js/components/site-announcement.js?v=1';
+    document.body.appendChild(script);
+  }
+
+  document.addEventListener('DOMContentLoaded', loadSiteAnnouncement);
 })();

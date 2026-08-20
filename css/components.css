@@ -844,6 +844,69 @@
 .alert--info    { border-color: var(--color-info);    background-color: var(--color-info-tint); }
 
 /* ============================================================
+   SITE ANNOUNCEMENT — Phase C (Announcement / Notification System).
+   Lives in normal document flow directly under .site-header (see
+   partials/header.html) — deliberately NOT position: sticky/fixed, so
+   it scrolls away with the page and never has to coordinate stacking
+   with .site-header's or .dashboard-nav's own sticky positioning.
+   Type color-coding reuses the exact same semantic tokens .alert's
+   own four variants already use, so "warning" (say) always means the
+   same thing everywhere on the site.
+   ============================================================ */
+.site-announcement {
+  border-bottom: 1px solid var(--color-border);
+  border-top: 3px solid transparent;
+  padding-block: var(--space-3);
+}
+
+.site-announcement__inner {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: center;
+  gap: var(--space-3);
+  text-align: center;
+}
+
+.site-announcement__text {
+  margin: 0;
+  font-size: var(--text-small);
+  color: var(--color-text-primary);
+}
+
+.site-announcement__actions {
+  display: flex;
+  align-items: center;
+  gap: var(--space-3);
+  flex-shrink: 0;
+}
+
+.site-announcement__dismiss {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 44px; /* touch target floor, matching .btn's own convention */
+  height: 44px;
+  flex-shrink: 0;
+  border-radius: var(--radius-sm);
+  color: var(--color-text-secondary);
+}
+
+.site-announcement__dismiss:hover {
+  background-color: var(--color-bg-alt);
+  color: var(--color-text-primary);
+}
+
+.site-announcement--info    { background-color: var(--color-info-tint);    border-top-color: var(--color-info); }
+.site-announcement--success { background-color: var(--color-success-tint); border-top-color: var(--color-success); }
+.site-announcement--warning { background-color: var(--color-warning-tint); border-top-color: var(--color-warning); }
+/* No dedicated "gold tint" token exists; derived the same way
+   .btn:focus-visible above already derives a tint from a token color
+   that has no separate -tint variant (rgba(), since CSS can't
+   color-mix a var() into an alpha channel here). */
+.site-announcement--promotion { background-color: rgba(230, 175, 25, 0.12); border-top-color: var(--color-sika-gold); }
+
+/* ============================================================
    SITE FOOTER
    ============================================================ */
 .site-footer {
@@ -2327,6 +2390,9 @@ button.resource-card {
    ============================================================ */
 
 .dashboard-nav {
+  position: sticky;
+  top: var(--site-header-height);
+  z-index: var(--z-sticky);
   background-color: var(--color-bg-alt);
   border-bottom: 1px solid var(--color-border);
   padding-block: var(--space-3);

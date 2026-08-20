@@ -894,6 +894,38 @@ export async function renderBookDetail(env: Env, slug: string): Promise<Response
     }
   }
 
+  // SEO Phase B (Topical link graph) — a small, hardcoded slug→page map
+  // rather than a new product field: only 2 of the 4 products currently
+  // have a matching free Investment Centre deep-dive on the exact same
+  // topic, so a schema field for a 2-entry mapping would be
+  // over-engineering. Renders nothing (including for the bundle) when
+  // a product's slug isn't mapped — purely additive, never a page
+  // regression for any product this doesn't apply to.
+  const EDUCATIONAL_CONTENT_LINKS: Record<string, { url: string; title: string; anchor: string }> = {
+    'understanding-the-ghana-stock-exchange': {
+      url: '/investment-centre/ghana-stock-exchange/',
+      title: 'Ghana Stock Exchange (GSE)',
+      anchor: "our beginner's guide to the Ghana Stock Exchange",
+    },
+    'treasury-bills-made-simple': {
+      url: '/investment-centre/treasury-bills/',
+      title: 'Treasury Bills',
+      anchor: 'how Treasury Bills work in Ghana',
+    },
+  };
+  const educationalLink = EDUCATIONAL_CONTENT_LINKS[product.slug];
+  const educationalLinkSection = educationalLink
+    ? `
+    <section class="section" aria-labelledby="learn-more-heading">
+      <div class="container content-column">
+        <span class="eyebrow">Learn more</span>
+        <h2 id="learn-more-heading" class="mt-2 mb-2">Want the free overview first?</h2>
+        <p>Read ${escapeHtml(educationalLink.anchor)} in our free Investment Centre, or get the complete step-by-step guide in this book.</p>
+        <a href="${escapeHtml(educationalLink.url)}" class="btn btn--secondary">Read the free ${escapeHtml(educationalLink.title)} guide</a>
+      </div>
+    </section>`
+    : '';
+
   const relatedItems = product.relations.filter((r) => r.relationType === 'related');
   const relatedSection =
     relatedItems.length > 0
@@ -926,7 +958,7 @@ export async function renderBookDetail(env: Env, slug: string): Promise<Response
         <span class="eyebrow">Preview</span>
         <h2 id="gallery-heading" class="mt-2 mb-4">A closer look</h2>
         <div class="grid grid--3">
-          ${product.gallery.map((g) => `<img src="${escapeHtml(g.publicUrl)}" alt="" loading="lazy" class="rounded-lg">`).join('\n')}
+          ${product.gallery.map((g, index) => `<img src="${escapeHtml(g.publicUrl)}" alt="Preview ${index + 1} of ${escapeHtml(product.title)}" loading="lazy" class="rounded-lg">`).join('\n')}
         </div>
       </div>
     </section>`
@@ -1169,7 +1201,7 @@ export async function renderBookDetail(env: Env, slug: string): Promise<Response
         ${intro || (product.description ?? `<p>${escapeHtml(product.shortDescription ?? '')}</p>`)}
       </div>
     </section>
-${whyHtml}${learnHtml}${TRUST_SIGNALS}${audienceHtml}${insideHtml}${otherSectionsHtml}${bundleContentsSection}${galleryHtml}${ABOUT_AUTHOR}${faqHtml}${reviewsHtml}${crossSellBundleSection}${relatedSection}
+${whyHtml}${learnHtml}${TRUST_SIGNALS}${audienceHtml}${insideHtml}${otherSectionsHtml}${bundleContentsSection}${galleryHtml}${ABOUT_AUTHOR}${faqHtml}${reviewsHtml}${crossSellBundleSection}${educationalLinkSection}${relatedSection}
     <section class="section--tight">
       <div class="container content-column">
         <p class="alert alert--warning">Robayer WealthLab provides financial education, not licensed financial advice. This guide is for informational purposes only. Always do your own research and consider your personal circumstances before making investment decisions.</p>

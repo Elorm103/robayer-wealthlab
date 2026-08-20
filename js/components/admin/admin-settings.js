@@ -104,6 +104,14 @@ function initAdminSettings() {
     root.querySelector('#setting-hero-secondary-cta-text').value = settings.heroContent.value.secondaryCtaText;
     root.querySelector('#setting-hero-secondary-cta-href').value = settings.heroContent.value.secondaryCtaHref;
 
+    root.querySelector('#setting-announcement-enabled').checked = settings.announcement.value.enabled;
+    root.querySelector('#setting-announcement-type').value = settings.announcement.value.type;
+    root.querySelector('#setting-announcement-dismissible').checked = settings.announcement.value.dismissible;
+    root.querySelector('#setting-announcement-title').value = settings.announcement.value.title;
+    root.querySelector('#setting-announcement-message').value = settings.announcement.value.message;
+    root.querySelector('#setting-announcement-button-text').value = settings.announcement.value.buttonText;
+    root.querySelector('#setting-announcement-button-url').value = settings.announcement.value.buttonUrl;
+
     root.querySelector('#setting-maintenance-enabled').checked = settings.maintenanceMode.value.enabled;
     root.querySelector('#setting-maintenance-message').value = settings.maintenanceMode.value.message;
     root.querySelector('#setting-default-max-downloads').value = settings.defaultMaxDownloads.value ?? '';
@@ -201,6 +209,15 @@ function initAdminSettings() {
     });
 
     const patch = {
+      announcement: {
+        enabled: root.querySelector('#setting-announcement-enabled').checked,
+        type: root.querySelector('#setting-announcement-type').value,
+        title: root.querySelector('#setting-announcement-title').value.trim(),
+        message: root.querySelector('#setting-announcement-message').value.trim(),
+        buttonText: root.querySelector('#setting-announcement-button-text').value.trim(),
+        buttonUrl: root.querySelector('#setting-announcement-button-url').value.trim(),
+        dismissible: root.querySelector('#setting-announcement-dismissible').checked,
+      },
       heroContent: {
         eyebrow: root.querySelector('#setting-hero-eyebrow').value.trim(),
         headline: root.querySelector('#setting-hero-headline').value.trim(),

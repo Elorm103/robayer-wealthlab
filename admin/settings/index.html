@@ -92,6 +92,59 @@
           </div>
         </section>
 
+        <!-- Phase C (Announcement / Notification System) — a single
+             site-wide strip, backed by site_settings ('announcement'),
+             following hero_content's own precedent exactly. -->
+        <section class="card mb-4">
+          <h2 class="editor-section-title">Announcement</h2>
+
+          <div class="settings-field">
+            <div>
+              <p class="settings-field__label">Site-wide announcement strip</p>
+              <p class="text-small text-secondary">Shown near the top of every public page when enabled. Changes appear on the next page load, no deployment needed.</p>
+            </div>
+            <span class="settings-source-tag" data-source="site_settings">site_settings</span>
+          </div>
+          <div class="field field--checkbox">
+            <input type="checkbox" id="setting-announcement-enabled" data-setting="announcement.enabled">
+            <label class="field__label" for="setting-announcement-enabled">Enabled</label>
+          </div>
+          <div class="editor-field-row">
+            <div class="field">
+              <label class="field__label" for="setting-announcement-type">Type</label>
+              <select class="field__input" id="setting-announcement-type" data-setting="announcement.type">
+                <option value="info">Information</option>
+                <option value="success">Success</option>
+                <option value="warning">Warning</option>
+                <option value="promotion">Promotion</option>
+              </select>
+            </div>
+            <div class="field field--checkbox">
+              <input type="checkbox" id="setting-announcement-dismissible" data-setting="announcement.dismissible">
+              <label class="field__label" for="setting-announcement-dismissible">Visitors can dismiss it</label>
+            </div>
+          </div>
+          <div class="field">
+            <label class="field__label" for="setting-announcement-title">Title</label>
+            <input class="field__input" type="text" id="setting-announcement-title" data-setting="announcement.title" maxlength="150" placeholder="e.g. NEW TO ROBAYER WEALTHLAB?">
+          </div>
+          <div class="field">
+            <label class="field__label" for="setting-announcement-message">Message</label>
+            <textarea class="field__textarea" id="setting-announcement-message" data-setting="announcement.message" maxlength="500" placeholder="Learn how to buy your first book in four simple steps."></textarea>
+          </div>
+          <div class="editor-field-row">
+            <div class="field">
+              <label class="field__label" for="setting-announcement-button-text">Button text (optional)</label>
+              <input class="field__input" type="text" id="setting-announcement-button-text" data-setting="announcement.buttonText" maxlength="60" placeholder="Show me how">
+            </div>
+            <div class="field">
+              <label class="field__label" for="setting-announcement-button-url">Button destination (optional)</label>
+              <input class="field__input" type="text" id="setting-announcement-button-url" data-setting="announcement.buttonUrl" placeholder="/books/">
+              <span class="field__hint">A site path starting with / (or mailto:/tel:). Leave both fields blank for no button.</span>
+            </div>
+          </div>
+        </section>
+
         <section class="card mb-4">
           <h2 class="editor-section-title">Platform</h2>
 

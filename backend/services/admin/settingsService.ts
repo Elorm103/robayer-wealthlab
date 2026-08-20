@@ -108,8 +108,47 @@ export interface HeroContentValue {
   secondaryCtaHref: string;
 }
 
+/**
+ * Phase C (Announcement / Notification System) — a single site-wide
+ * strip, admin-controlled, following hero_content's exact precedent
+ * (a JSON blob under site_settings, one narrow public GET, one
+ * super_admin-gated PATCH via the existing settings routes). No new
+ * table, no new migration: site_settings' plain key/value shape
+ * already fits this exactly the way it fits hero_content.
+ *
+ * `type` reuses the same four-way vocabulary this codebase's own
+ * `.alert--info/--success/--warning` classes already use, plus
+ * `promotion` for a product-announcement tone — no new color system.
+ * `buttonUrl` reuses HERO_HREF_PATTERN/validateHeroHref's own
+ * relative-path-or-mailto/tel allowlist (see below) — the same
+ * reasoning applies identically here: an admin-supplied absolute URL
+ * would make this field a stored-XSS/open-redirect vector, so
+ * `javascript:` and any other scheme is rejected the same way.
+ */
+export type AnnouncementType = 'info' | 'success' | 'warning' | 'promotion';
+export const ANNOUNCEMENT_TYPES: readonly AnnouncementType[] = ['info', 'success', 'warning', 'promotion'];
+
+export interface AnnouncementValue {
+  enabled: boolean;
+  type: AnnouncementType;
+  title: string;
+  message: string;
+  buttonText: string;
+  buttonUrl: string;
+  dismissible: boolean;
+}
+
 const DEFAULTS = {
   maintenance_mode: { enabled: false, message: '' } as MaintenanceModeValue,
+  announcement: {
+    enabled: false,
+    type: 'info',
+    title: '',
+    message: '',
+    buttonText: '',
+    buttonUrl: '',
+    dismissible: true,
+  } as AnnouncementValue,
   hero_content: {
     eyebrow: 'Financial education for Ghana',
     headline: 'Financial education built for everyday Ghanaians.',
@@ -189,6 +228,7 @@ function resolve<K extends SettingsKey>(raw: Map<string, unknown>, key: K): (typ
 export interface EditableSettingsView {
   maintenanceMode: SettingsField<MaintenanceModeValue>;
   heroContent: SettingsField<HeroContentValue>;
+  announcement: SettingsField<AnnouncementValue>;
   defaultMaxDownloads: SettingsField<number | null>;
   defaultDownloadExpiresDays: SettingsField<number | null>;
   emailSenderName: SettingsField<string>;
@@ -214,6 +254,7 @@ export async function getEditableSettings(env: Env): Promise<EditableSettingsVie
   return {
     maintenanceMode: field(resolve(raw, 'maintenance_mode'), 'site_settings', true),
     heroContent: field(resolve(raw, 'hero_content'), 'site_settings', true),
+    announcement: field(resolve(raw, 'announcement'), 'site_settings', true),
     defaultMaxDownloads: field(resolve(raw, 'default_max_downloads'), 'site_settings', true),
     defaultDownloadExpiresDays: field(resolve(raw, 'default_download_expires_days'), 'site_settings', true),
     emailSenderName: field(resolve(raw, 'email_sender_name'), 'site_settings', true),
@@ -292,6 +333,30 @@ export async function getHeroContent(env: Env): Promise<HeroContentValue> {
   }
 }
 
+/**
+ * Resolves `announcement` for the public, unauthenticated
+ * GET /api/announcement endpoint — same narrow-read-only-what's-
+ * needed reasoning as getHeroContent()/getMaintenanceMode() above,
+ * so the public site never risks exposing any other site_settings
+ * value through this path.
+ *
+ * `version` is site_settings.updated_at itself (already maintained by
+ * every write, see updateSettings()'s own INSERT/UPDATE below) rather
+ * than a new field — reused as a stable per-publish identifier so the
+ * frontend's dismissal storage can key off "this exact announcement,
+ * as last edited" and a newly published (or re-edited) announcement
+ * is never hidden by an old dismissal.
+ */
+export async function getAnnouncement(env: Env): Promise<AnnouncementValue & { version: string | null }> {
+  const row = await env.DB.prepare(`SELECT value, updated_at FROM site_settings WHERE key = 'announcement'`).first<{ value: string; updated_at: string }>();
+  if (!row) return { ...DEFAULTS.announcement, version: null };
+  try {
+    return { ...(JSON.parse(row.value) as AnnouncementValue), version: row.updated_at };
+  } catch {
+    return { ...DEFAULTS.announcement, version: null };
+  }
+}
+
 // ============================================================
 // Validation — every editable setting has explicit server-side
 // validation; nothing here trusts client-side checks.
@@ -329,7 +394,19 @@ const MAX_HERO_SUBHEADING_LENGTH = 500;
 // external protocols that are safe to redirect a visitor to - never an
 // admin-supplied arbitrary absolute URL, which would make this field a
 // stored-XSS/open-redirect vector for whoever can edit site settings.
-const HERO_HREF_PATTERN = /^\/[a-zA-Z0-9\-/_#?=&.]*$|^(mailto|tel):[^\s]+$/;
+//
+// (?!\/) immediately after the required leading "/" - Phase C Final
+// Review found that "/" is itself inside the allowed character class,
+// so a SECOND leading slash ("//host/path") also matched this pattern
+// before the lookahead was added. Browsers treat a "//"-prefixed URL
+// as protocol-relative: on an HTTPS page it resolves to a full
+// external navigation (https://host/path), not a same-site path - a
+// real open-redirect/phishing vector, not a same-site one. Verified
+// via a direct production query that zero site_settings rows
+// currently exist for hero_content or announcement (this repo's only
+// two consumers of this pattern), so tightening it has no legitimate
+// stored value to break.
+const HERO_HREF_PATTERN = /^\/(?!\/)[a-zA-Z0-9\-/_#?=&.]*$|^(mailto|tel):[^\s]+$/;
 
 function validateHeroText(value: unknown, fieldName: string, maxLength: number, errors: SettingsValidationError[]): string | undefined {
   if (typeof value !== 'string' || value.trim().length === 0 || value.length > maxLength) {
@@ -372,6 +449,58 @@ function validateHeroContent(value: unknown, errors: SettingsValidationError[]):
     primaryCtaHref: primaryCtaHref!,
     secondaryCtaText: secondaryCtaText!,
     secondaryCtaHref: secondaryCtaHref!,
+  };
+}
+
+const MAX_ANNOUNCEMENT_TITLE_LENGTH = 150;
+const MAX_ANNOUNCEMENT_MESSAGE_LENGTH = 500;
+const MAX_ANNOUNCEMENT_BUTTON_TEXT_LENGTH = 60;
+
+function validateAnnouncement(value: unknown, errors: SettingsValidationError[]): AnnouncementValue | undefined {
+  if (typeof value !== 'object' || value === null) {
+    errors.push({ field: 'announcement', message: 'Announcement must be an object.' });
+    return undefined;
+  }
+  const v = value as Record<string, unknown>;
+  const errorCountBefore = errors.length;
+
+  if (typeof v.enabled !== 'boolean') {
+    errors.push({ field: 'announcement.enabled', message: 'enabled must be true or false.' });
+  }
+  if (typeof v.type !== 'string' || !(ANNOUNCEMENT_TYPES as readonly string[]).includes(v.type)) {
+    errors.push({ field: 'announcement.type', message: `type must be one of: ${ANNOUNCEMENT_TYPES.join(', ')}.` });
+  }
+  if (typeof v.title !== 'string' || v.title.length > MAX_ANNOUNCEMENT_TITLE_LENGTH) {
+    errors.push({ field: 'announcement.title', message: `title must be text, ${MAX_ANNOUNCEMENT_TITLE_LENGTH} characters or fewer.` });
+  }
+  if (typeof v.message !== 'string' || v.message.length > MAX_ANNOUNCEMENT_MESSAGE_LENGTH) {
+    errors.push({ field: 'announcement.message', message: `message must be text, ${MAX_ANNOUNCEMENT_MESSAGE_LENGTH} characters or fewer.` });
+  }
+  if (typeof v.buttonText !== 'string' || v.buttonText.length > MAX_ANNOUNCEMENT_BUTTON_TEXT_LENGTH) {
+    errors.push({ field: 'announcement.buttonText', message: `buttonText must be text, ${MAX_ANNOUNCEMENT_BUTTON_TEXT_LENGTH} characters or fewer.` });
+  }
+  // Empty string is explicitly allowed (no button configured) —
+  // otherwise the exact same relative-path-or-mailto/tel allowlist
+  // validateHeroHref() already enforces for the hero's own CTAs,
+  // reused here rather than re-invented, so an admin-supplied
+  // absolute URL (including a javascript: scheme) can never reach
+  // this field either.
+  if (typeof v.buttonUrl !== 'string' || (v.buttonUrl !== '' && !HERO_HREF_PATTERN.test(v.buttonUrl))) {
+    errors.push({ field: 'announcement.buttonUrl', message: 'buttonUrl must be empty, a relative site path (starting with /), or a mailto:/tel: link.' });
+  }
+  if (typeof v.dismissible !== 'boolean') {
+    errors.push({ field: 'announcement.dismissible', message: 'dismissible must be true or false.' });
+  }
+
+  if (errors.length > errorCountBefore) return undefined;
+  return {
+    enabled: v.enabled as boolean,
+    type: v.type as AnnouncementType,
+    title: (v.title as string).trim(),
+    message: (v.message as string).trim(),
+    buttonText: (v.buttonText as string).trim(),
+    buttonUrl: v.buttonUrl as string,
+    dismissible: v.dismissible as boolean,
   };
 }
 
@@ -504,6 +633,7 @@ export type UpdateSettingsResult = { ok: true } | { ok: false; errors: SettingsV
 const PATCH_KEY_MAP: Record<string, SettingsKey> = {
   maintenanceMode: 'maintenance_mode',
   heroContent: 'hero_content',
+  announcement: 'announcement',
   defaultMaxDownloads: 'default_max_downloads',
   defaultDownloadExpiresDays: 'default_download_expires_days',
   emailSenderName: 'email_sender_name',
@@ -534,6 +664,9 @@ export async function updateSettings(env: Env, logger: Logger, actorId: number, 
         break;
       case 'hero_content':
         value = validateHeroContent(rawValue, errors);
+        break;
+      case 'announcement':
+        value = validateAnnouncement(rawValue, errors);
         break;
       case 'default_max_downloads':
         value = validateOptionalPositiveInt(rawValue, 'defaultMaxDownloads', 1000, errors);
