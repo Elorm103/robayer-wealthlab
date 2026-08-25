@@ -516,23 +516,40 @@ const ABOUT_AUTHOR = `
 // claims"). Every line here is checked directly against the real
 // manuscript and this platform's own governance policy
 // (docs/v3-marketplace-governance.md), not invented marketing copy.
-// A generic, reusable component in the same style as GENERIC_FAQ —
-// worth revisiting once a second product with different real
-// properties exists, so this isn't silently applied to a future book
-// these specific claims don't hold for.
-const TRUST_SIGNALS = `
+// Topic-conditional as of the second product with genuinely different
+// real properties (a remote-work guide, not an investing guide) — the
+// investing-specific claims ("regulated, licensed institutions",
+// "no guaranteed-return promises") do not hold for it and would be
+// inaccurate if shown unconditionally. Existing investing-topic
+// products keep byte-identical output to before this change.
+function renderTrustSignals(topic: string | null): string {
+  const items =
+    topic === 'business'
+      ? [
+          '&#127468;&#127469;&nbsp;&nbsp;Written specifically for Ghanaian readers',
+          '&#9989;&nbsp;&nbsp;Every platform checked against its own official eligibility page',
+          '&#128683;&nbsp;&nbsp;No recycled "make money online" lists',
+          '&#128203;&nbsp;&nbsp;Includes real worksheets and checklists',
+          '&#128218;&nbsp;&nbsp;Plain-language, practical guidance',
+          '&#128274;&nbsp;&nbsp;Instant, secure digital delivery',
+        ]
+      : [
+          '&#127468;&#127469;&nbsp;&nbsp;Written specifically for Ghanaian readers',
+          '&#9989;&nbsp;&nbsp;Covers only regulated, licensed institutions',
+          '&#128683;&nbsp;&nbsp;No guaranteed-return promises',
+          '&#128203;&nbsp;&nbsp;Includes real worksheets and checklists',
+          '&#128218;&nbsp;&nbsp;Plain-language, practical guidance',
+          '&#128274;&nbsp;&nbsp;Instant, secure digital delivery',
+        ];
+  return `
     <section class="section--tight bg-sand" aria-label="Why readers trust this guide">
       <div class="container">
         <div class="grid grid--3 gap-3 text-center">
-          <div>&#127468;&#127469;&nbsp;&nbsp;Written specifically for Ghanaian readers</div>
-          <div>&#9989;&nbsp;&nbsp;Covers only regulated, licensed institutions</div>
-          <div>&#128683;&nbsp;&nbsp;No guaranteed-return promises</div>
-          <div>&#128203;&nbsp;&nbsp;Includes real worksheets and checklists</div>
-          <div>&#128218;&nbsp;&nbsp;Plain-language, practical guidance</div>
-          <div>&#128274;&nbsp;&nbsp;Instant, secure digital delivery</div>
+          ${items.map((item) => `<div>${item}</div>`).join('\n          ')}
         </div>
       </div>
     </section>`;
+}
 
 function render404(env: Env, slug: string): Response {
   const html = renderShell({
@@ -1135,7 +1152,7 @@ export async function renderBookDetail(env: Env, slug: string): Promise<Response
     <section class="section bg-navy" aria-labelledby="cta-heading">
       <div class="container content-column text-center">
         <div data-sales-mode>
-          <h2 id="cta-heading" class="mt-2 mb-3" style="color:#fff;">Ready to start with GH&#8373;1?</h2>
+          <h2 id="cta-heading" class="mt-2 mb-3" style="color:#fff;">Ready to start with ${escapeHtml(chargeableLabel ?? 'this guide')}?</h2>
           <p class="mb-4" style="color:rgba(255,255,255,0.8);">Instant digital access &bull; Read on any device &bull; Secure checkout via Paystack</p>
           <a href="#" class="btn btn--accent" data-buy-button data-product-slug="${escapeHtml(product.slug)}">Buy Now (${escapeHtml(chargeableLabel ?? '')})</a>
           ${purchaseConsentNote}
@@ -1201,7 +1218,7 @@ export async function renderBookDetail(env: Env, slug: string): Promise<Response
         ${intro || (product.description ?? `<p>${escapeHtml(product.shortDescription ?? '')}</p>`)}
       </div>
     </section>
-${whyHtml}${learnHtml}${TRUST_SIGNALS}${audienceHtml}${insideHtml}${otherSectionsHtml}${bundleContentsSection}${galleryHtml}${ABOUT_AUTHOR}${faqHtml}${reviewsHtml}${crossSellBundleSection}${educationalLinkSection}${relatedSection}
+${whyHtml}${learnHtml}${renderTrustSignals(product.topic)}${audienceHtml}${insideHtml}${otherSectionsHtml}${bundleContentsSection}${galleryHtml}${ABOUT_AUTHOR}${faqHtml}${reviewsHtml}${crossSellBundleSection}${educationalLinkSection}${relatedSection}
     <section class="section--tight">
       <div class="container content-column">
         <p class="alert alert--warning">Robayer WealthLab provides financial education, not licensed financial advice. This guide is for informational purposes only. Always do your own research and consider your personal circumstances before making investment decisions.</p>
