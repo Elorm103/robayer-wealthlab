@@ -130,6 +130,17 @@
     // js/components/fulfilment-status.js.
     { selector: '[data-bundle-cross-sell-cta]', id: 'bundle-cross-sell-cta' },
     { selector: '[data-bundle-upsell-cta]', id: 'bundle-post-purchase-cta' },
+    // Analytics & User-Activity Baseline's site-wide announcement strip
+    // (js/components/site-announcement.js) — a reusable, admin-editable
+    // mechanism (not specific to any one campaign), so this cta_id
+    // stays generic; which campaign drove the click is carried by the
+    // announcement's own configured buttonUrl's utm_campaign, not a
+    // new cta_id per campaign.
+    { selector: '[data-announcement-button]', id: 'site-announcement-cta' },
+    // CHECKED, NOT COPIED launch spotlight (index.html) — one static,
+    // purpose-built homepage section for this release, same
+    // per-feature cta_id convention as the bundle CTAs above.
+    { selector: '[data-checked-not-copied-launch-cta]', id: 'checked-not-copied-launch-cta' },
   ];
 
   function trackCtaClicks() {
