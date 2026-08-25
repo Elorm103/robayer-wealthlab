@@ -554,7 +554,14 @@ export async function getPerBookFunnel(env: Env, range: PeriodRange): Promise<Pr
 
   return results.map((row) => ({
     ...row,
-    conversionRate: row.views > 0 ? Math.round((row.purchases / row.views) * 1000) / 10 : null,
+    // Suppressed (null, not a computed number) whenever purchases > views:
+    // views is a brand-new metric clamped to ANALYTICS_TRACKING_START_DATE,
+    // while purchases/checkoutStarts intentionally show full, unclamped
+    // history — real, expected during the transition period (a book with
+    // years of purchase history has only had view-tracking for a few
+    // days), but the resulting ratio can exceed 100%, which is never an
+    // honest "conversion rate" to display as a plain percentage.
+    conversionRate: row.views > 0 && row.purchases <= row.views ? Math.round((row.purchases / row.views) * 1000) / 10 : null,
   }));
 }
 

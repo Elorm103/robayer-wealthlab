@@ -143,6 +143,19 @@ describe('analyticsService — Analytics & User-Activity Baseline', () => {
       expect(row!.views).toBe(0);
       expect(row!.conversionRate).toBeNull();
     });
+
+    it('suppresses conversionRate (null, not an impossible percentage) when purchases exceed views — the real, expected shape right after this feature launches on a book with years of purchase history but only hours of view-tracking', async () => {
+      await insertEvent({ eventType: 'product_view', productSlug: TEST_PRODUCT_SLUG, sessionId: 'v1', createdAt: '2026-09-12 09:00:00' });
+      await seedPurchase('verified', '2026-09-13 09:00:00');
+      await seedPurchase('verified', '2026-09-14 09:00:00');
+      await seedPurchase('verified', '2026-09-15 09:00:00');
+
+      const rows = await getPerBookFunnel(env as any, RANGE_WITHIN_TRACKING);
+      const row = rows.find((r) => r.slug === TEST_PRODUCT_SLUG);
+      expect(row!.views).toBe(1);
+      expect(row!.purchases).toBe(3);
+      expect(row!.conversionRate).toBeNull();
+    });
   });
 
   describe('getDeviceBreakdown / getCountryBreakdown', () => {
