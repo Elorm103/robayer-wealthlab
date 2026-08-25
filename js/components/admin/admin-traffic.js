@@ -1,11 +1,16 @@
 /**
  * Robayer WealthLab — Traffic & funnel section (Version 4.0 Milestone A,
- * Measurement Foundation). Drives the [data-traffic-root] card appended
- * to admin/analytics/index.html: most-viewed pages, most-clicked CTAs,
+ * Measurement Foundation; extended by the Analytics & User-Activity
+ * Baseline for device/country). Drives the [data-traffic-root] card
+ * in admin/analytics/index.html: most-viewed pages, most-clicked CTAs,
  * traffic sources, newsletter signups by source, free-guide lead-magnet
- * funnel, and product attention — all from the new analytics_events
- * table (migration 0025) plus the pre-existing
- * newsletter_subscribers.source column, via GET /api/admin/dashboard/traffic.
+ * funnel, and device/country breakdown — from the analytics_events
+ * table (migration 0025/0045) plus the pre-existing
+ * newsletter_subscribers.source column, via GET /api/admin/dashboard/traffic
+ * and GET /api/admin/analytics/devices|geography. Per-book funnel
+ * (views/checkouts/purchases/revenue/downloads) lives in the PRODUCTS
+ * section instead (admin-products-funnel.js) — see
+ * services/admin/analyticsService.ts's getPerBookFunnel() for why.
  *
  * Reuses the page's existing date-range toolbar ([data-analytics-preset],
  * [data-analytics-date-from/to]) instead of adding a second one — this is
@@ -40,9 +45,12 @@ function initAdminTraffic() {
     newsletterWrap: root.querySelector('[data-traffic-newsletter-wrap]'),
     newsletterBody: root.querySelector('[data-traffic-newsletter-body]'),
     leadMagnet: root.querySelector('[data-traffic-lead-magnet]'),
-    productsEmpty: root.querySelector('[data-traffic-products-empty]'),
-    productsWrap: root.querySelector('[data-traffic-products-wrap]'),
-    productsBody: root.querySelector('[data-traffic-products-body]'),
+    devicesEmpty: root.querySelector('[data-traffic-devices-empty]'),
+    devicesWrap: root.querySelector('[data-traffic-devices-wrap]'),
+    devicesBody: root.querySelector('[data-traffic-devices-body]'),
+    geoEmpty: root.querySelector('[data-traffic-geo-empty]'),
+    geoWrap: root.querySelector('[data-traffic-geo-wrap]'),
+    geoBody: root.querySelector('[data-traffic-geo-body]'),
   };
 
   refresh();
@@ -50,19 +58,34 @@ function initAdminTraffic() {
   if (dateFrom) dateFrom.addEventListener('change', refresh);
   if (dateTo) dateTo.addEventListener('change', refresh);
 
-  async function refresh() {
-    els.loadError.hidden = true;
+  /** Mirrors admin-analytics.js's own buildParams() — "All time" clears the date inputs and sets a flag the backend recognizes rather than a huge literal date range, so every script sharing this toolbar needs the same check. */
+  function buildParams() {
+    const allTimeChip = document.querySelector('[data-analytics-preset-named="all_time"]');
+    if (allTimeChip && allTimeChip.getAttribute('aria-pressed') === 'true') {
+      return new URLSearchParams({ allTime: 'true' });
+    }
     const params = new URLSearchParams();
     if (dateFrom && dateFrom.value) params.set('from', dateFrom.value);
     if (dateTo && dateTo.value) params.set('to', dateTo.value);
+    return params;
+  }
+
+  async function refresh() {
+    els.loadError.hidden = true;
+    const params = buildParams();
 
     try {
-      const data = await window.AdminAuth.adminFetch(`${TRAFFIC_API}?${params.toString()}`);
+      const [data, devices, geo] = await Promise.all([
+        window.AdminAuth.adminFetch(`${TRAFFIC_API}?${params.toString()}`),
+        window.AdminAuth.adminFetch(`/api/admin/analytics/devices?${params.toString()}`),
+        window.AdminAuth.adminFetch(`/api/admin/analytics/geography?${params.toString()}`),
+      ]);
       renderTable(els.pagesEmpty, els.pagesWrap, els.pagesBody, data.pageViewsByPath, (row) => [row.pagePath, String(row.views)]);
       renderTable(els.ctasEmpty, els.ctasWrap, els.ctasBody, data.ctaClicksById, (row) => [row.ctaId, String(row.clicks)]);
       renderTable(els.sourcesEmpty, els.sourcesWrap, els.sourcesBody, data.trafficSources, (row) => [row.source, String(row.sessions)]);
       renderTable(els.newsletterEmpty, els.newsletterWrap, els.newsletterBody, data.newsletterSignupsBySource, (row) => [row.source, String(row.signups)]);
-      renderTable(els.productsEmpty, els.productsWrap, els.productsBody, data.productAttention, (row) => [row.pagePath, String(row.views), String(row.checkoutsStarted)]);
+      renderTable(els.devicesEmpty, els.devicesWrap, els.devicesBody, devices.items, (row) => [row.label, String(row.count)]);
+      renderTable(els.geoEmpty, els.geoWrap, els.geoBody, geo.items, (row) => [row.label, String(row.count)]);
       renderLeadMagnet(data.leadMagnetFunnel);
     } catch (error) {
       els.loadError.textContent = error.message || 'Could not load traffic data.';

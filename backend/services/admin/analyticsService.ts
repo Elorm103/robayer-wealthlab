@@ -12,7 +12,8 @@
  */
 
 import type { Env } from '../../worker/env';
-import { exclusiveEndDate, previousPeriod, deltaPercent, everyDateInRange, type PeriodRange } from '../../utils/dateRange';
+import { exclusiveEndDate, previousPeriod, deltaPercent, everyDateInRange, daysBetweenInclusive, type PeriodRange } from '../../utils/dateRange';
+import { clampToTrackingStart } from '../../utils/analyticsConfig';
 import { metaProvider } from '../analytics/metaProvider';
 
 export interface KpiMetric {
@@ -111,7 +112,26 @@ function zeroFillByDate(rows: { date: string; count: number }[], dates: string[]
   return dates.map((date) => ({ date, count: byDate.get(date) ?? 0 }));
 }
 
-export async function getTimeseries(env: Env, range: PeriodRange): Promise<AnalyticsTimeseries> {
+/** A daily chart is only ever useful over a bounded window — 366 days matches routes/admin/analytics.ts's own MAX_RANGE_DAYS clamp. Without this, the "All time" preset's literal '0001-01-01'..'9999-12-31' range (a fine, cheap bound for a plain SQL SUM/COUNT elsewhere in this file) would make everyDateInRange() materialize millions of zero-filled days here — a real, measured multi-second/hundred-megabyte response, not a hypothetical one. Clamps to the most recent MAX_TIMESERIES_DAYS of the requested range, applied to both the zero-fill list AND the SQL bind params together so a query never silently drops real rows outside the shown window. */
+const MAX_TIMESERIES_DAYS = 366;
+
+function clampToRecentWindow(range: PeriodRange): PeriodRange {
+  // Also caps `to` at today: the "All time" preset's far-future sentinel
+  // ('9998-12-31', see routes/admin/analytics.ts's parseRange()) has no
+  // real data past today, so anchoring the "most recent" window to that
+  // sentinel instead of today would render a chart full of future,
+  // meaninglessly-zero-filled dates instead of anything a person
+  // actually asked to see.
+  const todayStr = new Date().toISOString().slice(0, 10);
+  const to = range.to > todayStr ? todayStr : range.to;
+  if (daysBetweenInclusive(range.from, to) <= MAX_TIMESERIES_DAYS) return { from: range.from, to };
+  const toMs = new Date(`${to}T00:00:00.000Z`).getTime();
+  const clampedFrom = new Date(toMs - (MAX_TIMESERIES_DAYS - 1) * 86_400_000).toISOString().slice(0, 10);
+  return { from: clampedFrom, to };
+}
+
+export async function getTimeseries(env: Env, requestedRange: PeriodRange): Promise<AnalyticsTimeseries> {
+  const range = clampToRecentWindow(requestedRange);
   const dates = everyDateInRange(range.from, range.to);
 
   const [orderRows, subscriberRows] = await Promise.all([
@@ -406,4 +426,165 @@ export async function getConversionDispatchSummary(env: Env): Promise<Conversion
     recentLeads,
     recentDownloads: downloadRows.results,
   };
+}
+
+// ============================================================
+// Analytics & User-Activity Baseline (migration 0045) — registered
+// users, unique visitors, Online Now, per-book funnel, device/country
+// breakdown. Registered-users and revenue/purchase figures read
+// existing tables with real historical data and are never clamped.
+// Visitor/session/device/country figures come from analytics_events
+// and are clamped to ANALYTICS_TRACKING_START_DATE (see
+// utils/analyticsConfig.ts) — this platform has no first-party
+// visitor data before that date, and these queries must say so
+// honestly rather than silently return a number for a range that
+// predates real tracking.
+// ============================================================
+
+export interface GrowthSummary {
+  registeredUsers: KpiMetric;
+  uniqueVisitors: KpiMetric;
+  /** True when the requested range's `from` was clamped forward to ANALYTICS_TRACKING_START_DATE for the uniqueVisitors figure specifically. */
+  visitorsClamped: boolean;
+}
+
+export async function getGrowthSummary(env: Env, range: PeriodRange): Promise<GrowthSummary> {
+  const previous = previousPeriod(range);
+  const { range: visitorRange, clamped } = clampToTrackingStart(range);
+  const { range: visitorPreviousRange } = clampToTrackingStart(previous);
+
+  async function uniqueVisitorsInRange(r: PeriodRange): Promise<number> {
+    const row = await env.DB.prepare(
+      `SELECT COUNT(DISTINCT session_id) AS c FROM analytics_events
+       WHERE event_type IN ('page_view', 'product_view') AND created_at >= ? AND created_at < ?`
+    )
+      .bind(r.from, exclusiveEndDate(r.to))
+      .first<{ c: number }>();
+    return row?.c ?? 0;
+  }
+
+  const [registeredCurrent, registeredPrevious, visitorsCurrent, visitorsPrevious] = await Promise.all([
+    countInRange(env, 'customers', 'created_at', range, 'deleted_at IS NULL'),
+    countInRange(env, 'customers', 'created_at', previous, 'deleted_at IS NULL'),
+    uniqueVisitorsInRange(visitorRange),
+    uniqueVisitorsInRange(visitorPreviousRange),
+  ]);
+
+  return {
+    registeredUsers: toMetric(registeredCurrent, registeredPrevious),
+    uniqueVisitors: toMetric(visitorsCurrent, visitorsPrevious),
+    visitorsClamped: clamped,
+  };
+}
+
+/**
+ * KV-only "Online Now" count (migration 0045's own header comment) —
+ * never a D1 row. `list()` is eventually consistent and paginates at
+ * 1000 keys; both are known, acceptable tradeoffs at this platform's
+ * real traffic scale, not silently assumed exact.
+ */
+export async function getOnlineNowCount(env: Env): Promise<number> {
+  const result = await env.RATE_LIMIT_KV.list({ prefix: 'online:' });
+  return result.keys.length;
+}
+
+export interface ProductFunnelRow {
+  slug: string;
+  title: string;
+  views: number;
+  checkoutStarts: number;
+  purchases: number;
+  revenuePesewas: number;
+  downloads: number;
+  conversionRate: number | null;
+}
+
+/**
+ * One row per real `products` row — generalizes automatically to any
+ * future book with zero code changes, unlike the page_path-LIKE-match
+ * approach `executiveDashboardService.getTrafficFunnel()`'s
+ * `productAttention` previously used. `views` comes from the new
+ * `product_view` event (clamped to tracking start, like every
+ * analytics_events-derived figure); checkoutStarts/purchases/revenue
+ * come from `purchase_sessions` (real historical data, never
+ * clamped); downloads comes from `download_tokens`/`deliveries`,
+ * exactly the same join `getConversionDispatchSummary()`'s
+ * recentDownloads already uses.
+ */
+export async function getPerBookFunnel(env: Env, range: PeriodRange): Promise<ProductFunnelRow[]> {
+  const { range: viewRange } = clampToTrackingStart(range);
+  const viewFrom = viewRange.from;
+  const viewTo = exclusiveEndDate(viewRange.to);
+  const from = range.from;
+  const to = exclusiveEndDate(range.to);
+
+  const { results } = await env.DB.prepare(
+    `SELECT p.slug AS slug, p.title AS title,
+            COALESCE(pv.views, 0) AS views,
+            COALESCE(cs.checkoutStarts, 0) AS checkoutStarts,
+            COALESCE(pur.purchases, 0) AS purchases,
+            COALESCE(pur.revenuePesewas, 0) AS revenuePesewas,
+            COALESCE(dl.downloads, 0) AS downloads
+     FROM products p
+     LEFT JOIN (
+       SELECT product_slug, COUNT(*) AS views FROM analytics_events
+       WHERE event_type = 'product_view' AND created_at >= ? AND created_at < ?
+       GROUP BY product_slug
+     ) pv ON pv.product_slug = p.slug
+     LEFT JOIN (
+       SELECT product_slug, COUNT(*) AS checkoutStarts FROM purchase_sessions
+       WHERE created_at >= ? AND created_at < ?
+       GROUP BY product_slug
+     ) cs ON cs.product_slug = p.slug
+     LEFT JOIN (
+       SELECT product_slug, COUNT(*) AS purchases, COALESCE(SUM(amount_pesewas), 0) AS revenuePesewas FROM purchase_sessions
+       WHERE status = 'verified' AND verified_at >= ? AND verified_at < ?
+       GROUP BY product_slug
+     ) pur ON pur.product_slug = p.slug
+     LEFT JOIN (
+       SELECT d.product_slug AS product_slug, COUNT(*) AS downloads
+       FROM download_tokens dt JOIN deliveries d ON d.id = dt.delivery_id
+       WHERE dt.used_at IS NOT NULL AND dt.used_at >= ? AND dt.used_at < ?
+       GROUP BY d.product_slug
+     ) dl ON dl.product_slug = p.slug
+     ORDER BY revenuePesewas DESC, views DESC`
+  )
+    .bind(viewFrom, viewTo, from, to, from, to, from, to)
+    .all<Omit<ProductFunnelRow, 'conversionRate'>>();
+
+  return results.map((row) => ({
+    ...row,
+    conversionRate: row.views > 0 ? Math.round((row.purchases / row.views) * 1000) / 10 : null,
+  }));
+}
+
+export interface BreakdownRow {
+  label: string;
+  count: number;
+}
+
+/** `GROUP BY device_type` over `page_view`/`product_view` events, clamped to tracking start. */
+export async function getDeviceBreakdown(env: Env, range: PeriodRange): Promise<BreakdownRow[]> {
+  const { range: r } = clampToTrackingStart(range);
+  const { results } = await env.DB.prepare(
+    `SELECT COALESCE(device_type, 'unknown') AS label, COUNT(*) AS count FROM analytics_events
+     WHERE event_type IN ('page_view', 'product_view') AND created_at >= ? AND created_at < ?
+     GROUP BY label ORDER BY count DESC`
+  )
+    .bind(r.from, exclusiveEndDate(r.to))
+    .all<BreakdownRow>();
+  return results;
+}
+
+/** `GROUP BY country` over `page_view`/`product_view` events, clamped to tracking start. `country` is Cloudflare's own edge-computed 2-letter code — never an IP address, never precise location. */
+export async function getCountryBreakdown(env: Env, range: PeriodRange): Promise<BreakdownRow[]> {
+  const { range: r } = clampToTrackingStart(range);
+  const { results } = await env.DB.prepare(
+    `SELECT COALESCE(country, 'unknown') AS label, COUNT(*) AS count FROM analytics_events
+     WHERE event_type IN ('page_view', 'product_view') AND created_at >= ? AND created_at < ?
+     GROUP BY label ORDER BY count DESC LIMIT 20`
+  )
+    .bind(r.from, exclusiveEndDate(r.to))
+    .all<BreakdownRow>();
+  return results;
 }

@@ -49,7 +49,7 @@ import { withSecurityHeaders } from '../middleware/securityHeaders';
 import { withErrorHandling } from '../middleware/errorHandler';
 import { checkMaintenanceMode } from '../middleware/maintenanceMode';
 import { handleNewsletter } from '../routes/newsletter';
-import { handleAnalyticsEvent } from '../routes/analytics';
+import { handleAnalyticsEvent, handleAnalyticsHeartbeat } from '../routes/analytics';
 import { handleContact } from '../routes/contact';
 import { handleConsultation } from '../routes/consultation';
 import { handleCreateCheckoutSession } from '../routes/checkout';
@@ -192,6 +192,11 @@ import {
   handleAnalyticsTopProducts,
   handleAnalyticsActivationSummary,
   handleAnalyticsConversionDispatch,
+  handleAnalyticsGrowth,
+  handleAnalyticsOnlineNow,
+  handleAnalyticsProductsFunnel,
+  handleAnalyticsDevices,
+  handleAnalyticsGeography,
 } from '../routes/admin/analytics';
 import {
   handleResourcesMeta,
@@ -280,6 +285,7 @@ import { sendDueReviewReminders } from '../services/customer/reviewReminderServi
 import { handlePurchaseFollowupOptOut } from '../routes/customer/purchaseFollowup';
 import { sendDuePurchaseFollowups } from '../services/customer/purchaseFollowupService';
 import { runScheduledCleanup as runAiGatewayRetentionCleanup } from '../services/ai/retentionCleanupService';
+import { runAnalyticsRetentionSweep } from '../services/admin/analyticsRetentionService';
 import { retryFailedConversions } from '../services/analytics/conversionDispatchService';
 import { record as recordAuditEvent } from '../services/admin/auditService';
 
@@ -305,6 +311,7 @@ interface Route {
 const ROUTES: Route[] = [
   { pattern: new URLPattern({ pathname: '/api/newsletter' }), method: 'POST', handler: handleNewsletter },
   { pattern: new URLPattern({ pathname: '/api/analytics/event' }), method: 'POST', handler: handleAnalyticsEvent },
+  { pattern: new URLPattern({ pathname: '/api/analytics/heartbeat' }), method: 'POST', handler: handleAnalyticsHeartbeat },
   { pattern: new URLPattern({ pathname: '/api/contact' }), method: 'POST', handler: handleContact },
   { pattern: new URLPattern({ pathname: '/api/consultation' }), method: 'POST', handler: handleConsultation },
   { pattern: new URLPattern({ pathname: '/api/checkout/sessions' }), method: 'POST', handler: handleCreateCheckoutSession },
@@ -470,6 +477,12 @@ const ROUTES: Route[] = [
   // Version 3.3 Milestone M5C — activation/reconciliation/conversion-funnel metrics for the Business Dashboard extension.
   { pattern: new URLPattern({ pathname: '/api/admin/analytics/activation-summary' }), method: 'GET', handler: handleAnalyticsActivationSummary },
   { pattern: new URLPattern({ pathname: '/api/admin/analytics/conversion-dispatch' }), method: 'GET', handler: handleAnalyticsConversionDispatch },
+  // Analytics & User-Activity Baseline — registered users/unique visitors, Online Now, per-book funnel, device/country breakdown.
+  { pattern: new URLPattern({ pathname: '/api/admin/analytics/growth' }), method: 'GET', handler: handleAnalyticsGrowth },
+  { pattern: new URLPattern({ pathname: '/api/admin/analytics/online-now' }), method: 'GET', handler: handleAnalyticsOnlineNow },
+  { pattern: new URLPattern({ pathname: '/api/admin/analytics/products/funnel' }), method: 'GET', handler: handleAnalyticsProductsFunnel },
+  { pattern: new URLPattern({ pathname: '/api/admin/analytics/devices' }), method: 'GET', handler: handleAnalyticsDevices },
+  { pattern: new URLPattern({ pathname: '/api/admin/analytics/geography' }), method: 'GET', handler: handleAnalyticsGeography },
   // Added Version 2.1 Phase 1 (Resources CMS) — see
   // docs/v2.1-architecture-plan.md Section 3. Mirrors Products' exact
   // admin route shape (editor/super_admin writes, every role reads);
@@ -805,6 +818,37 @@ export default {
             actorId: null,
             action: 'cron.heartbeat',
             entityType: 'ai_gateway_retention_cleanup',
+            entityId: null,
+            metadata: { ok: false, error: message },
+          });
+        })
+    );
+
+    // Analytics & User-Activity Baseline (migration 0045) — same Cron
+    // Trigger, same heartbeat-audit pattern as the jobs above. Nulls
+    // out referrer/country/device_type for analytics_events rows past
+    // their retention window — see analyticsRetentionService.ts's own
+    // header comment for why this never deletes the row itself.
+    ctx.waitUntil(
+      runAnalyticsRetentionSweep(env, logger)
+        .then((result) =>
+          recordAuditEvent(env, logger, {
+            actorType: 'system',
+            actorId: null,
+            action: 'cron.heartbeat',
+            entityType: 'analytics_retention_sweep',
+            entityId: null,
+            metadata: { ok: true, eligible: result.eligible, purged: result.purged },
+          })
+        )
+        .catch((err) => {
+          const message = err instanceof Error ? err.message : String(err);
+          logger.error('analytics_retention_sweep.run_failed', { error: message });
+          return recordAuditEvent(env, logger, {
+            actorType: 'system',
+            actorId: null,
+            action: 'cron.heartbeat',
+            entityType: 'analytics_retention_sweep',
             entityId: null,
             metadata: { ok: false, error: message },
           });

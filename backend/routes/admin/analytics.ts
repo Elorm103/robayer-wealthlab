@@ -33,8 +33,12 @@ function toDateString(ms: number): string {
   return new Date(ms).toISOString().slice(0, 10);
 }
 
-/** Defaults to the last 30 days; an invalid or missing param falls back to the default rather than erroring, matching this project's established tolerant-filter convention (see routes/admin/orders.ts's status filter). A reversed range is swapped, and any range longer than a year is clamped — defensive bounds, not a real product constraint. */
+/** Defaults to the last 30 days; an invalid or missing param falls back to the default rather than erroring, matching this project's established tolerant-filter convention (see routes/admin/orders.ts's status filter). A reversed range is swapped, and any range longer than a year is clamped — defensive bounds, not a real product constraint. `allTime=true` bypasses the clamp entirely, mirroring executiveDashboardService.ts's own '0001-01-01'..'9999-12-31' lifetime-range literal — except the upper bound here is '9998-12-31', not '9999-12-31': every caller in this file treats PeriodRange.to as INCLUSIVE and passes it through utils/dateRange.ts's exclusiveEndDate(), which adds one calendar day; doing that to '9999-12-31' rolls into year 10000, and `Date.toISOString()`'s extended-year format for years >9999 ("+010000-01-01...") sorts lexicographically BEFORE any real 4-digit-year timestamp (TEXT columns, plain string comparison) — silently matching zero rows instead of "everything," the opposite of what "All time" must do. '9998-12-31' avoids the rollover entirely while remaining, for all practical purposes, forever. */
 function parseRange(params: URLSearchParams): PeriodRange {
+  if (params.get('allTime') === 'true') {
+    return { from: '0001-01-01', to: '9998-12-31' };
+  }
+
   const now = Date.now();
   const defaultTo = toDateString(now);
   const defaultFrom = toDateString(now - 29 * 86_400_000);
@@ -118,4 +122,73 @@ export async function handleAnalyticsConversionDispatch(request: Request, env: E
 
   const summary = await analyticsService.getConversionDispatchSummary(env);
   return jsonSuccess(summary);
+}
+
+/** Analytics & User-Activity Baseline — registered users + unique visitors, current-vs-previous. See services/admin/analyticsService.ts's getGrowthSummary(). */
+export async function handleAnalyticsGrowth(request: Request, env: Env, logger: Logger): Promise<Response> {
+  const auth = await requireAuth(request, env, logger);
+  if (!auth.ok) return auth.response;
+
+  if (await isRateLimited(request, env, READ_RATE_LIMIT)) {
+    return jsonError('RATE_LIMITED', 'Too many requests. Please try again shortly.');
+  }
+
+  const range = parseRange(new URL(request.url).searchParams);
+  const summary = await analyticsService.getGrowthSummary(env, range);
+  return jsonSuccess({ range, ...summary });
+}
+
+/** "Online Now" — no date range; it's inherently "right now". See services/admin/analyticsService.ts's getOnlineNowCount(). */
+export async function handleAnalyticsOnlineNow(request: Request, env: Env, logger: Logger): Promise<Response> {
+  const auth = await requireAuth(request, env, logger);
+  if (!auth.ok) return auth.response;
+
+  if (await isRateLimited(request, env, READ_RATE_LIMIT)) {
+    return jsonError('RATE_LIMITED', 'Too many requests. Please try again shortly.');
+  }
+
+  const count = await analyticsService.getOnlineNowCount(env);
+  return jsonSuccess({ count });
+}
+
+/** Per-book funnel (views/checkout starts/purchases/revenue/downloads/conversion) — one row per real product, generalizes automatically to future books. See services/admin/analyticsService.ts's getPerBookFunnel(). */
+export async function handleAnalyticsProductsFunnel(request: Request, env: Env, logger: Logger): Promise<Response> {
+  const auth = await requireAuth(request, env, logger);
+  if (!auth.ok) return auth.response;
+
+  if (await isRateLimited(request, env, READ_RATE_LIMIT)) {
+    return jsonError('RATE_LIMITED', 'Too many requests. Please try again shortly.');
+  }
+
+  const range = parseRange(new URL(request.url).searchParams);
+  const items = await analyticsService.getPerBookFunnel(env, range);
+  return jsonSuccess({ range, items });
+}
+
+/** Device-type breakdown, clamped to the analytics tracking start date. See services/admin/analyticsService.ts's getDeviceBreakdown(). */
+export async function handleAnalyticsDevices(request: Request, env: Env, logger: Logger): Promise<Response> {
+  const auth = await requireAuth(request, env, logger);
+  if (!auth.ok) return auth.response;
+
+  if (await isRateLimited(request, env, READ_RATE_LIMIT)) {
+    return jsonError('RATE_LIMITED', 'Too many requests. Please try again shortly.');
+  }
+
+  const range = parseRange(new URL(request.url).searchParams);
+  const items = await analyticsService.getDeviceBreakdown(env, range);
+  return jsonSuccess({ range, items });
+}
+
+/** Country breakdown (Cloudflare edge-computed 2-letter codes), clamped to the analytics tracking start date. See services/admin/analyticsService.ts's getCountryBreakdown(). */
+export async function handleAnalyticsGeography(request: Request, env: Env, logger: Logger): Promise<Response> {
+  const auth = await requireAuth(request, env, logger);
+  if (!auth.ok) return auth.response;
+
+  if (await isRateLimited(request, env, READ_RATE_LIMIT)) {
+    return jsonError('RATE_LIMITED', 'Too many requests. Please try again shortly.');
+  }
+
+  const range = parseRange(new URL(request.url).searchParams);
+  const items = await analyticsService.getCountryBreakdown(env, range);
+  return jsonSuccess({ range, items });
 }

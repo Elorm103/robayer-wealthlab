@@ -38,9 +38,14 @@
 
         <div class="toolbar mb-4">
           <div class="toolbar__group">
+            <button type="button" class="media-filter-chip" aria-pressed="false" data-analytics-preset-named="today">Today</button>
+            <button type="button" class="media-filter-chip" aria-pressed="false" data-analytics-preset-named="yesterday">Yesterday</button>
             <button type="button" class="media-filter-chip" aria-pressed="false" data-analytics-preset="7">Last 7 days</button>
             <button type="button" class="media-filter-chip" aria-pressed="true" data-analytics-preset="30">Last 30 days</button>
             <button type="button" class="media-filter-chip" aria-pressed="false" data-analytics-preset="90">Last 90 days</button>
+            <button type="button" class="media-filter-chip" aria-pressed="false" data-analytics-preset-named="this_month">This month</button>
+            <button type="button" class="media-filter-chip" aria-pressed="false" data-analytics-preset-named="previous_month">Previous month</button>
+            <button type="button" class="media-filter-chip" aria-pressed="false" data-analytics-preset-named="all_time">All time</button>
           </div>
           <div class="toolbar__group">
             <input type="date" class="field__input" aria-label="From date" data-analytics-date-from>
@@ -49,6 +54,52 @@
           </div>
         </div>
 
+        <!-- ============================================================
+             TODAY — Analytics & User-Activity Baseline. Always "right
+             now," independent of the range picker above (which every
+             other section on this page uses). Reuses getSummary()'s
+             existing revenue/orders shape for today's date, plus the
+             new Online Now KV count.
+             ============================================================ -->
+        <h2 class="text-lg mb-3">Today</h2>
+        <div class="grid grid--3 mb-5" data-today-root>
+          <div class="stat-card">
+            <p class="stat-card__label">
+              <svg class="icon stat-card__icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M12 1v22M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"/></svg>
+              Revenue today
+            </p>
+            <p class="stat-card__value" data-today-revenue-value><span class="skeleton skeleton--title" aria-hidden="true"></span></p>
+          </div>
+          <div class="stat-card">
+            <p class="stat-card__label">
+              <svg class="icon stat-card__icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M6 2l1.5 5M18 2l-1.5 5M4 7h16l-1.5 12a2 2 0 0 1-2 1.8H7.5A2 2 0 0 1 5.5 19L4 7z"/></svg>
+              Orders today
+            </p>
+            <p class="stat-card__value" data-today-orders-value><span class="skeleton skeleton--title" aria-hidden="true"></span></p>
+          </div>
+        </div>
+
+        <!-- ============================================================
+             LIVE ACTIVITY — Analytics & User-Activity Baseline. The one
+             genuinely "right now" metric: a KV-only heartbeat count
+             (backend/routes/analytics.ts's handleAnalyticsHeartbeat +
+             services/admin/analyticsService.ts's getOnlineNowCount),
+             never a new D1 row per heartbeat. Polls independently of
+             the range picker, on its own short interval.
+             ============================================================ -->
+        <h2 class="text-lg mb-3">Live activity</h2>
+        <div class="grid grid--3 mb-5" data-live-activity-root>
+          <div class="stat-card">
+            <p class="stat-card__label">
+              <svg class="icon stat-card__icon" viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="9"/><path d="M8 12l2.5 2.5L16 9"/></svg>
+              Online now
+            </p>
+            <p class="stat-card__value" data-live-online-value><span class="skeleton skeleton--title" aria-hidden="true"></span></p>
+            <p class="stat-card__meta text-secondary text-small">Visitors active in the last 90 seconds</p>
+          </div>
+        </div>
+
+        <h2 class="text-lg mb-3">Sales</h2>
         <div class="grid grid--3 mb-5">
           <div class="stat-card">
             <p class="stat-card__label">
@@ -121,8 +172,27 @@
              activation/reconciliation/conversion-funnel/growth metrics.
              Same stat-card markup and data-kpi-*-value/meta pattern as
              the six cards above; no redesign. -->
-        <h2 class="text-lg mb-3">Activation &amp; customer growth</h2>
+        <h2 class="text-lg mb-3">Growth</h2>
+        <p class="text-secondary text-small mb-3" data-growth-tracking-note hidden>Visitor and traffic tracking began August 25, 2026 — figures before that date aren't available and are shown as 0.</p>
         <div class="grid grid--3 mb-5">
+          <div class="stat-card">
+            <p class="stat-card__label">
+              <svg class="icon stat-card__icon" viewBox="0 0 24 24" aria-hidden="true"><rect x="3" y="4" width="18" height="14" rx="2"/><path d="M8 21h8M12 17v4"/></svg>
+              Registered users
+            </p>
+            <p class="stat-card__value" data-kpi-registeredUsers-value><span class="skeleton skeleton--title" aria-hidden="true"></span></p>
+            <p class="stat-card__meta" data-kpi-registeredUsers-meta></p>
+          </div>
+
+          <div class="stat-card">
+            <p class="stat-card__label">
+              <svg class="icon stat-card__icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/></svg>
+              Unique visitors
+            </p>
+            <p class="stat-card__value" data-kpi-uniqueVisitors-value><span class="skeleton skeleton--title" aria-hidden="true"></span></p>
+            <p class="stat-card__meta" data-kpi-uniqueVisitors-meta></p>
+          </div>
+
           <div class="stat-card">
             <p class="stat-card__label">
               <svg class="icon stat-card__icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M6 2l1.5 5M18 2l-1.5 5M4 7h16l-1.5 12a2 2 0 0 1-2 1.8H7.5A2 2 0 0 1 5.5 19L4 7z"/></svg>
@@ -196,8 +266,9 @@
           </div>
         </div>
 
+        <h2 class="text-lg mb-3">Products</h2>
         <div class="card mb-5">
-          <h2 class="text-lg mb-3">Top products</h2>
+          <h3 class="text-body mb-3">Top products</h3>
           <div class="empty-state empty-state--compact" data-top-products-empty hidden>
             <svg class="icon empty-state__icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M21 8l-9-5-9 5 9 5 9-5z"/><path d="M3 8v8l9 5 9-5V8"/></svg>
             <p class="empty-state__title">No verified orders in this range</p>
@@ -213,6 +284,25 @@
                 </tr>
               </thead>
               <tbody data-top-products-body></tbody>
+            </table>
+          </div>
+
+          <h3 class="text-body mb-2 mt-4">Per-book funnel</h3>
+          <p class="text-secondary text-small mb-2" data-products-funnel-tracking-note hidden>Views use first-party tracking, which began August 25, 2026 — views may read 0 for a range entirely before that date even when purchases exist.</p>
+          <div class="admin-table-wrap" data-products-funnel-wrap>
+            <table class="table" aria-label="Per-book funnel">
+              <thead>
+                <tr>
+                  <th scope="col">Book</th>
+                  <th scope="col">Views</th>
+                  <th scope="col">Checkout starts</th>
+                  <th scope="col">Purchases</th>
+                  <th scope="col">Revenue</th>
+                  <th scope="col">Downloads</th>
+                  <th scope="col">Conversion</th>
+                </tr>
+              </thead>
+              <tbody data-products-funnel-body></tbody>
             </table>
           </div>
         </div>
@@ -312,8 +402,8 @@
         </div>
 
         <div class="card">
-          <h2 class="text-lg mb-2">Device- and country-level traffic</h2>
-          <p class="text-secondary text-small mb-3">Cloudflare Web Analytics can show visitor counts by device and country with zero backend engineering, but requires a one-time setup step in the Cloudflare dashboard (adding a site under Analytics &amp; Logs → Web Analytics) that hasn't been completed yet — confirmed not currently active on this site. Once enabled there, its own dashboard has no API to embed here, so it will always be a separate, linked-out view rather than a number this page can show directly.</p>
+          <h2 class="text-lg mb-2">Cloudflare Web Analytics</h2>
+          <p class="text-secondary text-small mb-3">The Device breakdown and Countries tables below are first-party, coarse-bucketed data (mobile/tablet/desktop, and a 2-letter country code computed by Cloudflare's edge — never an IP address or precise location), available since August 25, 2026. Cloudflare Web Analytics is a separate product that can additionally show Core Web Vitals and other page-performance metrics with zero backend engineering, but requires a one-time setup step in the Cloudflare dashboard (adding a site under Analytics &amp; Logs → Web Analytics) that hasn't been completed yet — confirmed not currently active on this site. Its own dashboard has no API to embed here, so it will always be a separate, linked-out view.</p>
           <a class="btn btn--secondary" href="https://dash.cloudflare.com/" target="_blank" rel="noopener">Open Cloudflare dashboard →</a>
         </div>
 
@@ -326,8 +416,8 @@
              docs/v4.0-measurement-architecture-report.md for exactly
              what each figure does and does not claim to measure.
              ============================================================ -->
+        <h2 class="text-lg mb-3">Traffic</h2>
         <div class="card" data-traffic-root>
-          <h2 class="text-lg mb-3">Traffic &amp; funnel</h2>
           <p class="text-secondary text-small mb-3" data-traffic-load-error hidden role="alert"></p>
 
           <h3 class="text-body mb-2 mt-4">Most-viewed pages</h3>
@@ -378,15 +468,27 @@
           <h3 class="text-body mb-2 mt-4">Free guide lead magnet</h3>
           <p class="mb-0" data-traffic-lead-magnet>—</p>
 
-          <h3 class="text-body mb-2 mt-4">Product attention</h3>
-          <p class="text-secondary text-small mb-2">Book detail page views alongside total checkouts started in the same range — a directional comparison, not a per-visitor attribution (see the Measurement Architecture Report for why).</p>
-          <div class="empty-state empty-state--compact" data-traffic-products-empty hidden>
-            <p class="empty-state__title">No product page views in this range yet</p>
+          <p class="text-secondary text-small mb-2 mt-4">Per-book views/checkouts/purchases/revenue/downloads now live in the Products section above.</p>
+
+          <h3 class="text-body mb-2 mt-4">Device breakdown</h3>
+          <div class="empty-state empty-state--compact" data-traffic-devices-empty hidden>
+            <p class="empty-state__title">No device data in this range yet</p>
           </div>
-          <div class="admin-table-wrap" data-traffic-products-wrap hidden>
-            <table class="table" aria-label="Product attention">
-              <thead><tr><th scope="col">Page</th><th scope="col">Views</th><th scope="col">Checkouts started (whole range)</th></tr></thead>
-              <tbody data-traffic-products-body></tbody>
+          <div class="admin-table-wrap" data-traffic-devices-wrap hidden>
+            <table class="table" aria-label="Device breakdown">
+              <thead><tr><th scope="col">Device</th><th scope="col">Views</th></tr></thead>
+              <tbody data-traffic-devices-body></tbody>
+            </table>
+          </div>
+
+          <h3 class="text-body mb-2 mt-4">Countries</h3>
+          <div class="empty-state empty-state--compact" data-traffic-geo-empty hidden>
+            <p class="empty-state__title">No country data in this range yet</p>
+          </div>
+          <div class="admin-table-wrap" data-traffic-geo-wrap hidden>
+            <table class="table" aria-label="Countries">
+              <thead><tr><th scope="col">Country</th><th scope="col">Views</th></tr></thead>
+              <tbody data-traffic-geo-body></tbody>
             </table>
           </div>
         </div>
@@ -400,8 +502,10 @@
   <script src="/js/components/admin/admin-auth.js?v=bb1cec7934"></script>
   <script src="/js/components/admin/admin-shell.js?v=7233204897"></script>
   <script src="/js/components/admin/timeseries-chart.js?v=5ec461649c"></script>
-  <script src="/js/components/admin/admin-analytics.js?v=416f7ae50a"></script>
-  <script src="/js/components/admin/admin-traffic.js?v=34110bd6df"></script>
+  <script src="/js/components/admin/admin-analytics.js?v=2"></script>
+  <script src="/js/components/admin/admin-traffic.js?v=2"></script>
   <script src="/js/components/admin/admin-conversions.js?v=1"></script>
+  <script src="/js/components/admin/admin-live-activity.js?v=1"></script>
+  <script src="/js/components/admin/admin-products-funnel.js?v=1"></script>
 </body>
 </html>

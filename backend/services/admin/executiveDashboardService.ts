@@ -1138,6 +1138,16 @@ export async function getBusinessAlerts(env: Env, analyticsMode: AnalyticsMode):
 // "which pages/CTAs get attention and does that roughly track with
 // outcomes" without fabricating an attribution precision this
 // architecture cannot honestly deliver.
+//
+// Per-book attention/checkout attribution (formerly a `productAttention`
+// field here, showing one honest whole-range checkout total against
+// every book's page views because this catalog "currently has only
+// one purchasable product") has moved to
+// services/admin/analyticsService.ts's getPerBookFunnel(), which now
+// keys off the real `product_slug` column (migration 0045) instead of
+// a `page_path LIKE '/books/%'` match — a genuine per-book breakdown,
+// not a single number dressed up as one. See the admin dashboard's
+// PRODUCTS section.
 // ============================================================
 
 export interface TrafficFunnel {
@@ -1146,7 +1156,6 @@ export interface TrafficFunnel {
   trafficSources: { source: string; sessions: number }[];
   leadMagnetFunnel: { ctaClicks: number; freeGuideSignups: number };
   newsletterSignupsBySource: { source: string; signups: number }[];
-  productAttention: { pagePath: string; views: number; checkoutsStarted: number }[];
 }
 
 export async function getTrafficFunnel(env: Env, range: PeriodRange, analyticsMode: AnalyticsMode): Promise<TrafficFunnel> {
@@ -1155,13 +1164,13 @@ export async function getTrafficFunnel(env: Env, range: PeriodRange, analyticsMo
   // analytics_events is anonymous, unauthenticated traffic data with no
   // data_classification of its own (see migration 0028's exclusion
   // list) — page views/CTA clicks/traffic sources are identical in
-  // every Analytics Mode. Only the two purchase-/subscriber-facing
-  // conversion counts below (checkoutRows, freeGuideSignupRow/
-  // newsletterSourceRows) are classification-aware.
+  // every Analytics Mode. Only the subscriber-facing conversion counts
+  // below (freeGuideSignupRow/newsletterSourceRows) are
+  // classification-aware.
   const classifications = ANALYTICS_MODE_CLASSIFICATIONS[analyticsMode];
   const cls = classificationPredicate(classifications);
 
-  const [pageViewRows, ctaClickRows, sourceRows, freeGuideClickRow, freeGuideSignupRow, newsletterSourceRows, bookViewRows, checkoutRows] = await Promise.all([
+  const [pageViewRows, ctaClickRows, sourceRows, freeGuideClickRow, freeGuideSignupRow, newsletterSourceRows] = await Promise.all([
     env.DB.prepare(
       `SELECT page_path AS pagePath, COUNT(*) AS views
        FROM analytics_events WHERE event_type = 'page_view' AND created_at >= ? AND created_at < ?
@@ -1206,20 +1215,7 @@ export async function getTrafficFunnel(env: Env, range: PeriodRange, analyticsMo
     )
       .bind(fromBound, toBound, ...cls.params)
       .all<{ source: string; signups: number }>(),
-    env.DB.prepare(
-      `SELECT page_path AS pagePath, COUNT(*) AS views
-       FROM analytics_events
-       WHERE event_type = 'page_view' AND page_path LIKE '/books/%' AND page_path != '/books/' AND created_at >= ? AND created_at < ?
-       GROUP BY page_path ORDER BY views DESC LIMIT 10`
-    )
-      .bind(fromBound, toBound)
-      .all<{ pagePath: string; views: number }>(),
-    env.DB.prepare(`SELECT COUNT(*) AS c FROM purchase_sessions WHERE created_at >= ? AND created_at < ? AND ${cls.sql}`)
-      .bind(fromBound, toBound, ...cls.params)
-      .first<{ c: number }>(),
   ]);
-
-  const totalCheckoutsStarted = checkoutRows?.c ?? 0;
 
   return {
     pageViewsByPath: pageViewRows.results,
@@ -1230,14 +1226,6 @@ export async function getTrafficFunnel(env: Env, range: PeriodRange, analyticsMo
       freeGuideSignups: freeGuideSignupRow?.c ?? 0,
     },
     newsletterSignupsBySource: newsletterSourceRows.results,
-    // Book detail views are real, per-page; checkoutsStarted is shown
-    // as one honest total for the whole window rather than falsely
-    // attributed per book (this catalog currently has only one
-    // purchasable product, so a per-product split would be a single
-    // number dressed up as a breakdown - revisit once a second real
-    // SKU exists, per docs/v4.0-master-planning-document.md's own
-    // Milestone D).
-    productAttention: bookViewRows.results.map((row) => ({ ...row, checkoutsStarted: totalCheckoutsStarted })),
   };
 }
 
