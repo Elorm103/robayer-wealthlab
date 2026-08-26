@@ -226,3 +226,17 @@ export async function handleAnalyticsCampaignFunnel(request: Request, env: Env, 
   if (!funnel) return jsonError('NOT_FOUND', 'This campaign could not be found.');
   return jsonSuccess(funnel);
 }
+
+/** Admin Analytics Dashboard v2 — the site-wide Visitors → Book Views → Checkout Starts → Purchases funnel (Coupon Applications shown as a related stat, not a forced stage everyone must pass through). See services/admin/analyticsService.ts's getSalesFunnel(). */
+export async function handleAnalyticsSalesFunnel(request: Request, env: Env, logger: Logger): Promise<Response> {
+  const auth = await requireAuth(request, env, logger);
+  if (!auth.ok) return auth.response;
+
+  if (await isRateLimited(request, env, READ_RATE_LIMIT)) {
+    return jsonError('RATE_LIMITED', 'Too many requests. Please try again shortly.');
+  }
+
+  const range = parseRange(new URL(request.url).searchParams);
+  const funnel = await analyticsService.getSalesFunnel(env, range);
+  return jsonSuccess({ range, ...funnel });
+}

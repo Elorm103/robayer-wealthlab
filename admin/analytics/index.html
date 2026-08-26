@@ -22,7 +22,7 @@
   <link rel="stylesheet" href="/css/layout.css?v=a6fb0c7359">
   <link rel="stylesheet" href="/css/components.css?v=abc0d769d5">
   <link rel="stylesheet" href="/css/utilities.css?v=406dfe7300">
-  <link rel="stylesheet" href="/css/admin.css?v=2d07c9c939">
+  <link rel="stylesheet" href="/css/admin.css?v=v2dashboard1">
 </head>
 <body>
   <a href="#main-content" class="skip-link">Skip to main content</a>
@@ -36,7 +36,16 @@
       <main class="admin-content" id="main-content" data-analytics-root>
         <p class="alert alert--error" role="alert" data-analytics-load-error hidden></p>
 
-        <div class="toolbar mb-4">
+        <!-- ============================================================
+             TOP BAR — Admin Analytics Dashboard v2 (2026-08-27). Date
+             range + Refresh + Last updated (new) + a clickable overall
+             System Health indicator (new — see the System Health
+             section near the bottom, and services/admin/
+             systemHealthService.ts's header comment for the
+             investigation that found this page never called the
+             existing health endpoint).
+             ============================================================ -->
+        <div class="toolbar mb-2">
           <div class="toolbar__group">
             <button type="button" class="media-filter-chip" aria-pressed="false" data-analytics-preset-named="today">Today</button>
             <button type="button" class="media-filter-chip" aria-pressed="false" data-analytics-preset-named="yesterday">Yesterday</button>
@@ -51,55 +60,41 @@
             <input type="date" class="field__input" aria-label="From date" data-analytics-date-from>
             <span class="text-secondary text-small">to</span>
             <input type="date" class="field__input" aria-label="To date" data-analytics-date-to>
+            <button type="button" class="btn btn--secondary btn--small" data-analytics-refresh-button>Refresh</button>
+          </div>
+          <div class="toolbar__group">
+            <a href="#system-health-section" class="badge badge--overall-health" data-overall-health-badge>Checking system status&hellip;</a>
           </div>
         </div>
+        <p class="text-secondary text-small mb-4" data-analytics-last-updated>&nbsp;</p>
 
         <!-- ============================================================
-             TODAY — Analytics & User-Activity Baseline. Always "right
-             now," independent of the range picker above (which every
-             other section on this page uses). Reuses getSummary()'s
-             existing revenue/orders shape for today's date, plus the
-             new Online Now KV count.
+             SECTION 10 (rendered near the top, per this pass's own UX
+             requirement: "answer within 10 seconds... What needs my
+             attention?") — NEEDS ATTENTION. Generated entirely from
+             real data already served by System Health, Campaign
+             Performance, and Product Performance below — never a
+             static/hardcoded warning. See
+             js/components/admin/admin-needs-attention.js for the
+             sensible-sample thresholds that keep this from firing on
+             statistically meaningless noise.
              ============================================================ -->
-        <h2 class="text-lg mb-3">Today</h2>
-        <div class="grid grid--3 mb-5" data-today-root>
-          <div class="stat-card">
-            <p class="stat-card__label">
-              <svg class="icon stat-card__icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M12 1v22M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"/></svg>
-              Revenue today
-            </p>
-            <p class="stat-card__value" data-today-revenue-value><span class="skeleton skeleton--title" aria-hidden="true"></span></p>
-          </div>
-          <div class="stat-card">
-            <p class="stat-card__label">
-              <svg class="icon stat-card__icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M6 2l1.5 5M18 2l-1.5 5M4 7h16l-1.5 12a2 2 0 0 1-2 1.8H7.5A2 2 0 0 1 5.5 19L4 7z"/></svg>
-              Orders today
-            </p>
-            <p class="stat-card__value" data-today-orders-value><span class="skeleton skeleton--title" aria-hidden="true"></span></p>
-          </div>
-        </div>
+        <section class="card mb-5" aria-labelledby="needs-attention-heading" data-needs-attention-root>
+          <h2 class="text-lg mb-3" id="needs-attention-heading">Needs attention</h2>
+          <p class="text-secondary text-small mb-3" data-needs-attention-load-error hidden role="alert"></p>
+          <p class="text-secondary text-small mb-0" data-needs-attention-empty>Nothing needs attention right now.</p>
+          <ul class="alert-list" data-needs-attention-list hidden></ul>
+        </section>
 
         <!-- ============================================================
-             LIVE ACTIVITY — Analytics & User-Activity Baseline. The one
-             genuinely "right now" metric: a KV-only heartbeat count
-             (backend/routes/analytics.ts's handleAnalyticsHeartbeat +
-             services/admin/analyticsService.ts's getOnlineNowCount),
-             never a new D1 row per heartbeat. Polls independently of
-             the range picker, on its own short interval.
+             SECTION 1 — SALES OVERVIEW. Large KPI cards answering "are
+             we making money," each with a real current-vs-previous-
+             period comparison (renderKpi() in admin-analytics.js) —
+             never invented. Average Order Value is the one new card
+             here: a plain derived ratio of two real numbers already
+             fetched (revenue / orders), not a new backend query.
              ============================================================ -->
-        <h2 class="text-lg mb-3">Live activity</h2>
-        <div class="grid grid--3 mb-5" data-live-activity-root>
-          <div class="stat-card">
-            <p class="stat-card__label">
-              <svg class="icon stat-card__icon" viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="9"/><path d="M8 12l2.5 2.5L16 9"/></svg>
-              Online now
-            </p>
-            <p class="stat-card__value" data-live-online-value><span class="skeleton skeleton--title" aria-hidden="true"></span></p>
-            <p class="stat-card__meta text-secondary text-small">Visitors active in the last 2 minutes</p>
-          </div>
-        </div>
-
-        <h2 class="text-lg mb-3">Sales</h2>
+        <h2 class="text-lg mb-3">Sales overview</h2>
         <div class="grid grid--3 mb-5">
           <div class="stat-card">
             <p class="stat-card__label">
@@ -113,7 +108,7 @@
           <div class="stat-card">
             <p class="stat-card__label">
               <svg class="icon stat-card__icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M6 2l1.5 5M18 2l-1.5 5M4 7h16l-1.5 12a2 2 0 0 1-2 1.8H7.5A2 2 0 0 1 5.5 19L4 7z"/></svg>
-              Orders
+              Purchases
             </p>
             <p class="stat-card__value" data-kpi-orders-value><span class="skeleton skeleton--title" aria-hidden="true"></span></p>
             <p class="stat-card__meta" data-kpi-orders-meta></p>
@@ -121,57 +116,175 @@
 
           <div class="stat-card">
             <p class="stat-card__label">
-              <svg class="icon stat-card__icon" viewBox="0 0 24 24" aria-hidden="true"><rect x="2" y="4" width="20" height="16" rx="2"/><path d="M2 6l10 7 10-7"/></svg>
-              New subscribers
+              <svg class="icon stat-card__icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M6 2l1.5 5M18 2l-1.5 5M4 7h16l-1.5 12a2 2 0 0 1-2 1.8H7.5A2 2 0 0 1 5.5 19L4 7z"/></svg>
+              Checkout starts
             </p>
-            <p class="stat-card__value" data-kpi-subscribers-value><span class="skeleton skeleton--title" aria-hidden="true"></span></p>
-            <p class="stat-card__meta" data-kpi-subscribers-meta></p>
+            <p class="stat-card__value" data-kpi-checkoutStarts-value><span class="skeleton skeleton--title" aria-hidden="true"></span></p>
+            <p class="stat-card__meta" data-kpi-checkoutStarts-meta></p>
           </div>
 
           <div class="stat-card">
             <p class="stat-card__label">
-              <svg class="icon stat-card__icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg>
-              Downloads served
+              <svg class="icon stat-card__icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M21 11.5a8.4 8.4 0 0 1-8.5 8.5A8.4 8.4 0 0 1 4 11.5 8.4 8.4 0 0 1 12.5 3 8.4 8.4 0 0 1 21 11.5z"/></svg>
+              Checkout conversion rate
             </p>
-            <p class="stat-card__value" data-kpi-downloads-value><span class="skeleton skeleton--title" aria-hidden="true"></span></p>
-            <p class="stat-card__meta" data-kpi-downloads-meta></p>
+            <p class="stat-card__value" data-kpi-checkoutCompletionRate-value><span class="skeleton skeleton--title" aria-hidden="true"></span></p>
+            <p class="stat-card__meta" data-kpi-checkoutCompletionRate-meta></p>
           </div>
 
           <div class="stat-card">
             <p class="stat-card__label">
-              <svg class="icon stat-card__icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M21 11.5a8.4 8.4 0 0 1-.9 3.8 8.5 8.5 0 0 1-7.6 4.7 8.4 8.4 0 0 1-3.8-.9L3 21l1.9-5.7a8.4 8.4 0 0 1-.9-3.8 8.5 8.5 0 0 1 4.7-7.6 8.4 8.4 0 0 1 3.8-.9h.5a8.48 8.48 0 0 1 8 8v.5z"/></svg>
-              Consultations
+              <svg class="icon stat-card__icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M12 1v22M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"/></svg>
+              Average order value
             </p>
-            <p class="stat-card__value" data-kpi-consultations-value><span class="skeleton skeleton--title" aria-hidden="true"></span></p>
-            <p class="stat-card__meta" data-kpi-consultations-meta></p>
+            <p class="stat-card__value" data-kpi-aov-value><span class="skeleton skeleton--title" aria-hidden="true"></span></p>
+            <p class="stat-card__meta" data-kpi-aov-meta></p>
           </div>
 
           <div class="stat-card">
             <p class="stat-card__label">
-              <svg class="icon stat-card__icon" viewBox="0 0 24 24" aria-hidden="true"><rect x="2" y="4" width="20" height="16" rx="2"/><path d="M2 6l10 7 10-7"/></svg>
-              Contacts
+              <svg class="icon stat-card__icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M20.59 13.41L11 3.83A2 2 0 0 0 9.59 3.24H4a1 1 0 0 0-1 1v5.59a2 2 0 0 0 .59 1.41l9.58 9.58a2 2 0 0 0 2.82 0l4.6-4.6a2 2 0 0 0 0-2.82z"/></svg>
+              Coupon redemptions
             </p>
-            <p class="stat-card__value" data-kpi-contacts-value><span class="skeleton skeleton--title" aria-hidden="true"></span></p>
-            <p class="stat-card__meta" data-kpi-contacts-meta></p>
+            <p class="stat-card__value" data-kpi-couponRedemptions-value><span class="skeleton skeleton--title" aria-hidden="true"></span></p>
+            <p class="stat-card__meta" data-kpi-couponRedemptions-meta></p>
           </div>
         </div>
 
         <div class="grid grid--2 mb-5">
           <div class="card">
-            <h2 class="text-lg mb-3">Orders per day</h2>
-            <div data-chart-orders></div>
+            <h3 class="text-body mb-3">Revenue today</h3>
+            <p class="stat-card__value" data-today-revenue-value><span class="skeleton skeleton--title" aria-hidden="true"></span></p>
           </div>
           <div class="card">
-            <h2 class="text-lg mb-3">Subscribers per day</h2>
-            <div data-chart-subscribers></div>
+            <h3 class="text-body mb-3">Orders today</h3>
+            <p class="stat-card__value" data-today-orders-value><span class="skeleton skeleton--title" aria-hidden="true"></span></p>
           </div>
         </div>
 
-        <!-- Version 3.3 Milestone M5C (Activation, Analytics and
-             Customer Reconciliation) — extends this existing page with
-             activation/reconciliation/conversion-funnel/growth metrics.
-             Same stat-card markup and data-kpi-*-value/meta pattern as
-             the six cards above; no redesign. -->
+        <!-- ============================================================
+             SECTION 2 — SALES FUNNEL. Visitors → Book Views → Checkout
+             Starts → Purchases, the four real, unambiguous gates a
+             visitor passes through — see js/components/admin/
+             admin-sales-funnel.js's header comment for why Coupon
+             Applications is shown as a related stat instead of a
+             forced fifth stage, and services/admin/analyticsService.ts's
+             getSalesFunnel() for the query.
+             ============================================================ -->
+        <h2 class="text-lg mb-3">Sales funnel</h2>
+        <div class="card mb-5" data-sales-funnel-root>
+          <p class="text-secondary text-small mb-3" data-sales-funnel-load-error hidden role="alert"></p>
+          <p class="text-secondary text-small mb-3" data-sales-funnel-tracking-note hidden>Visitors and Book Views use first-party tracking, which began August 25, 2026 — these two figures may read low for a range entirely before that date even when purchases exist.</p>
+          <div class="funnel-chain" data-sales-funnel-chain></div>
+          <p class="text-secondary text-small mt-3 mb-1" data-sales-funnel-overall-rate>Overall visitor-to-purchase rate: —</p>
+          <p class="text-secondary text-small mb-0" data-sales-funnel-coupon-note>0 coupon applications in this range.</p>
+        </div>
+
+        <!-- ============================================================
+             SECTION 3 — CAMPAIGN PERFORMANCE. One card per real email
+             campaign (newsletter_campaigns) via the existing per-
+             campaign funnel endpoint — see js/components/admin/
+             admin-campaign-funnel.js's header comment for why Facebook/
+             Instagram ad-campaign performance is NOT invented here
+             (this codebase has no Meta Ads API integration) and instead
+             lives in the real Traffic Sources numbers below.
+             ============================================================ -->
+        <h2 class="text-lg mb-3">Campaign performance</h2>
+        <div class="mb-5" data-campaign-performance-root>
+          <p class="text-secondary text-small mb-3" data-campaign-performance-load-error hidden role="alert"></p>
+          <div class="card">
+            <p class="text-secondary text-small mb-0" data-campaign-performance-empty>No sent email campaigns yet. Facebook/Instagram ad performance is shown in Traffic Sources below — this codebase has no Meta Ads API integration to report a per-ad-campaign breakdown.</p>
+          </div>
+          <div data-campaign-performance-list hidden></div>
+        </div>
+
+        <!-- ============================================================
+             SECTION 4 — TRAFFIC SOURCES (Reliable Sales Funnel
+             Measurement pass, extended with a Conversion column and
+             sortable headers). See services/admin/analyticsService.ts's
+             getSourceBreakdown().
+             ============================================================ -->
+        <h2 class="text-lg mb-3">Traffic sources</h2>
+        <div class="card mb-5" data-traffic-source-breakdown-card>
+          <p class="text-secondary text-small mb-3">Sessions/product views use first-party tracking (since August 25, 2026); checkout starts/purchases/revenue use full real history — the two can legitimately span different real date ranges. Includes Facebook, Instagram, Google, Email, Direct, and any other tagged or referred source.</p>
+          <div class="empty-state empty-state--compact" data-traffic-source-breakdown-empty hidden>
+            <p class="empty-state__title">No source data in this range yet</p>
+          </div>
+          <div class="admin-table-wrap" data-traffic-source-breakdown-wrap hidden>
+            <table class="table" aria-label="Traffic sources">
+              <thead>
+                <tr>
+                  <th scope="col"><button type="button" class="table__sort-button" data-traffic-source-breakdown-sort="source" aria-sort="none">Source</button></th>
+                  <th scope="col"><button type="button" class="table__sort-button" data-traffic-source-breakdown-sort="sessions" aria-sort="none">Sessions</button></th>
+                  <th scope="col"><button type="button" class="table__sort-button" data-traffic-source-breakdown-sort="productViews" aria-sort="none">Book views</button></th>
+                  <th scope="col"><button type="button" class="table__sort-button" data-traffic-source-breakdown-sort="checkoutStarts" aria-sort="none">Checkout</button></th>
+                  <th scope="col"><button type="button" class="table__sort-button" data-traffic-source-breakdown-sort="purchases" aria-sort="none">Purchases</button></th>
+                  <th scope="col"><button type="button" class="table__sort-button" data-traffic-source-breakdown-sort="revenuePesewas" aria-sort="descending">Revenue</button></th>
+                  <th scope="col"><button type="button" class="table__sort-button" data-traffic-source-breakdown-sort="conversionRate" aria-sort="none">Conv.</button></th>
+                </tr>
+              </thead>
+              <tbody data-traffic-source-breakdown-body></tbody>
+            </table>
+          </div>
+        </div>
+
+        <!-- ============================================================
+             SECTION 5 — PRODUCT PERFORMANCE (Per-book funnel). One row
+             per real product, including zero-activity ones — see
+             services/admin/analyticsService.ts's getPerBookFunnel().
+             ============================================================ -->
+        <h2 class="text-lg mb-3">Product performance</h2>
+        <div class="card mb-5">
+          <p class="text-secondary text-small mb-2" data-products-funnel-tracking-note hidden>Views use first-party tracking, which began August 25, 2026 — views may read 0 for a range entirely before that date even when purchases exist.</p>
+          <div class="admin-table-wrap" data-products-funnel-wrap>
+            <table class="table" aria-label="Product performance">
+              <thead>
+                <tr>
+                  <th scope="col">Book</th>
+                  <th scope="col">Views</th>
+                  <th scope="col">Checkout starts</th>
+                  <th scope="col">Purchases</th>
+                  <th scope="col">Revenue</th>
+                  <th scope="col">Downloads</th>
+                  <th scope="col">Conversion</th>
+                </tr>
+              </thead>
+              <tbody data-products-funnel-body></tbody>
+            </table>
+          </div>
+
+          <h3 class="text-body mb-3 mt-4">Top products (verified orders)</h3>
+          <div class="empty-state empty-state--compact" data-top-products-empty hidden>
+            <svg class="icon empty-state__icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M21 8l-9-5-9 5 9 5 9-5z"/><path d="M3 8v8l9 5 9-5V8"/></svg>
+            <p class="empty-state__title">No verified orders in this range</p>
+            <p class="empty-state__body text-small">Product rankings will appear here once an order is verified in the selected date range.</p>
+          </div>
+          <div class="admin-table-wrap" data-top-products-table-wrap hidden>
+            <table class="table" aria-label="Top products">
+              <thead>
+                <tr>
+                  <th scope="col">Product</th>
+                  <th scope="col">Orders</th>
+                  <th scope="col">Revenue</th>
+                </tr>
+              </thead>
+              <tbody data-top-products-body></tbody>
+            </table>
+          </div>
+        </div>
+
+        <!-- ============================================================
+             SECTION 6 — DATE ANALYSIS. Today/This month/Previous
+             month/All time presets live in the top bar; every KPI card
+             above already carries a real previous-period comparison
+             via renderKpi()'s deltaPercent badge — nothing new needed
+             here beyond what the top bar already provides. "All time"
+             deliberately bypasses the date-range clamp entirely
+             (routes/admin/analytics.ts's parseRange()) rather than
+             generating a literal multi-millennium range — see that
+             function's own header comment for the exclusiveEndDate()
+             rollover bug this avoids.
+             ============================================================ -->
         <h2 class="text-lg mb-3">Growth</h2>
         <p class="text-secondary text-small mb-3" data-growth-tracking-note hidden>Visitor and traffic tracking began August 25, 2026 — figures before that date aren't available and are shown as 0.</p>
         <div class="grid grid--3 mb-5">
@@ -195,15 +308,6 @@
 
           <div class="stat-card">
             <p class="stat-card__label">
-              <svg class="icon stat-card__icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M6 2l1.5 5M18 2l-1.5 5M4 7h16l-1.5 12a2 2 0 0 1-2 1.8H7.5A2 2 0 0 1 5.5 19L4 7z"/></svg>
-              Checkout starts
-            </p>
-            <p class="stat-card__value" data-kpi-checkoutStarts-value><span class="skeleton skeleton--title" aria-hidden="true"></span></p>
-            <p class="stat-card__meta" data-kpi-checkoutStarts-meta></p>
-          </div>
-
-          <div class="stat-card">
-            <p class="stat-card__label">
               <svg class="icon stat-card__icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M20 6L9 17l-5-5"/></svg>
               Checkout completions
             </p>
@@ -213,20 +317,20 @@
 
           <div class="stat-card">
             <p class="stat-card__label">
-              <svg class="icon stat-card__icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M21 11.5a8.4 8.4 0 0 1-8.5 8.5A8.4 8.4 0 0 1 4 11.5 8.4 8.4 0 0 1 12.5 3 8.4 8.4 0 0 1 21 11.5z"/></svg>
-              Checkout completion rate
+              <svg class="icon stat-card__icon" viewBox="0 0 24 24" aria-hidden="true"><rect x="2" y="4" width="20" height="16" rx="2"/><path d="M2 6l10 7 10-7"/></svg>
+              New subscribers
             </p>
-            <p class="stat-card__value" data-kpi-checkoutCompletionRate-value><span class="skeleton skeleton--title" aria-hidden="true"></span></p>
-            <p class="stat-card__meta" data-kpi-checkoutCompletionRate-meta></p>
+            <p class="stat-card__value" data-kpi-subscribers-value><span class="skeleton skeleton--title" aria-hidden="true"></span></p>
+            <p class="stat-card__meta" data-kpi-subscribers-meta></p>
           </div>
 
           <div class="stat-card">
             <p class="stat-card__label">
-              <svg class="icon stat-card__icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M20.59 13.41L11 3.83A2 2 0 0 0 9.59 3.24H4a1 1 0 0 0-1 1v5.59a2 2 0 0 0 .59 1.41l9.58 9.58a2 2 0 0 0 2.82 0l4.6-4.6a2 2 0 0 0 0-2.82z"/></svg>
-              Coupon redemptions
+              <svg class="icon stat-card__icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg>
+              Downloads served
             </p>
-            <p class="stat-card__value" data-kpi-couponRedemptions-value><span class="skeleton skeleton--title" aria-hidden="true"></span></p>
-            <p class="stat-card__meta" data-kpi-couponRedemptions-meta></p>
+            <p class="stat-card__value" data-kpi-downloads-value><span class="skeleton skeleton--title" aria-hidden="true"></span></p>
+            <p class="stat-card__meta" data-kpi-downloads-meta></p>
           </div>
 
           <div class="stat-card">
@@ -264,61 +368,125 @@
             <p class="stat-card__value" data-kpi-purchasesReconciled-value><span class="skeleton skeleton--title" aria-hidden="true"></span></p>
             <p class="stat-card__meta" data-kpi-purchasesReconciled-meta></p>
           </div>
+
+          <div class="stat-card">
+            <p class="stat-card__label">
+              <svg class="icon stat-card__icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M21 11.5a8.4 8.4 0 0 1-.9 3.8 8.5 8.5 0 0 1-7.6 4.7 8.4 8.4 0 0 1-3.8-.9L3 21l1.9-5.7a8.4 8.4 0 0 1-.9-3.8 8.5 8.5 0 0 1 4.7-7.6 8.4 8.4 0 0 1 3.8-.9h.5a8.48 8.48 0 0 1 8 8v.5z"/></svg>
+              Consultations
+            </p>
+            <p class="stat-card__value" data-kpi-consultations-value><span class="skeleton skeleton--title" aria-hidden="true"></span></p>
+            <p class="stat-card__meta" data-kpi-consultations-meta></p>
+          </div>
+
+          <div class="stat-card">
+            <p class="stat-card__label">
+              <svg class="icon stat-card__icon" viewBox="0 0 24 24" aria-hidden="true"><rect x="2" y="4" width="20" height="16" rx="2"/><path d="M2 6l10 7 10-7"/></svg>
+              Contacts
+            </p>
+            <p class="stat-card__value" data-kpi-contacts-value><span class="skeleton skeleton--title" aria-hidden="true"></span></p>
+            <p class="stat-card__meta" data-kpi-contacts-meta></p>
+          </div>
         </div>
 
-        <h2 class="text-lg mb-3">Products</h2>
-        <div class="card mb-5">
-          <h3 class="text-body mb-3">Top products</h3>
-          <div class="empty-state empty-state--compact" data-top-products-empty hidden>
-            <svg class="icon empty-state__icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M21 8l-9-5-9 5 9 5 9-5z"/><path d="M3 8v8l9 5 9-5V8"/></svg>
-            <p class="empty-state__title">No verified orders in this range</p>
-            <p class="empty-state__body text-small">Product rankings will appear here once an order is verified in the selected date range.</p>
+        <div class="grid grid--2 mb-5">
+          <div class="card">
+            <h2 class="text-lg mb-3">Orders per day</h2>
+            <div data-chart-orders></div>
           </div>
-          <div class="admin-table-wrap" data-top-products-table-wrap hidden>
-            <table class="table" aria-label="Top products">
-              <thead>
-                <tr>
-                  <th scope="col">Product</th>
-                  <th scope="col">Orders</th>
-                  <th scope="col">Revenue</th>
-                </tr>
-              </thead>
-              <tbody data-top-products-body></tbody>
-            </table>
-          </div>
-
-          <h3 class="text-body mb-2 mt-4">Per-book funnel</h3>
-          <p class="text-secondary text-small mb-2" data-products-funnel-tracking-note hidden>Views use first-party tracking, which began August 25, 2026 — views may read 0 for a range entirely before that date even when purchases exist.</p>
-          <div class="admin-table-wrap" data-products-funnel-wrap>
-            <table class="table" aria-label="Per-book funnel">
-              <thead>
-                <tr>
-                  <th scope="col">Book</th>
-                  <th scope="col">Views</th>
-                  <th scope="col">Checkout starts</th>
-                  <th scope="col">Purchases</th>
-                  <th scope="col">Revenue</th>
-                  <th scope="col">Downloads</th>
-                  <th scope="col">Conversion</th>
-                </tr>
-              </thead>
-              <tbody data-products-funnel-body></tbody>
-            </table>
+          <div class="card">
+            <h2 class="text-lg mb-3">Subscribers per day</h2>
+            <div data-chart-subscribers></div>
           </div>
         </div>
 
         <!-- ============================================================
-             CONVERSION TRACKING (Meta Pixel + Conversions API)
-             Version 5.0 (Customer Acquisition Phase 1, Phase 10). Reads
-             analytics_conversion_log (migration 0040) via
-             services/admin/analyticsService.ts's
-             getConversionDispatchSummary(). "Recent leads"/"Recent
-             downloads" are sourced from their real underlying business
-             tables, not from analytics_conversion_log — those two
-             events are browser-pixel-only and this backend never
-             observes their delivery to Meta; see that function's own
-             header comment for the full reasoning.
+             SECTION 7 — TRAFFIC DETAIL. Pages/buttons/newsletter
+             sources/lead magnet/device/country — real, first-party
+             data (analytics_events + newsletter_subscribers.source),
+             kept below the main sales view per this pass's own "do not
+             overwhelm the main sales view" requirement.
              ============================================================ -->
+        <h2 class="text-lg mb-3">Traffic detail</h2>
+        <div class="card mb-5" data-traffic-root>
+          <p class="text-secondary text-small mb-3" data-traffic-load-error hidden role="alert"></p>
+
+          <h3 class="text-body mb-2 mt-4">Most-viewed pages</h3>
+          <div class="empty-state empty-state--compact" data-traffic-pages-empty hidden>
+            <p class="empty-state__title">No page views recorded in this range yet</p>
+          </div>
+          <div class="admin-table-wrap" data-traffic-pages-wrap hidden>
+            <table class="table" aria-label="Most-viewed pages">
+              <thead><tr><th scope="col">Page</th><th scope="col">Views</th></tr></thead>
+              <tbody data-traffic-pages-body></tbody>
+            </table>
+          </div>
+
+          <h3 class="text-body mb-2 mt-4">Most-clicked buttons</h3>
+          <div class="empty-state empty-state--compact" data-traffic-ctas-empty hidden>
+            <p class="empty-state__title">No button clicks recorded in this range yet</p>
+          </div>
+          <div class="admin-table-wrap" data-traffic-ctas-wrap hidden>
+            <table class="table" aria-label="Most-clicked buttons">
+              <thead><tr><th scope="col">Button</th><th scope="col">Clicks</th></tr></thead>
+              <tbody data-traffic-ctas-body></tbody>
+            </table>
+          </div>
+
+          <h3 class="text-body mb-2 mt-4">Traffic sources (by visit)</h3>
+          <div class="empty-state empty-state--compact" data-traffic-sources-empty hidden>
+            <p class="empty-state__title">No sessions recorded in this range yet</p>
+          </div>
+          <div class="admin-table-wrap" data-traffic-sources-wrap hidden>
+            <table class="table" aria-label="Traffic sources by visit">
+              <thead><tr><th scope="col">Source</th><th scope="col">Sessions</th></tr></thead>
+              <tbody data-traffic-sources-body></tbody>
+            </table>
+          </div>
+
+          <h3 class="text-body mb-2 mt-4">Newsletter signups by form</h3>
+          <p class="text-secondary text-small mb-2">Real data — every signup already records which page it came from; no new tracking needed for this one.</p>
+          <div class="empty-state empty-state--compact" data-traffic-newsletter-empty hidden>
+            <p class="empty-state__title">No newsletter signups in this range yet</p>
+          </div>
+          <div class="admin-table-wrap" data-traffic-newsletter-wrap hidden>
+            <table class="table" aria-label="Newsletter signups by source page">
+              <thead><tr><th scope="col">Page</th><th scope="col">Signups</th></tr></thead>
+              <tbody data-traffic-newsletter-body></tbody>
+            </table>
+          </div>
+
+          <h3 class="text-body mb-2 mt-4">Free guide lead magnet</h3>
+          <p class="mb-0" data-traffic-lead-magnet>—</p>
+
+          <h3 class="text-body mb-2 mt-4">Device breakdown</h3>
+          <div class="empty-state empty-state--compact" data-traffic-devices-empty hidden>
+            <p class="empty-state__title">No device data in this range yet</p>
+          </div>
+          <div class="admin-table-wrap" data-traffic-devices-wrap hidden>
+            <table class="table" aria-label="Device breakdown">
+              <thead><tr><th scope="col">Device</th><th scope="col">Views</th></tr></thead>
+              <tbody data-traffic-devices-body></tbody>
+            </table>
+          </div>
+
+          <h3 class="text-body mb-2 mt-4">Countries</h3>
+          <div class="empty-state empty-state--compact" data-traffic-geo-empty hidden>
+            <p class="empty-state__title">No country data in this range yet</p>
+          </div>
+          <div class="admin-table-wrap" data-traffic-geo-wrap hidden>
+            <table class="table" aria-label="Countries">
+              <thead><tr><th scope="col">Country</th><th scope="col">Views</th></tr></thead>
+              <tbody data-traffic-geo-body></tbody>
+            </table>
+          </div>
+        </div>
+
+        <div class="card mb-5">
+          <h2 class="text-lg mb-2">Cloudflare Web Analytics</h2>
+          <p class="text-secondary text-small mb-3">Device breakdown and Countries above are first-party, coarse-bucketed data (mobile/tablet/desktop, and a 2-letter country code computed by Cloudflare's edge — never an IP address or precise location), available since August 25, 2026. Cloudflare Web Analytics is a separate product that can additionally show Core Web Vitals and other page-performance metrics with zero backend engineering, but requires a one-time setup step in the Cloudflare dashboard (adding a site under Analytics &amp; Logs → Web Analytics) that hasn't been completed yet — confirmed not currently active on this site. Its own dashboard has no API to embed here, so it will always be a separate, linked-out view.</p>
+          <a class="btn btn--secondary" href="https://dash.cloudflare.com/" target="_blank" rel="noopener">Open Cloudflare dashboard →</a>
+        </div>
+
         <div class="card mb-5" data-conversion-root>
           <h2 class="text-lg mb-3">Conversion tracking (Meta Pixel + Conversions API)</h2>
           <p class="text-secondary text-small mb-3" data-conversion-load-error hidden role="alert"></p>
@@ -401,191 +569,53 @@
           </div>
         </div>
 
-        <div class="card">
-          <h2 class="text-lg mb-2">Cloudflare Web Analytics</h2>
-          <p class="text-secondary text-small mb-3">The Device breakdown and Countries tables below are first-party, coarse-bucketed data (mobile/tablet/desktop, and a 2-letter country code computed by Cloudflare's edge — never an IP address or precise location), available since August 25, 2026. Cloudflare Web Analytics is a separate product that can additionally show Core Web Vitals and other page-performance metrics with zero backend engineering, but requires a one-time setup step in the Cloudflare dashboard (adding a site under Analytics &amp; Logs → Web Analytics) that hasn't been completed yet — confirmed not currently active on this site. Its own dashboard has no API to embed here, so it will always be a separate, linked-out view.</p>
-          <a class="btn btn--secondary" href="https://dash.cloudflare.com/" target="_blank" rel="noopener">Open Cloudflare dashboard →</a>
+        <!-- ============================================================
+             SECTION 8 — ONLINE NOW. Visually secondary by design (a
+             single small card, not a big grid) — see
+             backend/routes/analytics.ts's ONLINE_NOW_TTL_SECONDS (120s)
+             and js/components/analytics.js's HEARTBEAT_INTERVAL_MS
+             (60s) comments for why those exact values are load-bearing
+             (KV-write-volume reduction after the 2026-08-26 RATE_LIMIT_KV
+             incident) and must not be reverted without a specific
+             reason.
+             ============================================================ -->
+        <h2 class="text-lg mb-3">Online now</h2>
+        <div class="card mb-5" data-live-activity-root>
+          <p class="stat-card__label">
+            <svg class="icon stat-card__icon" viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="9"/><path d="M8 12l2.5 2.5L16 9"/></svg>
+            Online now
+          </p>
+          <p class="stat-card__value" data-live-online-value><span class="skeleton skeleton--title" aria-hidden="true"></span></p>
+          <p class="stat-card__meta text-secondary text-small">Visitors active in the last 2 minutes. If the KV presence write is currently failing, this shows an honest "—", never a stale or invented count — see System Health's Online Now / Heartbeat check below.</p>
         </div>
 
         <!-- ============================================================
-             TRAFFIC & FUNNEL
-             Version 4.0 Milestone A (Measurement Foundation). Real,
-             first-party data from the new analytics_events table
-             (migration 0025) plus the already-existing
-             newsletter_subscribers.source column — see
-             docs/v4.0-measurement-architecture-report.md for exactly
-             what each figure does and does not claim to measure.
+             SECTION 9 — SYSTEM HEALTH. Mandatory and clearly visible —
+             see this page's top-bar badge above (jumps here) and
+             services/admin/systemHealthService.ts's header comment for
+             the full investigation of why this was previously missing
+             from this specific page (it was never wired in — the
+             endpoint itself already worked) and for the new
+             RATE_LIMIT_KV/Analytics/Online-Now checks plus the derived
+             Checkout check that explicitly does NOT inherit
+             RATE_LIMIT_KV's degraded status.
              ============================================================ -->
-        <h2 class="text-lg mb-3">Traffic</h2>
-        <div class="card" data-traffic-root>
-          <p class="text-secondary text-small mb-3" data-traffic-load-error hidden role="alert"></p>
-
-          <h3 class="text-body mb-2 mt-4">Most-viewed pages</h3>
-          <div class="empty-state empty-state--compact" data-traffic-pages-empty hidden>
-            <p class="empty-state__title">No page views recorded in this range yet</p>
+        <section class="card mb-5" aria-labelledby="system-health-heading" data-system-health-root id="system-health-section">
+          <div class="cluster cluster--between mb-3">
+            <h2 class="text-lg" id="system-health-heading">System health</h2>
+            <span class="badge" data-system-health-overall-badge>Checking&hellip;</span>
           </div>
-          <div class="admin-table-wrap" data-traffic-pages-wrap hidden>
-            <table class="table" aria-label="Most-viewed pages">
-              <thead><tr><th scope="col">Page</th><th scope="col">Views</th></tr></thead>
-              <tbody data-traffic-pages-body></tbody>
-            </table>
-          </div>
-
-          <h3 class="text-body mb-2 mt-4">Most-clicked buttons</h3>
-          <div class="empty-state empty-state--compact" data-traffic-ctas-empty hidden>
-            <p class="empty-state__title">No button clicks recorded in this range yet</p>
-          </div>
-          <div class="admin-table-wrap" data-traffic-ctas-wrap hidden>
-            <table class="table" aria-label="Most-clicked buttons">
-              <thead><tr><th scope="col">Button</th><th scope="col">Clicks</th></tr></thead>
-              <tbody data-traffic-ctas-body></tbody>
-            </table>
-          </div>
-
-          <h3 class="text-body mb-2 mt-4">Traffic sources (by visit)</h3>
-          <div class="empty-state empty-state--compact" data-traffic-sources-empty hidden>
-            <p class="empty-state__title">No sessions recorded in this range yet</p>
-          </div>
-          <div class="admin-table-wrap" data-traffic-sources-wrap hidden>
-            <table class="table" aria-label="Traffic sources">
-              <thead><tr><th scope="col">Source</th><th scope="col">Sessions</th></tr></thead>
-              <tbody data-traffic-sources-body></tbody>
-            </table>
-          </div>
-
-          <h3 class="text-body mb-2 mt-4">Newsletter signups by form</h3>
-          <p class="text-secondary text-small mb-2">Real data — every signup already records which page it came from; no new tracking needed for this one.</p>
-          <div class="empty-state empty-state--compact" data-traffic-newsletter-empty hidden>
-            <p class="empty-state__title">No newsletter signups in this range yet</p>
-          </div>
-          <div class="admin-table-wrap" data-traffic-newsletter-wrap hidden>
-            <table class="table" aria-label="Newsletter signups by source page">
-              <thead><tr><th scope="col">Page</th><th scope="col">Signups</th></tr></thead>
-              <tbody data-traffic-newsletter-body></tbody>
-            </table>
-          </div>
-
-          <h3 class="text-body mb-2 mt-4">Free guide lead magnet</h3>
-          <p class="mb-0" data-traffic-lead-magnet>—</p>
-
-          <p class="text-secondary text-small mb-2 mt-4">Per-book views/checkouts/purchases/revenue/downloads now live in the Products section above.</p>
-
-          <h3 class="text-body mb-2 mt-4">Device breakdown</h3>
-          <div class="empty-state empty-state--compact" data-traffic-devices-empty hidden>
-            <p class="empty-state__title">No device data in this range yet</p>
-          </div>
-          <div class="admin-table-wrap" data-traffic-devices-wrap hidden>
-            <table class="table" aria-label="Device breakdown">
-              <thead><tr><th scope="col">Device</th><th scope="col">Views</th></tr></thead>
-              <tbody data-traffic-devices-body></tbody>
-            </table>
-          </div>
-
-          <h3 class="text-body mb-2 mt-4">Countries</h3>
-          <div class="empty-state empty-state--compact" data-traffic-geo-empty hidden>
-            <p class="empty-state__title">No country data in this range yet</p>
-          </div>
-          <div class="admin-table-wrap" data-traffic-geo-wrap hidden>
-            <table class="table" aria-label="Countries">
-              <thead><tr><th scope="col">Country</th><th scope="col">Views</th></tr></thead>
-              <tbody data-traffic-geo-body></tbody>
-            </table>
-          </div>
-
-          <!-- ============================================================
-               SOURCE BREAKDOWN — Reliable Sales Funnel Measurement pass.
-               Normalizes utm_source/referrer into named channels
-               (Facebook/Instagram/Email/Announcement/Homepage Spotlight/
-               Google/Direct/etc.) and joins purchase_sessions, so a
-               single table answers "which source actually produces
-               sessions vs. product views vs. purchases," not just page
-               views. See services/admin/analyticsService.ts's
-               getSourceBreakdown() for the exact bucketing rule.
-               ============================================================ -->
-          <h3 class="text-body mb-2 mt-4">Source breakdown</h3>
-          <p class="text-secondary text-small mb-2">Sessions/product views use first-party tracking (since August 25, 2026); checkout starts/purchases/revenue use full real history — the two can legitimately span different real date ranges.</p>
-          <div class="empty-state empty-state--compact" data-traffic-source-breakdown-empty hidden>
-            <p class="empty-state__title">No source data in this range yet</p>
-          </div>
-          <div class="admin-table-wrap" data-traffic-source-breakdown-wrap hidden>
-            <table class="table" aria-label="Source breakdown">
-              <thead><tr><th scope="col">Source</th><th scope="col">Sessions</th><th scope="col">Product views</th><th scope="col">Checkout starts</th><th scope="col">Purchases</th><th scope="col">Revenue</th></tr></thead>
-              <tbody data-traffic-source-breakdown-body></tbody>
-            </table>
-          </div>
-        </div>
-
-        <!-- ============================================================
-             CAMPAIGN FUNNEL — Reliable Sales Funnel Measurement pass.
-             The full delivered→opens→clicks→visits→views→checkout→
-             coupon→purchase→download chain for one newsletter campaign,
-             joined entirely from existing tables via the campaign's own
-             utm_campaign tag (newsletter_campaigns.utm_campaign,
-             migration 0046). Two stages are permanently unmeasurable
-             with this project's current email architecture (no Resend
-             webhook integration, no server-side click-redirect link) —
-             shown as an explicit "cannot be determined" label, never a
-             fabricated zero. See services/admin/analyticsService.ts's
-             getCampaignFunnel() for the full reasoning per stage.
-             ============================================================ -->
-        <h2 class="text-lg mb-3">Campaign funnel</h2>
-        <div class="card mb-5" data-campaign-funnel-root data-campaign-id="3">
-          <p class="text-secondary text-small mb-3" data-campaign-funnel-load-error hidden role="alert"></p>
-          <h3 class="text-body mb-1" data-campaign-funnel-subject>—</h3>
-          <p class="text-secondary text-small mb-4" data-campaign-funnel-tag></p>
-          <div class="grid grid--3 mb-3">
-            <div class="stat-card">
-              <p class="stat-card__label">Recipients</p>
-              <p class="stat-card__value" data-campaign-funnel-recipients>—</p>
-            </div>
-            <div class="stat-card">
-              <p class="stat-card__label">Delivered</p>
-              <p class="stat-card__value" data-campaign-funnel-delivered>—</p>
-            </div>
-            <div class="stat-card">
-              <p class="stat-card__label">Bounced</p>
-              <p class="stat-card__value" data-campaign-funnel-bounced>—</p>
-            </div>
-            <div class="stat-card">
-              <p class="stat-card__label">Tracked opens</p>
-              <p class="stat-card__value" data-campaign-funnel-opens>—</p>
-              <p class="stat-card__meta text-secondary text-small" data-campaign-funnel-opens-note></p>
-            </div>
-            <div class="stat-card">
-              <p class="stat-card__label">CTA clicks</p>
-              <p class="stat-card__value" data-campaign-funnel-clicks>—</p>
-              <p class="stat-card__meta text-secondary text-small" data-campaign-funnel-clicks-note></p>
-            </div>
-            <div class="stat-card">
-              <p class="stat-card__label">Landing-page visits</p>
-              <p class="stat-card__value" data-campaign-funnel-visits>—</p>
-            </div>
-            <div class="stat-card">
-              <p class="stat-card__label">Product views</p>
-              <p class="stat-card__value" data-campaign-funnel-views>—</p>
-            </div>
-            <div class="stat-card">
-              <p class="stat-card__label">Checkout starts</p>
-              <p class="stat-card__value" data-campaign-funnel-checkout>—</p>
-            </div>
-            <div class="stat-card">
-              <p class="stat-card__label">Coupon applications</p>
-              <p class="stat-card__value" data-campaign-funnel-coupon>—</p>
-            </div>
-            <div class="stat-card">
-              <p class="stat-card__label">Purchases</p>
-              <p class="stat-card__value" data-campaign-funnel-purchases>—</p>
-            </div>
-            <div class="stat-card">
-              <p class="stat-card__label">Revenue</p>
-              <p class="stat-card__value" data-campaign-funnel-revenue>—</p>
-            </div>
-            <div class="stat-card">
-              <p class="stat-card__label">Downloads</p>
-              <p class="stat-card__value" data-campaign-funnel-downloads>—</p>
-            </div>
-          </div>
-        </div>
+          <p class="text-secondary text-small mb-3" data-system-health-load-error hidden role="alert"></p>
+          <ul class="health-grid" data-system-health-grid aria-live="polite">
+            <li class="health-item"><span class="skeleton skeleton--text" aria-hidden="true"></span></li>
+          </ul>
+          <p class="text-secondary text-small mt-3">
+            <span data-system-health-version>Version &mdash;</span> &bull;
+            <span data-system-health-environment>&mdash;</span> &bull;
+            Schema <span data-system-health-schema>&mdash;</span> &bull;
+            <span data-system-health-checked-at>&mdash;</span>
+          </p>
+        </section>
       </main>
     </div>
   </div>
@@ -596,11 +626,14 @@
   <script src="/js/components/admin/admin-auth.js?v=bb1cec7934"></script>
   <script src="/js/components/admin/admin-shell.js?v=7233204897"></script>
   <script src="/js/components/admin/timeseries-chart.js?v=5ec461649c"></script>
-  <script src="/js/components/admin/admin-analytics.js?v=2"></script>
-  <script src="/js/components/admin/admin-traffic.js?v=3"></script>
-  <script src="/js/components/admin/admin-conversions.js?v=1"></script>
+  <script src="/js/components/admin/admin-analytics.js?v=3"></script>
+  <script src="/js/components/admin/admin-traffic.js?v=5"></script>
+  <script src="/js/components/admin/admin-conversions.js?v=2"></script>
   <script src="/js/components/admin/admin-live-activity.js?v=1"></script>
-  <script src="/js/components/admin/admin-products-funnel.js?v=1"></script>
-  <script src="/js/components/admin/admin-campaign-funnel.js?v=1"></script>
+  <script src="/js/components/admin/admin-products-funnel.js?v=2"></script>
+  <script src="/js/components/admin/admin-campaign-funnel.js?v=3"></script>
+  <script src="/js/components/admin/admin-sales-funnel.js?v=2"></script>
+  <script src="/js/components/admin/admin-system-health.js?v=3"></script>
+  <script src="/js/components/admin/admin-needs-attention.js?v=2"></script>
 </body>
 </html>

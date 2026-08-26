@@ -5,7 +5,7 @@
  */
 import { describe, it, expect, beforeEach } from 'vitest';
 import { env } from 'cloudflare:test';
-import { getSourceBreakdown, getCampaignFunnel } from '../../services/admin/analyticsService';
+import { getSourceBreakdown, getCampaignFunnel, getSalesFunnel } from '../../services/admin/analyticsService';
 import { seedTestProduct, cleanupTestProduct, TEST_PRODUCT_SLUG } from '../helpers';
 
 const RANGE_WITHIN_TRACKING = { from: '2026-09-01', to: '2026-09-30' };
@@ -114,6 +114,7 @@ describe('analyticsService — Reliable Sales Funnel Measurement', () => {
     await env.DB.exec('DELETE FROM purchase_sessions');
     await env.DB.exec('DELETE FROM email_log');
     await env.DB.exec('DELETE FROM newsletter_campaigns');
+    await env.DB.exec('DELETE FROM coupons'); // FK's to admin_users (created_by) — must go before that table is cleared below, or the next test's cleanup throws on a dangling reference.
     await env.DB.exec('DELETE FROM admin_users');
     await cleanupTestProduct(env as any);
     await seedTestProduct(env as any);
@@ -218,6 +219,60 @@ describe('analyticsService — Reliable Sales Funnel Measurement', () => {
       expect(funnel!.purchases).toBe(1);
       expect(funnel!.revenuePesewas).toBe(4000);
       expect(funnel!.downloads).toBe(1);
+    });
+  });
+
+  describe('getSalesFunnel — Admin Analytics Dashboard v2', () => {
+    /** purchase_sessions.coupon_id has a real FK to coupons(id) — unlike utm_campaign/utm_source, this one IS enforced, so a real coupons row (and the admin_users row its own created_by references) must exist first. */
+    async function seedCoupon(): Promise<number> {
+      const adminInsert = await env.DB.prepare(
+        `INSERT INTO admin_users (email, password_hash, role, is_active) VALUES (?, 'x:1:x', 'super_admin', 1)`
+      )
+        .bind(`funnel-coupon-admin-${Math.random().toString(36).slice(2)}@example.com`)
+        .run();
+      const adminId = Number(adminInsert.meta.last_row_id);
+      const couponInsert = await env.DB.prepare(
+        `INSERT INTO coupons (code, discount_type, discount_value, created_by) VALUES (?, 'percentage', 10, ?)`
+      )
+        .bind(`FUNNELTEST${Math.random().toString(36).slice(2, 8).toUpperCase()}`, adminId)
+        .run();
+      return Number(couponInsert.meta.last_row_id);
+    }
+
+    it('returns the four-stage Visitors → Book Views → Checkout Starts → Purchases chain, plus Coupon Applications as a related (non-forced) stat', async () => {
+      await insertEvent({ eventType: 'page_view', sessionId: 's1', createdAt: '2026-09-15 09:00:00' });
+      await insertEvent({ eventType: 'page_view', sessionId: 's2', createdAt: '2026-09-15 09:05:00' });
+      await insertEvent({ eventType: 'product_view', productSlug: TEST_PRODUCT_SLUG, sessionId: 's1', createdAt: '2026-09-15 09:01:00' });
+
+      await seedPurchase({ status: 'verified', couponId: null, amountPesewas: 4000, createdAt: '2026-09-15 09:10:00' });
+      const couponId = await seedCoupon();
+      await seedPurchase({ status: 'failed', couponId, createdAt: '2026-09-15 09:11:00' });
+
+      const funnel = await getSalesFunnel(env as any, RANGE_WITHIN_TRACKING);
+      expect(funnel.visitors).toBe(2);
+      expect(funnel.bookViews).toBe(1);
+      expect(funnel.checkoutStarts).toBe(2);
+      expect(funnel.couponApplications).toBe(1);
+      expect(funnel.purchases).toBe(1);
+      expect(funnel.visitorsClamped).toBe(false);
+    });
+
+    it('clamps visitors/bookViews to the tracking start date but never clamps checkoutStarts/couponApplications/purchases (real, unclamped purchase_sessions history)', async () => {
+      const couponId = await seedCoupon();
+      await seedPurchase({ status: 'verified', couponId, amountPesewas: 4000, createdAt: '2020-01-01 09:00:00' });
+
+      const funnel = await getSalesFunnel(env as any, { from: '2020-01-01', to: '2020-01-31' });
+      expect(funnel.visitors).toBe(0);
+      expect(funnel.bookViews).toBe(0);
+      expect(funnel.checkoutStarts).toBe(1);
+      expect(funnel.couponApplications).toBe(1);
+      expect(funnel.purchases).toBe(1);
+      expect(funnel.visitorsClamped).toBe(true);
+    });
+
+    it('returns all zeros for a range with no activity at all, never an error or a fabricated number', async () => {
+      const funnel = await getSalesFunnel(env as any, RANGE_WITHIN_TRACKING);
+      expect(funnel).toEqual({ visitors: 0, bookViews: 0, checkoutStarts: 0, couponApplications: 0, purchases: 0, visitorsClamped: false });
     });
   });
 });

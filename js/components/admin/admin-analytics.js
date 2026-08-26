@@ -12,6 +12,8 @@
  */
 
 const ANALYTICS_API_BASE = '/api/admin/analytics';
+/** Admin Analytics Dashboard v2 — broadcast whenever the top-bar Refresh button is clicked, so every independent section script (admin-traffic.js, admin-products-funnel.js, etc.) can re-fetch without this file needing to know they exist. Each section adds one listener for this alongside its own toolbar listeners. */
+const ANALYTICS_REFRESH_EVENT = 'admin-analytics:refresh-requested';
 
 function initAdminAnalytics() {
   const root = document.querySelector('[data-analytics-root]');
@@ -38,12 +40,22 @@ function initAdminAnalytics() {
     growthTrackingNote: root.querySelector('[data-growth-tracking-note]'),
     todayRevenue: root.querySelector('[data-today-revenue-value]'),
     todayOrders: root.querySelector('[data-today-orders-value]'),
+    refreshButton: document.querySelector('[data-analytics-refresh-button]'),
+    lastUpdated: document.querySelector('[data-analytics-last-updated]'),
   };
 
   applyPreset(30, { skipRefresh: true });
   bindToolbar();
   refresh();
   refreshToday();
+
+  if (els.refreshButton) {
+    els.refreshButton.addEventListener('click', () => {
+      document.dispatchEvent(new Event(ANALYTICS_REFRESH_EVENT));
+      refresh();
+      refreshToday();
+    });
+  }
 
   function bindToolbar() {
     els.presetChips.forEach((chip) => {
@@ -141,6 +153,7 @@ function initAdminAnalytics() {
       renderTopProducts(topProducts.items);
       renderActivationSummary(activationSummary);
       renderGrowth(growth);
+      if (els.lastUpdated) els.lastUpdated.textContent = 'Last updated ' + new Date().toLocaleTimeString();
     } catch (error) {
       els.loadError.textContent = error.message || 'Could not load analytics.';
       els.loadError.hidden = false;
@@ -173,6 +186,35 @@ function initAdminAnalytics() {
     renderKpi('downloads', summary.downloadsServed, (v) => String(v), 'vs previous period');
     renderKpi('consultations', summary.consultations, (v) => String(v), 'vs previous period');
     renderKpi('contacts', summary.contacts, (v) => String(v), 'vs previous period');
+    renderAov(summary.revenuePesewas, summary.orders);
+  }
+
+  /**
+   * Admin Analytics Dashboard v2 — Average Order Value, a derived
+   * ratio of two real KpiMetric values already fetched above (never a
+   * new backend query). "—" when there are zero orders, never a
+   * divide-by-zero or a fabricated value. Built as a synthetic
+   * KpiMetric object so it can reuse renderKpi()'s own comparison-
+   * badge rendering unchanged.
+   */
+  function renderAov(revenue, orders) {
+    const current = orders.current > 0 ? Math.round(revenue.current / orders.current) : null;
+    const previous = orders.previous > 0 ? Math.round(revenue.previous / orders.previous) : null;
+    const valueEl = root.querySelector('[data-kpi-aov-value]');
+    const metaEl = root.querySelector('[data-kpi-aov-meta]');
+    if (!valueEl || !metaEl) return;
+
+    if (current === null) {
+      valueEl.textContent = '—';
+      metaEl.textContent = 'No orders in this range';
+      return;
+    }
+    renderKpi('aov', { current, previous: previous ?? current, deltaPercent: previous === null ? null : deltaPercentOf(current, previous) }, (v) => formatCurrency(v / 100), 'vs previous period');
+  }
+
+  function deltaPercentOf(current, previous) {
+    if (previous === 0) return current === 0 ? 0 : null;
+    return Math.round(((current - previous) / previous) * 1000) / 10;
   }
 
   function renderKpi(key, metric, formatValue, comparisonLabel) {

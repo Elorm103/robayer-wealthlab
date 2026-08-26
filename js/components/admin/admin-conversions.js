@@ -41,6 +41,7 @@ function initAdminConversions() {
   };
 
   refresh();
+  document.addEventListener('admin-analytics:refresh-requested', refresh);
 
   async function refresh() {
     els.loadError.hidden = true;

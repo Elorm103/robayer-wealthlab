@@ -68,6 +68,16 @@ export async function queueResendResponse(env: MockDbEnv, response: { status: nu
   await queueResponse(env, 'resend_send', response);
 }
 
+/** Admin Analytics Dashboard v2 — overrides Paystack's GET /bank health-check response (services/admin/systemHealthService.ts's checkPaystack()). Not consumed (peekResponse, not takeConsumedResponse), since a health check may run more than once in one test. */
+export async function queuePaystackHealthResponse(env: MockDbEnv, response: { status: number; body: unknown }): Promise<void> {
+  await queueResponse(env, 'paystack_bank_health', response);
+}
+
+/** Admin Analytics Dashboard v2 — overrides Resend's GET /domains health-check response (services/admin/systemHealthService.ts's checkResend()). Not consumed, same reasoning as queuePaystackHealthResponse() above. */
+export async function queueResendHealthResponse(env: MockDbEnv, response: { status: number; body: unknown }): Promise<void> {
+  await queueResponse(env, 'resend_domains_health', response);
+}
+
 /** Overrides the next (and only the next) OpenAI /v1/chat/completions response — Version 5.0 Milestone 1 (AI Gateway). */
 export async function queueOpenAiResponse(env: MockDbEnv, response: { status: number; body: unknown }): Promise<void> {
   await queueResponse(env, 'openai_chat_completions', response);
@@ -176,6 +186,29 @@ export async function outboundMock(request: Request, miniflare: Miniflare): Prom
     const queued = await peekResponse(DB, `paystack_verify:${reference}`);
     const result = queued ?? { status: false, message: 'no verify handler configured for this test' };
     return json(200, result) as unknown as MiniflareResponse;
+  }
+
+  // services/admin/systemHealthService.ts's checkPaystack()/checkResend()
+  // — real, safe, read-only reference-lookup calls (bank list, domain
+  // list), never queued/consumed like the mutating endpoints above:
+  // any number of health checks in one test run should see the same
+  // default "healthy" response unless a test explicitly overrides it.
+  if (url.hostname === 'api.paystack.co' && url.pathname === '/bank' && request.method === 'GET') {
+    const queued = await peekResponse(DB, 'paystack_bank_health');
+    if (queued) {
+      const typed = queued as { status: number; body: unknown };
+      return json(typed.status, typed.body) as unknown as MiniflareResponse;
+    }
+    return json(200, { status: true, message: 'ok', data: [] }) as unknown as MiniflareResponse;
+  }
+
+  if (url.hostname === 'api.resend.com' && url.pathname === '/domains' && request.method === 'GET') {
+    const queued = await peekResponse(DB, 'resend_domains_health');
+    if (queued) {
+      const typed = queued as { status: number; body: unknown };
+      return json(typed.status, typed.body) as unknown as MiniflareResponse;
+    }
+    return json(200, { data: [] }) as unknown as MiniflareResponse;
   }
 
   if (url.hostname === 'api.resend.com' && url.pathname === '/emails' && request.method === 'POST') {

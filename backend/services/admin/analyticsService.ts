@@ -840,3 +840,66 @@ export async function getCampaignFunnel(env: Env, campaignId: number): Promise<C
     downloads: downloadRow?.c ?? 0,
   };
 }
+
+// ============================================================
+// Admin Analytics Dashboard v2 — site-wide sales funnel. One
+// aggregate answering "how many visitors become buyers," for the
+// dashboard's own Sales Funnel section. Reuses the exact same
+// clamped-analytics/unclamped-purchases split as getSourceBreakdown()
+// and getSalesFunnel()'s sibling functions above — see their own doc
+// comments for why the two halves can legitimately span different
+// real date ranges.
+// ============================================================
+
+export interface SalesFunnel {
+  visitors: number;
+  bookViews: number;
+  checkoutStarts: number;
+  couponApplications: number;
+  purchases: number;
+  /** True when the requested range's `from` was clamped forward to ANALYTICS_TRACKING_START_DATE for visitors/bookViews specifically — mirrors GrowthSummary.visitorsClamped. */
+  visitorsClamped: boolean;
+}
+
+/**
+ * bookViews is `product_view` specifically, not `page_view` on a
+ * `/books/*` path — the Reliable Sales Funnel Measurement pass made
+ * `product_view` fire from the URL path alone
+ * (js/components/analytics.js), independent of the buy button's DOM
+ * state or acquisition source, so it is now the authoritative
+ * book-page-visit signal in this codebase, not a fallback in need of
+ * a "more complete" replacement.
+ */
+export async function getSalesFunnel(env: Env, range: PeriodRange): Promise<SalesFunnel> {
+  const { range: viewRange, clamped } = clampToTrackingStart(range);
+  const viewFrom = viewRange.from;
+  const viewTo = exclusiveEndDate(viewRange.to);
+  const from = range.from;
+  const to = exclusiveEndDate(range.to);
+
+  const [visitorsRow, viewsRow, checkoutRow] = await Promise.all([
+    env.DB.prepare(
+      `SELECT COUNT(DISTINCT session_id) AS c FROM analytics_events WHERE event_type IN ('page_view', 'product_view') AND created_at >= ? AND created_at < ?`
+    )
+      .bind(viewFrom, viewTo)
+      .first<{ c: number }>(),
+    env.DB.prepare(`SELECT COUNT(*) AS c FROM analytics_events WHERE event_type = 'product_view' AND created_at >= ? AND created_at < ?`)
+      .bind(viewFrom, viewTo)
+      .first<{ c: number }>(),
+    env.DB.prepare(
+      `SELECT COUNT(*) AS starts, SUM(CASE WHEN coupon_id IS NOT NULL THEN 1 ELSE 0 END) AS couponApplications, SUM(CASE WHEN status = 'verified' THEN 1 ELSE 0 END) AS purchases
+       FROM purchase_sessions WHERE created_at >= ? AND created_at < ?`
+    )
+      .bind(from, to)
+      .first<{ starts: number; couponApplications: number; purchases: number }>(),
+  ]);
+
+  return {
+    visitors: visitorsRow?.c ?? 0,
+    bookViews: viewsRow?.c ?? 0,
+    checkoutStarts: checkoutRow?.starts ?? 0,
+    couponApplications: checkoutRow?.couponApplications ?? 0,
+    purchases: checkoutRow?.purchases ?? 0,
+    visitorsClamped: clamped,
+  };
+}

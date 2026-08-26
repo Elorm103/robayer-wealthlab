@@ -30,6 +30,7 @@ function initAdminProductsFunnel() {
   presetChips.forEach((chip) => chip.addEventListener('click', () => refresh()));
   if (dateFrom) dateFrom.addEventListener('change', refresh);
   if (dateTo) dateTo.addEventListener('change', refresh);
+  document.addEventListener('admin-analytics:refresh-requested', refresh);
 
   /** Mirrors admin-analytics.js's own buildParams() — "All time" clears the date inputs and sets a flag the backend recognizes rather than a huge literal date range. */
   function buildParams() {

@@ -506,6 +506,7 @@
 .health-item__dot--healthy { background-color: var(--color-success); }
 .health-item__dot--warning { background-color: var(--color-warning); }
 .health-item__dot--error   { background-color: var(--color-error); }
+.health-item__dot--unknown { background-color: var(--color-text-secondary); }
 
 .health-item__body {
   min-width: 0;
@@ -516,6 +517,24 @@
   font-size: var(--text-small);
   color: var(--color-text-heading);
 }
+
+/* Admin Analytics Dashboard v2 — a visible status WORD next to the
+   dot, not just a color, per this pass's explicit "do not communicate
+   health state through color alone" accessibility requirement. Same
+   token pairing as .badge--success/warning/error so it reads as the
+   same semantic system, not a new one. */
+.health-item__status {
+  font-weight: var(--weight-medium);
+  font-size: 0.75rem;
+  text-transform: uppercase;
+  letter-spacing: 0.02em;
+  margin: 2px 0;
+}
+
+.health-item__status--healthy { color: var(--color-success); }
+.health-item__status--warning { color: var(--color-warning); }
+.health-item__status--error   { color: var(--color-error); }
+.health-item__status--unknown { color: var(--color-text-secondary); }
 
 .health-item__detail {
   font-size: 0.75rem;
@@ -550,6 +569,119 @@
   background-color: var(--color-error-tint);
   color: var(--color-error);
 }
+
+/* ============================================================
+   ADMIN ANALYTICS DASHBOARD V2 (2026-08-27) — top-bar overall-health
+   badge, Sales Funnel visualization, and sortable Traffic Sources
+   header buttons. Everything else on the new page reuses
+   .stat-card/.card/.grid/.table/.badge/.health-item/.alert-list
+   unchanged, per this pass's own "reuse the existing architecture"
+   mandate.
+   ============================================================ */
+
+/* A real <a href="#system-health-section">, not a <span> + JS-only
+   click handler, so it stays a real, keyboard-reachable link even if
+   admin-system-health.js fails to load. */
+.badge--overall-health {
+  cursor: pointer;
+  text-decoration: none;
+  font-size: var(--text-small);
+  padding: var(--space-2) var(--space-3);
+}
+
+.badge--overall-health:hover,
+.badge--overall-health:focus-visible {
+  text-decoration: underline;
+}
+
+.funnel-chain {
+  display: flex;
+  flex-direction: column;
+  align-items: stretch;
+  gap: 0;
+}
+
+.funnel-stage {
+  display: flex;
+  justify-content: center;
+}
+
+.funnel-stage__bar {
+  display: flex;
+  align-items: baseline;
+  justify-content: center;
+  gap: var(--space-2);
+  min-width: 40%;
+  margin: 0 auto;
+  padding: var(--space-3) var(--space-4);
+  background-color: var(--color-bg-alt);
+  border: 0.5px solid var(--color-border);
+  border-radius: var(--radius-sm);
+  text-align: center;
+}
+
+.funnel-stage__value {
+  font-family: var(--font-mono, monospace);
+  font-size: 1.25rem;
+  font-weight: var(--weight-medium);
+  color: var(--color-text-heading);
+  font-variant-numeric: tabular-nums;
+}
+
+.funnel-stage__label {
+  font-size: var(--text-small);
+  color: var(--color-text-secondary);
+}
+
+.funnel-connector {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: var(--space-2);
+  padding: var(--space-1) 0;
+  color: var(--color-text-secondary);
+  font-size: var(--text-small);
+}
+
+.funnel-connector__arrow {
+  font-size: 1.25rem;
+  line-height: 1;
+}
+
+.funnel-connector__rate {
+  font-weight: var(--weight-medium);
+  font-variant-numeric: tabular-nums;
+}
+
+/* Sortable Traffic Sources column-header buttons — plain <button>s
+   styled to look like table headers, so no new interaction pattern is
+   introduced beyond what .table already establishes. */
+.table__sort-button {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  background: none;
+  border: none;
+  padding: 0;
+  font: inherit;
+  font-weight: inherit;
+  color: inherit;
+  cursor: pointer;
+}
+
+.table__sort-button:hover,
+.table__sort-button:focus-visible {
+  color: var(--color-accent);
+}
+
+.table__sort-button::after {
+  content: '\2195';
+  font-size: 0.75em;
+  color: var(--color-text-secondary);
+}
+
+.table__sort-button[aria-sort="descending"]::after { content: '\2193'; color: var(--color-accent); }
+.table__sort-button[aria-sort="ascending"]::after  { content: '\2191'; color: var(--color-accent); }
 
 .quick-actions {
   display: flex;

@@ -199,6 +199,7 @@ import {
   handleAnalyticsGeography,
   handleAnalyticsSourceBreakdown,
   handleAnalyticsCampaignFunnel,
+  handleAnalyticsSalesFunnel,
 } from '../routes/admin/analytics';
 import {
   handleResourcesMeta,
@@ -488,6 +489,7 @@ const ROUTES: Route[] = [
   // Reliable Sales Funnel Measurement pass — source-level and campaign-level funnels.
   { pattern: new URLPattern({ pathname: '/api/admin/analytics/sources' }), method: 'GET', handler: handleAnalyticsSourceBreakdown },
   { pattern: new URLPattern({ pathname: '/api/admin/analytics/campaigns/:campaignId/funnel' }), method: 'GET', handler: handleAnalyticsCampaignFunnel },
+  { pattern: new URLPattern({ pathname: '/api/admin/analytics/funnel' }), method: 'GET', handler: handleAnalyticsSalesFunnel },
   // Added Version 2.1 Phase 1 (Resources CMS) — see
   // docs/v2.1-architecture-plan.md Section 3. Mirrors Products' exact
   // admin route shape (editor/super_admin writes, every role reads);

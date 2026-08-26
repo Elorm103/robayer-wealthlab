@@ -54,15 +54,35 @@ function initAdminTraffic() {
     geoEmpty: root.querySelector('[data-traffic-geo-empty]'),
     geoWrap: root.querySelector('[data-traffic-geo-wrap]'),
     geoBody: root.querySelector('[data-traffic-geo-body]'),
-    sourceBreakdownEmpty: root.querySelector('[data-traffic-source-breakdown-empty]'),
-    sourceBreakdownWrap: root.querySelector('[data-traffic-source-breakdown-wrap]'),
-    sourceBreakdownBody: root.querySelector('[data-traffic-source-breakdown-body]'),
+    // Admin Analytics Dashboard v2 moved Source Breakdown out of the
+    // [data-traffic-root] card into its own Section 4 card, so these
+    // four are document-scoped, not root-scoped, unlike every other
+    // element above.
+    sourceBreakdownEmpty: document.querySelector('[data-traffic-source-breakdown-empty]'),
+    sourceBreakdownWrap: document.querySelector('[data-traffic-source-breakdown-wrap]'),
+    sourceBreakdownBody: document.querySelector('[data-traffic-source-breakdown-body]'),
+    sourceBreakdownSortButtons: Array.from(document.querySelectorAll('[data-traffic-source-breakdown-sort]')),
   };
+
+  /** Admin Analytics Dashboard v2 — kept so column-header sorting can re-render without a second fetch; 'revenuePesewas' descending on load, matching the backend's own default ORDER BY. */
+  let lastSourceRows = [];
+  let sourceSortKey = 'revenuePesewas';
+  let sourceSortDir = 'desc';
 
   refresh();
   presetChips.forEach((chip) => chip.addEventListener('click', () => refresh()));
   if (dateFrom) dateFrom.addEventListener('change', refresh);
   if (dateTo) dateTo.addEventListener('change', refresh);
+  document.addEventListener('admin-analytics:refresh-requested', refresh);
+
+  els.sourceBreakdownSortButtons.forEach((button) => {
+    button.addEventListener('click', () => {
+      const key = button.getAttribute('data-traffic-source-breakdown-sort');
+      sourceSortDir = sourceSortKey === key && sourceSortDir === 'desc' ? 'asc' : 'desc';
+      sourceSortKey = key;
+      renderSourceBreakdown();
+    });
+  });
 
   /** Mirrors admin-analytics.js's own buildParams() — "All time" clears the date inputs and sets a flag the backend recognizes rather than a huge literal date range, so every script sharing this toolbar needs the same check. */
   function buildParams() {
@@ -93,14 +113,8 @@ function initAdminTraffic() {
       renderTable(els.newsletterEmpty, els.newsletterWrap, els.newsletterBody, data.newsletterSignupsBySource, (row) => [row.source, String(row.signups)]);
       renderTable(els.devicesEmpty, els.devicesWrap, els.devicesBody, devices.items, (row) => [row.label, String(row.count)]);
       renderTable(els.geoEmpty, els.geoWrap, els.geoBody, geo.items, (row) => [row.label, String(row.count)]);
-      renderTable(els.sourceBreakdownEmpty, els.sourceBreakdownWrap, els.sourceBreakdownBody, sources.items, (row) => [
-        row.source,
-        String(row.sessions),
-        String(row.productViews),
-        String(row.checkoutStarts),
-        String(row.purchases),
-        formatCurrency(row.revenuePesewas / 100),
-      ]);
+      lastSourceRows = sources.items;
+      renderSourceBreakdown();
       renderLeadMagnet(data.leadMagnetFunnel);
     } catch (error) {
       els.loadError.textContent = error.message || 'Could not load traffic data.';
@@ -124,6 +138,44 @@ function initAdminTraffic() {
       });
       bodyEl.appendChild(tr);
     });
+  }
+
+  /**
+   * Admin Analytics Dashboard v2 — Section 4 (Traffic Sources).
+   * Conversion is purchases/sessions, the same "of everyone this
+   * channel sent us, how many bought" definition the Sales Funnel
+   * section uses site-wide, computed here per source instead. "—"
+   * when sessions is 0, never a fabricated 0% or a divide-by-zero.
+   */
+  function renderSourceBreakdown() {
+    const rows = [...lastSourceRows].sort((a, b) => {
+      const av = sourceSortKey === 'conversionRate' ? conversionRate(a) ?? -1 : a[sourceSortKey];
+      const bv = sourceSortKey === 'conversionRate' ? conversionRate(b) ?? -1 : b[sourceSortKey];
+      if (typeof av === 'string') return sourceSortDir === 'desc' ? bv.localeCompare(av) : av.localeCompare(bv);
+      return sourceSortDir === 'desc' ? bv - av : av - bv;
+    });
+
+    els.sourceBreakdownSortButtons.forEach((button) => {
+      const key = button.getAttribute('data-traffic-source-breakdown-sort');
+      button.setAttribute('aria-sort', key === sourceSortKey ? (sourceSortDir === 'desc' ? 'descending' : 'ascending') : 'none');
+    });
+
+    renderTable(els.sourceBreakdownEmpty, els.sourceBreakdownWrap, els.sourceBreakdownBody, rows, (row) => {
+      const rate = conversionRate(row);
+      return [
+        row.source,
+        String(row.sessions),
+        String(row.productViews),
+        String(row.checkoutStarts),
+        String(row.purchases),
+        formatCurrency(row.revenuePesewas / 100),
+        rate === null ? '—' : `${rate}%`,
+      ];
+    });
+  }
+
+  function conversionRate(row) {
+    return row.sessions > 0 ? Math.round((row.purchases / row.sessions) * 1000) / 10 : null;
   }
 
   function renderLeadMagnet(funnel) {
