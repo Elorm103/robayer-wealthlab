@@ -193,8 +193,8 @@
     );
   }
 
-  /** Online Now presence — refreshed every 45s, comfortably inside the server's 90s KV expiry so one missed beat (e.g. a briefly backgrounded tab) doesn't drop the visitor early. Stops when the tab is hidden/closed rather than firing into the void — see visibilitychange handling in init(). */
-  const HEARTBEAT_INTERVAL_MS = 45_000;
+  /** Online Now presence — refreshed every 60s, comfortably inside the server's 120s KV expiry so one missed beat (e.g. a briefly backgrounded tab) doesn't drop the visitor early. Widened from 45s (server TTL was 90s) to cut this feature's KV write volume by roughly a quarter after a 2026-08-26 KV-quota incident — see backend/routes/analytics.ts's ONLINE_NOW_TTL_SECONDS comment. Stops when the tab is hidden/closed rather than firing into the void — see visibilitychange handling in init(). */
+  const HEARTBEAT_INTERVAL_MS = 60_000;
   let heartbeatTimer = null;
 
   function sendHeartbeat() {

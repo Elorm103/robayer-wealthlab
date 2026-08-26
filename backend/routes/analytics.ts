@@ -33,8 +33,16 @@ import { bucketDeviceType } from '../utils/deviceType';
 const EVENT_RATE_LIMIT = { endpoint: 'analytics-event', limit: 60, windowSeconds: 60 };
 const HEARTBEAT_RATE_LIMIT = { endpoint: 'analytics-heartbeat', limit: 4, windowSeconds: 60 };
 
-/** Refreshed by a legitimate client roughly every 45-60s; comfortably longer than one missed beat so a closed tab ages out quickly without needing an exact heartbeat cadence. */
-const ONLINE_NOW_TTL_SECONDS = 90;
+/**
+ * Refreshed by a legitimate client every 60s (js/components/analytics.js's
+ * HEARTBEAT_INTERVAL_MS — widened from 45s to 60s in the same change
+ * that introduced this comment's TTL widening, to cut this feature's
+ * KV write volume by roughly a quarter; already within the tolerance
+ * this comment previously documented). 120s keeps the same 2x-the-
+ * interval margin as before (one full missed beat tolerated) so a
+ * closed tab still ages out quickly without needing an exact cadence.
+ */
+const ONLINE_NOW_TTL_SECONDS = 120;
 
 const EVENT_TYPES = new Set(['page_view', 'cta_click', 'product_view']);
 const MAX_STRING_LENGTH = 200;
@@ -151,6 +159,19 @@ interface HeartbeatBody {
  * most ONLINE_NOW_TTL_SECONDS per forged identifier, self-healing with
  * no cleanup job — proportionate given this metric has no revenue or
  * account-security dependency.
+ *
+ * Production incident (2026-08-26): this function's own `RATE_LIMIT_KV`
+ * write — separate from, and in addition to, the one `isRateLimited()`
+ * already does above — had no error handling, so a KV outage (quota
+ * exhaustion) turned this presence write into an uncaught exception
+ * and a real 500 for every heartbeat, even after middleware/rateLimit.ts's
+ * own KV-failure fallback was fixed (that fix only covers
+ * `isRateLimited()`'s KV usage; this is a second, distinct KV call in
+ * the same handler). Fixed below the same way: caught, logged, and
+ * never allowed to fail the request — "Online Now" is a display metric
+ * with no revenue or security dependency (see this comment's own
+ * paragraph above), so degrading to "this one heartbeat didn't update
+ * presence" is the correct tradeoff, not throttling or crashing.
  */
 export async function handleAnalyticsHeartbeat(request: Request, env: Env, logger: Logger): Promise<Response> {
   if (await isRateLimited(request, env, HEARTBEAT_RATE_LIMIT)) {
@@ -170,7 +191,18 @@ export async function handleAnalyticsHeartbeat(request: Request, env: Env, logge
   const customerId = await resolveCustomerId(request, env);
   const identifier = customerId !== null ? `customer:${customerId}` : `session:${body.sessionId}`;
 
-  await env.RATE_LIMIT_KV.put(`online:${identifier}`, '1', { expirationTtl: ONLINE_NOW_TTL_SECONDS });
+  try {
+    await env.RATE_LIMIT_KV.put(`online:${identifier}`, '1', { expirationTtl: ONLINE_NOW_TTL_SECONDS });
+  } catch (err) {
+    // KV itself is unavailable (quota exhaustion, transient error) —
+    // this one heartbeat just doesn't refresh presence; the visitor
+    // simply ages out of "Online Now" a little early if the outage
+    // persists past ONLINE_NOW_TTL_SECONDS. Never worth failing the
+    // request over. See this function's own header comment.
+    logger.warn('analytics.online_presence_kv_unavailable', {
+      error: err instanceof Error ? err.message : String(err),
+    });
+  }
 
   return jsonSuccess({ recorded: true });
 }

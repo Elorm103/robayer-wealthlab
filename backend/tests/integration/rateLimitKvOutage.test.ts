@@ -21,6 +21,14 @@
  * and any real Paystack call. No purchase_sessions row is created, no
  * Paystack session is initialized, matching the explicit "confirm no
  * real payment is created during testing" requirement.
+ *
+ * Also covers the follow-up incident: routes/analytics.ts's
+ * handleAnalyticsHeartbeat makes a SECOND, separate RATE_LIMIT_KV
+ * write (the "Online Now" presence key) beyond the one isRateLimited()
+ * already does — this one had no error handling of its own and kept
+ * 500ing even after the rate-limiter fix above shipped, confirmed live
+ * via a production stack trace. See that function's own header comment
+ * for the fix.
  */
 import { describe, it, expect, vi, afterEach } from 'vitest';
 import { SELF, env } from 'cloudflare:test';
@@ -72,6 +80,47 @@ describe('RATE_LIMIT_KV outage — checkout stays available', () => {
 
     expect(res.status).not.toBe(500);
     expect(body.success).toBe(true);
+  });
+
+  it('POST /api/analytics/heartbeat does not fail with a 500 when its OWN "online:" presence write throws, even though the rate-limit check itself succeeds', async () => {
+    // Rate-limit GET/PUT both healthy — only the heartbeat handler's
+    // own, separate online: put() fails. Distinguishes this fix from
+    // the rate-limiter fix above: isRateLimited() must return `false`
+    // normally here, proving the 500 (if any) comes from the second
+    // KV call, not the first.
+    const putSpy = vi.spyOn(env.RATE_LIMIT_KV, 'put').mockImplementation(async (key: string) => {
+      if (key.startsWith('online:')) throw new Error('KV put() limit exceeded for the day.');
+      return undefined as any;
+    });
+
+    const res = await SELF.fetch('https://example.com/api/analytics/heartbeat', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', 'CF-Connecting-IP': '203.0.113.93' },
+      body: JSON.stringify({ sessionId: 'heartbeat-kv-outage-session' }),
+    });
+    const body = await res.json<any>();
+
+    expect(res.status).not.toBe(500);
+    expect(body.success).toBe(true);
+    expect(body.data.recorded).toBe(true);
+    expect(putSpy).toHaveBeenCalledWith(expect.stringContaining('online:'), expect.any(String), expect.any(Object));
+  });
+
+  it('POST /api/analytics/heartbeat still writes a real "online:" presence key with a 120s TTL when KV is healthy (Online Now regression check)', async () => {
+    const putSpy = vi.spyOn(env.RATE_LIMIT_KV, 'put');
+
+    const res = await SELF.fetch('https://example.com/api/analytics/heartbeat', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', 'CF-Connecting-IP': '203.0.113.94' },
+      body: JSON.stringify({ sessionId: 'heartbeat-healthy-session' }),
+    });
+    const body = await res.json<any>();
+    expect(res.status).toBe(200);
+    expect(body.data.recorded).toBe(true);
+
+    const value = await env.RATE_LIMIT_KV.get('online:session:heartbeat-healthy-session');
+    expect(value).toBe('1');
+    expect(putSpy).toHaveBeenCalledWith('online:session:heartbeat-healthy-session', '1', { expirationTtl: 120 });
   });
 
   it('normal rate limiting still functions when RATE_LIMIT_KV is healthy (no regression from the fallback change)', async () => {
