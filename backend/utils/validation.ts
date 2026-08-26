@@ -31,3 +31,21 @@ export function isNonEmptyString(value: unknown, maxLength = 5000): value is str
 export function isOneOf<T extends string>(value: unknown, allowed: readonly T[]): value is T {
   return typeof value === 'string' && (allowed as readonly string[]).includes(value);
 }
+
+const UTM_VALUE_MAX_LENGTH = 100;
+
+/**
+ * P0-C (Attribution Continuity) — UTM values are untrusted client
+ * input (routes/checkout.ts). Not request-rejecting: a malformed or
+ * oversized UTM parameter is marketing-campaign noise, never a reason
+ * to block a purchase, so this degrades to null/truncated rather than
+ * failing validation the way isValidEmail etc. do. Non-string input,
+ * whitespace-only input, and empty strings all become null — "not
+ * provided," never an empty-string placeholder.
+ */
+export function sanitizeUtmValue(value: unknown): string | null {
+  if (typeof value !== 'string') return null;
+  const trimmed = value.trim();
+  if (!trimmed) return null;
+  return trimmed.slice(0, UTM_VALUE_MAX_LENGTH);
+}

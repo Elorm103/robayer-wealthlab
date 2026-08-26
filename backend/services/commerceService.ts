@@ -128,11 +128,50 @@ export interface CreateCheckoutSessionInput {
   clientUserAgent: string | null;
   fbc: string | null;
   fbp: string | null;
+  /**
+   * P0-C (Attribution Continuity) — forwarded by routes/checkout.ts
+   * from the sessionStorage values js/components/analytics.js already
+   * captures on the landing page, via buy-button.js. Already
+   * sanitized (trimmed, length-capped, empty-string-to-null) by
+   * utils/validation.ts's sanitizeUtmValue() before reaching here.
+   * Campaign-level only — no ad-set/ad-level equivalent exists.
+   */
+  utmSource: string | null;
+  utmMedium: string | null;
+  utmCampaign: string | null;
+  /** Reliable Sales Funnel Measurement pass (migration 0046) — the 4th UTM dimension, e.g. "50_percent_offer". Same sanitize/forward path as the other three; never feeds attribution_confidence (a sub-dimension of an already-attributed campaign, not itself evidence of attribution). */
+  utmContent: string | null;
 }
 
 export interface CreateCheckoutSessionResult {
   purchaseReference: string;
   checkoutUrl: string;
+}
+
+export type AttributionConfidence = 'utm' | 'meta_click' | 'direct' | 'unknown';
+
+/**
+ * P0-C (Attribution Continuity) — server-computed only; routes/
+ * checkout.ts never accepts a confidence value from the client, only
+ * raw UTM values, so this is the one place attribution_confidence is
+ * decided.
+ *
+ * Deliberately conservative: this project's checkout request carries
+ * UTM values and fbc, but no referrer, so there is currently no
+ * evidence anywhere in this codebase that can positively confirm
+ * "direct" traffic (a visitor who typed the URL or used a bookmark)
+ * versus simply "untracked" (arrived via a channel this project
+ * doesn't instrument). 'direct' is therefore never returned today —
+ * this function returns 'unknown' whenever neither UTM nor fbc is
+ * present, rather than inventing a distinction the current data can't
+ * support. See the P0-C investigation report's Section F/N for the
+ * full reasoning; if a future capture point adds referrer evidence to
+ * this decision, 'direct' can be reintroduced honestly then.
+ */
+function computeAttributionConfidence(hasUtm: boolean, fbc: string | null): AttributionConfidence {
+  if (hasUtm) return 'utm';
+  if (fbc) return 'meta_click';
+  return 'unknown';
 }
 
 export async function createCheckoutSession(
@@ -208,6 +247,11 @@ export async function createCheckoutSession(
   }
   const amountPesewas = originalAmountPesewas - discountPesewas;
 
+  // P0-C (Attribution Continuity) — see computeAttributionConfidence()'s
+  // own doc comment for why 'direct' is never returned by this call.
+  const hasUtm = input.utmSource !== null || input.utmMedium !== null || input.utmCampaign !== null;
+  const attributionConfidence = computeAttributionConfidence(hasUtm, input.fbc);
+
   const session = await insertPurchaseSession(env, {
     productSlug: product.slug,
     productId: product.id,
@@ -223,6 +267,11 @@ export async function createCheckoutSession(
     clientUserAgent: input.clientUserAgent,
     fbc: input.fbc,
     fbp: input.fbp,
+    utmSource: input.utmSource,
+    utmMedium: input.utmMedium,
+    utmCampaign: input.utmCampaign,
+    utmContent: input.utmContent,
+    attributionConfidence,
   });
 
   const provider = getPaymentProvider(env);
@@ -255,7 +304,7 @@ export async function createCheckoutSession(
 
   await attachCheckoutResult(env, session.id, checkout);
 
-  logger.info('checkout.session_created', { purchaseReference: session.purchaseReference, productSlug: product.slug, amountPesewas, couponId, discountPesewas });
+  logger.info('checkout.session_created', { purchaseReference: session.purchaseReference, productSlug: product.slug, amountPesewas, couponId, discountPesewas, attributionConfidence });
 
   return { purchaseReference: session.purchaseReference, checkoutUrl: checkout.checkoutUrl };
 }
@@ -286,6 +335,13 @@ interface InsertPurchaseSessionInput {
   clientUserAgent: string | null;
   fbc: string | null;
   fbp: string | null;
+  /** P0-C (Attribution Continuity) — see CreateCheckoutSessionInput's own doc comment and computeAttributionConfidence(). */
+  utmSource: string | null;
+  utmMedium: string | null;
+  utmCampaign: string | null;
+  /** Reliable Sales Funnel Measurement pass (migration 0046) — see CreateCheckoutSessionInput's own doc comment. */
+  utmContent: string | null;
+  attributionConfidence: AttributionConfidence;
 }
 
 /**
@@ -313,8 +369,8 @@ async function insertPurchaseSession(env: Env, input: InsertPurchaseSessionInput
     `INSERT INTO purchase_sessions
        (purchase_reference, product_slug, product_id, product_version, product_title, amount_pesewas, currency, status, provider, expires_at,
         terms_accepted_at, terms_version, license_accepted_at, license_version, marketing_opt_in, coupon_id, discount_pesewas, customer_email,
-        client_ip_address, client_user_agent, fbc, fbp)
-     VALUES (NULL, ?, ?, ?, ?, ?, ?, 'pending', ?, ?, datetime('now'), ?, datetime('now'), ?, ?, ?, ?, ?, ?, ?, ?, ?)`
+        client_ip_address, client_user_agent, fbc, fbp, utm_source, utm_medium, utm_campaign, utm_content, attribution_confidence)
+     VALUES (NULL, ?, ?, ?, ?, ?, ?, 'pending', ?, ?, datetime('now'), ?, datetime('now'), ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`
   )
     .bind(
       input.productSlug,
@@ -334,7 +390,12 @@ async function insertPurchaseSession(env: Env, input: InsertPurchaseSessionInput
       input.clientIpAddress,
       input.clientUserAgent,
       input.fbc,
-      input.fbp
+      input.fbp,
+      input.utmSource,
+      input.utmMedium,
+      input.utmCampaign,
+      input.utmContent,
+      input.attributionConfidence
     )
     .run();
 

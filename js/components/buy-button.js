@@ -7,14 +7,21 @@
  * Progressive enhancement for any link/button marked [data-buy-button]
  * with a [data-product-slug]. On click: disables the button, shows a
  * loading state, POSTs `{ productId, termsAccepted, licenseAccepted,
- * marketingOptIn, couponCode, email }` to the Cloudflare Worker's
- * checkout endpoint (never price/currency/title; the Worker loads those
- * itself from the Product Platform, see docs/commerce-foundation.md —
- * the discount a coupon produces is likewise always computed
- * server-side, see docs/v3.2-m4c-amendment-2-coupon-security-review.md),
- * then redirects the visitor to the checkout URL the Worker returns.
- * This is the one place on the site that actually starts a purchase;
- * see docs/commerce-foundation.md's "Frontend" section.
+ * marketingOptIn, couponCode, email, utmSource, utmMedium, utmCampaign }`
+ * to the Cloudflare Worker's checkout endpoint (never price/currency/
+ * title; the Worker loads those itself from the Product Platform, see
+ * docs/commerce-foundation.md — the discount a coupon produces is
+ * likewise always computed server-side, see
+ * docs/v3.2-m4c-amendment-2-coupon-security-review.md), then redirects
+ * the visitor to the checkout URL the Worker returns. This is the one
+ * place on the site that actually starts a purchase; see
+ * docs/commerce-foundation.md's "Frontend" section.
+ *
+ * `utmSource`/`utmMedium`/`utmCampaign` (P0-C, Attribution Continuity)
+ * — read from the same sessionStorage key js/components/analytics.js
+ * already writes (robayer_analytics_utm), not a second capture
+ * mechanism. Forwarded as-is; the server decides what confidence, if
+ * any, this evidence supports (see backend/routes/checkout.ts).
  *
  * `email` (Version 3.4.3 Milestone M6.3) — the one required field this
  * "zero-form checkout" now has. See this file's click handler for the
@@ -60,6 +67,27 @@ function readPageContent() {
     return JSON.parse(tag.getAttribute('content')) || {};
   } catch (err) {
     return {};
+  }
+}
+
+// P0-C (Attribution Continuity) — reads the same sessionStorage key
+// js/components/analytics.js already writes (robayer_analytics_utm),
+// rather than introducing a second UTM-capture mechanism. Mirrors
+// analytics.js's own "malformed stored value -> no UTM data" fallback.
+const UTM_STORAGE_KEY = 'robayer_analytics_utm';
+function readStoredUtm() {
+  try {
+    const stored = sessionStorage.getItem(UTM_STORAGE_KEY);
+    if (!stored) return { utmSource: null, utmMedium: null, utmCampaign: null, utmContent: null };
+    const parsed = JSON.parse(stored);
+    return {
+      utmSource: parsed.utmSource || null,
+      utmMedium: parsed.utmMedium || null,
+      utmCampaign: parsed.utmCampaign || null,
+      utmContent: parsed.utmContent || null,
+    };
+  } catch (err) {
+    return { utmSource: null, utmMedium: null, utmCampaign: null, utmContent: null };
   }
 }
 
@@ -248,6 +276,15 @@ function initBuyButtons() {
         return;
       }
 
+      // P0-C (Attribution Continuity) — the UTM values analytics.js
+      // already captured from the landing page and persisted in
+      // sessionStorage for this tab session. Forwarded here so the
+      // purchase this checkout may produce can be traced back to a
+      // campaign; the server re-derives attribution_confidence itself
+      // rather than trusting these values directly (see
+      // backend/routes/checkout.ts).
+      const utm = readStoredUtm();
+
       // Version 5.0 (Customer Acquisition Phase 3) — fired once
       // validation has passed and the visitor is genuinely starting
       // checkout, before the network round-trip (matching Meta's own
@@ -284,6 +321,10 @@ function initBuyButtons() {
             termsAccepted: true,
             licenseAccepted: true,
             marketingOptIn,
+            utmSource: utm.utmSource,
+            utmMedium: utm.utmMedium,
+            utmCampaign: utm.utmCampaign,
+            utmContent: utm.utmContent,
           }),
         });
         const result = await response.json();

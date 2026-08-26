@@ -595,3 +595,248 @@ export async function getCountryBreakdown(env: Env, range: PeriodRange): Promise
     .all<BreakdownRow>();
   return results;
 }
+
+// ============================================================
+// Reliable Sales Funnel Measurement pass — source-level and
+// campaign-level funnels, built entirely from tables that already
+// exist (analytics_events, purchase_sessions, email_log,
+// newsletter_campaign_recipients, coupon_redemptions). No new
+// tracking table; the two real gaps this closes are migration 0046's
+// utm_content column and product_view's fixed URL-based trigger
+// (js/components/analytics.js) — both prerequisites for these queries
+// to mean what they say. See docs comment on getCampaignFunnel() for
+// what this deliberately does NOT claim to measure.
+// ============================================================
+
+/**
+ * The same source-bucketing rule applied consistently everywhere a
+ * "source" grouping is needed here, so a session or purchase is never
+ * bucketed one way in one query and another way in a different one.
+ * `analytics_events` has both utm_source and referrer; purchase_sessions
+ * only ever captures utm_source (no referrer at checkout time — see
+ * migration 0044's own header comment on why), so the two SQL variants
+ * below share every utm_source rule and only differ in whether a
+ * referrer-based fallback is possible.
+ */
+const SOURCE_BUCKET_WITH_REFERRER = `
+  CASE
+    WHEN utm_source = 'fb' THEN 'Facebook'
+    WHEN utm_source = 'ig' THEN 'Instagram'
+    WHEN utm_source = 'email' OR utm_medium = 'newsletter' THEN 'Email'
+    WHEN utm_source = 'announcement' THEN 'Announcement'
+    WHEN utm_source = 'homepage_launch_spotlight' THEN 'Homepage Spotlight'
+    WHEN utm_source IS NOT NULL THEN 'Other campaign'
+    WHEN referrer LIKE '%facebook.com%' OR referrer LIKE '%fb.me%' THEN 'Facebook'
+    WHEN referrer LIKE '%instagram.com%' THEN 'Instagram'
+    WHEN referrer LIKE '%google.%' THEN 'Google'
+    WHEN referrer IS NULL OR referrer = '' OR referrer LIKE 'https://robayerwealthlab.com%' THEN 'Direct'
+    ELSE 'Other/referral'
+  END`;
+
+const SOURCE_BUCKET_UTM_ONLY = `
+  CASE
+    WHEN utm_source = 'fb' THEN 'Facebook'
+    WHEN utm_source = 'ig' THEN 'Instagram'
+    WHEN utm_source = 'email' OR utm_medium = 'newsletter' THEN 'Email'
+    WHEN utm_source = 'announcement' THEN 'Announcement'
+    WHEN utm_source = 'homepage_launch_spotlight' THEN 'Homepage Spotlight'
+    WHEN utm_source IS NOT NULL THEN 'Other campaign'
+    ELSE 'Direct/unattributed'
+  END`;
+
+export interface SourceBreakdownRow {
+  source: string;
+  sessions: number;
+  productViews: number;
+  checkoutStarts: number;
+  purchases: number;
+  revenuePesewas: number;
+}
+
+/**
+ * One row per source bucket, joining analytics_events (sessions,
+ * product views — clamped to the tracking start date, like every
+ * analytics_events-derived figure) with purchase_sessions (checkout
+ * starts/purchases/revenue, real full history, never clamped).
+ * purchase_sessions' own bucket can only use utm_source (no referrer
+ * captured at checkout), so a purchase with no UTM lands in
+ * "Direct/unattributed" here even if analytics_events could have told
+ * a more specific story for the session that produced it — an honest
+ * limitation of the checkout-time capture, not something this query
+ * can paper over.
+ */
+export async function getSourceBreakdown(env: Env, range: PeriodRange): Promise<SourceBreakdownRow[]> {
+  const { range: viewRange } = clampToTrackingStart(range);
+  const viewFrom = viewRange.from;
+  const viewTo = exclusiveEndDate(viewRange.to);
+  const from = range.from;
+  const to = exclusiveEndDate(range.to);
+
+  const { results } = await env.DB.prepare(
+    `SELECT source, COALESCE(SUM(sessions), 0) AS sessions, COALESCE(SUM(productViews), 0) AS productViews,
+            COALESCE(SUM(checkoutStarts), 0) AS checkoutStarts, COALESCE(SUM(purchases), 0) AS purchases, COALESCE(SUM(revenuePesewas), 0) AS revenuePesewas
+     FROM (
+       SELECT ${SOURCE_BUCKET_WITH_REFERRER} AS source, COUNT(DISTINCT session_id) AS sessions,
+              SUM(CASE WHEN event_type = 'product_view' THEN 1 ELSE 0 END) AS productViews,
+              0 AS checkoutStarts, 0 AS purchases, 0 AS revenuePesewas
+       FROM analytics_events
+       WHERE event_type IN ('page_view', 'product_view') AND created_at >= ? AND created_at < ?
+       GROUP BY source
+       UNION ALL
+       SELECT ${SOURCE_BUCKET_UTM_ONLY} AS source, 0 AS sessions, 0 AS productViews,
+              COUNT(*) AS checkoutStarts,
+              SUM(CASE WHEN status = 'verified' THEN 1 ELSE 0 END) AS purchases,
+              COALESCE(SUM(CASE WHEN status = 'verified' THEN amount_pesewas ELSE 0 END), 0) AS revenuePesewas
+       FROM purchase_sessions
+       WHERE created_at >= ? AND created_at < ?
+       GROUP BY source
+     )
+     GROUP BY source ORDER BY revenuePesewas DESC, sessions DESC`
+  )
+    .bind(viewFrom, viewTo, from, to)
+    .all<SourceBreakdownRow>();
+
+  return results;
+}
+
+export interface CampaignFunnelStage {
+  /** null means "cannot be measured by this system" — never a fabricated zero. See getCampaignFunnel()'s own doc comment. */
+  value: number | null;
+  label: string;
+}
+
+export interface CampaignFunnel {
+  campaignId: number;
+  subject: string;
+  utmCampaign: string | null;
+  recipients: number | null;
+  delivered: number;
+  bounced: number;
+  trackedOpens: CampaignFunnelStage;
+  ctaClicks: CampaignFunnelStage;
+  landingPageVisits: number;
+  productViews: number;
+  checkoutStarts: number;
+  couponApplications: number;
+  purchases: number;
+  revenuePesewas: number;
+  downloads: number;
+}
+
+/**
+ * Every stage after "bounced" depends on the campaign having a real
+ * utm_campaign tag set (newsletter_campaigns.utm_campaign, migration
+ * 0046) — without one, this returns nulls for everything downstream
+ * rather than guessing. Two stages are permanently unmeasurable with
+ * this project's current email architecture, by design, not oversight:
+ *
+ *   - trackedOpens: Resend's open-tracking pixel requires (a) enabling
+ *     Open Tracking in the Resend account dashboard — outside this
+ *     codebase's control — and (b) a new inbound webhook endpoint to
+ *     receive `email.opened` events, which does not exist. Returns
+ *     `{ value: null, label: "Open rate cannot currently be determined
+ *     from the existing system." }` always, per the same "say so
+ *     honestly" instruction as everywhere else in this file.
+ *   - ctaClicks: a plain `<a href>` in an HTML email has no reliable
+ *     way to signal a click before the destination page loads (email
+ *     clients don't execute JavaScript), short of a server-side
+ *     redirect-tracking link — a genuinely new piece of infrastructure,
+ *     not an extension of what exists, and not something that could
+ *     even apply retroactively to a campaign already sent with plain
+ *     links. Returns the nearest honest proxy instead: distinct
+ *     sessions whose first-touch page_view carries this campaign's
+ *     utm_campaign, explicitly labeled as a proxy, never presented as
+ *     a true pre-arrival click count.
+ */
+export async function getCampaignFunnel(env: Env, campaignId: number): Promise<CampaignFunnel | null> {
+  const campaign = await env.DB.prepare(
+    `SELECT id, subject, utm_campaign AS utmCampaign, intended_recipient_count AS recipients FROM newsletter_campaigns WHERE id = ? AND deleted_at IS NULL`
+  )
+    .bind(campaignId)
+    .first<{ id: number; subject: string; utmCampaign: string | null; recipients: number | null }>();
+  if (!campaign) return null;
+
+  const [deliveryRows, downloadRow] = await Promise.all([
+    env.DB.prepare(`SELECT status, COUNT(*) AS c FROM email_log WHERE entity_type = 'newsletter_campaign' AND entity_id = ? GROUP BY status`)
+      .bind(campaignId)
+      .all<{ status: string; c: number }>(),
+    // Downloads can only be tied to this campaign via the purchase(s)
+    // it produced, joined through deliveries — same reasoning as
+    // getPerBookFunnel()'s own downloads join.
+    campaign.utmCampaign
+      ? env.DB.prepare(
+          `SELECT COUNT(*) AS c FROM download_tokens dt
+           JOIN deliveries d ON d.id = dt.delivery_id
+           JOIN purchase_sessions ps ON ps.id = d.purchase_session_id
+           WHERE ps.utm_campaign = ? AND dt.used_at IS NOT NULL`
+        )
+          .bind(campaign.utmCampaign)
+          .first<{ c: number }>()
+      : Promise.resolve({ c: 0 }),
+  ]);
+
+  const delivered = deliveryRows.results.find((r) => r.status === 'sent')?.c ?? 0;
+  const bounced = deliveryRows.results
+    .filter((r) => r.status === 'failed' || r.status === 'permanently_failed')
+    .reduce((sum, r) => sum + r.c, 0);
+
+  if (!campaign.utmCampaign) {
+    return {
+      campaignId: campaign.id,
+      subject: campaign.subject,
+      utmCampaign: null,
+      recipients: campaign.recipients,
+      delivered,
+      bounced,
+      trackedOpens: { value: null, label: 'Open rate cannot currently be determined from the existing system.' },
+      ctaClicks: { value: null, label: 'This campaign has no utm_campaign tag set, so site visits cannot be attributed to it.' },
+      landingPageVisits: 0,
+      productViews: 0,
+      checkoutStarts: 0,
+      couponApplications: 0,
+      purchases: 0,
+      revenuePesewas: 0,
+      downloads: 0,
+    };
+  }
+
+  const [visitsRow, viewsRow, checkoutRow] = await Promise.all([
+    env.DB.prepare(
+      `SELECT COUNT(DISTINCT session_id) AS c FROM analytics_events WHERE event_type = 'page_view' AND utm_campaign = ?`
+    )
+      .bind(campaign.utmCampaign)
+      .first<{ c: number }>(),
+    env.DB.prepare(`SELECT COUNT(*) AS c FROM analytics_events WHERE event_type = 'product_view' AND utm_campaign = ?`)
+      .bind(campaign.utmCampaign)
+      .first<{ c: number }>(),
+    env.DB.prepare(
+      `SELECT COUNT(*) AS starts, SUM(CASE WHEN status = 'verified' THEN 1 ELSE 0 END) AS purchases,
+              COALESCE(SUM(CASE WHEN status = 'verified' THEN amount_pesewas ELSE 0 END), 0) AS revenue,
+              SUM(CASE WHEN coupon_id IS NOT NULL THEN 1 ELSE 0 END) AS couponApplications
+       FROM purchase_sessions WHERE utm_campaign = ?`
+    )
+      .bind(campaign.utmCampaign)
+      .first<{ starts: number; purchases: number; revenue: number; couponApplications: number }>(),
+  ]);
+
+  return {
+    campaignId: campaign.id,
+    subject: campaign.subject,
+    utmCampaign: campaign.utmCampaign,
+    recipients: campaign.recipients,
+    delivered,
+    bounced,
+    trackedOpens: { value: null, label: 'Open rate cannot currently be determined from the existing system.' },
+    ctaClicks: {
+      value: visitsRow?.c ?? 0,
+      label: 'Proxy metric: distinct sessions whose first site visit carried this campaign\'s UTM tag — not a true pre-arrival click count (email clients do not run the JavaScript that would make one possible without a server-side redirect link, which this campaign\'s already-sent links do not use).',
+    },
+    landingPageVisits: visitsRow?.c ?? 0,
+    productViews: viewsRow?.c ?? 0,
+    checkoutStarts: checkoutRow?.starts ?? 0,
+    couponApplications: checkoutRow?.couponApplications ?? 0,
+    purchases: checkoutRow?.purchases ?? 0,
+    revenuePesewas: checkoutRow?.revenue ?? 0,
+    downloads: downloadRow?.c ?? 0,
+  };
+}

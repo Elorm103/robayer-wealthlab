@@ -25,7 +25,7 @@ import { isRateLimited } from '../middleware/rateLimit';
 import { validateBody } from '../middleware/validate';
 import { isPlausibleSlug } from '../services/productCatalogService';
 import { createCheckoutSession, CommerceError } from '../services/commerceService';
-import { isValidEmail } from '../utils/validation';
+import { isValidEmail, sanitizeUtmValue } from '../utils/validation';
 import { parseCookies } from '../utils/cookies';
 
 // Slightly more generous than the form endpoints (newsletter/contact/
@@ -87,7 +87,16 @@ export async function handleCreateCheckoutSession(request: Request, env: Env, lo
     return jsonError(validation.code, validation.message);
   }
 
-  const { productId, marketingOptIn, couponCode, email } = body as { productId: string; marketingOptIn?: unknown; couponCode?: unknown; email: string };
+  const { productId, marketingOptIn, couponCode, email, utmSource, utmMedium, utmCampaign, utmContent } = body as {
+    productId: string;
+    marketingOptIn?: unknown;
+    couponCode?: unknown;
+    email: string;
+    utmSource?: unknown;
+    utmMedium?: unknown;
+    utmCampaign?: unknown;
+    utmContent?: unknown;
+  };
 
   // Version 5.0 (Customer Acquisition Phase 1, Event Match Quality) —
   // this request IS the one direct, real request from the customer's
@@ -108,6 +117,20 @@ export async function handleCreateCheckoutSession(request: Request, env: Env, lo
   const fbc = cookies['_fbc'] ?? null;
   const fbp = cookies['_fbp'] ?? null;
 
+  // P0-C (Attribution Continuity) — the UTM values buy-button.js
+  // forwards from the sessionStorage js/components/analytics.js
+  // already captured on the landing page. Untrusted client input:
+  // sanitizeUtmValue() trims, caps length, and degrades anything
+  // malformed to null rather than rejecting the checkout — see its
+  // own doc comment in utils/validation.ts. The client never supplies
+  // attribution_confidence; that's computed server-side in
+  // createCheckoutSession(), from whichever of these plus fbc actually
+  // survived to this request.
+  const utmSourceValue = sanitizeUtmValue(utmSource);
+  const utmMediumValue = sanitizeUtmValue(utmMedium);
+  const utmCampaignValue = sanitizeUtmValue(utmCampaign);
+  const utmContentValue = sanitizeUtmValue(utmContent);
+
   try {
     const result = await createCheckoutSession(env, logger, {
       productSlug: productId,
@@ -126,6 +149,10 @@ export async function handleCreateCheckoutSession(request: Request, env: Env, lo
       clientUserAgent,
       fbc,
       fbp,
+      utmSource: utmSourceValue,
+      utmMedium: utmMediumValue,
+      utmCampaign: utmCampaignValue,
+      utmContent: utmContentValue,
     });
     return jsonSuccess({ purchaseReference: result.purchaseReference, checkoutUrl: result.checkoutUrl });
   } catch (err) {

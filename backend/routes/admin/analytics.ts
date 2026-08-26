@@ -12,6 +12,7 @@
 
 import type { Env } from '../../worker/env';
 import type { Logger } from '../../utils/logger';
+import type { RouteParams } from '../../worker/index';
 import { jsonError, jsonSuccess } from '../../utils/responses';
 import { isRateLimited } from '../../middleware/rateLimit';
 import { requireAuth } from '../../middleware/requireAuth';
@@ -191,4 +192,37 @@ export async function handleAnalyticsGeography(request: Request, env: Env, logge
   const range = parseRange(new URL(request.url).searchParams);
   const items = await analyticsService.getCountryBreakdown(env, range);
   return jsonSuccess({ range, items });
+}
+
+/** Reliable Sales Funnel Measurement pass — one row per normalized source (Facebook/Instagram/Email/Announcement/Homepage Spotlight/Google/Direct/etc.), joining analytics_events with purchase_sessions. See services/admin/analyticsService.ts's getSourceBreakdown(). */
+export async function handleAnalyticsSourceBreakdown(request: Request, env: Env, logger: Logger): Promise<Response> {
+  const auth = await requireAuth(request, env, logger);
+  if (!auth.ok) return auth.response;
+
+  if (await isRateLimited(request, env, READ_RATE_LIMIT)) {
+    return jsonError('RATE_LIMITED', 'Too many requests. Please try again shortly.');
+  }
+
+  const range = parseRange(new URL(request.url).searchParams);
+  const items = await analyticsService.getSourceBreakdown(env, range);
+  return jsonSuccess({ range, items });
+}
+
+/** Reliable Sales Funnel Measurement pass — the full delivered→opens→clicks→visits→views→checkout→coupon→purchase→download funnel for one newsletter campaign. See services/admin/analyticsService.ts's getCampaignFunnel() for exactly which stages are real vs. proxy vs. permanently unmeasurable. */
+export async function handleAnalyticsCampaignFunnel(request: Request, env: Env, logger: Logger, params: RouteParams): Promise<Response> {
+  const auth = await requireAuth(request, env, logger);
+  if (!auth.ok) return auth.response;
+
+  if (await isRateLimited(request, env, READ_RATE_LIMIT)) {
+    return jsonError('RATE_LIMITED', 'Too many requests. Please try again shortly.');
+  }
+
+  const campaignId = Number(params.campaignId);
+  if (!Number.isInteger(campaignId) || campaignId <= 0) {
+    return jsonError('NOT_FOUND', 'This campaign could not be found.');
+  }
+
+  const funnel = await analyticsService.getCampaignFunnel(env, campaignId);
+  if (!funnel) return jsonError('NOT_FOUND', 'This campaign could not be found.');
+  return jsonSuccess(funnel);
 }

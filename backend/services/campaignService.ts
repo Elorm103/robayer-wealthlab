@@ -36,6 +36,8 @@ export type CampaignStatus = 'draft' | 'sending' | 'sent' | 'failed';
 export interface CampaignInput {
   subject: string;
   body: string;
+  /** Reliable Sales Funnel Measurement pass (migration 0046) — optional, the campaign's own attribution tag (whatever utm_campaign value its links actually carry), so a campaign's funnel can be queried by joining on this rather than every future campaign needing a hardcoded mapping. Purely informational: never validated against the body's actual links (the admin is trusted to keep them consistent, same as every other campaign field). */
+  utmCampaign?: string | null;
 }
 
 export interface CampaignValidationError {
@@ -69,6 +71,7 @@ export interface CampaignRecord {
   subject: string;
   body: string;
   status: CampaignStatus;
+  utmCampaign: string | null;
   intendedRecipientCount: number | null;
   testSentAt: string | null;
   createdBy: number;
@@ -87,6 +90,7 @@ interface CampaignRow {
   subject: string;
   body: string;
   status: CampaignStatus;
+  utm_campaign: string | null;
   intended_recipient_count: number | null;
   test_sent_at: string | null;
   created_by: number;
@@ -148,6 +152,7 @@ function toApiShape(row: CampaignRow, delivery: DeliverySummary): CampaignRecord
     subject: row.subject,
     body: row.body,
     status: row.status,
+    utmCampaign: row.utm_campaign,
     intendedRecipientCount: row.intended_recipient_count,
     testSentAt: row.test_sent_at,
     createdBy: row.created_by,
@@ -200,9 +205,9 @@ export async function createCampaign(env: Env, logger: Logger, actorId: number, 
   const sanitizedBody = (await sanitizeRichTextHtml(input.body)) ?? '';
 
   const insert = await env.DB.prepare(
-    `INSERT INTO newsletter_campaigns (subject, body, status, created_by) VALUES (?, ?, 'draft', ?)`
+    `INSERT INTO newsletter_campaigns (subject, body, utm_campaign, status, created_by) VALUES (?, ?, ?, 'draft', ?)`
   )
-    .bind(input.subject.trim(), sanitizedBody, actorId)
+    .bind(input.subject.trim(), sanitizedBody, input.utmCampaign?.trim() || null, actorId)
     .run();
   const id = Number(insert.meta.last_row_id);
 
@@ -237,9 +242,9 @@ export async function updateCampaign(
   // the previous content must never authorize sending different,
   // untested content. See migration 0016's header comment.
   await env.DB.prepare(
-    `UPDATE newsletter_campaigns SET subject = ?, body = ?, test_sent_at = NULL, updated_at = datetime('now') WHERE id = ?`
+    `UPDATE newsletter_campaigns SET subject = ?, body = ?, utm_campaign = ?, test_sent_at = NULL, updated_at = datetime('now') WHERE id = ?`
   )
-    .bind(input.subject.trim(), sanitizedBody, id)
+    .bind(input.subject.trim(), sanitizedBody, input.utmCampaign?.trim() || null, id)
     .run();
 
   await auditService.record(env, logger, {

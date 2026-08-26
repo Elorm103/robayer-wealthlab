@@ -15,9 +15,19 @@
  *     data-analytics-* attribute added to every button on the site -
  *     reusing existing markup instead of touching it.
  *   - product_view: "which products attract attention," per-book, not
- *     just per-page. Reads the `data-product-slug` attribute a book
- *     detail page's own Buy Now button already carries (see
- *     backend/routes/books.ts) — no new markup needed.
+ *     just per-page. Fires for any visit to a /books/{slug}/ URL,
+ *     parsed directly from the page's own path — landing on the page
+ *     IS the product view, independent of whether a Buy button (or
+ *     any other DOM element) happens to be present. Reliable Sales
+ *     Funnel Measurement pass: the earlier implementation read the
+ *     Buy Now button's data-product-slug attribute instead, which
+ *     confirmed real, false-negative gaps in production (visits that
+ *     landed on the page and produced page_view but no product_view —
+ *     traced to the button not always being the right signal, not to
+ *     a single reproducible cause worth chasing further once a
+ *     button-independent signal was available). See migration 0046's
+ *     header comment for the matching utm_content column this also
+ *     starts capturing.
  * Separately, a periodic heartbeat backs the admin dashboard's
  * "Online Now" count — a presence signal only, written to a
  * short-lived KV key server-side, never a database row (see
@@ -60,18 +70,27 @@
       utmSource: params.get('utm_source'),
       utmMedium: params.get('utm_medium'),
       utmCampaign: params.get('utm_campaign'),
+      utmContent: params.get('utm_content'),
     };
-    if (fromUrl.utmSource || fromUrl.utmMedium || fromUrl.utmCampaign) {
+    if (fromUrl.utmSource || fromUrl.utmMedium || fromUrl.utmCampaign || fromUrl.utmContent) {
       sessionStorage.setItem(UTM_KEY, JSON.stringify(fromUrl));
       return fromUrl;
     }
     try {
       const stored = sessionStorage.getItem(UTM_KEY);
-      if (stored) return JSON.parse(stored);
+      if (stored) {
+        const parsed = JSON.parse(stored);
+        // Sessions started before utm_content existed have a stored
+        // value missing the key entirely — an explicit fallback here
+        // (rather than `parsed.utmContent`, which is already
+        // `undefined` and would serialize the same way) keeps the
+        // returned shape identical regardless of when the session began.
+        return { ...parsed, utmContent: parsed.utmContent || null };
+      }
     } catch {
       // Malformed stored value - fall through to "no UTM data" rather than throw.
     }
-    return { utmSource: null, utmMedium: null, utmCampaign: null };
+    return { utmSource: null, utmMedium: null, utmCampaign: null, utmContent: null };
   }
 
   function send(payload, endpoint) {
@@ -94,18 +113,32 @@
       utmSource: utm.utmSource,
       utmMedium: utm.utmMedium,
       utmCampaign: utm.utmCampaign,
+      utmContent: utm.utmContent,
       sessionId: getSessionId(),
     });
   }
 
-  /** Fires once per real page load when the page is a book detail page — reads the slug off the Buy Now button's existing data-product-slug attribute (backend/routes/books.ts), the same element [data-buy-button]'s cta_id tracking already relies on, so this needs no new markup. */
+  // Matches /books/{slug}/ (with or without a trailing slash) and
+  // extracts the slug — the one part of the URL every book detail page
+  // reliably carries, regardless of purchase state, DOM timing, or any
+  // element's presence. Deliberately does NOT match /books/ itself
+  // (the listing page, not a product) since the capture group requires
+  // at least one character.
+  const PRODUCT_PAGE_PATTERN = /^\/books\/([a-z0-9-]+)\/?$/;
+
+  /** Fires once per real page load when the URL is a product detail page — works automatically for every current and future book, needs no per-product markup, and doesn't depend on any button or DOM state being present (see this file's own header comment for why this replaced the earlier Buy-button-based signal). */
   function trackProductView() {
-    const buyButton = document.querySelector('[data-buy-button][data-product-slug]');
-    if (!buyButton) return;
+    const match = window.location.pathname.match(PRODUCT_PAGE_PATTERN);
+    if (!match) return;
+    const utm = getUtm();
     send({
       eventType: 'product_view',
       pagePath: window.location.pathname,
-      productSlug: buyButton.getAttribute('data-product-slug'),
+      productSlug: match[1],
+      utmSource: utm.utmSource,
+      utmMedium: utm.utmMedium,
+      utmCampaign: utm.utmCampaign,
+      utmContent: utm.utmContent,
       sessionId: getSessionId(),
     });
   }

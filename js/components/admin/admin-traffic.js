@@ -1,13 +1,16 @@
 /**
  * Robayer WealthLab — Traffic & funnel section (Version 4.0 Milestone A,
  * Measurement Foundation; extended by the Analytics & User-Activity
- * Baseline for device/country). Drives the [data-traffic-root] card
- * in admin/analytics/index.html: most-viewed pages, most-clicked CTAs,
- * traffic sources, newsletter signups by source, free-guide lead-magnet
- * funnel, and device/country breakdown — from the analytics_events
- * table (migration 0025/0045) plus the pre-existing
- * newsletter_subscribers.source column, via GET /api/admin/dashboard/traffic
- * and GET /api/admin/analytics/devices|geography. Per-book funnel
+ * Baseline for device/country, and by the Reliable Sales Funnel
+ * Measurement pass for source breakdown). Drives the [data-traffic-root]
+ * card in admin/analytics/index.html: most-viewed pages, most-clicked
+ * CTAs, traffic sources, newsletter signups by source, free-guide
+ * lead-magnet funnel, device/country breakdown, and a normalized
+ * source breakdown (sessions/product views/checkout starts/purchases/
+ * revenue per channel) — from the analytics_events table (migration
+ * 0025/0045/0046) plus the pre-existing newsletter_subscribers.source
+ * column, via GET /api/admin/dashboard/traffic and GET
+ * /api/admin/analytics/devices|geography|sources. Per-book funnel
  * (views/checkouts/purchases/revenue/downloads) lives in the PRODUCTS
  * section instead (admin-products-funnel.js) — see
  * services/admin/analyticsService.ts's getPerBookFunnel() for why.
@@ -51,6 +54,9 @@ function initAdminTraffic() {
     geoEmpty: root.querySelector('[data-traffic-geo-empty]'),
     geoWrap: root.querySelector('[data-traffic-geo-wrap]'),
     geoBody: root.querySelector('[data-traffic-geo-body]'),
+    sourceBreakdownEmpty: root.querySelector('[data-traffic-source-breakdown-empty]'),
+    sourceBreakdownWrap: root.querySelector('[data-traffic-source-breakdown-wrap]'),
+    sourceBreakdownBody: root.querySelector('[data-traffic-source-breakdown-body]'),
   };
 
   refresh();
@@ -75,10 +81,11 @@ function initAdminTraffic() {
     const params = buildParams();
 
     try {
-      const [data, devices, geo] = await Promise.all([
+      const [data, devices, geo, sources] = await Promise.all([
         window.AdminAuth.adminFetch(`${TRAFFIC_API}?${params.toString()}`),
         window.AdminAuth.adminFetch(`/api/admin/analytics/devices?${params.toString()}`),
         window.AdminAuth.adminFetch(`/api/admin/analytics/geography?${params.toString()}`),
+        window.AdminAuth.adminFetch(`/api/admin/analytics/sources?${params.toString()}`),
       ]);
       renderTable(els.pagesEmpty, els.pagesWrap, els.pagesBody, data.pageViewsByPath, (row) => [row.pagePath, String(row.views)]);
       renderTable(els.ctasEmpty, els.ctasWrap, els.ctasBody, data.ctaClicksById, (row) => [row.ctaId, String(row.clicks)]);
@@ -86,6 +93,14 @@ function initAdminTraffic() {
       renderTable(els.newsletterEmpty, els.newsletterWrap, els.newsletterBody, data.newsletterSignupsBySource, (row) => [row.source, String(row.signups)]);
       renderTable(els.devicesEmpty, els.devicesWrap, els.devicesBody, devices.items, (row) => [row.label, String(row.count)]);
       renderTable(els.geoEmpty, els.geoWrap, els.geoBody, geo.items, (row) => [row.label, String(row.count)]);
+      renderTable(els.sourceBreakdownEmpty, els.sourceBreakdownWrap, els.sourceBreakdownBody, sources.items, (row) => [
+        row.source,
+        String(row.sessions),
+        String(row.productViews),
+        String(row.checkoutStarts),
+        String(row.purchases),
+        formatCurrency(row.revenuePesewas / 100),
+      ]);
       renderLeadMagnet(data.leadMagnetFunnel);
     } catch (error) {
       els.loadError.textContent = error.message || 'Could not load traffic data.';
@@ -119,6 +134,15 @@ function initAdminTraffic() {
       ? `${signups} free-guide signup${signups === 1 ? '' : 's'} in this range (no featured-resource CTA clicks recorded to compare against).`
       : `${clicks} featured-resource CTA click${clicks === 1 ? '' : 's'} → ${signups} free-guide signup${signups === 1 ? '' : 's'} (${rate}%).`;
   }
+}
+
+/** Same GH₵ formatting convention as admin-products-funnel.js's own formatCurrency() — a small local copy per independent script, not a shared utility. */
+function formatCurrency(amount) {
+  if (!isFinite(amount)) return 'GH₵0.00';
+  const rounded = Math.round(amount * 100) / 100;
+  const parts = Math.abs(rounded).toFixed(2).split('.');
+  const withSeparators = parts[0].replace(/\B(?=(\d{3})+(?!\d))/g, ',');
+  return (rounded < 0 ? '-' : '') + 'GH₵' + withSeparators + '.' + parts[1];
 }
 
 document.addEventListener('partials:loaded', initAdminTraffic);

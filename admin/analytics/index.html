@@ -491,6 +491,100 @@
               <tbody data-traffic-geo-body></tbody>
             </table>
           </div>
+
+          <!-- ============================================================
+               SOURCE BREAKDOWN — Reliable Sales Funnel Measurement pass.
+               Normalizes utm_source/referrer into named channels
+               (Facebook/Instagram/Email/Announcement/Homepage Spotlight/
+               Google/Direct/etc.) and joins purchase_sessions, so a
+               single table answers "which source actually produces
+               sessions vs. product views vs. purchases," not just page
+               views. See services/admin/analyticsService.ts's
+               getSourceBreakdown() for the exact bucketing rule.
+               ============================================================ -->
+          <h3 class="text-body mb-2 mt-4">Source breakdown</h3>
+          <p class="text-secondary text-small mb-2">Sessions/product views use first-party tracking (since August 25, 2026); checkout starts/purchases/revenue use full real history — the two can legitimately span different real date ranges.</p>
+          <div class="empty-state empty-state--compact" data-traffic-source-breakdown-empty hidden>
+            <p class="empty-state__title">No source data in this range yet</p>
+          </div>
+          <div class="admin-table-wrap" data-traffic-source-breakdown-wrap hidden>
+            <table class="table" aria-label="Source breakdown">
+              <thead><tr><th scope="col">Source</th><th scope="col">Sessions</th><th scope="col">Product views</th><th scope="col">Checkout starts</th><th scope="col">Purchases</th><th scope="col">Revenue</th></tr></thead>
+              <tbody data-traffic-source-breakdown-body></tbody>
+            </table>
+          </div>
+        </div>
+
+        <!-- ============================================================
+             CAMPAIGN FUNNEL — Reliable Sales Funnel Measurement pass.
+             The full delivered→opens→clicks→visits→views→checkout→
+             coupon→purchase→download chain for one newsletter campaign,
+             joined entirely from existing tables via the campaign's own
+             utm_campaign tag (newsletter_campaigns.utm_campaign,
+             migration 0046). Two stages are permanently unmeasurable
+             with this project's current email architecture (no Resend
+             webhook integration, no server-side click-redirect link) —
+             shown as an explicit "cannot be determined" label, never a
+             fabricated zero. See services/admin/analyticsService.ts's
+             getCampaignFunnel() for the full reasoning per stage.
+             ============================================================ -->
+        <h2 class="text-lg mb-3">Campaign funnel</h2>
+        <div class="card mb-5" data-campaign-funnel-root data-campaign-id="3">
+          <p class="text-secondary text-small mb-3" data-campaign-funnel-load-error hidden role="alert"></p>
+          <h3 class="text-body mb-1" data-campaign-funnel-subject>—</h3>
+          <p class="text-secondary text-small mb-4" data-campaign-funnel-tag></p>
+          <div class="grid grid--3 mb-3">
+            <div class="stat-card">
+              <p class="stat-card__label">Recipients</p>
+              <p class="stat-card__value" data-campaign-funnel-recipients>—</p>
+            </div>
+            <div class="stat-card">
+              <p class="stat-card__label">Delivered</p>
+              <p class="stat-card__value" data-campaign-funnel-delivered>—</p>
+            </div>
+            <div class="stat-card">
+              <p class="stat-card__label">Bounced</p>
+              <p class="stat-card__value" data-campaign-funnel-bounced>—</p>
+            </div>
+            <div class="stat-card">
+              <p class="stat-card__label">Tracked opens</p>
+              <p class="stat-card__value" data-campaign-funnel-opens>—</p>
+              <p class="stat-card__meta text-secondary text-small" data-campaign-funnel-opens-note></p>
+            </div>
+            <div class="stat-card">
+              <p class="stat-card__label">CTA clicks</p>
+              <p class="stat-card__value" data-campaign-funnel-clicks>—</p>
+              <p class="stat-card__meta text-secondary text-small" data-campaign-funnel-clicks-note></p>
+            </div>
+            <div class="stat-card">
+              <p class="stat-card__label">Landing-page visits</p>
+              <p class="stat-card__value" data-campaign-funnel-visits>—</p>
+            </div>
+            <div class="stat-card">
+              <p class="stat-card__label">Product views</p>
+              <p class="stat-card__value" data-campaign-funnel-views>—</p>
+            </div>
+            <div class="stat-card">
+              <p class="stat-card__label">Checkout starts</p>
+              <p class="stat-card__value" data-campaign-funnel-checkout>—</p>
+            </div>
+            <div class="stat-card">
+              <p class="stat-card__label">Coupon applications</p>
+              <p class="stat-card__value" data-campaign-funnel-coupon>—</p>
+            </div>
+            <div class="stat-card">
+              <p class="stat-card__label">Purchases</p>
+              <p class="stat-card__value" data-campaign-funnel-purchases>—</p>
+            </div>
+            <div class="stat-card">
+              <p class="stat-card__label">Revenue</p>
+              <p class="stat-card__value" data-campaign-funnel-revenue>—</p>
+            </div>
+            <div class="stat-card">
+              <p class="stat-card__label">Downloads</p>
+              <p class="stat-card__value" data-campaign-funnel-downloads>—</p>
+            </div>
+          </div>
         </div>
       </main>
     </div>
@@ -503,9 +597,10 @@
   <script src="/js/components/admin/admin-shell.js?v=7233204897"></script>
   <script src="/js/components/admin/timeseries-chart.js?v=5ec461649c"></script>
   <script src="/js/components/admin/admin-analytics.js?v=2"></script>
-  <script src="/js/components/admin/admin-traffic.js?v=2"></script>
+  <script src="/js/components/admin/admin-traffic.js?v=3"></script>
   <script src="/js/components/admin/admin-conversions.js?v=1"></script>
   <script src="/js/components/admin/admin-live-activity.js?v=1"></script>
   <script src="/js/components/admin/admin-products-funnel.js?v=1"></script>
+  <script src="/js/components/admin/admin-campaign-funnel.js?v=1"></script>
 </body>
 </html>

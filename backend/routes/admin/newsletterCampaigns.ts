@@ -40,6 +40,7 @@ function parseCampaignInput(body: Record<string, unknown>): CampaignInput {
   return {
     subject: typeof body.subject === 'string' ? body.subject : '',
     body: typeof body.body === 'string' ? body.body : '',
+    utmCampaign: typeof body.utmCampaign === 'string' ? body.utmCampaign : null,
   };
 }
 

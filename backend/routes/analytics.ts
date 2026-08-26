@@ -55,6 +55,7 @@ interface AnalyticsEventBody {
   utmSource?: unknown;
   utmMedium?: unknown;
   utmCampaign?: unknown;
+  utmContent?: unknown;
   sessionId?: unknown;
   productSlug?: unknown;
 }
@@ -112,8 +113,8 @@ export async function handleAnalyticsEvent(request: Request, env: Env, logger: L
   const deviceType = bucketDeviceType(request.headers.get('User-Agent'));
 
   await env.DB.prepare(
-    `INSERT INTO analytics_events (event_type, page_path, cta_id, referrer, utm_source, utm_medium, utm_campaign, session_id, product_slug, country, device_type, customer_id)
-     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`
+    `INSERT INTO analytics_events (event_type, page_path, cta_id, referrer, utm_source, utm_medium, utm_campaign, utm_content, session_id, product_slug, country, device_type, customer_id)
+     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`
   )
     .bind(
       body.eventType,
@@ -123,6 +124,7 @@ export async function handleAnalyticsEvent(request: Request, env: Env, logger: L
       sanitizeOptional(body.utmSource),
       sanitizeOptional(body.utmMedium),
       sanitizeOptional(body.utmCampaign),
+      sanitizeOptional(body.utmContent),
       body.sessionId,
       body.eventType === 'product_view' ? (body.productSlug as string) : null,
       country,
