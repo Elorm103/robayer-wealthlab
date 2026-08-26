@@ -2005,6 +2005,20 @@ a.resource-card {
   max-width: 420px;
 }
 
+/* .launch-spotlight (CHECKED, NOT COPIED homepage section) is the one
+   .feature-banner instance on a light/theme-flipping surface (bg-sand)
+   rather than the fixed-dark bg-navy every other .feature-banner uses
+   — .feature-banner__title/__copy's white/light-sand text above is
+   correct for that fixed-dark case but unreadable here in light mode.
+   Scoped to this one section only, so the Free Guide and Featured
+   eBook banners keep their existing white-on-navy styling untouched.
+   --color-text-heading/--color-text-primary already invert correctly
+   per theme (dark navy/charcoal in light mode, white/light in dark
+   mode — see tokens.css), so this reuses them rather than hardcoding
+   a second light/dark pair. */
+.launch-spotlight .feature-banner__title { color: var(--color-text-heading); }
+.launch-spotlight .feature-banner__copy  { color: var(--color-text-primary); }
+
 /* ============================================================
    FILTER BAR (category pills — Books page now, reusable for any
    future page that needs client-side category filtering, e.g. Blog)
