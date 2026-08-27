@@ -33,7 +33,7 @@ import { adminReprocessPurchase } from '../../services/commerceService';
 const EDITOR_ROLES = ['super_admin', 'editor'] as const;
 
 const WRITE_RATE_LIMIT = { endpoint: 'admin-ops-write', limit: 60, windowSeconds: 15 * 60 };
-const READ_RATE_LIMIT = { endpoint: 'admin-ops-read', limit: 120, windowSeconds: 15 * 60 };
+const READ_RATE_LIMIT = { endpoint: 'admin-ops-read', limit: 500, windowSeconds: 15 * 60 };
 
 // Same convention as the public routes/purchases.ts's own REFERENCE_PATTERN
 // — validated here, before touching D1, rather than trusting the URL param.

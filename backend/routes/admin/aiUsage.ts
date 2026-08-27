@@ -22,7 +22,7 @@ import { listAiUsage, getAiUsageDetail, exportAiUsageCsv, getAiUsageAnalytics } 
 import type { AiUsageFilters } from '../../services/admin/aiUsageService';
 
 const SUPER_ADMIN_ONLY = ['super_admin'] as const;
-const READ_RATE_LIMIT = { endpoint: 'admin-ops-read', limit: 120, windowSeconds: 15 * 60 };
+const READ_RATE_LIMIT = { endpoint: 'admin-ops-read', limit: 500, windowSeconds: 15 * 60 };
 
 function parseFilters(params: URLSearchParams): AiUsageFilters {
   const status = params.get('status');

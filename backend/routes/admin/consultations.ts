@@ -26,7 +26,7 @@ import * as consultationService from '../../services/admin/consultationService';
 import { isValidConsultationStatus } from '../../services/admin/consultationService';
 
 const WRITE_RATE_LIMIT = { endpoint: 'admin-ops-write', limit: 60, windowSeconds: 15 * 60 };
-const READ_RATE_LIMIT = { endpoint: 'admin-ops-read', limit: 120, windowSeconds: 15 * 60 };
+const READ_RATE_LIMIT = { endpoint: 'admin-ops-read', limit: 500, windowSeconds: 15 * 60 };
 
 function parseId(params: RouteParams): number | null {
   const id = parseInt(params.id ?? '', 10);

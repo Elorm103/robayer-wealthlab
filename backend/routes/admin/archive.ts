@@ -17,7 +17,7 @@ import { requireCsrf } from '../../middleware/csrf';
 import * as archiveService from '../../services/admin/archiveService';
 import type { ApiErrorCode } from '../../types/api-contracts';
 
-const READ_RATE_LIMIT = { endpoint: 'admin-ops-read', limit: 120, windowSeconds: 15 * 60 };
+const READ_RATE_LIMIT = { endpoint: 'admin-ops-read', limit: 500, windowSeconds: 15 * 60 };
 
 function parseClassificationFilter(value: string | null): archiveService.ClassificationFilter {
   if (value === 'ALL' || (archiveService.CLASSIFICATIONS as readonly string[]).includes(value ?? '')) {

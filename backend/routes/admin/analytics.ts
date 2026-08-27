@@ -19,7 +19,26 @@ import { requireAuth } from '../../middleware/requireAuth';
 import * as analyticsService from '../../services/admin/analyticsService';
 import type { PeriodRange } from '../../utils/dateRange';
 
-const READ_RATE_LIMIT = { endpoint: 'admin-ops-read', limit: 120, windowSeconds: 15 * 60 };
+/**
+ * Admin Analytics Dashboard v2 (2026-08-27): raised from 120 to 500.
+ * This 'admin-ops-read' bucket is shared, by literal string key, across
+ * every admin read endpoint in the app (14 route files each declare
+ * their own identical copy of this constant — see middleware/
+ * rateLimit.ts's key format, `ratelimit:{endpoint}:{ip}`). Real admin
+ * usage hit it: the new System Health (60s poll) and Needs Attention
+ * (60s poll, 3 requests per cycle) sections on this page, stacked on
+ * top of the pre-existing Online Now poll (25s, admin-live-activity.js)
+ * and ordinary page navigation, pushed background load alone to
+ * roughly 96 of the old 120/15min budget — one admin with the page
+ * open, no abuse involved. 500 stays a real, bounded ceiling (this is
+ * not "disable the limiter"), just sized for legitimate combined
+ * polling + navigation load from a single admin session. Bumped
+ * consistently across all 14 files — see the reasoning above on why a
+ * mismatched limit on any one of them would be misleading (they all
+ * gate the same shared KV counter, not "protect that file's own
+ * requests" reasoning that changes locally).
+ */
+const READ_RATE_LIMIT = { endpoint: 'admin-ops-read', limit: 500, windowSeconds: 15 * 60 };
 
 const DATE_PATTERN = /^\d{4}-\d{2}-\d{2}$/;
 const MAX_RANGE_DAYS = 366;

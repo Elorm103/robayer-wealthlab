@@ -32,7 +32,7 @@ import { searchKnowledge } from '../../services/knowledge/searchService';
 import * as auditService from '../../services/admin/auditService';
 
 const SUPER_ADMIN_ONLY = ['super_admin'] as const;
-const READ_RATE_LIMIT = { endpoint: 'admin-ops-read', limit: 120, windowSeconds: 15 * 60 };
+const READ_RATE_LIMIT = { endpoint: 'admin-ops-read', limit: 500, windowSeconds: 15 * 60 };
 const WRITE_RATE_LIMIT = { endpoint: 'admin-ops-write', limit: 20, windowSeconds: 15 * 60 };
 
 async function gateRead(request: Request, env: Env, logger: Logger) {

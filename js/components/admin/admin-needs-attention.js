@@ -37,7 +37,17 @@ function initAdminNeedsAttention() {
   };
 
   refresh();
-  setInterval(refresh, 60_000);
+  // Widened from 60s to 5 minutes (2026-08-27): this cycle alone fires
+  // 3 admin-ops-read requests (health/campaigns/products-funnel, plus
+  // one more per reportable campaign), and combined with System
+  // Health's own 60s poll and the pre-existing Online Now 25s poll
+  // (admin-live-activity.js), background polling from this page alone
+  // was pushing real admin usage over the shared rate limit — see
+  // routes/admin/analytics.ts's READ_RATE_LIMIT comment for the full
+  // incident. Alerts here don't need sub-minute freshness the way
+  // Online Now does; the top-bar health badge (60s) already surfaces
+  // a RATE_LIMIT_KV-type issue faster if it matters.
+  setInterval(refresh, 300_000);
   document.addEventListener('admin-analytics:refresh-requested', refresh);
 
   async function refresh() {

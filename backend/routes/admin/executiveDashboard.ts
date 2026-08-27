@@ -24,7 +24,7 @@ import { parseAnalyticsMode, isAnalyticsMode, type AnalyticsMode } from '../../s
 import type { PeriodRange } from '../../utils/dateRange';
 import type { AdminAuthContext } from '../../middleware/requireAuth';
 
-const READ_RATE_LIMIT = { endpoint: 'admin-ops-read', limit: 120, windowSeconds: 15 * 60 };
+const READ_RATE_LIMIT = { endpoint: 'admin-ops-read', limit: 500, windowSeconds: 15 * 60 };
 
 const DATE_PATTERN = /^\d{4}-\d{2}-\d{2}$/;
 const MAX_RANGE_DAYS = 366;

@@ -22,7 +22,7 @@ import { listReviewsForModeration, moderateReview, isValidReviewStatus } from '.
 
 const EDITOR_ROLES = ['super_admin', 'editor'] as const;
 
-const READ_RATE_LIMIT = { endpoint: 'admin-ops-read', limit: 120, windowSeconds: 15 * 60 };
+const READ_RATE_LIMIT = { endpoint: 'admin-ops-read', limit: 500, windowSeconds: 15 * 60 };
 const WRITE_RATE_LIMIT = { endpoint: 'admin-ops-write', limit: 60, windowSeconds: 15 * 60 };
 
 function parseId(params: RouteParams): number | null {

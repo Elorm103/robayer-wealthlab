@@ -16,7 +16,7 @@ import { requireRole } from '../../middleware/requireRole';
 import { requireCsrf } from '../../middleware/csrf';
 import * as productionBaselineService from '../../services/admin/productionBaselineService';
 
-const READ_RATE_LIMIT = { endpoint: 'admin-ops-read', limit: 120, windowSeconds: 15 * 60 };
+const READ_RATE_LIMIT = { endpoint: 'admin-ops-read', limit: 500, windowSeconds: 15 * 60 };
 const SUPER_ADMIN_ONLY = ['super_admin'] as const;
 
 export async function handleListProductionBaselines(request: Request, env: Env, logger: Logger): Promise<Response> {

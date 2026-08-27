@@ -14,7 +14,7 @@ import { requireRole } from '../../middleware/requireRole';
 import { getCustomerAiAnalytics } from '../../services/admin/customerAiAnalyticsService';
 
 const SUPER_ADMIN_ONLY = ['super_admin'] as const;
-const READ_RATE_LIMIT = { endpoint: 'admin-ops-read', limit: 120, windowSeconds: 15 * 60 };
+const READ_RATE_LIMIT = { endpoint: 'admin-ops-read', limit: 500, windowSeconds: 15 * 60 };
 
 export async function handleGetCustomerAiAnalytics(request: Request, env: Env, logger: Logger): Promise<Response> {
   const auth = await requireAuth(request, env, logger);
