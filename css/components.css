@@ -2530,11 +2530,21 @@ button.resource-card {
 }
 
 .library-card__actions {
-  grid-column: 1 / -1;
   display: flex;
   flex-wrap: wrap;
   gap: var(--space-2);
   margin-top: var(--space-1);
+}
+
+/* Phase 6.1 fix: this class's own grid-column: 1 / -1 rule (removed
+   above) stopped working the moment Phase 5 wrapped it in
+   .library-card__actions-wrap to also hold the downloads-used line -
+   grid-column only ever affects a direct child of the .library-card
+   grid container, and .library-card__actions became a grandchild.
+   The spanning rule now lives on the wrapper that is actually the
+   direct grid child. */
+.library-card__actions-wrap {
+  grid-column: 1 / -1;
 }
 
 /* Digital Library Modernization (Phase 5) — the audit found only a

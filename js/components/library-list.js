@@ -276,22 +276,51 @@ function initLibraryList() {
     return badge;
   }
 
-  /** Proactive "used / remaining" line, shown only while the asset is still comfortably usable - once the limit is reached, describeDownloadState()'s own warning message takes over instead, so the two never talk over each other. Purely informational; downloadsRemaining is never trusted for anything but display (the atomic check in entitlementService.ts is the real enforcement, unchanged). */
-  function renderDownloadUsage(asset) {
+  /**
+   * Phase 6.1 fix: the proactive "used / remaining" line's text is
+   * computed here, in one place, and reused both at initial render
+   * (renderActions() below) and after a live download succeeds
+   * (requestDownload() below) - never duplicated. Returns null once
+   * the asset is unlimited or the limit is reached; describeDownloadState()'s
+   * own warning message takes over at that point instead, so the two
+   * never talk over each other. Purely informational; downloadsRemaining
+   * is never trusted for anything but display (the atomic check in
+   * entitlementService.ts is the real enforcement, unchanged).
+   */
+  function computeDownloadUsageText(asset) {
     if (asset.maxDownloads === null) return null;
     const remaining = asset.downloadsRemaining ?? Math.max(0, asset.maxDownloads - asset.downloadsUsed);
     if (remaining <= 0) return null;
-    const line = document.createElement('p');
-    line.className = 'text-small text-muted mt-2 mb-0';
-    line.textContent = `${asset.downloadsUsed} of ${asset.maxDownloads} downloads used, ${remaining} remaining.`;
-    return line;
+    return `${asset.downloadsUsed} of ${asset.maxDownloads} downloads used, ${remaining} remaining.`;
+  }
+
+  /** Phase 6.1 fix: re-reads the same, already-mutated asset object requestDownload() just updated, and either updates the existing usage line in place or removes it once the limit is reached - so the displayed count can never go stale after a live download the way it did before this fix. No-op if this card never had a usage line to begin with (an unlimited asset never gains one). */
+  function refreshDownloadUsageLine(usageLine, asset) {
+    if (!usageLine) return;
+    const text = computeDownloadUsageText(asset);
+    if (text) {
+      usageLine.textContent = text;
+    } else {
+      usageLine.remove();
+    }
   }
 
   function renderActions(purchase, reviewedSlugs, statusEl) {
     const wrap = document.createElement('div');
+    // Phase 6.1 fix: the existing `.library-card__actions { grid-column: 1 / -1; }`
+    // rule only ever applied to a direct child of the `.library-card` grid
+    // container. Wrapping it in this outer div (originally added so the
+    // downloads-used line could sit alongside it) silently turned it into
+    // a grandchild, so the rule stopped doing anything - every card's
+    // actions and usage line were squeezed into the 96px cover column at
+    // every width from 641px up. This wrapper now carries the spanning
+    // rule itself instead.
+    wrap.className = 'library-card__actions-wrap';
 
     const actions = document.createElement('div');
     actions.className = 'library-card__actions';
+
+    let usageLine = null;
 
     if (purchase.status === 'ready') {
       const ebookAsset = purchase.assets.find((a) => !a.revoked) || null;
@@ -319,8 +348,12 @@ function initLibraryList() {
           });
           showStatus(statusEl, state.message, 'notice');
         } else {
-          readButton.addEventListener('click', () => requestDownload(purchase.purchaseReference, ebookAsset, readButton, downloadButton, statusEl, false));
-          downloadButton.addEventListener('click', () => requestDownload(purchase.purchaseReference, ebookAsset, readButton, downloadButton, statusEl, true));
+          // usageLine is resolved inside these closures at click time, not
+          // definition time - by then it already holds whatever element
+          // (or null) the render below assigns it, so requestDownload()
+          // always refreshes the real, current line for this card.
+          readButton.addEventListener('click', () => requestDownload(purchase.purchaseReference, ebookAsset, readButton, downloadButton, statusEl, false, usageLine));
+          downloadButton.addEventListener('click', () => requestDownload(purchase.purchaseReference, ebookAsset, readButton, downloadButton, statusEl, true, usageLine));
         }
 
         const reviewLink = document.createElement('a');
@@ -330,8 +363,13 @@ function initLibraryList() {
         actions.appendChild(reviewLink);
 
         wrap.appendChild(actions);
-        const usageLine = renderDownloadUsage(ebookAsset);
-        if (usageLine) wrap.appendChild(usageLine);
+        const usageText = computeDownloadUsageText(ebookAsset);
+        if (usageText) {
+          usageLine = document.createElement('p');
+          usageLine.className = 'text-small text-muted mt-2 mb-0';
+          usageLine.textContent = usageText;
+          wrap.appendChild(usageLine);
+        }
       } else {
         wrap.appendChild(actions);
       }
@@ -363,7 +401,7 @@ function initLibraryList() {
     statusEl.classList.add('alert', ALERT_CLASS[tone] || 'alert--info');
   }
 
-  async function requestDownload(reference, asset, readButton, downloadButton, statusEl, isDownload) {
+  async function requestDownload(reference, asset, readButton, downloadButton, statusEl, isDownload, usageLine) {
     showStatus(statusEl, null);
     const activeButton = isDownload ? downloadButton : readButton;
     const defaultLabel = activeButton.textContent;
@@ -383,6 +421,12 @@ function initLibraryList() {
       }
       asset.downloadsUsed += 1;
       if (asset.maxDownloads !== null) asset.downloadsRemaining = Math.max(0, asset.maxDownloads - asset.downloadsUsed);
+      // Phase 6.1 fix: the displayed "used / remaining" line was never
+      // refreshed after a successful download, so it kept showing the
+      // pre-download count until the page was reloaded. Reads the exact
+      // same, just-mutated asset object above - never a second, separate
+      // calculation of remaining downloads.
+      refreshDownloadUsageLine(usageLine, asset);
       const afterState = window.RobayerOwnership.describeDownloadState(asset);
       if (afterState.limitReached) {
         [readButton, downloadButton].forEach((b) => b.classList.add('btn--disabled'));
