@@ -15,7 +15,9 @@
     "db:apply:remote": "wrangler d1 execute robayer-wealthlab-db --remote --file=./database/schema.sql"
   },
   "dependencies": {
-    "pdf-lib": "^1.17.1"
+    "dommatrix": "^1.0.3",
+    "pdf-lib": "^1.17.1",
+    "pdfjs-dist": "^5.4.296"
   },
   "devDependencies": {
     "@cloudflare/vitest-pool-workers": "^0.18.8",

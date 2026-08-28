@@ -91,6 +91,15 @@ export interface Env {
   // in D1 (knowledge_chunks).
   KNOWLEDGE_INDEX: VectorizeIndex;
 
+  // Added in Digital Library Phase 7C (AI Reading Assistant) — see
+  // wrangler.jsonc's own "vectorize" binding comment for the full
+  // security reasoning: a SEPARATE index from KNOWLEDGE_INDEX above,
+  // holding embeddings of purchased-resource content, never public
+  // site content. Chunk text/metadata lives in D1
+  // (library_knowledge_chunks), same "binding holds only the large
+  // payload" pattern as KNOWLEDGE_INDEX.
+  LIBRARY_KNOWLEDGE_INDEX: VectorizeIndex;
+
   // Added in Version 5.0 Milestone 2.1 — see wrangler.jsonc's own
   // "queues" binding comment for why: production's first full rebuild
   // proved a single-invocation indexing design does not scale past a

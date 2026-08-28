@@ -35,15 +35,34 @@
    * explicit spec: a clear, specific reason instead of a generic
    * failure, with an honest way to escalate ("contact support")
    * instead of a dead end.
+   *
+   * Digital Library Phase 7A: `revoked` and `downloadLimitReached` are
+   * now exposed separately, not just folded into `limitReached`
+   * (kept, unchanged, as `revoked || downloadLimitReached`, so
+   * js/components/book-purchase-state.js - which only ever checked
+   * `.limitReached` and gates a single combined Read/Download action -
+   * keeps behaving exactly as it did before this split). The Library's
+   * own library-list.js is the one consumer that now needs the split:
+   * per the Phase 7 product model, reading a resource never draws from
+   * the download count, so Read must stay available (`revoked` only)
+   * even once `downloadLimitReached` is true - Download is the only
+   * action that limit actually affects.
    */
   function describeDownloadState(asset) {
     if (!asset || asset.revoked) {
-      return { limitReached: true, message: "This purchase's files are no longer available. If you believe this is an error, please contact support." };
+      return {
+        limitReached: true,
+        revoked: true,
+        downloadLimitReached: false,
+        message: "This purchase's files are no longer available. If you believe this is an error, please contact support.",
+      };
     }
-    const limitReached = asset.maxDownloads !== null && asset.downloadsUsed >= asset.maxDownloads;
-    if (!limitReached) return { limitReached: false, message: null };
+    const downloadLimitReached = asset.maxDownloads !== null && asset.downloadsUsed >= asset.maxDownloads;
+    if (!downloadLimitReached) return { limitReached: false, revoked: false, downloadLimitReached: false, message: null };
     return {
       limitReached: true,
+      revoked: false,
+      downloadLimitReached: true,
       message: `You have reached the maximum number of downloads allowed for this purchase (${asset.maxDownloads} of ${asset.maxDownloads}). If you believe this is an error, please contact support.`,
     };
   }

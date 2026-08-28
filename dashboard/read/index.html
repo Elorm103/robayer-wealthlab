@@ -1,0 +1,168 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+
+  <title>Reading | Robayer WealthLab</title>
+  <meta name="description" content="Read your Robayer WealthLab resource in the browser.">
+  <link rel="canonical" href="https://robayerwealthlab.com/dashboard/read/">
+  <meta name="robots" content="noindex, nofollow">
+
+  <link rel="icon" type="image/svg+xml" href="/assets/icons/favicon.svg">
+  <link rel="icon" type="image/png" sizes="32x32" href="/assets/icons/favicon-32.png">
+  <link rel="apple-touch-icon" href="/assets/icons/apple-touch-icon.png">
+
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Newsreader:ital,wght@0,600;1,500&family=Space+Grotesk:wght@500&family=Work+Sans:wght@400;500&family=IBM+Plex+Mono:wght@400;500&display=swap" rel="stylesheet">
+
+  <link rel="stylesheet" href="/css/tokens.css?v=9c1fa2346d">
+  <link rel="stylesheet" href="/css/base.css?v=57a963bc6f">
+  <link rel="stylesheet" href="/css/layout.css?v=a6fb0c7359">
+  <link rel="stylesheet" href="/css/components.css?v=1238a635d3">
+  <link rel="stylesheet" href="/css/utilities.css?v=406dfe7300">
+</head>
+<body>
+  <a href="#main-content" class="skip-link">Skip to main content</a>
+
+  <div data-include="/partials/header.html"></div>
+  <div data-include="/partials/dashboard-nav.html"></div>
+
+  <main id="main-content">
+    <section class="section--tight">
+      <div class="container content-column">
+        <!-- Digital Library Phase 7A (Personal Learning Library,
+             Reader Foundation) — the in-app reader. Query-string
+             addressed (?ref=...&assetId=...), same progressive-
+             enhancement pattern checkout/callback/index.html already
+             uses, since /dashboard/* is static-hosted with no
+             server-side dynamic routing. All real content — the
+             purchase's title/topic, the asset's file type, the actual
+             file bytes — is re-fetched and re-authorized here, never
+             trusted from the query string beyond which resource to
+             open. js/components/library-reader.js drives everything
+             below. -->
+        <a href="/dashboard/" class="reader-back-link">&larr; Back to My Library</a>
+
+        <p data-reader-loading class="text-secondary">Opening your resource&hellip;</p>
+
+        <div data-reader-root hidden>
+          <header class="reader-header">
+            <span class="eyebrow" data-reader-topic hidden></span>
+            <h1 class="reader-header__title" data-reader-title></h1>
+          </header>
+
+          <div class="reader-shell" data-reader-shell hidden>
+            <!-- Digital Library Phase 7B — shown only when a saved,
+                 in-progress position exists for this resource; never
+                 present on a genuinely first-time open. Resuming
+                 happens automatically (never a forced restart), this
+                 banner exists purely so it's never a silent, unexplained
+                 jump — "Start from the beginning" is always right here
+                 if that's what the customer actually wants. -->
+            <div class="reader-resume-banner" data-reader-resume-banner hidden role="status">
+              <span data-reader-resume-text></span>
+              <button type="button" class="btn btn--secondary reader-resume-banner__btn" data-reader-resume-restart>Start from the beginning</button>
+            </div>
+            <div class="reader-toolbar" data-reader-toolbar>
+              <div class="reader-toolbar__nav">
+                <button type="button" class="btn btn--secondary reader-toolbar__btn" data-reader-prev-page aria-label="Previous page">&larr;</button>
+                <span class="reader-toolbar__page-indicator" data-reader-page-indicator>Page 1 of 1</span>
+                <button type="button" class="btn btn--secondary reader-toolbar__btn" data-reader-next-page aria-label="Next page">&rarr;</button>
+              </div>
+              <div class="reader-toolbar__zoom">
+                <button type="button" class="btn btn--secondary reader-toolbar__btn" data-reader-zoom-out aria-label="Zoom out">&minus;</button>
+                <button type="button" class="btn btn--secondary reader-toolbar__btn" data-reader-zoom-in aria-label="Zoom in">+</button>
+                <!-- Digital Library Phase 7C (AI Reading Assistant).
+                     Hidden until js/components/library-ai-panel.js
+                     confirms this specific resource is PDF (the only
+                     format the assistant supports, matching the
+                     reader itself) — never shown as a dead affordance
+                     for an unsupported resource. -->
+                <button type="button" class="btn btn--accent reader-toolbar__ai-trigger" data-ai-panel-trigger hidden>
+                  <span aria-hidden="true">&#10022;</span> Ask WealthLab AI
+                </button>
+              </div>
+            </div>
+
+            <div class="reader-progress-track" aria-hidden="true">
+              <div class="reader-progress-track__fill" data-reader-progress-fill></div>
+            </div>
+
+            <div class="reader-canvas-wrap" data-reader-canvas-wrap tabindex="0">
+              <canvas data-reader-canvas></canvas>
+            </div>
+          </div>
+
+          <!-- Digital Library Phase 7C (AI Reading Assistant). A side
+               panel on desktop, a bottom sheet on mobile (same
+               markup, css/components.css handles the responsive
+               difference) — see js/components/library-ai-panel.js.
+               Never rendered as a floating site-wide widget; only
+               ever reachable from inside an active reading session,
+               and always about the specific resource currently open. -->
+          <div class="ai-panel-backdrop" data-ai-panel-backdrop hidden></div>
+          <aside class="ai-panel" data-ai-panel hidden aria-label="WealthLab AI Reading Assistant" role="dialog" aria-modal="true">
+            <header class="ai-panel__header">
+              <h2 class="ai-panel__title"><span aria-hidden="true">&#10022;</span> WealthLab AI</h2>
+              <button type="button" class="ai-panel__close" data-ai-panel-close aria-label="Close AI Reading Assistant">&times;</button>
+            </header>
+            <p class="ai-panel__subtitle text-small text-muted" data-ai-panel-subtitle></p>
+
+            <div class="ai-panel__modes" data-ai-panel-modes>
+              <button type="button" class="ai-mode-chip" data-ai-mode="explain">Explain</button>
+              <button type="button" class="ai-mode-chip" data-ai-mode="summarize">Summarize</button>
+              <button type="button" class="ai-mode-chip" data-ai-mode="teach">Teach Me</button>
+              <button type="button" class="ai-mode-chip" data-ai-mode="example">Example</button>
+              <button type="button" class="ai-mode-chip" data-ai-mode="quiz">Quiz Me</button>
+              <button type="button" class="ai-mode-chip" data-ai-mode="key_takeaways">Key Takeaways</button>
+            </div>
+
+            <div class="ai-panel__thread" data-ai-panel-thread aria-live="polite">
+              <p class="ai-panel__empty-state text-small text-muted" data-ai-panel-empty>
+                Ask about what you're reading — explain a concept, summarize a section, get a Ghana-relevant example, or quiz yourself. WealthLab AI answers from this book only.
+              </p>
+            </div>
+
+            <p class="ai-panel__error alert alert--error" role="alert" data-ai-panel-error hidden></p>
+
+            <form class="ai-panel__composer" data-ai-panel-form>
+              <label for="ai-panel-input" class="sr-only">Ask WealthLab AI a question about this book</label>
+              <textarea id="ai-panel-input" class="field__input ai-panel__input" data-ai-panel-input rows="2" placeholder="Ask anything about this book…" maxlength="500"></textarea>
+              <button type="submit" class="btn btn--accent ai-panel__send" data-ai-panel-send>Ask</button>
+            </form>
+          </aside>
+
+          <!-- Format not yet supported by the in-app reader (Phase 7A
+               ships PDF only — see the approved Phase 7 sequence).
+               Never silently falls back to a forced download disguised
+               as "reading"; says so plainly and offers the real,
+               unchanged Download action instead. -->
+          <div class="reader-unsupported" data-reader-unsupported hidden>
+            <p class="text-secondary mb-3">In-browser reading isn't available yet for this file type. You can still download it below — this does use one of your downloads.</p>
+            <button type="button" class="btn btn--accent" data-reader-fallback-download>Download instead</button>
+          </div>
+        </div>
+
+        <p data-reader-error class="alert alert--error" role="alert" hidden></p>
+      </div>
+    </section>
+  </main>
+
+  <div data-include="/partials/footer.html"></div>
+
+  <script src="/js/includes.js?v=cba95d9aa1"></script>
+  <script src="/js/components/analytics.js?v=a77deb14c4"></script>
+  <script src="/js/components/nav.js?v=bf1e013818"></script>
+  <script src="/js/components/theme-toggle.js?v=eebe98960c"></script>
+  <script src="/js/components/branding.js?v=483b048741"></script>
+  <script src="/js/content-inject.js?v=10a4d215c2"></script>
+  <script src="/js/components/dashboard-auth.js?v=7e0cc0daa6"></script>
+  <script src="/js/components/dashboard-shell.js?v=f9f75e4692"></script>
+  <script src="/js/components/ownership-helpers.js?v=9272ea5c97"></script>
+  <script type="module" src="/js/components/library-reader.js?v=96f83be346"></script>
+  <script src="/js/components/library-ai-panel.js?v=5ad8126b1c"></script>
+  <script src="/js/main.js?v=b2c3d4e6f1"></script>
+</body>
+</html>

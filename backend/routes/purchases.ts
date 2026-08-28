@@ -92,6 +92,52 @@ export async function handleRequestDownload(request: Request, env: Env, logger: 
   return jsonSuccess({ downloadUrl: `/api/download/${result.token}`, expiresAt: result.expiresAt });
 }
 
+// Digital Library Phase 7A (Personal Learning Library, Reader
+// Foundation) — the Read counterpart to handleRequestDownload above.
+// Deliberately its own thin route rather than an `isDownload` flag on
+// the existing endpoint: same rate-limit tier, same body shape, same
+// underlying generateDownloadPermission() call, only the `purpose`
+// argument and the response field name differ. Mints a 'view' token —
+// entitlementService.ts's checkEntitlement() skips the download-limit
+// check entirely for this purpose, so a customer who has exhausted
+// their downloads can still read what they own; every other
+// ownership check (verified purchase, published asset, not revoked,
+// not past its access window) still applies exactly as it does for a
+// download. Redemption (GET /api/download/:token) is the SAME single
+// endpoint downloads already use — not a second download mechanism —
+// branching only on the token's own stored purpose, and never
+// incrementing deliveries.downloads_used for this purpose.
+const READ_ACCESS_REQUEST_RATE_LIMIT = { endpoint: 'purchases-read-access', limit: 20, windowSeconds: 60 };
+
+export async function handleRequestReadAccess(request: Request, env: Env, logger: Logger, params: Record<string, string | undefined>): Promise<Response> {
+  if (await isRateLimited(request, env, READ_ACCESS_REQUEST_RATE_LIMIT)) {
+    return jsonError('RATE_LIMITED', 'Too many requests. Please try again in a minute.');
+  }
+
+  const reference = params.reference;
+  if (!isPlausibleReference(reference)) {
+    return jsonError('PURCHASE_NOT_FOUND', 'This purchase could not be found.');
+  }
+
+  let body: RequestDownloadBody;
+  try {
+    body = await request.json();
+  } catch {
+    return jsonError('VALIDATION_ERROR', 'Request body must be valid JSON.');
+  }
+
+  if (typeof body.assetId !== 'string' || body.assetId.length === 0) {
+    return jsonError('VALIDATION_ERROR', 'A valid assetId is required.');
+  }
+
+  const result = await generateDownloadPermission(env, logger, reference, body.assetId, 'view');
+  if (!result.granted) {
+    return jsonError('DOWNLOAD_NOT_AVAILABLE', "This resource isn't available to read right now.");
+  }
+
+  return jsonSuccess({ readUrl: `/api/download/${result.token}`, expiresAt: result.expiresAt });
+}
+
 // Milestone M2 (Orders, Receipts & Customer Library) — the guest,
 // reference-scoped receipt-download mint step (ADR-013 tier 2). Same
 // rate-limit calibration as the asset-download request above — a

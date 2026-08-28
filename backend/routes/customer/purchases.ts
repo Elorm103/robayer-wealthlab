@@ -30,6 +30,7 @@ import {
 } from '../../services/customer/purchaseHistoryService';
 import { getOrCreateReceiptPdf } from '../../services/orders/receiptPdfService';
 import { getLibraryRecommendations } from '../../services/customer/libraryRecommendationsService';
+import { upsertLibraryProgress, getLibraryProgress, listLibraryProgress } from '../../services/customer/libraryProgressService';
 
 const REFERENCE_PATTERN = /^RWL-\d{4}-\d{6,}$/;
 const RECEIPT_NUMBER_PATTERN = /^RWL-RCT-\d{4}-\d{6,}$/;
@@ -52,6 +53,11 @@ function withNoStore(response: Response): Response {
 
 const READ_RATE_LIMIT = { endpoint: 'customer-purchases-read', limit: 60, windowSeconds: 15 * 60 };
 const DOWNLOAD_RATE_LIMIT = { endpoint: 'customer-receipt-download', limit: 20, windowSeconds: 15 * 60 };
+// Digital Library Phase 7B — generous enough for a debounced reader
+// (roughly one write per page turn, itself already debounced client-
+// side to ~1 per few seconds) without being an open door for scripted
+// abuse of a write endpoint.
+const PROGRESS_WRITE_RATE_LIMIT = { endpoint: 'customer-library-progress-write', limit: 60, windowSeconds: 5 * 60 };
 
 export async function handleListCustomerPurchases(request: Request, env: Env, logger: Logger): Promise<Response> {
   const auth = await requireCustomerAuth(request, env, logger);
@@ -176,4 +182,104 @@ export async function handleGetLibraryRecommendations(request: Request, env: Env
 
   const recommendations = await getLibraryRecommendations(env, auth.auth.customerId);
   return withNoStore(jsonSuccess({ recommendations }));
+}
+
+// ============================================================
+// Digital Library Phase 7B (Personal Reading Experience) — real,
+// persisted reading position. Every handler below requires
+// requireCustomerAuth (unlike routes/purchases.ts's reference-scoped
+// Download/Read endpoints) — see libraryProgressService.ts's own
+// header comment on why progress specifically needs a bound identity.
+// Ownership is re-verified inside the service layer via
+// entitlementService.ts's checkEntitlement(..., customerId) on every
+// call, never assumed from the URL alone.
+// ============================================================
+
+interface UpsertProgressBody {
+  assetId?: unknown;
+  currentPage?: unknown;
+  totalPages?: unknown;
+}
+
+export async function handleUpsertLibraryProgress(request: Request, env: Env, logger: Logger, params: RouteParams): Promise<Response> {
+  const auth = await requireCustomerAuth(request, env, logger);
+  if (!auth.ok) return withNoStore(auth.response);
+
+  if (await isRateLimited(request, env, PROGRESS_WRITE_RATE_LIMIT)) {
+    return withNoStore(jsonError('RATE_LIMITED', 'Too many requests. Please try again shortly.'));
+  }
+
+  const reference = params.reference;
+  if (!isPlausibleReference(reference)) {
+    return withNoStore(jsonError('NOT_FOUND', 'This purchase could not be found.'));
+  }
+
+  let body: UpsertProgressBody;
+  try {
+    body = await request.json();
+  } catch {
+    return withNoStore(jsonError('VALIDATION_ERROR', 'Request body must be valid JSON.'));
+  }
+
+  if (typeof body.assetId !== 'string' || body.assetId.length === 0) {
+    return withNoStore(jsonError('VALIDATION_ERROR', 'A valid assetId is required.'));
+  }
+  if (typeof body.currentPage !== 'number' || typeof body.totalPages !== 'number') {
+    return withNoStore(jsonError('VALIDATION_ERROR', 'currentPage and totalPages must be numbers.'));
+  }
+
+  const result = await upsertLibraryProgress(env, logger, auth.auth.customerId, reference, body.assetId, {
+    currentPage: body.currentPage,
+    totalPages: body.totalPages,
+  });
+
+  if (!result.ok) {
+    // Same generic-message discipline as the rest of this file (see
+    // handleGetCustomerPurchase's own comment) — never reveals whether
+    // the reference doesn't exist, belongs to another customer, or the
+    // asset simply isn't a supported format.
+    if (result.reason === 'invalid_input') return withNoStore(jsonError('VALIDATION_ERROR', 'currentPage must be between 1 and totalPages.'));
+    if (result.reason === 'unsupported_format') return withNoStore(jsonError('UNSUPPORTED_FILE_TYPE', 'Reading progress is not tracked for this file type yet.'));
+    return withNoStore(jsonError('NOT_FOUND', 'This resource could not be found.'));
+  }
+
+  return withNoStore(jsonSuccess(result.record));
+}
+
+export async function handleGetLibraryProgress(request: Request, env: Env, logger: Logger, params: RouteParams): Promise<Response> {
+  const auth = await requireCustomerAuth(request, env, logger);
+  if (!auth.ok) return withNoStore(auth.response);
+
+  if (await isRateLimited(request, env, READ_RATE_LIMIT)) {
+    return withNoStore(jsonError('RATE_LIMITED', 'Too many requests. Please try again shortly.'));
+  }
+
+  const reference = params.reference;
+  if (!isPlausibleReference(reference)) {
+    return withNoStore(jsonError('NOT_FOUND', 'This purchase could not be found.'));
+  }
+
+  const url = new URL(request.url);
+  const assetId = url.searchParams.get('assetId');
+  if (!assetId) {
+    return withNoStore(jsonError('VALIDATION_ERROR', 'An assetId query parameter is required.'));
+  }
+
+  const record = await getLibraryProgress(env, auth.auth.customerId, reference, assetId);
+  // Genuinely absent progress is not an error - a customer opening a
+  // resource for the first time has none yet. { progress: null } is
+  // the honest, expected shape, not a 404.
+  return withNoStore(jsonSuccess({ progress: record }));
+}
+
+export async function handleListLibraryProgress(request: Request, env: Env, logger: Logger): Promise<Response> {
+  const auth = await requireCustomerAuth(request, env, logger);
+  if (!auth.ok) return withNoStore(auth.response);
+
+  if (await isRateLimited(request, env, READ_RATE_LIMIT)) {
+    return withNoStore(jsonError('RATE_LIMITED', 'Too many requests. Please try again shortly.'));
+  }
+
+  const progress = await listLibraryProgress(env, auth.auth.customerId);
+  return withNoStore(jsonSuccess({ progress }));
 }

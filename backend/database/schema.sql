@@ -95,8 +95,9 @@ CREATE TABLE deliveries (
   product_slug        TEXT NOT NULL, -- denormalized snapshot, same convenience/audit reasoning as purchase_sessions.product_title
   max_downloads       INTEGER, -- NULL = unlimited, snapshotted from the product's download policy at fulfilment time
   access_expires_at   TEXT, -- NULL = lifetime access, snapshotted from the product's download policy at fulfilment time
-  downloads_used      INTEGER NOT NULL DEFAULT 0, -- incremented only at actual file-download (download_tokens redemption), not at token issuance — see docs/digital-fulfilment.md
+  downloads_used      INTEGER NOT NULL DEFAULT 0, -- incremented only at actual file-download (download_tokens redemption with purpose='download'), not at token issuance — see docs/digital-fulfilment.md
   last_download_at    TEXT,
+  last_viewed_at      TEXT, -- migration 0049 (Digital Library Phase 7A) — set on a 'view'-purpose token redemption; never increments downloads_used
   status              TEXT NOT NULL DEFAULT 'ready' CHECK (status IN ('ready', 'delivered', 'revoked')),
   delivered_at        TEXT, -- set once the fulfilment email is successfully sent
   created_at          TEXT NOT NULL DEFAULT (datetime('now')),
@@ -130,10 +131,120 @@ CREATE TABLE download_tokens (
   delivery_id INTEGER NOT NULL REFERENCES deliveries(id),
   expires_at  TEXT NOT NULL, -- short TTL (minutes), independent of deliveries.access_expires_at
   used_at     TEXT, -- set once redeemed; a used token is never valid again
+  purpose     TEXT NOT NULL DEFAULT 'download' CHECK (purpose IN ('download', 'view')), -- migration 0049 (Digital Library Phase 7A) — 'view' tokens redeem through the exact same pipeline but never increment deliveries.downloads_used
   created_at  TEXT NOT NULL DEFAULT (datetime('now'))
 );
 
 CREATE INDEX idx_download_tokens_delivery ON download_tokens(delivery_id);
+
+-- ============================================================
+-- LIBRARY_PROGRESS
+-- Migration 0050 (Digital Library Phase 7B, Personal Reading
+-- Experience). Real, persisted reading position, keyed 1:1 on
+-- deliveries.id — reuses the same entitlement unit everywhere else in
+-- this file, not a second notion of ownership. cfi is reserved for a
+-- future EPUB reader; unused by anything in Phase 7B. percent_complete
+-- and status are server-derived from current_page/total_pages, never
+-- accepted as raw client input.
+-- ============================================================
+CREATE TABLE library_progress (
+  id                INTEGER PRIMARY KEY AUTOINCREMENT,
+  delivery_id       INTEGER NOT NULL UNIQUE REFERENCES deliveries(id),
+  customer_id       INTEGER NOT NULL REFERENCES customers(id),
+  format            TEXT NOT NULL CHECK (format IN ('PDF', 'EPUB')),
+  current_page      INTEGER,
+  total_pages       INTEGER,
+  cfi               TEXT,
+  percent_complete  INTEGER NOT NULL DEFAULT 0 CHECK (percent_complete BETWEEN 0 AND 100),
+  status            TEXT NOT NULL DEFAULT 'not_started' CHECK (status IN ('not_started', 'in_progress', 'completed')),
+  last_read_at      TEXT,
+  created_at        TEXT NOT NULL DEFAULT (datetime('now')),
+  updated_at        TEXT NOT NULL DEFAULT (datetime('now'))
+);
+
+CREATE INDEX idx_library_progress_customer ON library_progress(customer_id);
+
+-- ============================================================
+-- LIBRARY_KNOWLEDGE_DOCUMENTS / LIBRARY_KNOWLEDGE_CHUNKS /
+-- LIBRARY_AI_MESSAGES / LIBRARY_AI_MESSAGE_CITATIONS
+-- Migration 0051 (Digital Library Phase 7C, AI Reading Assistant). The
+-- PRIVATE counterpart to the public knowledge_documents/knowledge_chunks
+-- pair — structurally separate, never joined to those tables, backed
+-- by its own Vectorize index (LIBRARY_KNOWLEDGE_INDEX, not
+-- KNOWLEDGE_INDEX). Indexed once per (product_slug, asset_id), shared
+-- across every customer who owns it; authorization is checked at query
+-- time via checkEntitlement(), never by duplicating chunks per
+-- customer. library_ai_messages IS customer-bound (unlike the public
+-- assistant's stateless design) — see migration 0051's own header
+-- comment for why.
+-- ============================================================
+CREATE TABLE library_knowledge_documents (
+  id               INTEGER PRIMARY KEY AUTOINCREMENT,
+  product_slug     TEXT NOT NULL,
+  asset_id         TEXT NOT NULL,
+  source_type      TEXT NOT NULL CHECK (source_type IN ('PDF', 'EPUB')),
+  total_pages      INTEGER,
+  content_hash     TEXT NOT NULL,
+  status           TEXT NOT NULL DEFAULT 'pending' CHECK (status IN ('pending', 'indexed', 'failed', 'unsupported_format')),
+  error_message    TEXT,
+  chunk_count      INTEGER NOT NULL DEFAULT 0,
+  version          INTEGER NOT NULL DEFAULT 1,
+  indexed_at       TEXT,
+  created_at       TEXT NOT NULL DEFAULT (datetime('now')),
+  updated_at       TEXT NOT NULL DEFAULT (datetime('now'))
+);
+
+CREATE UNIQUE INDEX idx_library_knowledge_documents_asset ON library_knowledge_documents(product_slug, asset_id);
+CREATE INDEX idx_library_knowledge_documents_status ON library_knowledge_documents(status);
+
+CREATE TABLE library_knowledge_chunks (
+  id               INTEGER PRIMARY KEY AUTOINCREMENT,
+  document_id      INTEGER NOT NULL REFERENCES library_knowledge_documents(id),
+  chunk_index      INTEGER NOT NULL,
+  chunk_text       TEXT NOT NULL,
+  chunk_tokens     INTEGER NOT NULL,
+  page_number      INTEGER,
+  chapter_title    TEXT,
+  cfi              TEXT,
+  vector_id        TEXT NOT NULL UNIQUE,
+  embedding_model  TEXT NOT NULL,
+  created_at       TEXT NOT NULL DEFAULT (datetime('now'))
+);
+
+CREATE INDEX idx_library_knowledge_chunks_document ON library_knowledge_chunks(document_id);
+
+CREATE TABLE library_ai_messages (
+  id                    INTEGER PRIMARY KEY AUTOINCREMENT,
+  customer_id           INTEGER NOT NULL REFERENCES customers(id),
+  purchase_reference    TEXT NOT NULL,
+  asset_id              TEXT NOT NULL,
+  mode                  TEXT NOT NULL CHECK (mode IN ('explain', 'summarize', 'teach', 'example', 'quiz', 'key_takeaways', 'ask')),
+  question_text         TEXT NOT NULL,
+  current_page          INTEGER,
+  answer_text           TEXT,
+  status                TEXT NOT NULL CHECK (status IN ('answered', 'declined', 'error')),
+  confidence_tier       TEXT NOT NULL CHECK (confidence_tier IN ('high', 'medium', 'low', 'very_low')),
+  top_score             REAL,
+  retrieval_latency_ms  INTEGER,
+  llm_latency_ms        INTEGER,
+  total_latency_ms      INTEGER NOT NULL,
+  error_message         TEXT,
+  created_at            TEXT NOT NULL DEFAULT (datetime('now'))
+);
+
+CREATE INDEX idx_library_ai_messages_customer ON library_ai_messages(customer_id);
+CREATE INDEX idx_library_ai_messages_created ON library_ai_messages(created_at);
+
+CREATE TABLE library_ai_message_citations (
+  id             INTEGER PRIMARY KEY AUTOINCREMENT,
+  message_id     INTEGER NOT NULL REFERENCES library_ai_messages(id),
+  document_id    INTEGER NOT NULL REFERENCES library_knowledge_documents(id),
+  chunk_id       INTEGER REFERENCES library_knowledge_chunks(id),
+  score          REAL NOT NULL,
+  rank           INTEGER NOT NULL
+);
+
+CREATE INDEX idx_library_ai_citations_message ON library_ai_message_citations(message_id);
 
 -- ============================================================
 -- PURCHASE_SESSIONS

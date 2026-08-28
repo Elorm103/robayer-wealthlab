@@ -54,7 +54,7 @@ import { handleContact } from '../routes/contact';
 import { handleConsultation } from '../routes/consultation';
 import { handleCreateCheckoutSession } from '../routes/checkout';
 import { handlePaystackWebhook } from '../routes/webhooks';
-import { handleGetPurchaseStatus, handleRequestDownload, handleRequestReceiptDownload } from '../routes/purchases';
+import { handleGetPurchaseStatus, handleRequestDownload, handleRequestReadAccess, handleRequestReceiptDownload } from '../routes/purchases';
 import { handleDownload, handleDownloadReceipt } from '../routes/downloads';
 import { handleUnsubscribeStatus, handleUnsubscribeConfirm } from '../routes/unsubscribe';
 import {
@@ -102,6 +102,7 @@ import {
   handleRetryDeadLetter as handleKnowledgeBaseRetryDeadLetter,
 } from '../routes/admin/knowledgeBase';
 import { handleAskCustomerAi, handleCustomerAiFeedback } from '../routes/customer/aiAssistant';
+import { handleAskLibraryAi } from '../routes/customer/libraryAi';
 import { handleGetCustomerAiAnalytics } from '../routes/admin/customerAi';
 import { processIndexingQueueBatch, recordDeadLetters, INDEXING_QUEUE_MAX_RETRIES } from '../services/knowledge/indexingService';
 import type { KnowledgeIndexQueueMessage } from '../services/knowledge/queueTypes';
@@ -250,6 +251,9 @@ import {
   handleDownloadCustomerReceipt,
   handleListCustomerLicenses,
   handleGetLibraryRecommendations,
+  handleUpsertLibraryProgress,
+  handleGetLibraryProgress,
+  handleListLibraryProgress,
 } from '../routes/customer/purchases';
 // Version 3.1 Milestone M3 (Checkout Auto-Provisioning & Dashboard
 // MVP) — Account Security's own-sessions list/revoke. See
@@ -330,6 +334,12 @@ const ROUTES: Route[] = [
   // docs/digital-fulfilment.md.
   { pattern: new URLPattern({ pathname: '/api/purchases/:reference' }), method: 'GET', handler: handleGetPurchaseStatus },
   { pattern: new URLPattern({ pathname: '/api/purchases/:reference/downloads' }), method: 'POST', handler: handleRequestDownload },
+  // Digital Library Phase 7A (Personal Learning Library, Reader
+  // Foundation) — mints a non-consuming 'view' token; redeemed through
+  // the exact same GET /api/download/:token handler below, not a
+  // second download mechanism. See routes/purchases.ts's own header
+  // comment on handleRequestReadAccess.
+  { pattern: new URLPattern({ pathname: '/api/purchases/:reference/read-access' }), method: 'POST', handler: handleRequestReadAccess },
   { pattern: new URLPattern({ pathname: '/api/download/:token' }), method: 'GET', handler: handleDownload },
   // Milestone M2 (Orders, Receipts & Customer Library) — guest,
   // reference-scoped receipt download (ADR-013 tier 2).
@@ -640,6 +650,13 @@ const ROUTES: Route[] = [
   { pattern: new URLPattern({ pathname: '/api/customer/receipts/:receiptNumber/download' }), method: 'GET', handler: handleDownloadCustomerReceipt },
   { pattern: new URLPattern({ pathname: '/api/customer/licenses' }), method: 'GET', handler: handleListCustomerLicenses },
   { pattern: new URLPattern({ pathname: '/api/customer/library/recommendations' }), method: 'GET', handler: handleGetLibraryRecommendations },
+  // Digital Library Phase 7B (Personal Reading Experience) — real,
+  // persisted reading position. See routes/customer/purchases.ts's own
+  // header comment on why these require requireCustomerAuth, unlike
+  // the reference-scoped Download/Read endpoints above.
+  { pattern: new URLPattern({ pathname: '/api/customer/library/progress' }), method: 'GET', handler: handleListLibraryProgress },
+  { pattern: new URLPattern({ pathname: '/api/customer/purchases/:reference/progress' }), method: 'GET', handler: handleGetLibraryProgress },
+  { pattern: new URLPattern({ pathname: '/api/customer/purchases/:reference/progress' }), method: 'POST', handler: handleUpsertLibraryProgress },
   // Version 3.1 Milestone M3 — Account Security's own-sessions list/revoke.
   { pattern: new URLPattern({ pathname: '/api/customer/sessions' }), method: 'GET', handler: handleListCustomerSessions },
   { pattern: new URLPattern({ pathname: '/api/customer/sessions/:sessionId/revoke' }), method: 'POST', handler: handleRevokeCustomerSession },
@@ -656,6 +673,10 @@ const ROUTES: Route[] = [
   // Version 5.0 Milestone 3 (Customer AI) — public, unauthenticated
   // (see routes/customer/aiAssistant.ts's own header comment for why).
   { pattern: new URLPattern({ pathname: '/api/customer/ai-assistant/ask' }), method: 'POST', handler: handleAskCustomerAi },
+  // Digital Library Phase 7C (AI Reading Assistant) — authenticated,
+  // entitlement-gated, structurally separate from the public assistant
+  // above. See routes/customer/libraryAi.ts's own header comment.
+  { pattern: new URLPattern({ pathname: '/api/customer/library/ai/ask' }), method: 'POST', handler: handleAskLibraryAi },
   { pattern: new URLPattern({ pathname: '/api/customer/ai-assistant/feedback' }), method: 'POST', handler: handleCustomerAiFeedback },
   { pattern: new URLPattern({ pathname: '/api/admin/customer-ai/analytics' }), method: 'GET', handler: handleGetCustomerAiAnalytics },
 

@@ -52,6 +52,8 @@ function initLibraryList() {
 
   let allPurchases = [];
   let reviewedSlugs = new Set();
+  /** Digital Library Phase 7B — keyed `${purchaseReference}:${assetId}`, populated in load(). Absent entries render no progress line at all, never a fabricated "not started" badge. */
+  let progressByKey = new Map();
 
   document.addEventListener('dashboard:ready', load, { once: true });
 
@@ -78,6 +80,13 @@ function initLibraryList() {
       reviewedSlugs = new Set((reviewData.reviews || []).map((r) => r.productSlug));
     } catch {
       // Non-fatal - every row's review link falls back to "Leave a Review".
+    }
+
+    try {
+      const progressData = await window.CustomerDashboard.customerFetch('/api/customer/library/progress');
+      progressByKey = new Map((progressData.progress || []).map((p) => [`${p.purchaseReference}:${p.assetId}`, p]));
+    } catch {
+      // Non-fatal - cards simply show no progress line, same as a genuinely first-time-open resource.
     }
 
     populateWelcome(allPurchases);
@@ -327,11 +336,21 @@ function initLibraryList() {
       if (ebookAsset) {
         const state = window.RobayerOwnership.describeDownloadState(ebookAsset);
 
-        const readButton = document.createElement('button');
-        readButton.type = 'button';
+        // Digital Library Phase 7A: Read is a real navigation to the
+        // in-app reader (dashboard/read/), not a click handler that
+        // mints a download - see js/components/library-reader.js. It
+        // never calls requestDownload() below, so it never touches
+        // downloadsUsed at all; the reader page mints its own,
+        // separate, non-consuming 'view' token. Gated only on
+        // `revoked` (ownership itself), never on the download limit -
+        // per the Phase 7 product model, reading does not draw from
+        // the download count, so a customer who has exhausted their
+        // downloads can still read what they own.
+        const readButton = document.createElement('a');
         readButton.className = 'btn btn--accent library-card__action-primary';
         readButton.textContent = 'Read eBook';
         readButton.setAttribute('data-library-read-action', '');
+        readButton.href = `/dashboard/read/?ref=${encodeURIComponent(purchase.purchaseReference)}&assetId=${encodeURIComponent(ebookAsset.assetId)}`;
         actions.appendChild(readButton);
 
         const downloadButton = document.createElement('button');
@@ -341,19 +360,22 @@ function initLibraryList() {
         downloadButton.setAttribute('data-library-download-action', '');
         actions.appendChild(downloadButton);
 
+        if (state.revoked) {
+          readButton.setAttribute('aria-disabled', 'true');
+          readButton.tabIndex = -1;
+          readButton.removeAttribute('href');
+          readButton.classList.add('btn--disabled');
+        }
         if (state.limitReached) {
-          [readButton, downloadButton].forEach((b) => {
-            b.disabled = true;
-            b.classList.add('btn--disabled');
-          });
+          downloadButton.disabled = true;
+          downloadButton.classList.add('btn--disabled');
           showStatus(statusEl, state.message, 'notice');
         } else {
-          // usageLine is resolved inside these closures at click time, not
+          // usageLine is resolved inside this closure at click time, not
           // definition time - by then it already holds whatever element
           // (or null) the render below assigns it, so requestDownload()
           // always refreshes the real, current line for this card.
-          readButton.addEventListener('click', () => requestDownload(purchase.purchaseReference, ebookAsset, readButton, downloadButton, statusEl, false, usageLine));
-          downloadButton.addEventListener('click', () => requestDownload(purchase.purchaseReference, ebookAsset, readButton, downloadButton, statusEl, true, usageLine));
+          downloadButton.addEventListener('click', () => requestDownload(purchase.purchaseReference, ebookAsset, downloadButton, statusEl, usageLine));
         }
 
         const reviewLink = document.createElement('a');
@@ -370,6 +392,10 @@ function initLibraryList() {
           usageLine.textContent = usageText;
           wrap.appendChild(usageLine);
         }
+
+        const progress = progressByKey.get(`${purchase.purchaseReference}:${ebookAsset.assetId}`);
+        const progressEl = renderProgressLine(progress);
+        if (progressEl) wrap.appendChild(progressEl);
       } else {
         wrap.appendChild(actions);
       }
@@ -388,6 +414,43 @@ function initLibraryList() {
     return wrap;
   }
 
+  /**
+   * Digital Library Phase 7B — the Library card's own learning-progress
+   * signal, real and server-persisted (see js/components/library-reader.js
+   * and backend/services/customer/libraryProgressService.ts). Returns
+   * null for `not_started` or no progress row at all - a resource
+   * nobody has opened yet gets no extra line, never a fabricated
+   * "0% complete."
+   */
+  function renderProgressLine(progress) {
+    if (!progress || progress.status === 'not_started') return null;
+
+    if (progress.status === 'completed') {
+      const badge = document.createElement('p');
+      badge.className = 'library-card__completed-badge mb-0';
+      badge.textContent = 'Completed';
+      return badge;
+    }
+
+    const wrap = document.createElement('div');
+    wrap.className = 'library-card__progress';
+
+    const meta = document.createElement('p');
+    meta.className = 'library-card__progress-meta';
+    meta.textContent = `Continue reading — Page ${progress.currentPage} of ${progress.totalPages}`;
+    wrap.appendChild(meta);
+
+    const track = document.createElement('div');
+    track.className = 'library-card__progress-track';
+    const fill = document.createElement('div');
+    fill.className = 'library-card__progress-track-fill';
+    fill.style.width = `${progress.percentComplete}%`;
+    track.appendChild(fill);
+    wrap.appendChild(track);
+
+    return wrap;
+  }
+
   function showStatus(statusEl, message, tone) {
     const ALERT_CLASS = { error: 'alert--error', notice: 'alert--warning' };
     statusEl.classList.remove('alert', 'alert--error', 'alert--warning', 'alert--info');
@@ -401,12 +464,19 @@ function initLibraryList() {
     statusEl.classList.add('alert', ALERT_CLASS[tone] || 'alert--info');
   }
 
-  async function requestDownload(reference, asset, readButton, downloadButton, statusEl, isDownload, usageLine) {
+  /**
+   * Digital Library Phase 7A: this is now the Download-only path -
+   * Read is a plain navigation (see renderActions() above) and never
+   * calls this function, so it never reaches asset.downloadsUsed at
+   * all. Everything below is otherwise unchanged from before Phase 7A:
+   * same endpoint, same atomic entitlement enforcement, same usage-
+   * line refresh.
+   */
+  async function requestDownload(reference, asset, downloadButton, statusEl, usageLine) {
     showStatus(statusEl, null);
-    const activeButton = isDownload ? downloadButton : readButton;
-    const defaultLabel = activeButton.textContent;
-    [readButton, downloadButton].forEach((b) => (b.disabled = true));
-    activeButton.textContent = isDownload ? 'Downloading…' : 'Opening…';
+    const defaultLabel = downloadButton.textContent;
+    downloadButton.disabled = true;
+    downloadButton.textContent = 'Downloading…';
 
     try {
       const data = await window.CustomerDashboard.customerFetch(`/api/purchases/${encodeURIComponent(reference)}/downloads`, {
@@ -414,11 +484,7 @@ function initLibraryList() {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ assetId: asset.assetId }),
       });
-      if (isDownload) {
-        window.location.href = data.downloadUrl;
-      } else {
-        window.open(data.downloadUrl, '_blank', 'noopener');
-      }
+      window.location.href = data.downloadUrl;
       asset.downloadsUsed += 1;
       if (asset.maxDownloads !== null) asset.downloadsRemaining = Math.max(0, asset.maxDownloads - asset.downloadsUsed);
       // Phase 6.1 fix: the displayed "used / remaining" line was never
@@ -429,10 +495,10 @@ function initLibraryList() {
       refreshDownloadUsageLine(usageLine, asset);
       const afterState = window.RobayerOwnership.describeDownloadState(asset);
       if (afterState.limitReached) {
-        [readButton, downloadButton].forEach((b) => b.classList.add('btn--disabled'));
+        downloadButton.classList.add('btn--disabled');
         showStatus(statusEl, afterState.message, 'notice');
       } else {
-        [readButton, downloadButton].forEach((b) => (b.disabled = false));
+        downloadButton.disabled = false;
       }
     } catch (error) {
       const message =
@@ -441,9 +507,9 @@ function initLibraryList() {
             'This download is no longer available. If you believe this is an error, please contact support.'
           : error.message || 'Something went wrong. Please refresh and try again.';
       showStatus(statusEl, message, error.code === 'DOWNLOAD_NOT_AVAILABLE' ? 'notice' : 'error');
-      [readButton, downloadButton].forEach((b) => (b.disabled = false));
+      downloadButton.disabled = false;
     } finally {
-      activeButton.textContent = defaultLabel;
+      downloadButton.textContent = defaultLabel;
     }
   }
 

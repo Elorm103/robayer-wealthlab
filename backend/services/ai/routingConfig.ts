@@ -38,6 +38,16 @@ const ROUTING_TABLE: Record<string, RoutingCandidate[]> = {
   // 'internal.gateway-diagnostic' above — no new provider, no new
   // pricing entry needed in openAiProvider.ts.
   'customer.chat': [{ provider: 'openai', model: 'gpt-4o-mini' }],
+  // Digital Library Phase 7C (AI Reading Assistant) — the SAME two
+  // already-validated models 'knowledge.embed'/'customer.chat' use
+  // above, reused under their own feature keys so ai_usage_log can
+  // report the private assistant's spend separately from the public
+  // one's (budget ENFORCEMENT itself stays platform-wide — daily/
+  // monthly/provider/lifetime caps, aiGatewayConfig.ts — this feature
+  // is automatically covered by those same shared caps, nothing new to
+  // configure). Not a new provider, not a new pricing entry.
+  'library.embed': [{ provider: 'openai', model: 'text-embedding-3-small' }],
+  'library.chat': [{ provider: 'openai', model: 'gpt-4o-mini' }],
 };
 
 export function getRoutingCandidates(feature: string): RoutingCandidate[] {

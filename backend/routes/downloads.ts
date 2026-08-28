@@ -86,12 +86,19 @@ export async function handleDownload(request: Request, env: Env, logger: Logger,
     status: 200,
     headers: {
       'Content-Type': contentTypeFor(result.asset.fileType),
-      // The saved filename is built fresh from the product's current
-      // title, never from result.asset.filename (media_assets.original_filename
-      // — the literal filename captured once at upload time, which drifts
-      // out of sync the moment a product is ever renamed; see
-      // utils/downloadFilename.ts for the incident this fixed).
-      'Content-Disposition': `attachment; filename="${buildDownloadFilename(result.productTitle, result.asset.fileType)}"`,
+      // Digital Library Phase 7A: a 'view'-purpose token (minted by the
+      // in-app reader, never consumes a download) gets `inline` — the
+      // reader fetches this as a blob for PDF.js, not a browser
+      // navigation, so this only matters if the URL is ever opened
+      // directly. A 'download'-purpose token is completely unchanged
+      // from before this phase: still `attachment`, still built the
+      // same way. The saved filename is built fresh from the product's
+      // current title, never from result.asset.filename
+      // (media_assets.original_filename — the literal filename
+      // captured once at upload time, which drifts out of sync the
+      // moment a product is ever renamed; see utils/downloadFilename.ts
+      // for the incident this fixed).
+      'Content-Disposition': `${result.purpose === 'view' ? 'inline' : 'attachment'}; filename="${buildDownloadFilename(result.productTitle, result.asset.fileType)}"`,
       'Content-Length': String(object.size),
       'Cache-Control': 'no-store', // never let a browser/proxy cache a purchased file at a URL that's about to be invalidated
     },

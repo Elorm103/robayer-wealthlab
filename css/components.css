@@ -2641,6 +2641,117 @@ button.resource-card {
    disclosure so the expand/collapse behavior is fully keyboard-
    and screen-reader-accessible with zero custom JS. Styled as a
    quiet, permanent card, never an alert or a warning. */
+
+/* Digital Library Phase 7B — "Continue Reading," above the topic
+   groups (the opposite position from .library-recommendations below,
+   which stays below them) - this is "where you are," recommendations
+   are "where you could go next." */
+.library-continue-reading {
+  margin-bottom: var(--space-6);
+}
+.library-continue-reading__heading {
+  font-family: var(--font-heading);
+  font-size: var(--text-h4);
+  color: var(--color-text-heading);
+  margin: 0 0 var(--space-4);
+}
+.library-continue-reading__list {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: var(--space-3);
+}
+@media (max-width: 767px) {
+  .library-continue-reading__list {
+    grid-template-columns: 1fr;
+  }
+}
+.library-continue-card {
+  display: flex;
+  gap: var(--space-3);
+  padding: var(--space-3);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-md);
+  background-color: var(--color-surface);
+  text-decoration: none;
+  color: inherit;
+  transition: box-shadow var(--duration-base) var(--ease-standard), border-color var(--duration-base) var(--ease-standard);
+}
+.library-continue-card:hover,
+.library-continue-card:focus-visible {
+  box-shadow: var(--shadow-2);
+  border-color: var(--color-border-strong);
+}
+.library-continue-card__cover {
+  width: 56px;
+  aspect-ratio: 3 / 4;
+  flex-shrink: 0;
+  border-radius: var(--radius-sm);
+  overflow: hidden;
+}
+.library-continue-card__body {
+  min-width: 0;
+  flex: 1;
+}
+.library-continue-card__title {
+  font-family: var(--font-heading);
+  font-weight: var(--weight-medium);
+  margin: 0 0 var(--space-2);
+}
+.library-continue-card__track {
+  height: 4px;
+  border-radius: 2px;
+  background-color: var(--color-border);
+  overflow: hidden;
+  margin-bottom: var(--space-1);
+}
+.library-continue-card__track-fill {
+  height: 100%;
+  background-color: var(--color-accent);
+}
+.library-continue-card__meta {
+  font-size: var(--text-small);
+  color: var(--color-text-muted);
+  margin: 0 0 var(--space-1);
+}
+.library-continue-card__cta {
+  font-family: var(--font-mono);
+  font-size: var(--text-small);
+  color: var(--color-accent);
+}
+
+/* Digital Library Phase 7B — per-card progress line, shown in place of
+   (or alongside) the download-usage line. Reuses the same track/fill
+   pattern as the Continue Reading cards above, at card scale. */
+.library-card__progress {
+  margin-top: var(--space-2);
+}
+.library-card__progress-meta {
+  display: flex;
+  justify-content: space-between;
+  font-size: var(--text-small);
+  color: var(--color-text-muted);
+  margin: 0 0 var(--space-1);
+}
+.library-card__progress-track {
+  height: 4px;
+  border-radius: 2px;
+  background-color: var(--color-border);
+  overflow: hidden;
+}
+.library-card__progress-track-fill {
+  height: 100%;
+  background-color: var(--color-accent);
+}
+.library-card__completed-badge {
+  color: var(--color-success);
+  font-family: var(--font-mono);
+  font-size: var(--text-small);
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-1);
+  margin-top: var(--space-2);
+}
+
 .download-info-panel {
   border: 1px solid var(--color-border);
   border-radius: var(--radius-md);
@@ -2936,6 +3047,366 @@ button.resource-card {
   .library-card,
   .library-recommendation,
   .library-empty-pick__cover {
+    transition: none;
+  }
+}
+
+/* ============================================================
+   IN-APP READER — Digital Library Phase 7A (Personal Learning
+   Library, Reader Foundation). Drives dashboard/read/index.html via
+   js/components/library-reader.js. Built entirely from tokens.css's
+   existing semantic tokens (same as .library-card above), so it
+   adapts to dark mode automatically with no explicit override block
+   needed here — consistent with this file's own stated convention.
+   ============================================================ */
+.reader-back-link {
+  display: inline-block;
+  font-size: var(--text-small);
+  color: var(--color-text-secondary);
+  text-decoration: none;
+  margin-bottom: var(--space-4);
+}
+.reader-back-link:hover,
+.reader-back-link:focus-visible {
+  color: var(--color-accent);
+}
+
+.reader-header {
+  margin-bottom: var(--space-4);
+}
+.reader-header__title {
+  font-family: var(--font-display);
+  margin: var(--space-1) 0 0;
+}
+
+.reader-shell {
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-md);
+  background-color: var(--color-surface);
+  overflow: hidden;
+}
+
+/* Digital Library Phase 7B — resume notice. Uses the same info-tint
+   pattern as .download-info-panel's own tone (calm, informational,
+   never alarming) rather than inventing a new banner color. */
+.reader-resume-banner {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: var(--space-2) var(--space-3);
+  padding: var(--space-3) var(--space-4);
+  background-color: var(--color-info-tint);
+  color: var(--color-info);
+  border-bottom: 1px solid var(--color-border);
+  font-size: var(--text-small);
+}
+.reader-resume-banner__btn {
+  flex-shrink: 0;
+  min-height: 36px;
+  padding: var(--space-1) var(--space-3);
+}
+
+.reader-toolbar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: var(--space-2) var(--space-3);
+  padding: var(--space-3) var(--space-4);
+  border-bottom: 1px solid var(--color-border);
+  background-color: var(--color-bg-alt);
+  position: sticky;
+  top: 0;
+  z-index: var(--z-sticky);
+}
+
+.reader-toolbar__nav,
+.reader-toolbar__zoom {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+}
+
+.reader-toolbar__btn {
+  padding: var(--space-1) var(--space-3);
+  min-width: 44px;
+  min-height: 44px;
+  line-height: 1;
+}
+
+.reader-toolbar__page-indicator {
+  font-family: var(--font-mono);
+  font-size: var(--text-small);
+  color: var(--color-text-secondary);
+  white-space: nowrap;
+}
+
+.reader-progress-track {
+  height: 3px;
+  background-color: var(--color-border);
+}
+.reader-progress-track__fill {
+  height: 100%;
+  width: 0%;
+  background-color: var(--color-accent);
+  transition: width var(--duration-base) var(--ease-standard);
+}
+
+.reader-canvas-wrap {
+  display: flex;
+  justify-content: center;
+  padding: var(--space-5) var(--space-3);
+  background-color: var(--color-bg-alt);
+  overflow: auto;
+  max-height: 75vh;
+}
+.reader-canvas-wrap:focus-visible {
+  outline: 2px solid var(--color-accent);
+  outline-offset: -2px;
+}
+.reader-canvas-wrap canvas {
+  max-width: 100%;
+  height: auto;
+  box-shadow: var(--shadow-2);
+  background-color: var(--color-white, #fff);
+}
+
+.reader-unsupported {
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-md);
+  background-color: var(--color-bg-alt);
+  padding: var(--space-4);
+}
+
+@media (max-width: 640px) {
+  .reader-toolbar {
+    padding: var(--space-2) var(--space-3);
+  }
+  .reader-canvas-wrap {
+    padding: var(--space-3) var(--space-2);
+    max-height: 65vh;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .reader-progress-track__fill {
+    transition: none;
+  }
+}
+
+/* ============================================================
+   AI READING ASSISTANT PANEL — Digital Library Phase 7C. Drives the
+   `.ai-panel` in dashboard/read/index.html via
+   js/components/library-ai-panel.js. A side drawer on desktop/tablet,
+   a bottom sheet on mobile — same markup, this media query is the only
+   difference. Built entirely from existing tokens, same as the reader
+   itself, so dark mode needs no separate overrides here either.
+   ============================================================ */
+.reader-toolbar__ai-trigger {
+  min-height: 44px;
+  font-size: var(--text-small);
+  white-space: nowrap;
+}
+
+.ai-panel-backdrop {
+  position: fixed;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.32);
+  z-index: var(--z-overlay);
+  opacity: 0;
+  transition: opacity 0.2s var(--ease-standard);
+}
+.ai-panel-backdrop--visible {
+  opacity: 1;
+}
+
+.ai-panel {
+  position: fixed;
+  top: 0;
+  right: 0;
+  bottom: 0;
+  width: min(420px, 100vw);
+  background: var(--color-surface);
+  border-left: 1px solid var(--color-border);
+  box-shadow: var(--shadow-3);
+  z-index: calc(var(--z-overlay) + 1);
+  display: flex;
+  flex-direction: column;
+  transform: translateX(100%);
+  transition: transform 0.22s var(--ease-standard);
+}
+.ai-panel--open {
+  transform: translateX(0);
+}
+
+.ai-panel__header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: var(--space-4);
+  border-bottom: 1px solid var(--color-border);
+}
+.ai-panel__title {
+  font-family: var(--font-heading);
+  font-size: var(--text-h4);
+  color: var(--color-text-heading);
+  margin: 0;
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+}
+.ai-panel__close {
+  background: none;
+  border: none;
+  font-size: 1.5rem;
+  line-height: 1;
+  color: var(--color-text-secondary);
+  cursor: pointer;
+  min-width: 44px;
+  min-height: 44px;
+  border-radius: var(--radius-sm);
+}
+.ai-panel__close:hover,
+.ai-panel__close:focus-visible {
+  color: var(--color-text-heading);
+  background: var(--color-bg-alt);
+}
+
+.ai-panel__subtitle {
+  padding: 0 var(--space-4);
+  margin: var(--space-2) 0 0;
+}
+
+.ai-panel__modes {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-2);
+  padding: var(--space-3) var(--space-4);
+}
+.ai-mode-chip {
+  font-family: var(--font-mono);
+  font-size: 0.75rem;
+  padding: var(--space-1) var(--space-3);
+  min-height: 44px;
+  border: 1px solid var(--color-border);
+  border-radius: 20px;
+  background: var(--color-bg-alt);
+  color: var(--color-text-secondary);
+  cursor: pointer;
+  transition: border-color var(--duration-base) var(--ease-standard), color var(--duration-base) var(--ease-standard);
+}
+.ai-mode-chip:hover,
+.ai-mode-chip:focus-visible {
+  border-color: var(--color-accent);
+  color: var(--color-accent);
+}
+.ai-mode-chip:disabled {
+  opacity: 0.5;
+  cursor: default;
+}
+
+.ai-panel__thread {
+  flex: 1;
+  overflow-y: auto;
+  padding: var(--space-3) var(--space-4);
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-3);
+}
+
+.ai-panel__empty-state {
+  margin: 0;
+}
+
+.ai-panel__bubble {
+  max-width: 92%;
+  padding: var(--space-3);
+  border-radius: var(--radius-md);
+  font-size: var(--text-small);
+  line-height: 1.6;
+}
+.ai-panel__bubble--question {
+  align-self: flex-end;
+  background: var(--color-accent);
+  color: var(--color-white, #fff);
+}
+.ai-panel__bubble--answer {
+  align-self: flex-start;
+  background: var(--color-bg-alt);
+  color: var(--color-text-primary);
+  border: 1px solid var(--color-border);
+}
+.ai-panel__bubble--pending {
+  color: var(--color-text-muted);
+  font-style: italic;
+}
+.ai-panel__bubble-text {
+  margin: 0;
+  white-space: pre-wrap;
+}
+
+.ai-panel__citations {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-1);
+  margin-top: var(--space-2);
+}
+.ai-panel__citation {
+  font-family: var(--font-mono);
+  font-size: 0.7rem;
+  padding: 0.2em 0.6em;
+  border-radius: 6px;
+  background: var(--color-surface);
+  border: 1px solid var(--color-border);
+  color: var(--color-accent);
+  cursor: pointer;
+}
+.ai-panel__citation:hover,
+.ai-panel__citation:focus-visible {
+  border-color: var(--color-accent);
+}
+
+.ai-panel__error {
+  margin: 0 var(--space-4);
+}
+
+.ai-panel__composer {
+  display: flex;
+  gap: var(--space-2);
+  padding: var(--space-3) var(--space-4);
+  border-top: 1px solid var(--color-border);
+}
+.ai-panel__input {
+  flex: 1;
+  resize: none;
+  min-height: 44px;
+}
+.ai-panel__send {
+  min-height: 44px;
+  align-self: flex-end;
+}
+
+@media (max-width: 767px) {
+  .ai-panel {
+    top: auto;
+    left: 0;
+    right: 0;
+    width: auto;
+    height: min(80vh, 640px);
+    border-left: none;
+    border-top: 1px solid var(--color-border);
+    border-radius: var(--radius-lg) var(--radius-lg) 0 0;
+    transform: translateY(100%);
+  }
+  .ai-panel--open {
+    transform: translateY(0);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .ai-panel,
+  .ai-panel-backdrop {
     transition: none;
   }
 }

@@ -61,17 +61,25 @@
     { "pattern": "robayerwealthlab.com/free-guide/*", "zone_name": "robayerwealthlab.com" }
   ],
   "workers_dev": true,
-  // No compatibility_flags needed. Through M1, this Worker had zero
-  // runtime npm dependencies (only fetch/crypto/D1/R2/KV — all native
-  // Workers Web APIs). Milestone M2 (Orders, Receipts & Customer
-  // Library) added the first one — `pdf-lib`, for in-Worker receipt PDF
+  // Through M1, this Worker had zero runtime npm dependencies (only
+  // fetch/crypto/D1/R2/KV — all native Workers Web APIs). Milestone M2
+  // added the first one — `pdf-lib`, for in-Worker receipt PDF
   // generation — but it is pure JavaScript with no Node.js built-in
-  // dependency (confirmed by a same-day compatibility spike inside the
-  // real workerd runtime, see docs/v3.0.2-m2-receipt-architecture-plan.md),
-  // so `nodejs_compat` still has nothing to shim. Add it if/when a
-  // future sprint introduces a library that actually needs a Node.js
-  // built-in — not by default.
-  "compatibility_flags": [],
+  // dependency, so nodejs_compat had nothing to shim yet.
+  //
+  // Digital Library Phase 7C (AI Reading Assistant) is the "future
+  // sprint" that comment always anticipated: server-side PDF text
+  // extraction needs pdfjs-dist's `legacy` build specifically (its own
+  // runtime warning: "Please use the legacy build in Node.js
+  // environments" — confirmed directly, not assumed: the non-legacy
+  // build crashes with `ReferenceError: DOMMatrix is not defined`
+  // inside the real workerd runtime the moment its display/canvas
+  // module is evaluated, even though this file never calls anything
+  // canvas-related; the legacy build has no such dependency). Enabling
+  // nodejs_compat here is what makes the legacy build's own Node
+  // built-in usage resolve instead of hard-crashing the Worker on
+  // import.
+  "compatibility_flags": ["nodejs_compat"],
 
   // Logs/traces via Cloudflare's dashboard — no separate Worker code or
   // third-party APM needed, matching docs/monitoring-and-alerting.md's
@@ -164,7 +172,20 @@
   // actually been run — see the Milestone 2 Migration Report for
   // exactly when that happens relative to this file being deployed.
   "vectorize": [
-    { "binding": "KNOWLEDGE_INDEX", "index_name": "robayer-knowledge-base" }
+    { "binding": "KNOWLEDGE_INDEX", "index_name": "robayer-knowledge-base" },
+    // Digital Library Phase 7C (AI Reading Assistant) — a SEPARATE
+    // index, not a namespace/filter inside KNOWLEDGE_INDEX above. This
+    // index holds embeddings of purchased-resource content (PDF/EPUB
+    // text a customer paid for); KNOWLEDGE_INDEX holds only public
+    // site content. The two must never be queryable through the same
+    // door — see docs on this phase's security reasoning. Same
+    // dimensions/metric as KNOWLEDGE_INDEX (same embedding model,
+    // services/ai/routingConfig.ts's 'library.embed' entry). Provisioned
+    // via `wrangler vectorize create robayer-library-knowledge
+    // --dimensions 1536 --metric cosine`, confirmed live (1536/cosine,
+    // real insert+query round-trip verified directly) — see the Phase
+    // 7C production-readiness verification report.
+    { "binding": "LIBRARY_KNOWLEDGE_INDEX", "index_name": "robayer-library-knowledge" }
   ],
 
   // Bundles each backend/emails/**/*.html file as an importable string

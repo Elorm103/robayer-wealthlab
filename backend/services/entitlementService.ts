@@ -38,16 +38,32 @@ export type EntitlementDenialReason =
   | 'delivery_not_found'
   | 'delivery_revoked'
   | 'download_limit_reached'
-  | 'access_expired';
+  | 'access_expired'
+  | 'not_owned_by_customer';
 
 export type EntitlementCheckResult =
   | { granted: true; deliveryId: number }
   | { granted: false; reason: EntitlementDenialReason };
 
+/**
+ * 'download' (default) is the pre-existing, unchanged behavior this
+ * whole file originally shipped with. 'view' — added for Digital
+ * Library Phase 7A (Personal Learning Library, Read vs. Download) —
+ * grants access to open a resource in the in-app reader without ever
+ * counting against `deliveries.downloads_used`: reading is not a
+ * download. A 'view' request still fails on every ownership-integrity
+ * check below (not verified, asset not found, no delivery, revoked,
+ * access window expired) — the ONLY check it skips is the download
+ * count, since that count has nothing to do with whether reading is
+ * allowed.
+ */
+export type EntitlementPurpose = 'download' | 'view';
+
 interface VerifiedPurchaseSessionRow {
   id: number;
   productSlug: string;
   status: string;
+  customerId: number | null;
 }
 
 interface DeliveryRow {
@@ -71,10 +87,35 @@ interface DeliveryRow {
  *   4. Is the delivery still within its snapshotted policy (download
  *      count, access window)?
  */
-export async function checkEntitlement(env: Env, purchaseReference: string, assetId: string): Promise<EntitlementCheckResult> {
+/**
+ * `customerId`, when passed — Digital Library Phase 7B (Personal
+ * Reading Experience) — adds a check this function never made before:
+ * not just "is this purchase valid," but "does it belong to THIS
+ * logged-in customer." Every pre-Phase-7B caller (download, view)
+ * omits it deliberately: Download/Read have always been reference-
+ * scoped, not login-scoped, by original design (a purchase reference
+ * is its own bearer credential, the same way an emailed receipt link
+ * works without requiring an account). Reading PROGRESS cannot work
+ * that way — "resume where you left off" is meaningless without a
+ * bound identity — so Phase 7B's progress endpoints are the first
+ * callers to pass this. Checked immediately after purchase
+ * verification, before any other ownership-integrity check, so a
+ * customer probing someone else's reference learns nothing more than
+ * "not verified" would already tell them.
+ */
+export async function checkEntitlement(
+  env: Env,
+  purchaseReference: string,
+  assetId: string,
+  purpose: EntitlementPurpose = 'download',
+  customerId?: number
+): Promise<EntitlementCheckResult> {
   const session = await getVerifiedPurchaseSession(env, purchaseReference);
   if (!session) {
     return { granted: false, reason: 'purchase_not_verified' };
+  }
+  if (customerId !== undefined && session.customerId !== customerId) {
+    return { granted: false, reason: 'not_owned_by_customer' };
   }
 
   const product = await fetchCatalogProduct(env, session.productSlug);
@@ -101,7 +142,12 @@ export async function checkEntitlement(env: Env, purchaseReference: string, asse
   // UPDATE ... WHERE downloads_used < max_downloads), not here — see
   // docs/digital-fulfilment.md's "Download policy" for why this is a
   // deliberate two-layer design, not a redundant one.
-  if (delivery.maxDownloads !== null && delivery.downloadsUsed >= delivery.maxDownloads) {
+  //
+  // Skipped entirely for purpose === 'view' (Phase 7A) — reading
+  // never draws from the download count, by product design, so a
+  // customer who has exhausted their downloads can still read what
+  // they own.
+  if (purpose === 'download' && delivery.maxDownloads !== null && delivery.downloadsUsed >= delivery.maxDownloads) {
     return { granted: false, reason: 'download_limit_reached' };
   }
   if (delivery.accessExpiresAt !== null && Date.now() > new Date(delivery.accessExpiresAt).getTime()) {
@@ -126,22 +172,23 @@ export async function generateDownloadPermission(
   env: Env,
   logger: Logger,
   purchaseReference: string,
-  assetId: string
+  assetId: string,
+  purpose: EntitlementPurpose = 'download'
 ): Promise<GenerateDownloadPermissionResult> {
-  const check = await checkEntitlement(env, purchaseReference, assetId);
+  const check = await checkEntitlement(env, purchaseReference, assetId, purpose);
   if (!check.granted) {
-    logger.warn('entitlement.denied', { purchaseReference, assetId, reason: check.reason });
+    logger.warn('entitlement.denied', { purchaseReference, assetId, purpose, reason: check.reason });
     return { granted: false, reason: check.reason };
   }
 
   const token = generateDownloadToken();
   const expiresAt = new Date(Date.now() + DOWNLOAD_TOKEN_TTL_MINUTES * 60_000).toISOString();
 
-  await env.DB.prepare(`INSERT INTO download_tokens (token, delivery_id, expires_at) VALUES (?, ?, ?)`)
-    .bind(token, check.deliveryId, expiresAt)
+  await env.DB.prepare(`INSERT INTO download_tokens (token, delivery_id, expires_at, purpose) VALUES (?, ?, ?, ?)`)
+    .bind(token, check.deliveryId, expiresAt, purpose)
     .run();
 
-  logger.info('entitlement.granted', { purchaseReference, assetId, deliveryId: check.deliveryId });
+  logger.info('entitlement.granted', { purchaseReference, assetId, purpose, deliveryId: check.deliveryId });
 
   return { granted: true, token, expiresAt };
 }
@@ -165,12 +212,13 @@ export async function generateDownloadPermission(
 export type RedeemDenialReason = 'token_not_found' | 'token_expired' | 'token_already_used' | 'download_limit_reached' | 'asset_unavailable';
 
 export type RedeemResult =
-  | { ok: true; asset: DigitalAsset; productTitle: string }
+  | { ok: true; asset: DigitalAsset; productTitle: string; purpose: EntitlementPurpose }
   | { ok: false; reason: RedeemDenialReason };
 
 interface ConsumeTokenResult {
   ok: true;
   deliveryId: number;
+  purpose: EntitlementPurpose;
 }
 type ConsumeTokenOutcome = ConsumeTokenResult | { ok: false; reason: 'token_not_found' | 'token_expired' | 'token_already_used' };
 
@@ -198,18 +246,29 @@ export async function redeemDownloadToken(env: Env, logger: Logger, tokenInput: 
     return { ok: false, reason: consumed.reason };
   }
 
-  const delivery = await incrementDownloadUsageAtomic(env, consumed.deliveryId);
+  // Phase 7A: a 'view' token never touches downloads_used — it re-
+  // verifies the delivery is still genuinely owned (not revoked, not
+  // past its access window) via a separate, non-incrementing atomic
+  // check, and records last_viewed_at instead of last_download_at.
+  // A 'download' token's behavior below is byte-for-byte what this
+  // function always did — no existing download consumes any
+  // differently than before this migration.
+  const delivery =
+    consumed.purpose === 'view' ? await recordViewAtomic(env, consumed.deliveryId) : await incrementDownloadUsageAtomic(env, consumed.deliveryId);
   if (!delivery) {
     // The token itself was valid and is now consumed (single-use holds
     // regardless), but the delivery's policy (limit reached, revoked,
-    // or its own access window expired) no longer allows a download —
-    // re-checked fresh here, not trusted from whenever the token was
+    // or its own access window expired) no longer allows this — re-
+    // checked fresh here, not trusted from whenever the token was
     // minted up to 15 minutes ago. Folded into one code
     // (DOWNLOAD_LIMIT_REACHED, matching docs/worker-api-design.md's
     // original four-code spec) rather than adding new codes for
     // "revoked"/"access expired" specifically — a finer breakdown can
-    // be added later if a real need for it shows up.
-    logger.warn('download.limit_reached', { deliveryId: consumed.deliveryId });
+    // be added later if a real need for it shows up. A denied 'view'
+    // redemption reaches this same code too: from the customer's side
+    // it is still "this purchase's access is no longer good," the
+    // exact same message already covers it correctly.
+    logger.warn('download.limit_reached', { deliveryId: consumed.deliveryId, purpose: consumed.purpose });
     return { ok: false, reason: 'download_limit_reached' };
   }
 
@@ -223,8 +282,8 @@ export async function redeemDownloadToken(env: Env, logger: Logger, tokenInput: 
     return { ok: false, reason: 'asset_unavailable' };
   }
 
-  logger.info('download.redeemed', { deliveryId: consumed.deliveryId, assetId: asset.assetId });
-  return { ok: true, asset, productTitle: product!.title };
+  logger.info('download.redeemed', { deliveryId: consumed.deliveryId, assetId: asset.assetId, purpose: consumed.purpose });
+  return { ok: true, asset, productTitle: product!.title, purpose: consumed.purpose };
 }
 
 /**
@@ -249,10 +308,10 @@ async function consumeTokenAtomic(env: Env, token: string): Promise<ConsumeToken
     .run();
 
   if (result.meta.changes === 1) {
-    const row = await env.DB.prepare(`SELECT delivery_id AS deliveryId FROM download_tokens WHERE token = ?`)
+    const row = await env.DB.prepare(`SELECT delivery_id AS deliveryId, purpose FROM download_tokens WHERE token = ?`)
       .bind(token)
-      .first<{ deliveryId: number }>();
-    return row ? { ok: true, deliveryId: row.deliveryId } : { ok: false, reason: 'token_not_found' };
+      .first<{ deliveryId: number; purpose: EntitlementPurpose }>();
+    return row ? { ok: true, deliveryId: row.deliveryId, purpose: row.purpose } : { ok: false, reason: 'token_not_found' };
   }
 
   const existing = await env.DB.prepare(`SELECT used_at AS usedAt FROM download_tokens WHERE token = ?`)
@@ -289,9 +348,36 @@ async function incrementDownloadUsageAtomic(env: Env, deliveryId: number): Promi
   return row ?? null;
 }
 
+/**
+ * The 'view'-purpose counterpart to incrementDownloadUsageAtomic()
+ * above — Phase 7A. Re-verifies the delivery is not revoked and not
+ * past its access window, the same two ownership-integrity checks a
+ * download gets, but deliberately WITHOUT the max_downloads clause:
+ * reading never draws from the download count. Never writes
+ * downloads_used or last_download_at — only last_viewed_at, a
+ * separate fact.
+ */
+async function recordViewAtomic(env: Env, deliveryId: number): Promise<DeliveryLocationRow | null> {
+  const result = await env.DB.prepare(
+    `UPDATE deliveries
+     SET last_viewed_at = datetime('now'), updated_at = datetime('now')
+     WHERE id = ?
+       AND status != 'revoked'
+       AND (access_expires_at IS NULL OR access_expires_at > datetime('now'))`
+  )
+    .bind(deliveryId)
+    .run();
+  if (result.meta.changes !== 1) return null;
+
+  const row = await env.DB.prepare(`SELECT product_slug AS productSlug, asset_id AS assetId FROM deliveries WHERE id = ?`)
+    .bind(deliveryId)
+    .first<DeliveryLocationRow>();
+  return row ?? null;
+}
+
 async function getVerifiedPurchaseSession(env: Env, purchaseReference: string): Promise<VerifiedPurchaseSessionRow | null> {
   const row = await env.DB.prepare(
-    `SELECT id, product_slug AS productSlug, status FROM purchase_sessions WHERE purchase_reference = ?`
+    `SELECT id, product_slug AS productSlug, status, customer_id AS customerId FROM purchase_sessions WHERE purchase_reference = ?`
   )
     .bind(purchaseReference)
     .first<VerifiedPurchaseSessionRow>();
