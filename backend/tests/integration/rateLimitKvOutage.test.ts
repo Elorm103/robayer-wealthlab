@@ -32,10 +32,20 @@
  */
 import { describe, it, expect, vi, afterEach } from 'vitest';
 import { SELF, env } from 'cloudflare:test';
+import { createSession as createAdminSession } from '../../services/admin/sessionService';
 
 afterEach(() => {
   vi.restoreAllMocks();
 });
+
+async function seedAdmin(): Promise<{ cookieHeader: string }> {
+  const insert = await env.DB.prepare(`INSERT INTO admin_users (email, password_hash, role, is_active) VALUES (?, 'x:1:x', 'super_admin', 1)`)
+    .bind(`kv-outage-admin-${Math.random().toString(36).slice(2)}@example.com`)
+    .run();
+  const adminId = Number(insert.meta.last_row_id);
+  const session = await createAdminSession(env as any, adminId, { ip: null, userAgent: null });
+  return { cookieHeader: `admin_session=${session.sessionToken}; admin_csrf=${session.csrfSecret}` };
+}
 
 describe('RATE_LIMIT_KV outage — checkout stays available', () => {
   it('POST /api/checkout/sessions returns a normal VALIDATION_ERROR, not a 500, when RATE_LIMIT_KV.get() throws', async () => {
@@ -121,6 +131,22 @@ describe('RATE_LIMIT_KV outage — checkout stays available', () => {
     const value = await env.RATE_LIMIT_KV.get('online:session:heartbeat-healthy-session');
     expect(value).toBe('1');
     expect(putSpy).toHaveBeenCalledWith('online:session:heartbeat-healthy-session', '1', { expirationTtl: 120 });
+  });
+
+  it('GET /api/admin/analytics/online-now returns a structured 503, not an unhandled 500, when RATE_LIMIT_KV.list() throws (forensic-audit fix, 2026-08-28)', async () => {
+    vi.spyOn(env.RATE_LIMIT_KV, 'list').mockRejectedValue(new Error('KV list() limit exceeded for the day.'));
+    const { cookieHeader } = await seedAdmin();
+
+    const res = await SELF.fetch('https://example.com/api/admin/analytics/online-now', {
+      headers: { Cookie: cookieHeader },
+    });
+    const body = await res.json<any>();
+
+    expect(res.status).toBe(503);
+    expect(body.success).toBe(false);
+    // Not a fabricated 0 — this metric is genuinely unavailable, and
+    // must be reported as such rather than looking like a real reading.
+    expect(body.data).toBeUndefined();
   });
 
   it('normal rate limiting still functions when RATE_LIMIT_KV is healthy (no regression from the fallback change)', async () => {

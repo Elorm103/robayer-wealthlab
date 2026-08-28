@@ -22,6 +22,7 @@
  */
 
 import type { Env } from '../../worker/env';
+import { paystackKeyToDataClassification } from '../../utils/paystackEnvironment';
 
 export interface FindOrCreateResult {
   customerId: number;
@@ -70,15 +71,23 @@ export async function findOrCreateCustomer(env: Env, email: string, marketingOpt
   // INSERT loses the race gets a clean constraint failure, caught below
   // and resolved by re-reading the row the winner just created.
   try {
+    // Forensic-audit fix (2026-08-28) — see utils/paystackEnvironment.ts.
+    // Every call site here is purchase-triggered (per ADR-006 above), so
+    // the Paystack key mode live at the time this customer is provisioned
+    // is real evidence about the transaction that created them, not a
+    // guess — classified up front instead of defaulting to migration
+    // 0028's 'UNKNOWN' forever.
+    const dataClassification = paystackKeyToDataClassification(env.PAYSTACK_SECRET_KEY);
+
     const insert = await env.DB.prepare(
-      `INSERT INTO customers (email, password_hash, email_verified_at, status) VALUES (?, NULL, datetime('now'), 'active')`
+      `INSERT INTO customers (email, password_hash, email_verified_at, status, data_classification) VALUES (?, NULL, datetime('now'), 'active', ?)`
     )
-      .bind(normalizedEmail)
+      .bind(normalizedEmail, dataClassification)
       .run();
     const customerId = Number(insert.meta.last_row_id);
 
-    await env.DB.prepare(`INSERT INTO customer_profiles (customer_id, marketing_opt_in) VALUES (?, ?)`)
-      .bind(customerId, marketingOptIn ? 1 : 0)
+    await env.DB.prepare(`INSERT INTO customer_profiles (customer_id, marketing_opt_in, data_classification) VALUES (?, ?, ?)`)
+      .bind(customerId, marketingOptIn ? 1 : 0, dataClassification)
       .run();
 
     return { customerId, isNewCustomer: true };

@@ -167,8 +167,21 @@ export async function handleAnalyticsOnlineNow(request: Request, env: Env, logge
     return jsonError('RATE_LIMITED', 'Too many requests. Please try again shortly.');
   }
 
-  const count = await analyticsService.getOnlineNowCount(env);
-  return jsonSuccess({ count });
+  // Forensic-audit fix (2026-08-28): unlike systemHealthService.ts's own
+  // checkOnlineNow() (which deliberately lets the KV throw propagate so
+  // it can report the degradation), this route has no such wrapper
+  // elsewhere in the call chain — a KV outage/quota exhaustion here
+  // previously surfaced as an unstructured 500 instead of this project's
+  // standard error shape. admin-live-activity.js already treats any
+  // non-ok response as "keep the last known value," so this never shows
+  // a fabricated 0 for a genuinely unavailable metric.
+  try {
+    const count = await analyticsService.getOnlineNowCount(env);
+    return jsonSuccess({ count });
+  } catch (err) {
+    logger.error('analytics.online_now_unavailable', { error: err instanceof Error ? err.message : String(err) });
+    return jsonError('INTERNAL_ERROR', 'Online Now is temporarily unavailable.', 503);
+  }
 }
 
 /** Per-book funnel (views/checkout starts/purchases/revenue/downloads/conversion) — one row per real product, generalizes automatically to future books. See services/admin/analyticsService.ts's getPerBookFunnel(). */

@@ -162,11 +162,15 @@ async function grantEntitlement(
     : null;
 
   const result = await env.DB.prepare(
+    // Forensic-audit fix (2026-08-28): inherits the parent
+    // purchase_session's own data_classification instead of defaulting
+    // to migration 0028's 'UNKNOWN' forever — see orderService.ts's
+    // matching fix for order_items/licenses/receipts.
     `INSERT OR IGNORE INTO deliveries
-       (purchase_session_id, asset_id, product_slug, max_downloads, access_expires_at, status)
-     VALUES (?, ?, ?, ?, ?, 'ready')`
+       (purchase_session_id, asset_id, product_slug, max_downloads, access_expires_at, status, data_classification)
+     VALUES (?, ?, ?, ?, ?, 'ready', (SELECT data_classification FROM purchase_sessions WHERE id = ?))`
   )
-    .bind(purchaseSessionId, asset.assetId, productSlug, policy.maxPerPurchase, accessExpiresAt)
+    .bind(purchaseSessionId, asset.assetId, productSlug, policy.maxPerPurchase, accessExpiresAt, purchaseSessionId)
     .run();
 
   return result.meta.changes === 1;

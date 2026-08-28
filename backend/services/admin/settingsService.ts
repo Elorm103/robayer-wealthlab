@@ -18,6 +18,7 @@
 
 import type { Env } from '../../worker/env';
 import type { Logger } from '../../utils/logger';
+import { classifyPaystackEnvironment } from '../../utils/paystackEnvironment';
 import type { EmailTemplateName } from '../emailService';
 import { getAllRoutingConfig } from '../ai/routingConfig';
 import {
@@ -751,16 +752,6 @@ export async function updateSettings(env: Env, logger: Logger, actorId: number, 
 // (payment_transactions, email_log) or from env/request context —
 // nothing is duplicated into site_settings.
 // ============================================================
-
-function classifyPaystackEnvironment(secretKey: string): 'test' | 'live' | 'unknown' {
-  // Only the fixed-length prefix is ever inspected — the full key is
-  // never assigned to a variable that outlives this comparison, never
-  // logged, never returned. Matches how real payment dashboards show
-  // a test-mode banner without displaying the key itself.
-  if (secretKey.startsWith('sk_test_')) return 'test';
-  if (secretKey.startsWith('sk_live_')) return 'live';
-  return 'unknown';
-}
 
 export interface PaymentDiagnostics {
   provider: SettingsField<string>;

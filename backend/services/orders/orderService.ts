@@ -71,11 +71,16 @@ export async function createOrderArtifacts(env: Env, logger: Logger, input: Crea
   try {
     const unitPricePesewas = Math.round(originalAmountPesewas / quantity);
 
+    // Forensic-audit fix (2026-08-28): order_items/licenses/receipts all
+    // inherit the parent purchase_session's own data_classification
+    // (set at checkout-session creation time) rather than defaulting to
+    // migration 0028's 'UNKNOWN' forever - the same transaction can
+    // never be PRODUCTION in purchase_sessions but UNKNOWN here.
     const orderItemInsert = await env.DB.prepare(
-      `INSERT INTO order_items (purchase_session_id, product_id, product_title, unit_price_pesewas, quantity)
-       VALUES (?, ?, ?, ?, ?)`
+      `INSERT INTO order_items (purchase_session_id, product_id, product_title, unit_price_pesewas, quantity, data_classification)
+       VALUES (?, ?, ?, ?, ?, (SELECT data_classification FROM purchase_sessions WHERE id = ?))`
     )
-      .bind(input.purchaseSessionId, input.productId, input.productTitle, unitPricePesewas, quantity)
+      .bind(input.purchaseSessionId, input.productId, input.productTitle, unitPricePesewas, quantity, input.purchaseSessionId)
       .run();
     const orderItemId = Number(orderItemInsert.meta.last_row_id);
 
@@ -85,10 +90,10 @@ export async function createOrderArtifacts(env: Env, logger: Logger, input: Crea
     for (let seat = 0; seat < quantity; seat++) {
       const licenseKey = generateLicenseKey();
       const licenseInsert = await env.DB.prepare(
-        `INSERT INTO licenses (purchase_session_id, product_id, customer_id, license_key, terms_version)
-         VALUES (?, ?, ?, ?, ?)`
+        `INSERT INTO licenses (purchase_session_id, product_id, customer_id, license_key, terms_version, data_classification)
+         VALUES (?, ?, ?, ?, ?, (SELECT data_classification FROM purchase_sessions WHERE id = ?))`
       )
-        .bind(input.purchaseSessionId, input.productId, input.customerId, licenseKey, input.licenseTermsVersion)
+        .bind(input.purchaseSessionId, input.productId, input.customerId, licenseKey, input.licenseTermsVersion, input.purchaseSessionId)
         .run();
       licenseIds.push(Number(licenseInsert.meta.last_row_id));
     }
@@ -139,8 +144,8 @@ export async function createOrderArtifacts(env: Env, logger: Logger, input: Crea
     // (utils/purchaseReference.ts's header comment): insert first,
     // then UPDATE the formatted number in using the row's own id.
     const receiptInsert = await env.DB.prepare(
-      `INSERT INTO receipts (receipt_number, purchase_session_id, customer_id, line_items, subtotal_pesewas, discount_pesewas, tax_breakdown, tax_pesewas, total_pesewas, tax_behavior, currency)
-       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`
+      `INSERT INTO receipts (receipt_number, purchase_session_id, customer_id, line_items, subtotal_pesewas, discount_pesewas, tax_breakdown, tax_pesewas, total_pesewas, tax_behavior, currency, data_classification)
+       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, (SELECT data_classification FROM purchase_sessions WHERE id = ?))`
     )
       .bind(
         null, // NULL, not a placeholder string — a duplicate '' would collide under the UNIQUE constraint on concurrent inserts; NULL never does (see the receipts.receipt_number column's own comment in migration 0019)
@@ -153,7 +158,8 @@ export async function createOrderArtifacts(env: Env, logger: Logger, input: Crea
         taxPesewas,
         totalPesewas,
         input.taxBehavior,
-        input.currency
+        input.currency,
+        input.purchaseSessionId
       )
       .run();
     const receiptId = Number(receiptInsert.meta.last_row_id);

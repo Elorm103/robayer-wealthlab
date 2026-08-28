@@ -41,6 +41,7 @@ import { findOrCreateCustomer } from './customer/identityService';
 import { createOrderArtifacts } from './orders/orderService';
 import { validateCoupon, redeemCoupon, checkFirstPurchaseOnlyViolation } from './couponService';
 import { dispatchPurchase } from './analytics/conversionDispatchService';
+import { paystackKeyToDataClassification } from '../utils/paystackEnvironment';
 
 /** A pending session outlives a genuinely slow checkout, but doesn't sit "pending" forever if the visitor abandons it — see docs/commerce-foundation.md. */
 const PURCHASE_SESSION_TTL_MINUTES = 30;
@@ -369,8 +370,8 @@ async function insertPurchaseSession(env: Env, input: InsertPurchaseSessionInput
     `INSERT INTO purchase_sessions
        (purchase_reference, product_slug, product_id, product_version, product_title, amount_pesewas, currency, status, provider, expires_at,
         terms_accepted_at, terms_version, license_accepted_at, license_version, marketing_opt_in, coupon_id, discount_pesewas, customer_email,
-        client_ip_address, client_user_agent, fbc, fbp, utm_source, utm_medium, utm_campaign, utm_content, attribution_confidence)
-     VALUES (NULL, ?, ?, ?, ?, ?, ?, 'pending', ?, ?, datetime('now'), ?, datetime('now'), ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`
+        client_ip_address, client_user_agent, fbc, fbp, utm_source, utm_medium, utm_campaign, utm_content, attribution_confidence, data_classification)
+     VALUES (NULL, ?, ?, ?, ?, ?, ?, 'pending', ?, ?, datetime('now'), ?, datetime('now'), ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`
   )
     .bind(
       input.productSlug,
@@ -395,7 +396,11 @@ async function insertPurchaseSession(env: Env, input: InsertPurchaseSessionInput
       input.utmMedium,
       input.utmCampaign,
       input.utmContent,
-      input.attributionConfidence
+      input.attributionConfidence,
+      // Forensic-audit fix (2026-08-28) — see utils/paystackEnvironment.ts.
+      // Classified from the configured Paystack key mode at insert time,
+      // instead of defaulting to migration 0028's 'UNKNOWN' forever.
+      paystackKeyToDataClassification(env.PAYSTACK_SECRET_KEY)
     )
     .run();
 
@@ -940,8 +945,8 @@ interface RecordPaymentTransactionInput {
 async function recordPaymentTransaction(env: Env, input: RecordPaymentTransactionInput): Promise<boolean> {
   const result = await env.DB.prepare(
     `INSERT OR IGNORE INTO payment_transactions
-       (purchase_session_id, paystack_reference, event_type, amount_pesewas, currency, status, gateway_response, webhook_received_at)
-     VALUES (?, ?, ?, ?, ?, 'pending', ?, datetime('now'))`
+       (purchase_session_id, paystack_reference, event_type, amount_pesewas, currency, status, gateway_response, webhook_received_at, data_classification)
+     VALUES (?, ?, ?, ?, ?, 'pending', ?, datetime('now'), (SELECT data_classification FROM purchase_sessions WHERE id = ?))`
   )
     .bind(
       input.purchaseSessionId,
@@ -949,7 +954,13 @@ async function recordPaymentTransaction(env: Env, input: RecordPaymentTransactio
       input.eventType,
       input.amountPesewas,
       input.currency,
-      input.rawPayload
+      input.rawPayload,
+      // Forensic-audit fix (2026-08-28) — inherits the parent
+      // purchase_session's own classification (set at checkout-session
+      // creation time, see insertPurchaseSession() above) rather than
+      // re-deriving it, so the same transaction is never PRODUCTION in
+      // one table and UNKNOWN in another.
+      input.purchaseSessionId
     )
     .run();
   return result.meta.changes === 1;
