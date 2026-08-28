@@ -138,9 +138,16 @@ export async function redeemCoupon(
 
   try {
     await env.DB.prepare(
-      `INSERT INTO coupon_redemptions (coupon_id, purchase_session_id, customer_email, discount_pesewas) VALUES (?, ?, ?, ?)`
+      // Forensic-audit fix (2026-08-28): inherits the COUPON's own
+      // classification, not the purchase_session's — matching migration
+      // 0029's own established precedent (TRIAL2/TRIAL3's redemptions
+      // are DEVELOPMENT even though the purchase_sessions that redeemed
+      // them are INTERNAL; a redemption record's meaning is "this coupon
+      // was used," judged by what kind of coupon it was).
+      `INSERT INTO coupon_redemptions (coupon_id, purchase_session_id, customer_email, discount_pesewas, data_classification)
+       VALUES (?, ?, ?, ?, (SELECT data_classification FROM coupons WHERE id = ?))`
     )
-      .bind(couponId, purchaseSessionId, customerEmail, discountPesewas)
+      .bind(couponId, purchaseSessionId, customerEmail, discountPesewas, couponId)
       .run();
   } catch (err) {
     // UNIQUE(purchase_session_id) — should never fire in practice (each
@@ -291,8 +298,19 @@ export async function createCoupon(env: Env, logger: Logger, actorId: number, in
   if (existing) return { ok: false, reason: 'duplicate_code' };
 
   const insert = await env.DB.prepare(
-    `INSERT INTO coupons (code, product_id, discount_type, discount_value, max_redemptions, first_purchase_only, starts_at, expires_at, created_by)
-     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`
+    // Forensic-audit fix (2026-08-28): unlike purchase_sessions (created
+    // by anonymous public traffic, some against a test Paystack key), a
+    // coupon only ever gets created by a real authenticated admin
+    // through this one production admin panel — there is no "test
+    // environment" for this insert to distinguish. Defaults to
+    // PRODUCTION, matching migration 0029's own treatment of
+    // products/resources ("no ambiguity ... classify PRODUCTION
+    // unconditionally"). A genuine test/internal coupon (e.g. TRIAL2,
+    // NALIA1) still needs the same human-judgment reclassification pass
+    // 0029/0047/0048 already established — that distinction isn't
+    // mechanically knowable at creation time.
+    `INSERT INTO coupons (code, product_id, discount_type, discount_value, max_redemptions, first_purchase_only, starts_at, expires_at, created_by, data_classification)
+     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, 'PRODUCTION')`
   )
     .bind(code, productId, input.discountType, input.discountValue, input.maxRedemptions, input.firstPurchaseOnly ? 1 : 0, input.startsAt, input.expiresAt, actorId)
     .run();

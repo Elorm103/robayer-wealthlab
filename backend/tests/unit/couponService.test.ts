@@ -204,6 +204,22 @@ describe('redeemCoupon', () => {
     expect(redemption.discountPesewas).toBe(500);
   });
 
+  it('forensic-audit fix (2026-08-28): the redemption row inherits the COUPON\'s own data_classification, not left UNKNOWN, matching migration 0029\'s established precedent', async () => {
+    const adminId = await seedAdmin();
+    const couponInsert = await env.DB.prepare(
+      `INSERT INTO coupons (code, discount_type, discount_value, status, created_by, data_classification) VALUES ('CLSTEST', 'fixed', 500, 'active', ?, 'DEVELOPMENT')`
+    )
+      .bind(adminId)
+      .run();
+    const couponId = Number(couponInsert.meta.last_row_id);
+    const purchaseSessionId = await seedPurchaseSession('RWL-2026-800299');
+
+    await redeemCoupon(env as any, logger, couponId, purchaseSessionId, 'internal-tester@example.com', 500);
+
+    const redemption = await env.DB.prepare('SELECT data_classification AS cls FROM coupon_redemptions WHERE coupon_id = ?').bind(couponId).first<any>();
+    expect(redemption.cls).toBe('DEVELOPMENT');
+  });
+
   it('still records the redemption even when the redemption limit is already reached — payment already happened, it is never reversed', async () => {
     const couponId = await seedCoupon({ code: 'ATCAP1', maxRedemptions: 1, redemptionsCount: 1 });
     const purchaseSessionId = await seedPurchaseSession('RWL-2026-800202');
@@ -376,8 +392,13 @@ describe('createCoupon', () => {
     });
     expect(result.ok).toBe(true);
 
-    const row = await env.DB.prepare('SELECT code FROM coupons WHERE id = ?').bind((result as any).id).first<any>();
+    const row = await env.DB.prepare('SELECT code, data_classification AS cls FROM coupons WHERE id = ?').bind((result as any).id).first<any>();
     expect(row.code).toBe('LAUNCH20');
+    // Forensic-audit fix (2026-08-28): a coupon is only ever created by
+    // a real authenticated admin through this one production panel —
+    // no test-environment distinction applies, so it defaults to
+    // PRODUCTION instead of the old UNKNOWN-forever default.
+    expect(row.cls).toBe('PRODUCTION');
 
     const audit = await env.DB.prepare(`SELECT action FROM audit_logs WHERE action = 'coupon.created'`).first();
     expect(audit).toBeTruthy();
