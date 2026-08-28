@@ -501,6 +501,8 @@ export interface AssetDeliveryInfo {
   downloadsUsed: number;
   /** Null = unlimited, mirrors deliveries.max_downloads' own nullability. */
   maxDownloads: number | null;
+  /** Digital Library Modernization (Phase 5) — a pure display derivation (maxDownloads - downloadsUsed, null when unlimited), never an authorization signal. The atomic check in entitlementService.ts's incrementDownloadUsageAtomic() remains the sole enforcement point; this field only lets the Library tell a customer how many downloads they have left before they hit the limit. */
+  downloadsRemaining: number | null;
   lastDownloadAt: string | null;
 }
 
@@ -549,6 +551,8 @@ export async function resolveAssetsWithDeliveryInfo(env: Env, purchaseSessionId:
       revoked: delivery?.status === 'revoked',
       downloadsUsed: delivery?.downloadsUsed ?? 0,
       maxDownloads: delivery?.maxDownloads ?? null,
+      downloadsRemaining:
+        delivery?.maxDownloads == null ? null : Math.max(0, delivery.maxDownloads - (delivery?.downloadsUsed ?? 0)),
       lastDownloadAt: delivery?.lastDownloadAt ?? null,
     };
   });

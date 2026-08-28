@@ -49,6 +49,16 @@ export interface CustomerPurchaseSummary {
   productVersion: string | null;
   coverImageUrl: string | null;
   /**
+   * Digital Library Modernization (Phase 5) - the product's topic
+   * (services/productService.ts's TOPICS enum: investing,
+   * personal-finance, budgeting, business, mindset), so the Library can
+   * group owned resources by real taxonomy instead of inventing
+   * categories. Null whenever the source product has since been
+   * deleted, same degrade-gracefully rule productVersion/coverImageUrl
+   * already follow.
+   */
+  topic: string | null;
+  /**
    * Version 3.1 Milestone M3 - Customer Library Download actions need
    * to know which assets exist and their usage/limit/revocation state
    * without a second round-trip per purchase (docs/v3.1-m3-api-gap-analysis.md,
@@ -93,6 +103,7 @@ interface PurchaseListRow {
   receiptNumber: string | null;
   productVersion: string | null;
   coverImageUrl: string | null;
+  topic: string | null;
 }
 
 const MAX_LIMIT = 50;
@@ -113,7 +124,7 @@ export async function listCustomerPurchases(env: Env, customerId: number, pageIn
     `SELECT ps.id AS purchaseSessionId, ps.product_slug AS productSlug,
             ps.purchase_reference AS purchaseReference, ps.product_title AS productTitle,
             ps.amount_pesewas AS amountPesewas, ps.currency, ps.status, ps.created_at AS createdAt,
-            r.receipt_number AS receiptNumber, p.version AS productVersion, cover.public_url AS coverImageUrl
+            r.receipt_number AS receiptNumber, p.version AS productVersion, p.topic AS topic, cover.public_url AS coverImageUrl
      FROM purchase_sessions ps
      LEFT JOIN receipts r ON r.purchase_session_id = ps.id
      LEFT JOIN products p ON p.slug = ps.product_slug
@@ -140,6 +151,7 @@ export async function listCustomerPurchases(env: Env, customerId: number, pageIn
         receiptNumber: row.receiptNumber,
         productVersion: row.productVersion,
         coverImageUrl: row.coverImageUrl,
+        topic: row.topic,
         assets: await resolveAssetsIfReady(env, row, status),
       };
     })
@@ -159,7 +171,7 @@ export async function getCustomerPurchase(env: Env, customerId: number, referenc
     `SELECT ps.id AS purchaseSessionId, ps.product_slug AS productSlug,
             ps.purchase_reference AS purchaseReference, ps.product_title AS productTitle,
             ps.amount_pesewas AS amountPesewas, ps.currency, ps.status, ps.created_at AS createdAt,
-            r.receipt_number AS receiptNumber, p.version AS productVersion, cover.public_url AS coverImageUrl
+            r.receipt_number AS receiptNumber, p.version AS productVersion, p.topic AS topic, cover.public_url AS coverImageUrl
      FROM purchase_sessions ps
      LEFT JOIN receipts r ON r.purchase_session_id = ps.id
      LEFT JOIN products p ON p.slug = ps.product_slug
@@ -183,6 +195,7 @@ export async function getCustomerPurchase(env: Env, customerId: number, referenc
     receiptNumber: row.receiptNumber,
     productVersion: row.productVersion,
     coverImageUrl: row.coverImageUrl,
+    topic: row.topic,
     assets: await resolveAssetsIfReady(env, row, status),
   };
 }

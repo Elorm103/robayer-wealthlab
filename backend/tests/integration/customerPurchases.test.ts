@@ -9,16 +9,19 @@ import { describe, it, expect, beforeEach } from 'vitest';
 import { SELF, env } from 'cloudflare:test';
 import { findOrCreateCustomer } from '../../services/customer/identityService';
 import { createSession } from '../../services/customer/sessionService';
+import { seedTestProduct, cleanupTestProduct, TEST_PRODUCT_SLUG, TEST_ASSET_ID } from '../helpers';
 
 beforeEach(async () => {
   await env.DB.exec('DELETE FROM receipt_download_tokens');
   await env.DB.exec('DELETE FROM receipts');
   await env.DB.exec('DELETE FROM licenses');
+  await env.DB.exec('DELETE FROM deliveries');
   await env.DB.exec('DELETE FROM order_items');
   await env.DB.exec('DELETE FROM purchase_sessions');
   await env.DB.exec('DELETE FROM customer_sessions');
   await env.DB.exec('DELETE FROM customer_profiles');
   await env.DB.exec('DELETE FROM customers');
+  await cleanupTestProduct(env as any);
 });
 
 async function seedCustomerWithPurchase(email: string, reference: string): Promise<{ customerId: number; cookieHeader: string }> {
@@ -71,6 +74,29 @@ describe('GET /api/customer/purchases', () => {
   it('rejects an unauthenticated request', async () => {
     const res = await SELF.fetch('https://example.com/api/customer/purchases');
     expect(res.status).toBe(401);
+  });
+
+  it('Digital Library Modernization (Phase 5): includes the product\'s real topic and a computed downloadsRemaining per asset, never left UNKNOWN/undefined', async () => {
+    await seedTestProduct(env as any);
+    const { cookieHeader } = await seedCustomerWithPurchase('topic-check@example.com', 'RWL-2026-600010');
+    const purchaseSessionId = await env.DB.prepare('SELECT id FROM purchase_sessions WHERE purchase_reference = ?')
+      .bind('RWL-2026-600010')
+      .first<{ id: number }>()
+      .then((r) => r!.id);
+    await env.DB.prepare(
+      `INSERT INTO deliveries (purchase_session_id, asset_id, product_slug, max_downloads, status) VALUES (?, ?, ?, 5, 'ready')`
+    )
+      .bind(purchaseSessionId, TEST_ASSET_ID, TEST_PRODUCT_SLUG)
+      .run();
+
+    const res = await SELF.fetch('https://example.com/api/customer/purchases', { headers: { Cookie: cookieHeader } });
+    const body = await res.json<any>();
+    const purchase = body.data.purchases[0];
+    expect(purchase.topic).toBe('investing');
+    expect(purchase.assets).toHaveLength(1);
+    expect(purchase.assets[0].maxDownloads).toBe(5);
+    expect(purchase.assets[0].downloadsUsed).toBe(0);
+    expect(purchase.assets[0].downloadsRemaining).toBe(5);
   });
 });
 

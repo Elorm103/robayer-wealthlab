@@ -1,42 +1,57 @@
 /**
- * Robayer WealthLab: My Library Component — Version 3.5.4 (Customer
- * Ownership Experience & Product Page Refinement). Originally built
- * Version 3.1 Milestone M3; this milestone brought it up to the same
- * Owner Mode standard the book detail page already has (V3.5.3) —
- * cover, version, and purchase reference now shown per the brief's own
- * "premium digital bookshelf" spec, plus Read and Review actions that
- * simply didn't exist here before (only Download and View receipt
- * did). Drives dashboard/index.html.
+ * Robayer WealthLab: My Library Component — Digital Library
+ * Modernization (Phase 5), building on Version 3.5.4's "premium
+ * digital bookshelf" foundation. Drives dashboard/index.html.
+ *
+ * New in this pass, per the approved Phase 1-4 report: a warm welcome
+ * header (using only real, session-derived data — no invented name,
+ * since no display name is ever collected anywhere in this codebase's
+ * signup flow, confirmed during the audit), topic-based grouping using
+ * the real products.topic taxonomy (now returned by
+ * GET /api/customer/purchases), client-side search and sort, a
+ * proactive downloads-used/remaining line per asset, and a redesigned
+ * discovery empty state. Recommendations ("Continue your learning")
+ * are a separate, independent component — see library-recommendations.js
+ * — matching this codebase's established one-script-per-section
+ * convention (js/components/admin/admin-live-activity.js et al.).
  *
  * Waits for `dashboard:ready` (dashboard-shell.js's own confirmation
- * that a valid session exists — see that file's header comment) before
- * fetching anything, so this component never needs its own 401-handling
- * branch; the shell is the single auth gate. This is a deliberately
- * different gating mechanism from js/components/book-purchase-state.js's
- * own inline session check — not a duplicated ownership check, but the
- * same intentional distinction that file's own header comment already
- * documents: dashboard pages are customer-only by design and may
- * redirect a guest away; the public book detail page never may.
+ * that a valid session exists) before fetching anything, so this
+ * component never needs its own 401-handling branch.
  *
  * The Download/Read actions reuse `POST /api/purchases/:reference/downloads`
- * -> `GET /api/download/:token` exactly as
- * js/components/book-purchase-state.js's own owner actions do on the
- * book detail page — the same one download mechanism, not a second
- * one. Download-limit messaging is shared via
- * js/components/ownership-helpers.js's describeDownloadState() rather
- * than reimplemented here, per this milestone's own architecture-review
- * phase.
+ * -> `GET /api/download/:token` exactly as before — the same one
+ * download mechanism, not a second one. Download-limit messaging is
+ * shared via js/components/ownership-helpers.js's describeDownloadState().
  */
+
+const TOPIC_LABELS = {
+  investing: 'Investing',
+  'personal-finance': 'Personal Finance',
+  budgeting: 'Budgeting',
+  business: 'Business',
+  mindset: 'Mindset',
+};
+const TOPIC_ORDER = ['investing', 'personal-finance', 'budgeting', 'business', 'mindset'];
 
 function initLibraryList() {
   const root = document.querySelector('[data-library-root]');
   if (!root || root.hasAttribute('data-bound')) return;
   root.setAttribute('data-bound', 'true');
 
-  const loadingEl = root.querySelector('[data-library-loading]');
+  const loadingEl = document.querySelector('[data-library-loading]');
   const listEl = root.querySelector('[data-library-list]');
-  const emptyEl = root.querySelector('[data-library-empty]');
-  const errorEl = root.querySelector('[data-library-error]');
+  const emptyEl = document.querySelector('[data-library-empty]');
+  const errorEl = document.querySelector('[data-library-error]');
+  const welcomeHeaderEl = document.querySelector('[data-library-welcome-header]');
+  const welcomeSubEl = document.querySelector('[data-library-welcome-sub]');
+  const toolbarEl = document.querySelector('[data-library-toolbar]');
+  const searchInput = document.querySelector('[data-library-search]');
+  const sortSelect = document.querySelector('[data-library-sort]');
+  const downloadInfoPanel = document.querySelector('[data-download-info-panel]');
+
+  let allPurchases = [];
+  let reviewedSlugs = new Set();
 
   document.addEventListener('dashboard:ready', load, { once: true });
 
@@ -52,16 +67,12 @@ function initLibraryList() {
     loadingEl.hidden = true;
 
     if (result.purchases.length === 0) {
-      emptyEl.hidden = false;
+      renderEmptyState();
       return;
     }
 
-    // One batched call for every purchase's own-review state, rather
-    // than one per row - the same "Leave a Review" -> "Edit Review"
-    // label sync js/components/book-purchase-state.js does on the book
-    // detail page, reusing the exact same GET /api/customer/reviews
-    // endpoint, never a new one.
-    let reviewedSlugs = new Set();
+    allPurchases = result.purchases;
+
     try {
       const reviewData = await window.CustomerDashboard.customerFetch('/api/customer/reviews');
       reviewedSlugs = new Set((reviewData.reviews || []).map((r) => r.productSlug));
@@ -69,9 +80,121 @@ function initLibraryList() {
       // Non-fatal - every row's review link falls back to "Leave a Review".
     }
 
-    listEl.hidden = false;
+    populateWelcome(allPurchases);
+    if (toolbarEl) toolbarEl.hidden = false;
+    if (downloadInfoPanel) downloadInfoPanel.hidden = false;
+
+    root.hidden = false;
+    renderLibrary();
+
+    if (searchInput) searchInput.addEventListener('input', renderLibrary);
+    if (sortSelect) sortSelect.addEventListener('change', renderLibrary);
+  }
+
+  /**
+   * Real, computed counts only - resources owned and the number of
+   * distinct real topics among them. No streaks, no percentages, no
+   * fabricated activity, per the brief's explicit instruction and the
+   * Phase 1-4 audit's confirmation that no such data exists anywhere
+   * in this system.
+   */
+  function populateWelcome(purchases) {
+    if (!welcomeSubEl) return;
+    const topics = new Set(purchases.map((p) => p.topic).filter(Boolean));
+    const resourceWord = purchases.length === 1 ? 'resource' : 'resources';
+    if (topics.size > 1) {
+      welcomeSubEl.textContent = `You own ${purchases.length} ${resourceWord} across ${topics.size} topics. Here is everything, ready when you are.`;
+    } else {
+      welcomeSubEl.textContent = `You own ${purchases.length} ${resourceWord}. Here is everything, ready when you are.`;
+    }
+  }
+
+  function getFilteredSortedPurchases() {
+    const query = (searchInput && searchInput.value.trim().toLowerCase()) || '';
+    const sortMode = (sortSelect && sortSelect.value) || 'recent';
+
+    let purchases = allPurchases;
+    if (query) {
+      purchases = purchases.filter((p) => p.productTitle.toLowerCase().includes(query));
+    }
+
+    const sorted = purchases.slice();
+    if (sortMode === 'alphabetical') {
+      sorted.sort((a, b) => a.productTitle.localeCompare(b.productTitle));
+    } else if (sortMode === 'accessed') {
+      sorted.sort((a, b) => lastAccessedAt(b) - lastAccessedAt(a));
+    }
+    // 'recent' - the API already returns purchases newest-first; no
+    // client-side re-sort needed, preserving the server's own order.
+    return { purchases: sorted, isFiltered: Boolean(query) };
+  }
+
+  /** Real signal: the Read action increments the exact same downloadsUsed/lastDownloadAt as Download, so this genuinely reflects the last time the customer opened or downloaded the file, never an estimate. */
+  function lastAccessedAt(purchase) {
+    const timestamps = (purchase.assets || [])
+      .map((a) => a.lastDownloadAt)
+      .filter(Boolean)
+      .map((t) => new Date(t.includes('T') ? t : t.replace(' ', 'T') + 'Z').getTime());
+    if (timestamps.length === 0) return new Date(purchase.createdAt.includes('T') ? purchase.createdAt : purchase.createdAt.replace(' ', 'T') + 'Z').getTime();
+    return Math.max(...timestamps);
+  }
+
+  function renderLibrary() {
+    const { purchases, isFiltered } = getFilteredSortedPurchases();
     listEl.innerHTML = '';
-    result.purchases.forEach((purchase) => listEl.appendChild(renderCard(purchase, reviewedSlugs)));
+
+    if (purchases.length === 0) {
+      const noResults = document.createElement('p');
+      noResults.className = 'text-secondary';
+      noResults.textContent = 'Nothing matches that search.';
+      listEl.appendChild(noResults);
+      return;
+    }
+
+    if (isFiltered || (sortSelect && sortSelect.value !== 'recent')) {
+      // A deliberate search or a non-default sort reads as "show me
+      // exactly this, in this order" - topic headers would just add
+      // noise on top of an already-specific request.
+      const group = document.createElement('div');
+      group.className = 'library-group__cards';
+      purchases.forEach((purchase) => group.appendChild(renderCard(purchase, reviewedSlugs)));
+      listEl.appendChild(group);
+      return;
+    }
+
+    const byTopic = new Map();
+    const untopiced = [];
+    purchases.forEach((purchase) => {
+      if (purchase.topic && TOPIC_LABELS[purchase.topic]) {
+        if (!byTopic.has(purchase.topic)) byTopic.set(purchase.topic, []);
+        byTopic.get(purchase.topic).push(purchase);
+      } else {
+        untopiced.push(purchase);
+      }
+    });
+
+    TOPIC_ORDER.forEach((topic) => {
+      const items = byTopic.get(topic);
+      if (!items || items.length === 0) return; // never render an empty topic section
+      listEl.appendChild(renderTopicGroup(TOPIC_LABELS[topic], items));
+    });
+    if (untopiced.length > 0) {
+      listEl.appendChild(renderTopicGroup('More resources', untopiced));
+    }
+  }
+
+  function renderTopicGroup(label, purchases) {
+    const section = document.createElement('section');
+    section.className = 'library-group';
+    const heading = document.createElement('h2');
+    heading.className = 'library-group__heading';
+    heading.textContent = label;
+    section.appendChild(heading);
+    const cards = document.createElement('div');
+    cards.className = 'library-group__cards';
+    purchases.forEach((purchase) => cards.appendChild(renderCard(purchase, reviewedSlugs)));
+    section.appendChild(cards);
+    return section;
   }
 
   function renderCard(purchase, reviewedSlugs) {
@@ -83,7 +206,7 @@ function initLibraryList() {
     const meta = document.createElement('div');
     meta.className = 'library-card__meta';
 
-    const title = document.createElement('h2');
+    const title = document.createElement('h3');
     title.className = 'library-card__title';
     title.textContent = purchase.productTitle;
     meta.appendChild(title);
@@ -153,7 +276,20 @@ function initLibraryList() {
     return badge;
   }
 
+  /** Proactive "used / remaining" line, shown only while the asset is still comfortably usable - once the limit is reached, describeDownloadState()'s own warning message takes over instead, so the two never talk over each other. Purely informational; downloadsRemaining is never trusted for anything but display (the atomic check in entitlementService.ts is the real enforcement, unchanged). */
+  function renderDownloadUsage(asset) {
+    if (asset.maxDownloads === null) return null;
+    const remaining = asset.downloadsRemaining ?? Math.max(0, asset.maxDownloads - asset.downloadsUsed);
+    if (remaining <= 0) return null;
+    const line = document.createElement('p');
+    line.className = 'text-small text-muted mt-2 mb-0';
+    line.textContent = `${asset.downloadsUsed} of ${asset.maxDownloads} downloads used, ${remaining} remaining.`;
+    return line;
+  }
+
   function renderActions(purchase, reviewedSlugs, statusEl) {
+    const wrap = document.createElement('div');
+
     const actions = document.createElement('div');
     actions.className = 'library-card__actions';
 
@@ -164,14 +300,16 @@ function initLibraryList() {
 
         const readButton = document.createElement('button');
         readButton.type = 'button';
-        readButton.className = 'btn btn--accent';
+        readButton.className = 'btn btn--accent library-card__action-primary';
         readButton.textContent = 'Read eBook';
+        readButton.setAttribute('data-library-read-action', '');
         actions.appendChild(readButton);
 
         const downloadButton = document.createElement('button');
         downloadButton.type = 'button';
         downloadButton.className = 'btn btn--secondary';
         downloadButton.textContent = `Download ${ebookAsset.displayName}`;
+        downloadButton.setAttribute('data-library-download-action', '');
         actions.appendChild(downloadButton);
 
         if (state.limitReached) {
@@ -190,7 +328,15 @@ function initLibraryList() {
         reviewLink.href = `/books/${encodeURIComponent(purchase.productSlug)}/#reviews`;
         reviewLink.textContent = reviewedSlugs.has(purchase.productSlug) ? 'Edit Review' : 'Leave a Review';
         actions.appendChild(reviewLink);
+
+        wrap.appendChild(actions);
+        const usageLine = renderDownloadUsage(ebookAsset);
+        if (usageLine) wrap.appendChild(usageLine);
+      } else {
+        wrap.appendChild(actions);
       }
+    } else {
+      wrap.appendChild(actions);
     }
 
     if (purchase.receiptNumber) {
@@ -201,7 +347,7 @@ function initLibraryList() {
       actions.appendChild(link);
     }
 
-    return actions;
+    return wrap;
   }
 
   function showStatus(statusEl, message, tone) {
@@ -236,6 +382,7 @@ function initLibraryList() {
         window.open(data.downloadUrl, '_blank', 'noopener');
       }
       asset.downloadsUsed += 1;
+      if (asset.maxDownloads !== null) asset.downloadsRemaining = Math.max(0, asset.maxDownloads - asset.downloadsUsed);
       const afterState = window.RobayerOwnership.describeDownloadState(asset);
       if (afterState.limitReached) {
         [readButton, downloadButton].forEach((b) => b.classList.add('btn--disabled'));
@@ -254,6 +401,54 @@ function initLibraryList() {
     } finally {
       activeButton.textContent = defaultLabel;
     }
+  }
+
+  /**
+   * A real, invitation-shaped discovery surface instead of one flat
+   * sentence - "You haven't built your WealthLab yet," then a small
+   * set of featured/bestseller products. Reuses the existing public
+   * GET /api/products endpoint (no auth needed, already used elsewhere
+   * on public pages) rather than a new backend surface. If that fetch
+   * fails for any reason, degrades to the plain "Browse our guides"
+   * link already in the static HTML - never a broken-looking page.
+   */
+  async function renderEmptyState() {
+    // The empty state carries its own "You haven't built your
+    // WealthLab yet" heading, which would read as a contradiction
+    // right underneath "Everything you own, in one place" - the
+    // generic welcome header steps aside for this state.
+    if (welcomeHeaderEl) welcomeHeaderEl.hidden = true;
+    emptyEl.hidden = false;
+    const picksEl = emptyEl.querySelector('[data-library-empty-picks]');
+    if (!picksEl) return;
+    try {
+      const data = await fetch('/api/products?featured=true&pageSize=3').then((r) => r.json());
+      const items = (data && data.data && data.data.items) || [];
+      if (items.length === 0) return;
+      picksEl.hidden = false;
+      items.forEach((product) => picksEl.appendChild(renderEmptyStatePick(product)));
+    } catch {
+      // The static "Browse our guides" link already in the HTML covers this - no error state needed for a nice-to-have.
+    }
+  }
+
+  function renderEmptyStatePick(product) {
+    const card = document.createElement('a');
+    card.className = 'library-empty-pick';
+    card.href = `/books/${encodeURIComponent(product.slug)}/`;
+    const cover = document.createElement('div');
+    cover.className = 'library-empty-pick__cover book-card__cover book-card__cover--compact';
+    if (product.coverImage) {
+      cover.style.backgroundImage = `url('${product.coverImage}')`;
+      cover.style.backgroundSize = 'cover';
+      cover.style.backgroundPosition = 'center';
+    }
+    const title = document.createElement('p');
+    title.className = 'library-empty-pick__title';
+    title.textContent = product.title;
+    card.appendChild(cover);
+    card.appendChild(title);
+    return card;
   }
 
   function showError(message) {

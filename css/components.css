@@ -2537,12 +2537,25 @@ button.resource-card {
   margin-top: var(--space-1);
 }
 
-@media (max-width: 480px) {
+/* Digital Library Modernization (Phase 5) — the audit found only a
+   single 480px rule here that just narrowed the cover column; real
+   mobile treatment restructures the card instead of shrinking it.
+   Tablet keeps the side-by-side layout (there's room); phone-width
+   stacks cover-above-meta so the cover reads as an actual book cover
+   again, not a thumbnail, and every action gets full-width room. */
+@media (max-width: 640px) {
   .library-card {
-    grid-template-columns: 72px 1fr;
+    grid-template-columns: 1fr;
   }
   .library-card__cover {
-    width: 72px;
+    width: 120px;
+    margin: 0 auto;
+  }
+  .library-card__meta {
+    text-align: center;
+  }
+  .library-card__details {
+    justify-content: center;
   }
 }
 
@@ -2569,6 +2582,352 @@ button.resource-card {
 
 .session-row + .session-row {
   margin-top: var(--space-3);
+}
+
+/* ------------------------------------------------------------
+   Digital Library Modernization (Phase 5) — every rule below
+   reads only semantic tokens (--color-*, --space-*, --radius-*,
+   --shadow-*, --font-*), the same discipline this file's own
+   DASHBOARD header comment establishes, so all of it adapts to
+   dark mode automatically with no separate [data-theme="dark"]
+   entries needed.
+   ------------------------------------------------------------ */
+
+.library-welcome {
+  margin-bottom: var(--space-5);
+}
+
+.library-welcome__heading {
+  font-family: var(--font-display);
+  margin: var(--space-2) 0 var(--space-2);
+}
+
+.library-welcome__sub {
+  margin: 0;
+  max-width: 60ch;
+}
+
+.library-toolbar {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-end;
+  gap: var(--space-3) var(--space-4);
+  margin-bottom: var(--space-4);
+}
+
+.library-toolbar__search {
+  flex: 1 1 260px;
+  margin-bottom: 0;
+}
+
+.library-toolbar__sort {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-1);
+  flex: 0 1 220px;
+}
+
+/* "How your downloads work" — a native <details>/<summary>
+   disclosure so the expand/collapse behavior is fully keyboard-
+   and screen-reader-accessible with zero custom JS. Styled as a
+   quiet, permanent card, never an alert or a warning. */
+.download-info-panel {
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-md);
+  background-color: var(--color-bg-alt);
+  margin-bottom: var(--space-5);
+  padding: var(--space-3) var(--space-4);
+}
+
+.download-info-panel__summary {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  cursor: pointer;
+  font-family: var(--font-heading);
+  font-weight: var(--weight-medium);
+  color: var(--color-text-heading);
+  list-style: none;
+  min-height: 44px;
+}
+
+.download-info-panel__summary::-webkit-details-marker {
+  display: none;
+}
+
+.download-info-panel__summary:focus-visible {
+  outline: 2px solid var(--color-accent);
+  outline-offset: 2px;
+  border-radius: var(--radius-sm);
+}
+
+.download-info-panel__icon {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 28px;
+  height: 28px;
+  border-radius: 50%;
+  background-color: var(--color-success-tint);
+  color: var(--color-success);
+  font-weight: var(--weight-semibold);
+  flex-shrink: 0;
+  transition: transform var(--duration-base) var(--ease-standard);
+}
+
+/* The native marker is hidden (see .download-info-panel__summary
+   above) in favor of this custom icon, so the icon itself carries the
+   open/closed state - motion confirming a state change, not
+   decoration, matching this file's own established `.btn`/`.card`
+   language for what warrants a transition. */
+.download-info-panel[open] .download-info-panel__icon {
+  transform: rotate(180deg);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .download-info-panel__icon {
+    transition: none;
+  }
+}
+
+.download-info-panel__body {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: var(--space-4);
+  margin-top: var(--space-4);
+  padding-top: var(--space-4);
+  border-top: 1px solid var(--color-border);
+}
+
+.download-info-panel__item h2 {
+  font-family: var(--font-heading);
+  font-size: var(--text-body);
+  font-weight: var(--weight-semibold);
+  color: var(--color-text-heading);
+  margin: 0 0 var(--space-1);
+}
+
+.download-info-panel__item p {
+  font-size: var(--text-small);
+  color: var(--color-text-secondary);
+  margin: 0;
+}
+
+@media (max-width: 767px) {
+  .download-info-panel__body {
+    grid-template-columns: 1fr;
+    gap: var(--space-3);
+  }
+}
+
+/* Topic-grouped sections replacing one flat list. */
+.library-group {
+  margin-bottom: var(--space-6);
+}
+
+.library-group:last-child {
+  margin-bottom: 0;
+}
+
+.library-group__heading {
+  font-family: var(--font-heading);
+  font-size: var(--text-h4);
+  color: var(--color-text-heading);
+  margin: 0 0 var(--space-3);
+  padding-bottom: var(--space-2);
+  border-bottom: 1px solid var(--color-border);
+}
+
+.library-group__cards {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-3);
+}
+
+/* Premium-card treatment: subtle elevation on hover, restrained,
+   confirms the card is interactive without ever moving the whole
+   layout - the same transform+shadow language .btn already uses
+   elsewhere in this file, applied here for the first time to
+   .library-card itself (previously had zero hover/transition
+   styling of its own, confirmed during the Phase 1-4 audit). */
+.library-card {
+  transition: box-shadow var(--duration-base) var(--ease-standard), border-color var(--duration-base) var(--ease-standard);
+}
+
+.library-card:hover {
+  box-shadow: var(--shadow-2);
+  border-color: var(--color-border-strong);
+}
+
+.library-card__cover {
+  border-radius: var(--radius-sm);
+  overflow: hidden;
+  box-shadow: var(--shadow-1);
+}
+
+.library-card__title {
+  font-family: var(--font-heading);
+  font-size: var(--text-body-lg);
+  font-weight: var(--weight-semibold);
+  margin: 0 0 var(--space-2) 0;
+}
+
+/* Read is the primary, no-file-transfer action (opens in place); it
+   already used .btn--accent, this just gives it a touch more visual
+   weight than the secondary actions beside it on wider screens. */
+.library-card__action-primary {
+  font-weight: var(--weight-semibold);
+}
+
+@media (max-width: 767px) {
+  .library-card__actions {
+    flex-direction: column;
+    align-items: stretch;
+  }
+  .library-card__actions .btn {
+    width: 100%;
+    text-align: center;
+  }
+}
+
+/* "Continue your learning" recommendations - deliberately quiet:
+   a plain border, no accent background, so it never competes
+   visually with the customer's own owned resources above it. */
+.library-recommendations {
+  margin-top: var(--space-7);
+  padding-top: var(--space-5);
+  border-top: 1px solid var(--color-border);
+}
+
+.library-recommendations__heading {
+  font-family: var(--font-heading);
+  font-size: var(--text-h4);
+  color: var(--color-text-heading);
+  margin: 0 0 var(--space-4);
+}
+
+.library-recommendations__list {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: var(--space-3);
+}
+
+@media (max-width: 1023px) {
+  .library-recommendations__list {
+    grid-template-columns: repeat(2, 1fr);
+  }
+}
+
+@media (max-width: 640px) {
+  .library-recommendations__list {
+    grid-template-columns: 1fr;
+  }
+}
+
+.library-recommendation {
+  display: flex;
+  gap: var(--space-3);
+  padding: var(--space-3);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-md);
+  background-color: var(--color-surface);
+  text-decoration: none;
+  color: inherit;
+  transition: box-shadow var(--duration-base) var(--ease-standard), border-color var(--duration-base) var(--ease-standard);
+}
+
+.library-recommendation:hover,
+.library-recommendation:focus-visible {
+  box-shadow: var(--shadow-2);
+  border-color: var(--color-accent);
+}
+
+.library-recommendation__cover {
+  width: 56px;
+  aspect-ratio: 3 / 4;
+  flex-shrink: 0;
+  border-radius: var(--radius-sm);
+  overflow: hidden;
+}
+
+.library-recommendation__body {
+  min-width: 0;
+}
+
+.library-recommendation__because {
+  font-size: var(--text-small);
+  color: var(--color-text-muted);
+  margin: 0 0 2px;
+}
+
+.library-recommendation__title {
+  font-family: var(--font-heading);
+  font-weight: var(--weight-medium);
+  margin: 0 0 var(--space-1);
+}
+
+.library-recommendation__cta {
+  font-family: var(--font-mono);
+  font-size: var(--text-small);
+  color: var(--color-accent);
+}
+
+/* Empty-state discovery picks. */
+.library-empty-state {
+  text-align: left;
+  padding: var(--space-6) var(--space-5);
+}
+
+.library-empty-picks {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: var(--space-3);
+  margin-top: var(--space-2);
+  max-width: 640px;
+}
+
+@media (max-width: 640px) {
+  .library-empty-picks {
+    grid-template-columns: 1fr;
+    max-width: 100%;
+  }
+}
+
+.library-empty-pick {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+  text-decoration: none;
+  color: inherit;
+}
+
+.library-empty-pick__cover {
+  width: 100%;
+  aspect-ratio: 3 / 4;
+  border-radius: var(--radius-sm);
+  overflow: hidden;
+  box-shadow: var(--shadow-1);
+  transition: box-shadow var(--duration-base) var(--ease-standard);
+}
+
+.library-empty-pick:hover .library-empty-pick__cover,
+.library-empty-pick:focus-visible .library-empty-pick__cover {
+  box-shadow: var(--shadow-2);
+}
+
+.library-empty-pick__title {
+  font-family: var(--font-heading);
+  font-size: var(--text-small);
+  font-weight: var(--weight-medium);
+  margin: 0;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .library-card,
+  .library-recommendation,
+  .library-empty-pick__cover {
+    transition: none;
+  }
 }
 
 /* ============================================================

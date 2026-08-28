@@ -174,6 +174,19 @@
     // purpose-built homepage section for this release, same
     // per-feature cta_id convention as the bundle CTAs above.
     { selector: '[data-checked-not-copied-launch-cta]', id: 'checked-not-copied-launch-cta' },
+    // Digital Library Modernization (Phase 5) — My Library's own click
+    // instrumentation, reusing the existing cta_click mechanism rather
+    // than adding a new event type. Library-visit itself is covered by
+    // this page's own page_view, now that dashboard/index.html finally
+    // includes this script at all (it never did before this pass — see
+    // that file's own comment on the new script tag). "Recommendation
+    // impression" (a view, not a click) is intentionally deferred — it
+    // would need a genuinely new event type, not just a new selector,
+    // see the Phase 5 implementation report's Analytics section.
+    { selector: '[data-library-read-action]', id: 'library-read-action' },
+    { selector: '[data-library-download-action]', id: 'library-download-action' },
+    { selector: '[data-library-recommendation-cta]', id: 'library-recommendation-click' },
+    { selector: '.download-info-panel__summary', id: 'library-download-info-toggle' },
   ];
 
   function trackCtaClicks() {

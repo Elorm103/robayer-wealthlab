@@ -114,7 +114,7 @@ const HEAD_ASSETS = `
   <link rel="stylesheet" href="/css/tokens.css?v=9c1fa2346d">
   <link rel="stylesheet" href="/css/base.css?v=57a963bc6f">
   <link rel="stylesheet" href="/css/layout.css?v=a6fb0c7359">
-  <link rel="stylesheet" href="/css/components.css?v=abc0d769d5">
+  <link rel="stylesheet" href="/css/components.css?v=45103a91b6">
   <link rel="stylesheet" href="/css/utilities.css?v=406dfe7300">
 `;
 
@@ -193,7 +193,7 @@ ${opts.bodyContent}
   <div data-include="/partials/footer.html"></div>
 
   <script src="/js/includes.js?v=cba95d9aa1"></script>
-  <script src="/js/components/analytics.js?v=dd6f93b38e"></script>
+  <script src="/js/components/analytics.js?v=a77deb14c4"></script>
   <script src="/js/components/nav.js?v=bf1e013818"></script>
   <script src="/js/components/theme-toggle.js?v=eebe98960c"></script>
   <script src="/js/components/branding.js?v=483b048741"></script>

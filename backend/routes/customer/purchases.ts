@@ -29,6 +29,7 @@ import {
   listCustomerLicenses,
 } from '../../services/customer/purchaseHistoryService';
 import { getOrCreateReceiptPdf } from '../../services/orders/receiptPdfService';
+import { getLibraryRecommendations } from '../../services/customer/libraryRecommendationsService';
 
 const REFERENCE_PATTERN = /^RWL-\d{4}-\d{6,}$/;
 const RECEIPT_NUMBER_PATTERN = /^RWL-RCT-\d{4}-\d{6,}$/;
@@ -156,4 +157,23 @@ export async function handleListCustomerLicenses(request: Request, env: Env, log
 
   const licenses = await listCustomerLicenses(env, auth.auth.customerId);
   return withNoStore(jsonSuccess({ licenses }));
+}
+
+/**
+ * Digital Library Modernization (Phase 5) — "Continue your learning."
+ * See services/customer/libraryRecommendationsService.ts's own header
+ * comment for the full reasoning: reads the existing, admin-curated
+ * product_relations table, scoped to what this authenticated customer
+ * actually owns, never a client-supplied product list.
+ */
+export async function handleGetLibraryRecommendations(request: Request, env: Env, logger: Logger): Promise<Response> {
+  const auth = await requireCustomerAuth(request, env, logger);
+  if (!auth.ok) return withNoStore(auth.response);
+
+  if (await isRateLimited(request, env, READ_RATE_LIMIT)) {
+    return withNoStore(jsonError('RATE_LIMITED', 'Too many requests. Please try again shortly.'));
+  }
+
+  const recommendations = await getLibraryRecommendations(env, auth.auth.customerId);
+  return withNoStore(jsonSuccess({ recommendations }));
 }

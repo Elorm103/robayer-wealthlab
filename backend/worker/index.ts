@@ -249,6 +249,7 @@ import {
   handleListCustomerReceipts,
   handleDownloadCustomerReceipt,
   handleListCustomerLicenses,
+  handleGetLibraryRecommendations,
 } from '../routes/customer/purchases';
 // Version 3.1 Milestone M3 (Checkout Auto-Provisioning & Dashboard
 // MVP) — Account Security's own-sessions list/revoke. See
@@ -638,6 +639,7 @@ const ROUTES: Route[] = [
   { pattern: new URLPattern({ pathname: '/api/customer/receipts' }), method: 'GET', handler: handleListCustomerReceipts },
   { pattern: new URLPattern({ pathname: '/api/customer/receipts/:receiptNumber/download' }), method: 'GET', handler: handleDownloadCustomerReceipt },
   { pattern: new URLPattern({ pathname: '/api/customer/licenses' }), method: 'GET', handler: handleListCustomerLicenses },
+  { pattern: new URLPattern({ pathname: '/api/customer/library/recommendations' }), method: 'GET', handler: handleGetLibraryRecommendations },
   // Version 3.1 Milestone M3 — Account Security's own-sessions list/revoke.
   { pattern: new URLPattern({ pathname: '/api/customer/sessions' }), method: 'GET', handler: handleListCustomerSessions },
   { pattern: new URLPattern({ pathname: '/api/customer/sessions/:sessionId/revoke' }), method: 'POST', handler: handleRevokeCustomerSession },

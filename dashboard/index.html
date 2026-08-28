@@ -21,7 +21,7 @@
   <link rel="stylesheet" href="/css/tokens.css?v=9c1fa2346d">
   <link rel="stylesheet" href="/css/base.css?v=57a963bc6f">
   <link rel="stylesheet" href="/css/layout.css?v=a6fb0c7359">
-  <link rel="stylesheet" href="/css/components.css?v=abc0d769d5">
+  <link rel="stylesheet" href="/css/components.css?v=45103a91b6">
   <link rel="stylesheet" href="/css/utilities.css?v=406dfe7300">
 </head>
 <body>
@@ -33,33 +33,105 @@
   <main id="main-content">
     <section class="section--tight">
       <div class="container content-column">
-        <span class="eyebrow">Your account</span>
-        <h1 class="mt-2 mb-2">My Library</h1>
-        <p class="text-secondary mb-5">Everything you own, in one place.</p>
-
         <!-- Version 3.3 Milestone M5C (Activation, Analytics and
              Customer Reconciliation) — populated only on a customer's
              first-ever session, see js/components/dashboard-activation.js. -->
         <div data-activation-banner-root></div>
 
-        <div data-library-root>
-          <!-- Loading state — honest, static fallback, matching
-               checkout/callback/index.html's own progressive-
-               enhancement pattern. -->
-          <p data-library-loading class="text-secondary">Loading your library&hellip;</p>
+        <!-- Digital Library Modernization (Phase 5) — a warm welcome
+             instead of a flat page title. No customer name is ever
+             collected anywhere in this codebase's signup flow (the
+             audit confirmed customer_profiles.display_name is defined
+             in the schema but never written or read), so the heading
+             stays warm without inventing one. The sub-line starts as
+             an honest static fallback and is upgraded in place by
+             library-list.js to a real, computed count once purchases
+             load — one element, never a duplicate header. -->
+        <header class="library-welcome" data-library-welcome-header>
+          <span class="eyebrow">My Library</span>
+          <h1 class="library-welcome__heading">Your WealthLab</h1>
+          <p class="library-welcome__sub text-secondary" data-library-welcome-sub>Everything you own, in one place.</p>
+        </header>
 
-          <!-- Populated state -->
-          <div data-library-list hidden></div>
+        <!-- Loading state — honest, static fallback, matching
+             checkout/callback/index.html's own progressive-
+             enhancement pattern. -->
+        <p data-library-loading class="text-secondary">Loading your library&hellip;</p>
 
-          <!-- Empty state (AR-009) -->
-          <div data-library-empty class="library-empty-state" hidden>
-            <p class="mb-3">Nothing here yet. Browse our guides to get started.</p>
-            <a href="/books/" class="btn btn--accent">Browse our guides</a>
+        <div data-library-root hidden>
+          <!-- Search / sort toolbar — kept deliberately minimal, per
+               the brief's explicit instruction against a complicated
+               filtering dashboard. -->
+          <div class="library-toolbar" data-library-toolbar hidden>
+            <div class="field library-toolbar__search">
+              <label for="library-search" class="sr-only">Search your library</label>
+              <input type="search" id="library-search" class="field__input" data-library-search placeholder="Search your library by title">
+            </div>
+            <div class="library-toolbar__sort">
+              <label for="library-sort" class="text-small text-secondary">Sort by</label>
+              <select id="library-sort" class="field__select" data-library-sort>
+                <option value="recent">Recently purchased</option>
+                <option value="accessed">Recently accessed</option>
+                <option value="alphabetical">Alphabetical</option>
+              </select>
+            </div>
           </div>
 
-          <!-- Error state -->
-          <p data-library-error class="alert alert--error" role="alert" hidden></p>
+          <!-- "How your downloads work" — a permanent, elegant,
+               always-reachable explainer, not a one-time interruption.
+               A native <details> disclosure: no JS required, fully
+               keyboard/screen-reader accessible by default. -->
+          <details class="download-info-panel" data-download-info-panel hidden>
+            <summary class="download-info-panel__summary">
+              <span class="download-info-panel__icon" aria-hidden="true">&#8595;</span>
+              <span>How your downloads work</span>
+            </summary>
+            <div class="download-info-panel__body">
+              <div class="download-info-panel__item">
+                <h2>Why is there a download limit?</h2>
+                <p>Download limits help protect the products you have paid for from unauthorized sharing, while still giving you reasonable, repeated access to your own purchase.</p>
+              </div>
+              <div class="download-info-panel__item">
+                <h2>What happens if I reach my limit?</h2>
+                <p>Your purchase is still yours. Reaching the limit does not mean you have lost access, it just means we need to verify the next request. Contact support and we will sort it out.</p>
+              </div>
+              <div class="download-info-panel__item">
+                <h2>How do secure download links work?</h2>
+                <p>Every download link is issued fresh and expires after a short window, for your security. If a link stops working, come back here and request a new one rather than reusing an old link.</p>
+              </div>
+            </div>
+          </details>
+
+          <!-- Populated state — topic-grouped or, while searching/
+               sorting, a flat filtered list. Built entirely by
+               library-list.js. -->
+          <div data-library-list></div>
+
+          <!-- "Continue your learning" — a separate, independent
+               component, see js/components/library-recommendations.js.
+               Renders nothing, stays hidden, if there is nothing
+               genuinely relevant to recommend. -->
+          <section class="library-recommendations" data-library-recommendations-root hidden>
+            <h2 class="library-recommendations__heading">Continue your learning</h2>
+            <div class="library-recommendations__list" data-library-recommendations-list></div>
+          </section>
         </div>
+
+        <!-- Empty state (AR-009), redesigned as a discovery moment
+             rather than a dead end. Featured picks are populated
+             client-side by library-list.js from the existing public
+             products endpoint; if that fetch fails, the static
+             "Browse our guides" link below still works on its own. -->
+        <div data-library-empty class="library-empty-state" hidden>
+          <span class="eyebrow">Your WealthLab</span>
+          <h2 class="mt-2 mb-2">You haven't built your WealthLab yet</h2>
+          <p class="text-secondary mb-4">Everything you buy from Robayer WealthLab lives here, ready whenever you want it. A few places worth starting.</p>
+          <div class="library-empty-picks" data-library-empty-picks hidden></div>
+          <a href="/books/" class="btn btn--accent mt-4">Browse our guides</a>
+        </div>
+
+        <!-- Error state -->
+        <p data-library-error class="alert alert--error" role="alert" hidden></p>
       </div>
     </section>
   </main>
@@ -67,6 +139,17 @@
   <div data-include="/partials/footer.html"></div>
 
   <script src="/js/includes.js?v=cba95d9aa1"></script>
+  <!-- Digital Library Modernization (Phase 5) — this page never
+       actually loaded the first-party analytics beacon before now
+       (confirmed by grep across the whole site: only index.html,
+       newsletter/, ai-assistant/, and the server-rendered book/blog/
+       resources/free-guide routes included it). Added so the
+       page_view this page now fires reuses the exact same existing
+       infrastructure the new library-read-action/library-download-action/
+       library-recommendation-click cta_click entries in analytics.js
+       already target — not a new tracking system, just this page's
+       first real connection to the one that already exists. -->
+  <script src="/js/components/analytics.js?v=a77deb14c4"></script>
   <script src="/js/components/nav.js?v=bf1e013818"></script>
   <script src="/js/components/theme-toggle.js?v=eebe98960c"></script>
   <script src="/js/components/branding.js?v=483b048741"></script>
@@ -75,7 +158,8 @@
   <script src="/js/components/dashboard-shell.js?v=f9f75e4692"></script>
   <script src="/js/components/dashboard-activation.js?v=d3d079d10a"></script>
   <script src="/js/components/ownership-helpers.js?v=9272ea5c97"></script>
-  <script src="/js/components/library-list.js?v=243ce1f04f"></script>
+  <script src="/js/components/library-list.js?v=67af8f2d22"></script>
+  <script src="/js/components/library-recommendations.js?v=2a15c00277"></script>
   <script src="/js/main.js?v=b2c3d4e6f1"></script>
 </body>
 </html>
