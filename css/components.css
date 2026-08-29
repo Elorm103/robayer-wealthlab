@@ -3612,6 +3612,55 @@ button.resource-card {
   color: inherit;
 }
 
+/* Digital Library 2.0 (Bookmarks) — one row per saved position; mirrors
+   .reader-search-result's own list-row rhythm (border-bottom rows in
+   the shared .reader-drawer__body) rather than inventing a new list
+   pattern for what is structurally the same kind of content. */
+.reader-bookmark-item {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-3);
+  padding: var(--space-3) var(--space-2);
+  border-bottom: 1px solid var(--color-border);
+}
+.reader-bookmark-item__go {
+  flex: 1;
+  text-align: left;
+  background: none;
+  border: none;
+  cursor: pointer;
+  color: var(--color-text-primary);
+  padding: var(--space-1) 0;
+}
+.reader-bookmark-item__go:hover,
+.reader-bookmark-item__go:focus-visible {
+  color: var(--color-accent);
+}
+.reader-bookmark-item__label {
+  display: block;
+  font-weight: 600;
+}
+.reader-bookmark-item__meta {
+  display: block;
+  color: var(--color-text-secondary);
+  font-size: var(--text-small);
+}
+.reader-bookmark-item__delete {
+  flex-shrink: 0;
+  min-width: 44px;
+  min-height: 44px;
+  background: none;
+  border: none;
+  cursor: pointer;
+  color: var(--color-text-secondary);
+  font-size: 1.1em;
+}
+.reader-bookmark-item__delete:hover,
+.reader-bookmark-item__delete:focus-visible {
+  color: var(--color-error, #b23a2e);
+}
+
 @media (max-width: 767px) {
   .reader-drawer {
     top: auto;

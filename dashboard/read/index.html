@@ -92,6 +92,16 @@
                      openEpubReadSession()'s toolbar wiring. -->
                 <button type="button" class="btn btn--secondary reader-toolbar__btn" data-reader-toc-trigger aria-label="Table of contents" hidden>&#9776;</button>
                 <button type="button" class="btn btn--secondary reader-toolbar__btn" data-reader-search-trigger aria-label="Search this book" hidden>&#128269;</button>
+                <!-- Digital Library 2.0 (Bookmarks) — unlike TOC/search,
+                     these work for BOTH formats (a bookmark is just a
+                     position + optional label; PDF supplies a page
+                     number, EPUB a CFI — see library-reader.js's
+                     wireBookmarkControls()), so they start hidden and
+                     are revealed once either reader path is ready,
+                     the same "never a dead affordance" rule TOC/search
+                     already follow. -->
+                <button type="button" class="btn btn--secondary reader-toolbar__btn" data-reader-bookmark-add aria-label="Bookmark this page" hidden>&#128278;</button>
+                <button type="button" class="btn btn--secondary reader-toolbar__btn" data-reader-bookmarks-trigger aria-label="My bookmarks for this book" hidden>&#128209;</button>
                 <!-- Digital Library Phase 7C (AI Reading Assistant).
                      Hidden until js/components/library-ai-panel.js
                      confirms this specific resource is PDF (the only
@@ -138,6 +148,14 @@
             </form>
             <p class="reader-search__status text-small text-muted" data-reader-search-status></p>
             <div class="reader-drawer__body" data-reader-search-results></div>
+          </aside>
+          <aside class="reader-drawer" data-reader-bookmarks-panel hidden aria-label="My bookmarks for this book" role="dialog" aria-modal="true">
+            <header class="reader-drawer__header">
+              <h2 class="reader-drawer__title">Bookmarks</h2>
+              <button type="button" class="reader-drawer__close" data-reader-bookmarks-close aria-label="Close bookmarks">&times;</button>
+            </header>
+            <p class="reader-search__status text-small text-muted" data-reader-bookmarks-empty>No bookmarks yet. Use the bookmark button in the toolbar to save a position.</p>
+            <div class="reader-drawer__body" data-reader-bookmarks-list></div>
           </aside>
 
           <!-- Digital Library Phase 7C (AI Reading Assistant). A side

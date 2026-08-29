@@ -31,6 +31,7 @@ import {
 import { getOrCreateReceiptPdf } from '../../services/orders/receiptPdfService';
 import { getLibraryRecommendations } from '../../services/customer/libraryRecommendationsService';
 import { upsertLibraryProgress, getLibraryProgress, listLibraryProgress } from '../../services/customer/libraryProgressService';
+import { createBookmark, listBookmarksForAsset, listAllBookmarks, deleteBookmark } from '../../services/customer/libraryBookmarkService';
 
 const REFERENCE_PATTERN = /^RWL-\d{4}-\d{6,}$/;
 const RECEIPT_NUMBER_PATTERN = /^RWL-RCT-\d{4}-\d{6,}$/;
@@ -58,6 +59,10 @@ const DOWNLOAD_RATE_LIMIT = { endpoint: 'customer-receipt-download', limit: 20, 
 // side to ~1 per few seconds) without being an open door for scripted
 // abuse of a write endpoint.
 const PROGRESS_WRITE_RATE_LIMIT = { endpoint: 'customer-library-progress-write', limit: 60, windowSeconds: 5 * 60 };
+// Digital Library 2.0 — a bookmark is a deliberate, occasional customer
+// action (not a per-page-turn signal like progress), so a much tighter
+// limit than PROGRESS_WRITE_RATE_LIMIT is still generous for real use.
+const BOOKMARK_WRITE_RATE_LIMIT = { endpoint: 'customer-library-bookmark-write', limit: 30, windowSeconds: 15 * 60 };
 
 export async function handleListCustomerPurchases(request: Request, env: Env, logger: Logger): Promise<Response> {
   const auth = await requireCustomerAuth(request, env, logger);
@@ -199,6 +204,8 @@ interface UpsertProgressBody {
   assetId?: unknown;
   currentPage?: unknown;
   totalPages?: unknown;
+  cfi?: unknown;
+  percentComplete?: unknown;
 }
 
 export async function handleUpsertLibraryProgress(request: Request, env: Env, logger: Logger, params: RouteParams): Promise<Response> {
@@ -224,14 +231,24 @@ export async function handleUpsertLibraryProgress(request: Request, env: Env, lo
   if (typeof body.assetId !== 'string' || body.assetId.length === 0) {
     return withNoStore(jsonError('VALIDATION_ERROR', 'A valid assetId is required.'));
   }
-  if (typeof body.currentPage !== 'number' || typeof body.totalPages !== 'number') {
-    return withNoStore(jsonError('VALIDATION_ERROR', 'currentPage and totalPages must be numbers.'));
+
+  // Phase Library-2.0 — EPUB reports {cfi, percentComplete} instead of
+  // {currentPage, totalPages} (see ProgressInput's own doc comment for
+  // why); whichever shape is present in the body decides which the
+  // service validates against — never both, never neither.
+  let input: Parameters<typeof upsertLibraryProgress>[5];
+  if (typeof body.cfi === 'string') {
+    if (typeof body.percentComplete !== 'number') {
+      return withNoStore(jsonError('VALIDATION_ERROR', 'percentComplete must be a number when cfi is provided.'));
+    }
+    input = { format: 'EPUB', cfi: body.cfi, percentComplete: body.percentComplete };
+  } else if (typeof body.currentPage === 'number' && typeof body.totalPages === 'number') {
+    input = { format: 'PDF', currentPage: body.currentPage, totalPages: body.totalPages };
+  } else {
+    return withNoStore(jsonError('VALIDATION_ERROR', 'Either {cfi, percentComplete} or {currentPage, totalPages} is required.'));
   }
 
-  const result = await upsertLibraryProgress(env, logger, auth.auth.customerId, reference, body.assetId, {
-    currentPage: body.currentPage,
-    totalPages: body.totalPages,
-  });
+  const result = await upsertLibraryProgress(env, logger, auth.auth.customerId, reference, body.assetId, input);
 
   if (!result.ok) {
     // Same generic-message discipline as the rest of this file (see
@@ -282,4 +299,116 @@ export async function handleListLibraryProgress(request: Request, env: Env, logg
 
   const progress = await listLibraryProgress(env, auth.auth.customerId);
   return withNoStore(jsonSuccess({ progress }));
+}
+
+// ============================================================
+// Bookmarks — Digital Library 2.0, Feature 5. Same authorization
+// discipline as the progress endpoints just above (requireCustomerAuth
+// + a real, re-verified checkEntitlement inside the service layer,
+// never trusted from the URL/body alone).
+// ============================================================
+
+interface CreateBookmarkBody {
+  assetId?: unknown;
+  pageNumber?: unknown;
+  cfi?: unknown;
+  label?: unknown;
+}
+
+export async function handleCreateBookmark(request: Request, env: Env, logger: Logger, params: RouteParams): Promise<Response> {
+  const auth = await requireCustomerAuth(request, env, logger);
+  if (!auth.ok) return withNoStore(auth.response);
+
+  if (await isRateLimited(request, env, BOOKMARK_WRITE_RATE_LIMIT)) {
+    return withNoStore(jsonError('RATE_LIMITED', 'Too many requests. Please try again shortly.'));
+  }
+
+  const reference = params.reference;
+  if (!isPlausibleReference(reference)) {
+    return withNoStore(jsonError('NOT_FOUND', 'This purchase could not be found.'));
+  }
+
+  let body: CreateBookmarkBody;
+  try {
+    body = await request.json();
+  } catch {
+    return withNoStore(jsonError('VALIDATION_ERROR', 'Request body must be valid JSON.'));
+  }
+
+  if (typeof body.assetId !== 'string' || body.assetId.length === 0) {
+    return withNoStore(jsonError('VALIDATION_ERROR', 'A valid assetId is required.'));
+  }
+  const label = typeof body.label === 'string' && body.label.length > 0 ? body.label : null;
+
+  let input: Parameters<typeof createBookmark>[5];
+  if (typeof body.cfi === 'string') {
+    input = { format: 'EPUB', cfi: body.cfi, label };
+  } else if (typeof body.pageNumber === 'number') {
+    input = { format: 'PDF', pageNumber: body.pageNumber, label };
+  } else {
+    return withNoStore(jsonError('VALIDATION_ERROR', 'Either cfi or pageNumber is required.'));
+  }
+
+  const result = await createBookmark(env, logger, auth.auth.customerId, reference, body.assetId, input);
+  if (!result.ok) {
+    if (result.reason === 'invalid_input') return withNoStore(jsonError('VALIDATION_ERROR', 'Invalid bookmark input.'));
+    if (result.reason === 'unsupported_format') return withNoStore(jsonError('UNSUPPORTED_FILE_TYPE', 'This bookmark format does not match the asset.'));
+    return withNoStore(jsonError('NOT_FOUND', 'This resource could not be found.'));
+  }
+
+  return withNoStore(jsonSuccess(result.record, 201));
+}
+
+export async function handleListBookmarksForAsset(request: Request, env: Env, logger: Logger, params: RouteParams): Promise<Response> {
+  const auth = await requireCustomerAuth(request, env, logger);
+  if (!auth.ok) return withNoStore(auth.response);
+
+  if (await isRateLimited(request, env, READ_RATE_LIMIT)) {
+    return withNoStore(jsonError('RATE_LIMITED', 'Too many requests. Please try again shortly.'));
+  }
+
+  const reference = params.reference;
+  if (!isPlausibleReference(reference)) {
+    return withNoStore(jsonError('NOT_FOUND', 'This purchase could not be found.'));
+  }
+
+  const url = new URL(request.url);
+  const assetId = url.searchParams.get('assetId');
+  if (!assetId) {
+    return withNoStore(jsonError('VALIDATION_ERROR', 'An assetId query parameter is required.'));
+  }
+
+  const bookmarks = await listBookmarksForAsset(env, auth.auth.customerId, reference, assetId);
+  return withNoStore(jsonSuccess({ bookmarks }));
+}
+
+export async function handleListAllBookmarks(request: Request, env: Env, logger: Logger): Promise<Response> {
+  const auth = await requireCustomerAuth(request, env, logger);
+  if (!auth.ok) return withNoStore(auth.response);
+
+  if (await isRateLimited(request, env, READ_RATE_LIMIT)) {
+    return withNoStore(jsonError('RATE_LIMITED', 'Too many requests. Please try again shortly.'));
+  }
+
+  const bookmarks = await listAllBookmarks(env, auth.auth.customerId);
+  return withNoStore(jsonSuccess({ bookmarks }));
+}
+
+export async function handleDeleteBookmark(request: Request, env: Env, logger: Logger, params: RouteParams): Promise<Response> {
+  const auth = await requireCustomerAuth(request, env, logger);
+  if (!auth.ok) return withNoStore(auth.response);
+
+  if (await isRateLimited(request, env, BOOKMARK_WRITE_RATE_LIMIT)) {
+    return withNoStore(jsonError('RATE_LIMITED', 'Too many requests. Please try again shortly.'));
+  }
+
+  const bookmarkId = parseInt(params.id ?? '', 10);
+  if (!Number.isInteger(bookmarkId)) {
+    return withNoStore(jsonError('NOT_FOUND', 'This bookmark could not be found.'));
+  }
+
+  const result = await deleteBookmark(env, auth.auth.customerId, bookmarkId);
+  if (!result.ok) return withNoStore(jsonError('NOT_FOUND', 'This bookmark could not be found.'));
+
+  return withNoStore(jsonSuccess({ deleted: true }));
 }

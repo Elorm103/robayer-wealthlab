@@ -144,6 +144,12 @@ function initLibraryReader() {
   const searchStatusEl = document.querySelector('[data-reader-search-status]');
   const searchResultsEl = document.querySelector('[data-reader-search-results]');
   const drawerBackdropEl = document.querySelector('[data-reader-drawer-backdrop]');
+  const bookmarkAddBtn = document.querySelector('[data-reader-bookmark-add]');
+  const bookmarksTriggerBtn = document.querySelector('[data-reader-bookmarks-trigger]');
+  const bookmarksPanel = document.querySelector('[data-reader-bookmarks-panel]');
+  const bookmarksCloseBtn = document.querySelector('[data-reader-bookmarks-close]');
+  const bookmarksListEl = document.querySelector('[data-reader-bookmarks-list]');
+  const bookmarksEmptyEl = document.querySelector('[data-reader-bookmarks-empty]');
 
   const TOPIC_LABELS = {
     investing: 'Investing',
@@ -535,7 +541,7 @@ function initLibraryReader() {
         // non-fatal - TOC just stays empty; chapter prev/next still works
       });
 
-    const savedCfi = loadEpubProgress(asset.assetId);
+    const savedCfi = await loadEpubProgress(reference, asset.assetId);
     try {
       if (savedCfi) {
         await epubRendition.display(savedCfi);
@@ -588,10 +594,23 @@ function initLibraryReader() {
     // Mirrors flushProgressOnUnload()'s own reasoning above: the
     // debounced save from the most recent relocation may not have
     // fired yet by the time the customer navigates away.
-    window.addEventListener('pagehide', () => {
-      const loc = epubRendition && epubRendition.currentLocation();
-      if (loc && loc.start && loc.start.cfi) saveEpubProgress(loc.start.cfi);
-    });
+    window.addEventListener('pagehide', flushEpubProgressOnUnload);
+
+    wireBookmarkControls(
+      () => {
+        const loc = epubRendition && epubRendition.currentLocation();
+        const cfi = loc && loc.start && loc.start.cfi;
+        if (!cfi) return null;
+        // A real, currently-highlighted TOC entry's own text - never a
+        // fabricated label; null (rendered as "Saved position" by
+        // loadBookmarksList()) when no TOC entry is active yet.
+        const activeLink = tocListEl.querySelector('.reader-toc__link--active');
+        return { format: 'EPUB', cfi, label: activeLink ? activeLink.textContent.trim() : null };
+      },
+      (bookmark) => {
+        if (bookmark.cfi) epubRendition.display(bookmark.cfi).catch(() => {});
+      }
+    );
   }
 
   function wireEpubDrawers() {
@@ -622,12 +641,121 @@ function initLibraryReader() {
   function closeReaderDrawers() {
     tocPanel.classList.remove('reader-drawer--open');
     searchPanel.classList.remove('reader-drawer--open');
+    bookmarksPanel.classList.remove('reader-drawer--open');
     drawerBackdropEl.classList.remove('reader-drawer-backdrop--visible');
     setTimeout(() => {
       tocPanel.hidden = true;
       searchPanel.hidden = true;
+      bookmarksPanel.hidden = true;
       drawerBackdropEl.hidden = true;
     }, 220);
+  }
+
+  /**
+   * Digital Library 2.0 (Bookmarks) — the one piece of reader chrome
+   * genuinely shared, unmodified, between the PDF and EPUB paths (a
+   * bookmark is just "a position + an optional real label"; only how
+   * that position is read/navigated-to differs). `getPosition` returns
+   * the current {format, pageNumber} or {format, cfi} plus a real,
+   * non-fabricated label (PDF: "Page N"; EPUB: the currently-highlighted
+   * TOC entry's own text, or null when none is active — never invented).
+   * `goTo(bookmark)` performs the actual jump for whichever format is
+   * live. Called once from each of wireControls() (PDF) and
+   * wireEpubControls() (EPUB), never both in the same page load.
+   */
+  function wireBookmarkControls(getPosition, goTo) {
+    bookmarkAddBtn.hidden = false;
+    bookmarksTriggerBtn.hidden = false;
+
+    bookmarkAddBtn.addEventListener('click', async () => {
+      const position = getPosition();
+      if (!position) return;
+      bookmarkAddBtn.disabled = true;
+      try {
+        await window.CustomerDashboard.customerFetch(`/api/customer/purchases/${encodeURIComponent(currentReference)}/bookmarks`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ assetId: currentAssetId, ...position }),
+        });
+        const original = bookmarkAddBtn.textContent;
+        bookmarkAddBtn.textContent = '✓';
+        setTimeout(() => {
+          bookmarkAddBtn.textContent = original;
+        }, 1200);
+        if (window.RobayerAnalytics) window.RobayerAnalytics.trackLibraryEvent('library-bookmark-added', currentProductSlug);
+      } catch {
+        // Silent by design, matching writeProgress()'s own header comment - a failed save must never interrupt reading.
+      } finally {
+        bookmarkAddBtn.disabled = false;
+      }
+    });
+
+    bookmarksTriggerBtn.addEventListener('click', () => {
+      openReaderDrawer(bookmarksPanel);
+      loadBookmarksList(goTo);
+    });
+    bookmarksCloseBtn.addEventListener('click', closeReaderDrawers);
+  }
+
+  async function loadBookmarksList(goTo) {
+    bookmarksListEl.innerHTML = '';
+    bookmarksEmptyEl.hidden = true;
+    let bookmarks = [];
+    try {
+      const result = await window.CustomerDashboard.customerFetch(
+        `/api/customer/purchases/${encodeURIComponent(currentReference)}/bookmarks?assetId=${encodeURIComponent(currentAssetId)}`
+      );
+      bookmarks = result.bookmarks || [];
+    } catch {
+      // Non-fatal — the panel just shows the empty state, same as genuinely having none.
+    }
+
+    if (bookmarks.length === 0) {
+      bookmarksEmptyEl.hidden = false;
+      return;
+    }
+
+    bookmarks.forEach((bookmark) => {
+      const row = document.createElement('div');
+      row.className = 'reader-bookmark-item';
+
+      const goBtn = document.createElement('button');
+      goBtn.type = 'button';
+      goBtn.className = 'reader-bookmark-item__go';
+      const labelEl = document.createElement('span');
+      labelEl.className = 'reader-bookmark-item__label';
+      labelEl.textContent = bookmark.label || (bookmark.format === 'PDF' ? `Page ${bookmark.pageNumber}` : 'Saved position');
+      const metaEl = document.createElement('span');
+      metaEl.className = 'reader-bookmark-item__meta';
+      const savedDate = new Date(bookmark.createdAt);
+      metaEl.textContent = Number.isNaN(savedDate.getTime()) ? '' : `Saved ${savedDate.toLocaleDateString()}`;
+      goBtn.appendChild(labelEl);
+      goBtn.appendChild(metaEl);
+      goBtn.addEventListener('click', () => {
+        closeReaderDrawers();
+        goTo(bookmark);
+      });
+
+      const deleteBtn = document.createElement('button');
+      deleteBtn.type = 'button';
+      deleteBtn.className = 'reader-bookmark-item__delete';
+      deleteBtn.setAttribute('aria-label', 'Remove this bookmark');
+      deleteBtn.textContent = '×';
+      deleteBtn.addEventListener('click', async () => {
+        deleteBtn.disabled = true;
+        try {
+          await window.CustomerDashboard.customerFetch(`/api/customer/bookmarks/${encodeURIComponent(bookmark.id)}`, { method: 'DELETE' });
+          row.remove();
+          if (!bookmarksListEl.children.length) bookmarksEmptyEl.hidden = false;
+        } catch {
+          deleteBtn.disabled = false;
+        }
+      });
+
+      row.appendChild(goBtn);
+      row.appendChild(deleteBtn);
+      bookmarksListEl.appendChild(row);
+    });
   }
 
   /**
@@ -741,32 +869,88 @@ function initLibraryReader() {
   }
 
   /**
-   * Phase 9C.5 — resume position is stored client-side only, in the
-   * PARENT page's own localStorage (never inside the EPUB iframe -
-   * the CSP above wouldn't allow that iframe to reach it anyway).
-   * The existing /api/customer/purchases/:reference/progress endpoint
-   * PDF uses is shaped for currentPage/totalPages, not a CFI string;
-   * extending it is a real backend change, deliberately left for a
-   * later phase rather than made here. This means EPUB resume does
-   * not yet survive a different device/browser the way PDF's
-   * server-persisted progress does - a known, reported limitation,
-   * not an oversight.
+   * Digital Library 2.0 — real, server-persisted EPUB progress,
+   * closing the gap Phase 9C.5 deliberately deferred (resume did not
+   * survive a different device/browser the way PDF's already did).
+   * Reuses the exact same /api/customer/purchases/:reference/progress
+   * endpoint PDF writes to (backend/services/customer/
+   * libraryProgressService.ts now accepts either {currentPage,
+   * totalPages} or {cfi, percentComplete}, never both) - not a second,
+   * parallel progress system. localStorage remains as an instant,
+   * offline-friendly cache (read first, before the network reply can
+   * arrive) but the server value is authoritative once it does,
+   * matching PDF's own posture exactly.
    */
   function epubProgressKey(assetId) {
     return `robayer_epub_progress_${assetId}`;
+  }
+  /** Mirrors handleEpubRelocated()'s own percentage computation - 0 before locations finish generating, never a fabricated value. */
+  function computeEpubPercent(cfi) {
+    if (!epubLocationsGenerated || !epubBook) return 0;
+    const pct = epubBook.locations.percentageFromCfi(cfi);
+    return typeof pct === 'number' && !Number.isNaN(pct) ? Math.round(pct * 100) : 0;
   }
   function scheduleEpubProgressSave(cfi) {
     if (epubCfiSaveTimer) clearTimeout(epubCfiSaveTimer);
     epubCfiSaveTimer = setTimeout(() => saveEpubProgress(cfi), PROGRESS_WRITE_DEBOUNCE_MS);
   }
-  function saveEpubProgress(cfi) {
+  /** A failed write (local or server) is swallowed on purpose - see writeProgress()'s own header comment; reading must never stop, error, or hesitate because a progress save didn't go through. */
+  async function saveEpubProgress(cfi) {
     try {
       localStorage.setItem(epubProgressKey(currentAssetId), JSON.stringify({ cfi, updatedAt: Date.now() }));
     } catch {
-      // Silent by design, matching writeProgress()'s own header comment - a failed save must never interrupt reading.
+      // non-fatal
+    }
+    try {
+      await window.CustomerDashboard.customerFetch(`/api/customer/purchases/${encodeURIComponent(currentReference)}/progress`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ assetId: currentAssetId, cfi, percentComplete: computeEpubPercent(cfi) }),
+      });
+    } catch {
+      // non-fatal
     }
   }
-  function loadEpubProgress(assetId) {
+  /**
+   * Guarantees the LATEST CFI is saved even if the debounce timer from
+   * the most recent relocation hasn't fired yet when the customer
+   * navigates away - the exact same reasoning as flushProgressOnUnload()
+   * (PDF's equivalent), including why this bypasses customerFetch()
+   * for a manual `keepalive` request instead of calling the async
+   * saveEpubProgress() above (which customerFetch() itself cannot
+   * outlive a navigating-away page for).
+   */
+  function flushEpubProgressOnUnload() {
+    if (!epubRendition) return;
+    if (epubCfiSaveTimer) clearTimeout(epubCfiSaveTimer);
+    const loc = epubRendition.currentLocation();
+    const cfi = loc && loc.start && loc.start.cfi;
+    if (!cfi) return;
+    try {
+      localStorage.setItem(epubProgressKey(currentAssetId), JSON.stringify({ cfi, updatedAt: Date.now() }));
+    } catch {
+      // non-fatal
+    }
+    const csrf = window.CustomerDashboard.getCsrfToken();
+    const headers = { 'Content-Type': 'application/json' };
+    if (csrf) headers['X-Customer-CSRF-Token'] = csrf;
+    fetch(`/api/customer/purchases/${encodeURIComponent(currentReference)}/progress`, {
+      method: 'POST',
+      headers,
+      body: JSON.stringify({ assetId: currentAssetId, cfi, percentComplete: computeEpubPercent(cfi) }),
+      keepalive: true,
+    }).catch(() => {});
+  }
+  /** Server progress wins when present (the real, cross-device source of truth); the local cache is a fallback for an offline/failed request, not a competing source - matches "server-derived, never trusted verbatim from a second source" elsewhere in this file. */
+  async function loadEpubProgress(reference, assetId) {
+    try {
+      const result = await window.CustomerDashboard.customerFetch(
+        `/api/customer/purchases/${encodeURIComponent(reference)}/progress?assetId=${encodeURIComponent(assetId)}`
+      );
+      if (result.progress && result.progress.format === 'EPUB' && result.progress.cfi) return result.progress.cfi;
+    } catch {
+      // fall through to the local cache below
+    }
     try {
       const raw = localStorage.getItem(epubProgressKey(assetId));
       if (!raw) return null;
@@ -858,6 +1042,11 @@ function initLibraryReader() {
       if (resizeTimer) clearTimeout(resizeTimer);
       resizeTimer = setTimeout(refitAndRerender, RESIZE_DEBOUNCE_MS);
     });
+
+    wireBookmarkControls(
+      () => ({ format: 'PDF', pageNumber: currentPage, label: `Page ${currentPage}` }),
+      (bookmark) => goToPage(bookmark.pageNumber)
+    );
   }
 
   function goToPage(page) {

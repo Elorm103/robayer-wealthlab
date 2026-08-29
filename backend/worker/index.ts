@@ -256,6 +256,10 @@ import {
   handleUpsertLibraryProgress,
   handleGetLibraryProgress,
   handleListLibraryProgress,
+  handleCreateBookmark,
+  handleListBookmarksForAsset,
+  handleListAllBookmarks,
+  handleDeleteBookmark,
 } from '../routes/customer/purchases';
 // Version 3.1 Milestone M3 (Checkout Auto-Provisioning & Dashboard
 // MVP) — Account Security's own-sessions list/revoke. See
@@ -662,6 +666,10 @@ const ROUTES: Route[] = [
   { pattern: new URLPattern({ pathname: '/api/customer/library/progress' }), method: 'GET', handler: handleListLibraryProgress },
   { pattern: new URLPattern({ pathname: '/api/customer/purchases/:reference/progress' }), method: 'GET', handler: handleGetLibraryProgress },
   { pattern: new URLPattern({ pathname: '/api/customer/purchases/:reference/progress' }), method: 'POST', handler: handleUpsertLibraryProgress },
+  { pattern: new URLPattern({ pathname: '/api/customer/bookmarks' }), method: 'GET', handler: handleListAllBookmarks },
+  { pattern: new URLPattern({ pathname: '/api/customer/bookmarks/:id' }), method: 'DELETE', handler: handleDeleteBookmark },
+  { pattern: new URLPattern({ pathname: '/api/customer/purchases/:reference/bookmarks' }), method: 'GET', handler: handleListBookmarksForAsset },
+  { pattern: new URLPattern({ pathname: '/api/customer/purchases/:reference/bookmarks' }), method: 'POST', handler: handleCreateBookmark },
   // Version 3.1 Milestone M3 — Account Security's own-sessions list/revoke.
   { pattern: new URLPattern({ pathname: '/api/customer/sessions' }), method: 'GET', handler: handleListCustomerSessions },
   { pattern: new URLPattern({ pathname: '/api/customer/sessions/:sessionId/revoke' }), method: 'POST', handler: handleRevokeCustomerSession },

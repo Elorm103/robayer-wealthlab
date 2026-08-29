@@ -63,7 +63,7 @@ async function seedEpubAsset(): Promise<string> {
 describe('upsertLibraryProgress', () => {
   it('grants and correctly derives percent/status for an owned PDF asset, page 18 of 42', async () => {
     await seedVerifiedPurchase('RWL-2026-800001', CUSTOMER_A);
-    const result = await upsertLibraryProgress(env as any, logger, CUSTOMER_A, 'RWL-2026-800001', TEST_ASSET_ID, { currentPage: 18, totalPages: 42 });
+    const result = await upsertLibraryProgress(env as any, logger, CUSTOMER_A, 'RWL-2026-800001', TEST_ASSET_ID, { format: 'PDF', currentPage: 18, totalPages: 42 });
     expect(result.ok).toBe(true);
     if (result.ok) {
       expect(result.record.percentComplete).toBe(Math.round((18 / 42) * 100));
@@ -75,7 +75,7 @@ describe('upsertLibraryProgress', () => {
 
   it('derives status="completed" at the final page (percent 100)', async () => {
     await seedVerifiedPurchase('RWL-2026-800002', CUSTOMER_A);
-    const result = await upsertLibraryProgress(env as any, logger, CUSTOMER_A, 'RWL-2026-800002', TEST_ASSET_ID, { currentPage: 42, totalPages: 42 });
+    const result = await upsertLibraryProgress(env as any, logger, CUSTOMER_A, 'RWL-2026-800002', TEST_ASSET_ID, { format: 'PDF', currentPage: 42, totalPages: 42 });
     expect(result.ok).toBe(true);
     if (result.ok) {
       expect(result.record.percentComplete).toBe(100);
@@ -91,8 +91,8 @@ describe('upsertLibraryProgress', () => {
 
   it('upserts in place on a second write for the same delivery, never creating a duplicate row', async () => {
     await seedVerifiedPurchase('RWL-2026-800004', CUSTOMER_A);
-    await upsertLibraryProgress(env as any, logger, CUSTOMER_A, 'RWL-2026-800004', TEST_ASSET_ID, { currentPage: 5, totalPages: 42 });
-    await upsertLibraryProgress(env as any, logger, CUSTOMER_A, 'RWL-2026-800004', TEST_ASSET_ID, { currentPage: 20, totalPages: 42 });
+    await upsertLibraryProgress(env as any, logger, CUSTOMER_A, 'RWL-2026-800004', TEST_ASSET_ID, { format: 'PDF', currentPage: 5, totalPages: 42 });
+    await upsertLibraryProgress(env as any, logger, CUSTOMER_A, 'RWL-2026-800004', TEST_ASSET_ID, { format: 'PDF', currentPage: 20, totalPages: 42 });
 
     const count = await env.DB.prepare('SELECT COUNT(*) AS n FROM library_progress').first<{ n: number }>();
     expect(count!.n).toBe(1);
@@ -103,7 +103,7 @@ describe('upsertLibraryProgress', () => {
 
   it("denies writing progress for another customer's purchase — cross-customer isolation, the core Phase 7B security requirement", async () => {
     await seedVerifiedPurchase('RWL-2026-800005', CUSTOMER_A);
-    const result = await upsertLibraryProgress(env as any, logger, CUSTOMER_B, 'RWL-2026-800005', TEST_ASSET_ID, { currentPage: 5, totalPages: 42 });
+    const result = await upsertLibraryProgress(env as any, logger, CUSTOMER_B, 'RWL-2026-800005', TEST_ASSET_ID, { format: 'PDF', currentPage: 5, totalPages: 42 });
     expect(result.ok).toBe(false);
     if (!result.ok) expect(result.reason).toBe('not_authorized');
 
@@ -113,7 +113,7 @@ describe('upsertLibraryProgress', () => {
 
   it('rejects invalid input — currentPage greater than totalPages', async () => {
     await seedVerifiedPurchase('RWL-2026-800006', CUSTOMER_A);
-    const result = await upsertLibraryProgress(env as any, logger, CUSTOMER_A, 'RWL-2026-800006', TEST_ASSET_ID, { currentPage: 50, totalPages: 42 });
+    const result = await upsertLibraryProgress(env as any, logger, CUSTOMER_A, 'RWL-2026-800006', TEST_ASSET_ID, { format: 'PDF', currentPage: 50, totalPages: 42 });
     expect(result.ok).toBe(false);
     if (!result.ok) expect(result.reason).toBe('invalid_input');
   });
@@ -125,16 +125,71 @@ describe('upsertLibraryProgress', () => {
       .bind(epubAssetId, TEST_PRODUCT_SLUG)
       .run();
 
-    const result = await upsertLibraryProgress(env as any, logger, CUSTOMER_A, 'RWL-2026-800007', epubAssetId, { currentPage: 5, totalPages: 10 });
+    const result = await upsertLibraryProgress(env as any, logger, CUSTOMER_A, 'RWL-2026-800007', epubAssetId, { format: 'PDF', currentPage: 5, totalPages: 10 });
     expect(result.ok).toBe(false);
     if (!result.ok) expect(result.reason).toBe('unsupported_format');
+  });
+
+  it('records CFI-based progress for an owned EPUB asset — the Digital Library 2.0 gap this closes (previously localStorage-only, per library-reader.js\'s own Phase 9C.5 comment)', async () => {
+    const epubAssetId = await seedEpubAsset();
+    await seedVerifiedPurchase('RWL-2026-800008', CUSTOMER_A);
+    await env.DB.prepare(`INSERT INTO deliveries (purchase_session_id, asset_id, product_slug, max_downloads, downloads_used, status) SELECT id, ?, ?, 10, 0, 'delivered' FROM purchase_sessions WHERE purchase_reference = 'RWL-2026-800008'`)
+      .bind(epubAssetId, TEST_PRODUCT_SLUG)
+      .run();
+
+    const cfi = 'epubcfi(/6/14!/4/2/1:0)';
+    const result = await upsertLibraryProgress(env as any, logger, CUSTOMER_A, 'RWL-2026-800008', epubAssetId, { format: 'EPUB', cfi, percentComplete: 34 });
+    expect(result.ok).toBe(true);
+    if (!result.ok) return;
+    expect(result.record.format).toBe('EPUB');
+    expect(result.record.cfi).toBe(cfi);
+    expect(result.record.currentPage).toBeNull();
+    expect(result.record.totalPages).toBeNull();
+    expect(result.record.percentComplete).toBe(34);
+    expect(result.record.status).toBe('in_progress');
+
+    const read = await getLibraryProgress(env as any, CUSTOMER_A, 'RWL-2026-800008', epubAssetId);
+    expect(read).not.toBeNull();
+    expect(read!.cfi).toBe(cfi);
+    expect(read!.percentComplete).toBe(34);
+  });
+
+  it('rejects a PDF asset given EPUB-shaped {cfi, percentComplete} input', async () => {
+    await seedVerifiedPurchase('RWL-2026-800009', CUSTOMER_A);
+    const result = await upsertLibraryProgress(env as any, logger, CUSTOMER_A, 'RWL-2026-800009', TEST_ASSET_ID, { format: 'EPUB', cfi: 'epubcfi(/6/2!/4)', percentComplete: 10 });
+    expect(result.ok).toBe(false);
+    if (!result.ok) expect(result.reason).toBe('unsupported_format');
+  });
+
+  it('clamps an out-of-range EPUB percentComplete rather than storing it verbatim', async () => {
+    const epubAssetId = await seedEpubAsset();
+    await seedVerifiedPurchase('RWL-2026-800011', CUSTOMER_A);
+    await env.DB.prepare(`INSERT INTO deliveries (purchase_session_id, asset_id, product_slug, max_downloads, downloads_used, status) SELECT id, ?, ?, 10, 0, 'delivered' FROM purchase_sessions WHERE purchase_reference = 'RWL-2026-800011'`)
+      .bind(epubAssetId, TEST_PRODUCT_SLUG)
+      .run();
+
+    const result = await upsertLibraryProgress(env as any, logger, CUSTOMER_A, 'RWL-2026-800011', epubAssetId, { format: 'EPUB', cfi: 'epubcfi(/6/2!/4)', percentComplete: 140 });
+    expect(result.ok).toBe(true);
+    if (result.ok) expect(result.record.percentComplete).toBe(100);
+  });
+
+  it('rejects an empty or missing CFI rather than recording a meaningless position', async () => {
+    const epubAssetId = await seedEpubAsset();
+    await seedVerifiedPurchase('RWL-2026-800012', CUSTOMER_A);
+    await env.DB.prepare(`INSERT INTO deliveries (purchase_session_id, asset_id, product_slug, max_downloads, downloads_used, status) SELECT id, ?, ?, 10, 0, 'delivered' FROM purchase_sessions WHERE purchase_reference = 'RWL-2026-800012'`)
+      .bind(epubAssetId, TEST_PRODUCT_SLUG)
+      .run();
+
+    const result = await upsertLibraryProgress(env as any, logger, CUSTOMER_A, 'RWL-2026-800012', epubAssetId, { format: 'EPUB', cfi: '', percentComplete: 10 });
+    expect(result.ok).toBe(false);
+    if (!result.ok) expect(result.reason).toBe('invalid_input');
   });
 });
 
 describe('getLibraryProgress', () => {
   it("denies reading another customer's progress", async () => {
     await seedVerifiedPurchase('RWL-2026-800010', CUSTOMER_A);
-    await upsertLibraryProgress(env as any, logger, CUSTOMER_A, 'RWL-2026-800010', TEST_ASSET_ID, { currentPage: 10, totalPages: 42 });
+    await upsertLibraryProgress(env as any, logger, CUSTOMER_A, 'RWL-2026-800010', TEST_ASSET_ID, { format: 'PDF', currentPage: 10, totalPages: 42 });
 
     const asOwner = await getLibraryProgress(env as any, CUSTOMER_A, 'RWL-2026-800010', TEST_ASSET_ID);
     expect(asOwner).not.toBeNull();
@@ -147,7 +202,7 @@ describe('getLibraryProgress', () => {
 describe('listLibraryProgress', () => {
   it("returns only this customer's progress rows, correctly joined back to purchase reference and asset id", async () => {
     await seedVerifiedPurchase('RWL-2026-800020', CUSTOMER_A);
-    await upsertLibraryProgress(env as any, logger, CUSTOMER_A, 'RWL-2026-800020', TEST_ASSET_ID, { currentPage: 30, totalPages: 42 });
+    await upsertLibraryProgress(env as any, logger, CUSTOMER_A, 'RWL-2026-800020', TEST_ASSET_ID, { format: 'PDF', currentPage: 30, totalPages: 42 });
 
     const otherProductInsert = await env.DB.prepare(
       `INSERT INTO purchase_sessions (purchase_reference, product_slug, product_id, product_title, amount_pesewas, currency, status, customer_id, expires_at)
@@ -159,7 +214,7 @@ describe('listLibraryProgress', () => {
     await env.DB.prepare(`INSERT INTO deliveries (purchase_session_id, asset_id, product_slug, max_downloads, downloads_used, status) VALUES (?, ?, ?, 10, 0, 'delivered')`)
       .bind(otherPurchaseSessionId, TEST_ASSET_ID, TEST_PRODUCT_SLUG)
       .run();
-    await upsertLibraryProgress(env as any, logger, CUSTOMER_B, 'RWL-2026-800021', TEST_ASSET_ID, { currentPage: 5, totalPages: 42 });
+    await upsertLibraryProgress(env as any, logger, CUSTOMER_B, 'RWL-2026-800021', TEST_ASSET_ID, { format: 'PDF', currentPage: 5, totalPages: 42 });
 
     const listForA = await listLibraryProgress(env as any, CUSTOMER_A);
     expect(listForA).toHaveLength(1);
