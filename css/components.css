@@ -2997,6 +2997,17 @@ button.resource-card {
   margin: 0 0 var(--space-1);
 }
 
+/* Digital Library 2.0 Phase G — the product's own real short_description, when it has one. Clamped to two lines so a long blurb never dominates a deliberately quiet card. */
+.library-recommendation__description {
+  font-size: var(--text-small);
+  color: var(--color-text-secondary);
+  margin: 0 0 var(--space-1);
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+}
+
 .library-recommendation__cta {
   font-family: var(--font-mono);
   font-size: var(--text-small);

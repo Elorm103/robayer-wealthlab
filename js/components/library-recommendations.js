@@ -1,24 +1,26 @@
 /**
- * Robayer WealthLab: "Continue your learning" — Digital Library
- * Modernization (Phase 5). Drives the [data-library-recommendations-root]
- * section on dashboard/index.html, a separate, independent component
- * from library-list.js, matching this project's established
- * one-script-per-section convention (js/components/admin/admin-live-activity.js,
- * admin-system-health.js, etc.) rather than growing the library
- * component further.
+ * Robayer WealthLab: "Recommended for You" — Digital Library
+ * Modernization (Phase 5), extended in Digital Library 2.0 Phase G
+ * (Book Discovery + Recommendations). Drives the
+ * [data-library-recommendations-root] section on dashboard/index.html,
+ * a separate, independent component from library-list.js, matching
+ * this project's established one-script-per-section convention
+ * (js/components/admin/admin-live-activity.js, admin-system-health.js,
+ * etc.) rather than growing the library component further.
  *
  * Calls GET /api/customer/library/recommendations — see
  * backend/services/customer/libraryRecommendationsService.ts for the
- * full reasoning: reads the existing, admin-curated product_relations
- * table, scoped to what this authenticated customer actually owns.
- * Renders nothing at all if the response is empty (a customer who owns
- * nothing, or whose owned products have no configured relations) —
- * never a placeholder, never an empty "Recommended for you" heading
- * with nothing under it.
+ * full reasoning: admin-curated product_relations first, a deterministic
+ * topic-match fallback second, scoped to what this authenticated
+ * customer actually owns. `rec.reason` is a real, server-built sentence
+ * (never an internal score, never fabricated social proof) — rendered
+ * here verbatim, not reconstructed client-side. Renders nothing at all
+ * if the response is empty (a customer who owns nothing, or whose
+ * owned products have no relation AND no topic peer) — never a
+ * placeholder, never an empty heading with nothing under it.
  *
- * Deliberately quiet: at most three cards, phrased as a next step
- * ("Because you have X, you may find this useful next"), never a
- * storefront tone. See the Phase 1-4 report's UX strategy section for
+ * Deliberately quiet: at most three cards, phrased as a next step, never
+ * a storefront tone. See the Phase 1-4 report's UX strategy section for
  * why relevance is prioritized over revenue here.
  */
 
@@ -78,13 +80,23 @@ function initLibraryRecommendations() {
 
     const because = document.createElement('p');
     because.className = 'library-recommendation__because';
-    because.textContent = rec.becauseOfProductTitle ? `Because you have ${rec.becauseOfProductTitle}` : 'You may find this useful next';
+    // rec.reason is a complete, real, server-built sentence (see
+    // libraryRecommendationsService.ts's own buildReason()) - rendered
+    // exactly as returned, never reconstructed or guessed client-side.
+    because.textContent = rec.reason || 'You may find this useful next';
     body.appendChild(because);
 
     const title = document.createElement('p');
     title.className = 'library-recommendation__title';
     title.textContent = rec.title;
     body.appendChild(title);
+
+    if (rec.shortDescription) {
+      const description = document.createElement('p');
+      description.className = 'library-recommendation__description';
+      description.textContent = rec.shortDescription;
+      body.appendChild(description);
+    }
 
     const cta = document.createElement('span');
     cta.className = 'library-recommendation__cta';
