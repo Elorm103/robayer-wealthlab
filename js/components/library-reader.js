@@ -188,11 +188,18 @@ function initLibraryReader() {
 
   function getQueryParams() {
     const params = new URLSearchParams(window.location.search);
-    return { reference: params.get('ref'), assetId: params.get('assetId') };
+    // Digital Library Phase F — an optional deep-link target for a
+    // specific bookmark, set only when arriving from the Library-wide
+    // Bookmarks view (a bookmark can belong to a book that isn't
+    // currently open, so a plain in-page goTo() there doesn't apply).
+    // Absent for every existing link shape (Library card, Continue
+    // Reading, resume banner), which all still just open to the
+    // customer's real saved progress exactly as before.
+    return { reference: params.get('ref'), assetId: params.get('assetId'), jumpPage: params.get('page'), jumpCfi: params.get('cfi') };
   }
 
   async function load() {
-    const { reference, assetId } = getQueryParams();
+    const { reference, assetId, jumpPage, jumpCfi } = getQueryParams();
     if (!reference || !assetId) {
       showError('This reading link is missing information. Please open a resource from My Library.');
       return;
@@ -259,7 +266,7 @@ function initLibraryReader() {
       // openEpubReadSession()'s own header comment for exactly what
       // this does and, just as importantly, does not do yet.
       shellEl.hidden = false;
-      await openEpubReadSession(reference, asset);
+      await openEpubReadSession(reference, asset, jumpCfi);
       return;
     }
 
@@ -287,7 +294,7 @@ function initLibraryReader() {
       savedProgress = null;
     }
 
-    await openReadSession(reference, asset, savedProgress);
+    await openReadSession(reference, asset, savedProgress, jumpPage);
   }
 
   function wireFallbackDownload(reference, asset) {
@@ -317,7 +324,7 @@ function initLibraryReader() {
    * many pages PDF.js subsequently renders from the in-memory
    * document it already has), and hands that blob to PDF.js.
    */
-  async function openReadSession(reference, asset, savedProgress) {
+  async function openReadSession(reference, asset, savedProgress, jumpPage) {
     let readUrl;
     try {
       const permission = await window.CustomerDashboard.customerFetch(`/api/purchases/${encodeURIComponent(reference)}/read-access`, {
@@ -363,24 +370,41 @@ function initLibraryReader() {
       return;
     }
 
+    // A bookmark deep-link (see getQueryParams()'s own comment) takes
+    // priority over the saved reading position - the customer explicitly
+    // asked to jump here from the Library's Bookmarks view. Same
+    // "genuinely valid in THIS document" guard as the resume decision
+    // below; an invalid/out-of-range page number just falls back to the
+    // normal resume behavior rather than erroring.
+    const jumpPageNum = jumpPage ? parseInt(jumpPage, 10) : NaN;
+    const validJump = Number.isInteger(jumpPageNum) && jumpPageNum >= 1 && jumpPageNum <= pdfDoc.numPages;
+
     // Resume decision: only jump to a saved page if it's genuinely
     // still a valid, in-progress position in THIS document - a stale
     // currentPage beyond the real page count (e.g. the file changed)
     // just falls back to page 1 rather than erroring.
     const canResume =
+      !validJump &&
       savedProgress &&
       savedProgress.status !== 'completed' &&
       typeof savedProgress.currentPage === 'number' &&
       savedProgress.currentPage > 1 &&
       savedProgress.currentPage <= pdfDoc.numPages;
 
-    currentPage = canResume ? savedProgress.currentPage : 1;
+    currentPage = validJump ? jumpPageNum : canResume ? savedProgress.currentPage : 1;
     if (canResume && savedProgress.currentPage >= pdfDoc.numPages) completionAlreadyReported = true;
     wireControls();
     window.addEventListener('pagehide', flushProgressOnUnload);
     await renderPage(currentPage);
 
-    if (canResume) {
+    if (validJump) {
+      resumeBannerTextEl.textContent = `Jumped to your bookmark — page ${jumpPageNum}.`;
+      resumeBannerEl.hidden = false;
+      resumeRestartBtn.addEventListener('click', () => {
+        resumeBannerEl.hidden = true;
+        goToPage(1);
+      });
+    } else if (canResume) {
       resumeBannerTextEl.textContent = `Resumed — page ${savedProgress.currentPage} of ${pdfDoc.numPages}.`;
       resumeBannerEl.hidden = false;
       // Phase 8 — the banner appearing IS the resume already having
@@ -447,7 +471,7 @@ function initLibraryReader() {
    * format differs. AI citations and annotations are explicitly not
    * part of this phase.
    */
-  async function openEpubReadSession(reference, asset) {
+  async function openEpubReadSession(reference, asset, jumpCfi) {
     let readUrl;
     try {
       const permission = await window.CustomerDashboard.customerFetch(`/api/purchases/${encodeURIComponent(reference)}/read-access`, {
@@ -542,15 +566,19 @@ function initLibraryReader() {
       });
 
     const savedCfi = await loadEpubProgress(reference, asset.assetId);
+    // A bookmark deep-link (see getQueryParams()'s own comment) takes
+    // priority over the saved reading position, same as the PDF path
+    // above.
+    const displayTarget = jumpCfi || savedCfi;
     try {
-      if (savedCfi) {
-        await epubRendition.display(savedCfi);
-        resumeBannerTextEl.textContent = 'Resumed from where you left off.';
+      if (displayTarget) {
+        await epubRendition.display(displayTarget);
+        resumeBannerTextEl.textContent = jumpCfi ? 'Jumped to your bookmark.' : 'Resumed from where you left off.';
         resumeBannerEl.hidden = false;
-        if (window.RobayerAnalytics) window.RobayerAnalytics.trackLibraryEvent('library-resume-shown', currentProductSlug);
+        if (!jumpCfi && window.RobayerAnalytics) window.RobayerAnalytics.trackLibraryEvent('library-resume-shown', currentProductSlug);
         resumeRestartBtn.addEventListener('click', () => {
           resumeBannerEl.hidden = true;
-          if (window.RobayerAnalytics) window.RobayerAnalytics.trackLibraryEvent('library-resume-restarted', currentProductSlug);
+          if (!jumpCfi && window.RobayerAnalytics) window.RobayerAnalytics.trackLibraryEvent('library-resume-restarted', currentProductSlug);
           epubRendition.display();
         });
       } else {
@@ -561,8 +589,10 @@ function initLibraryReader() {
       // since it was saved) must never crash the reader; fall back to
       // the beginning exactly like a first-time open, and clear the
       // now-untrustworthy saved position rather than trying it again
-      // next time.
-      clearEpubProgress(asset.assetId);
+      // next time. A bookmark's own cfi failing is a stale BOOKMARK, not
+      // corrupted saved progress - never clear real reading progress
+      // over that.
+      if (!jumpCfi) clearEpubProgress(asset.assetId);
       try {
         await epubRendition.display();
       } catch {

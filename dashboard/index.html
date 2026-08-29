@@ -21,7 +21,7 @@
   <link rel="stylesheet" href="/css/tokens.css?v=2706187f0b">
   <link rel="stylesheet" href="/css/base.css?v=57a963bc6f">
   <link rel="stylesheet" href="/css/layout.css?v=a6fb0c7359">
-  <link rel="stylesheet" href="/css/components.css?v=3e00f59f29">
+  <link rel="stylesheet" href="/css/components.css?v=3c88982a14">
   <link rel="stylesheet" href="/css/utilities.css?v=406dfe7300">
 </head>
 <body>
@@ -59,6 +59,33 @@
         <p data-library-loading class="text-secondary">Loading your library&hellip;</p>
 
         <div data-library-root hidden>
+          <!-- "Ask Robayer AI" — Digital Library 2.0 Phase F, a real
+               entry point into the existing AI Reading Assistant (see
+               js/components/library-ai-entry.js and
+               js/components/library-ai-panel.js's own `?ai=1` handling),
+               never a second AI interface. Renders nothing, stays
+               hidden, for a customer with no AI-eligible resource. -->
+          <section class="library-ai-entry" data-library-ai-entry-root hidden>
+            <div class="library-ai-entry__card">
+              <div class="library-ai-entry__body">
+                <span class="eyebrow">Ask Robayer AI</span>
+                <p class="library-ai-entry__question" data-library-ai-entry-question>Have a question about something you're reading?</p>
+              </div>
+              <a href="#" class="btn btn--accent library-ai-entry__cta" data-library-ai-entry-cta>Ask Robayer AI</a>
+            </div>
+          </section>
+
+          <!-- Status filter — Digital Library 2.0 Phase F. Toggle
+               buttons, not a full tabs widget (see library-list.js's
+               own comment on why). "Bookmarks" swaps the whole list to
+               a different real data source, GET /api/customer/bookmarks. -->
+          <div class="library-filter-tabs" role="group" aria-label="Filter your library" data-library-filter-tabs hidden>
+            <button type="button" class="library-filter-tab library-filter-tab--active" data-library-filter="all" aria-pressed="true">All</button>
+            <button type="button" class="library-filter-tab" data-library-filter="reading" aria-pressed="false">Currently Reading</button>
+            <button type="button" class="library-filter-tab" data-library-filter="completed" aria-pressed="false">Completed</button>
+            <button type="button" class="library-filter-tab" data-library-filter="bookmarks" aria-pressed="false">Bookmarks</button>
+          </div>
+
           <!-- Search / sort toolbar — kept deliberately minimal, per
                the brief's explicit instruction against a complicated
                filtering dashboard. -->
@@ -170,8 +197,9 @@
   <script src="/js/components/dashboard-shell.js?v=f9f75e4692"></script>
   <script src="/js/components/dashboard-activation.js?v=d3d079d10a"></script>
   <script src="/js/components/ownership-helpers.js?v=e4bfbeb89f"></script>
-  <script src="/js/components/library-list.js?v=cf6d6dd0b5"></script>
-  <script src="/js/components/library-continue-reading.js?v=6e753fec02"></script>
+  <script src="/js/components/library-list.js?v=5779742d16"></script>
+  <script src="/js/components/library-continue-reading.js?v=a483558a91"></script>
+  <script src="/js/components/library-ai-entry.js?v=656da608b0"></script>
   <script src="/js/components/library-recommendations.js?v=2a15c00277"></script>
   <script src="/js/main.js?v=1043f4fc00"></script>
 </body>

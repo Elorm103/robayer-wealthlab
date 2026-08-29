@@ -2625,6 +2625,16 @@ button.resource-card {
   margin-bottom: var(--space-4);
 }
 
+/* Digital Library 2.0 Phase F — the toolbar is now toggled back to
+   hidden when the Bookmarks tab is active (library-list.js's own
+   setActiveFilter()), not just shown once at load like before. Same
+   [hidden]-defeated-by-display fix as .btn[hidden] elsewhere in this
+   file — the display:flex rule above otherwise wins over the [hidden]
+   attribute regardless of specificity. */
+.library-toolbar[hidden] {
+  display: none;
+}
+
 .library-toolbar__search {
   flex: 1 1 260px;
   margin-bottom: 0;
@@ -3048,6 +3058,182 @@ button.resource-card {
   .library-recommendation,
   .library-empty-pick__cover {
     transition: none;
+  }
+}
+
+/* ------------------------------------------------------------
+   Digital Library 2.0, Phase F (Personal Library Home) — "Ask
+   Robayer AI" entry point, the status filter tabs, and the
+   library-wide Bookmarks view. Same token-only discipline as
+   Phase 5's own header comment above: every rule here reads
+   --color-*/--space-*/--radius-*/--shadow-*/--font-* only, so it
+   adapts to dark mode automatically.
+   ------------------------------------------------------------ */
+
+/* Quiet, restrained entry point — --color-bg-alt (the same "warm
+   paper" background .download-info-panel already uses for a
+   permanent, non-alert section), not a purple/gradient "AI" treatment. */
+.library-ai-entry {
+  margin-bottom: var(--space-5);
+}
+
+.library-ai-entry__card {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-3) var(--space-4);
+  padding: var(--space-4) var(--space-5);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-lg);
+  background-color: var(--color-bg-alt);
+}
+
+.library-ai-entry__body {
+  min-width: 0;
+}
+
+.library-ai-entry__question {
+  font-family: var(--font-heading);
+  font-size: var(--text-body-lg);
+  color: var(--color-text-heading);
+  margin: var(--space-1) 0 0;
+  max-width: 56ch;
+}
+
+.library-ai-entry__cta {
+  flex-shrink: 0;
+}
+
+@media (max-width: 640px) {
+  .library-ai-entry__card {
+    flex-direction: column;
+    align-items: stretch;
+    text-align: center;
+  }
+  .library-ai-entry__cta {
+    width: 100%;
+    text-align: center;
+  }
+}
+
+/* Status filter — plain toggle buttons, not a full ARIA tabs widget
+   (see library-list.js's own comment on why). Minimum 44px touch
+   target throughout, matching this file's own touch-target
+   discipline for every other interactive control. */
+.library-filter-tabs {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-2);
+  margin-bottom: var(--space-4);
+}
+
+.library-filter-tab {
+  min-height: 44px;
+  padding: 0 var(--space-4);
+  border: 1px solid var(--color-border);
+  border-radius: 999px;
+  background-color: var(--color-surface);
+  color: var(--color-text-secondary);
+  font-family: var(--font-body);
+  font-size: var(--text-small);
+  font-weight: var(--weight-medium);
+  cursor: pointer;
+  transition: background-color var(--duration-base) var(--ease-standard), border-color var(--duration-base) var(--ease-standard), color var(--duration-base) var(--ease-standard);
+}
+
+.library-filter-tab:hover {
+  border-color: var(--color-border-strong);
+}
+
+.library-filter-tab:focus-visible {
+  outline: 2px solid var(--color-accent);
+  outline-offset: 2px;
+}
+
+.library-filter-tab--active {
+  background-color: var(--color-accent);
+  border-color: var(--color-accent);
+  color: var(--color-white);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .library-filter-tab {
+    transition: none;
+  }
+}
+
+/* Library-wide Bookmarks view — a row layout (book / location / date
+   / actions), distinct from .library-card's fuller purchase-record
+   layout since a bookmark carries far less to show. */
+.library-bookmarks-list {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-3);
+}
+
+.library-bookmark-row {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: var(--space-3);
+  padding: var(--space-3) var(--space-4);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-md);
+  background-color: var(--color-surface);
+}
+
+.library-bookmark-row__cover {
+  width: 48px;
+  flex-shrink: 0;
+  border-radius: var(--radius-sm);
+  overflow: hidden;
+  box-shadow: var(--shadow-1);
+}
+
+.library-bookmark-row__body {
+  flex: 1 1 200px;
+  min-width: 0;
+}
+
+.library-bookmark-row__title {
+  font-family: var(--font-heading);
+  font-weight: var(--weight-semibold);
+  margin: 0 0 2px;
+}
+
+.library-bookmark-row__location {
+  font-size: var(--text-small);
+  color: var(--color-accent);
+  margin: 0 0 2px;
+}
+
+.library-bookmark-row__date {
+  font-size: var(--text-small);
+  color: var(--color-text-muted);
+  margin: 0;
+}
+
+.library-bookmark-row__actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-2);
+  flex-shrink: 0;
+  margin-left: auto;
+}
+
+@media (max-width: 640px) {
+  .library-bookmark-row {
+    flex-direction: column;
+    align-items: stretch;
+    text-align: center;
+  }
+  .library-bookmark-row__actions {
+    width: 100%;
+    margin-left: 0;
+  }
+  .library-bookmark-row__actions .btn {
+    flex: 1;
   }
 }
 

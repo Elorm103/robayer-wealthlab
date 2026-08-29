@@ -108,7 +108,14 @@ function initLibraryContinueReading() {
 
     const meta = document.createElement('p');
     meta.className = 'library-continue-card__meta';
-    meta.textContent = `Page ${progress.currentPage} of ${progress.totalPages} — ${progress.percentComplete}% complete`;
+    // PDF reports a real page/of/total; EPUB has no fixed page count
+    // (progress.currentPage/totalPages are genuinely null - see
+    // libraryProgressService.ts's own ProgressInput comment), so it
+    // shows only the real percentage rather than a fabricated "Page
+    // null of null."
+    meta.textContent = progress.currentPage != null && progress.totalPages != null
+      ? `Page ${progress.currentPage} of ${progress.totalPages} — ${progress.percentComplete}% complete`
+      : `${progress.percentComplete}% complete`;
     body.appendChild(meta);
 
     const cta = document.createElement('span');

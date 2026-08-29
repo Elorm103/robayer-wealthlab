@@ -49,11 +49,16 @@ function initLibraryList() {
   const searchInput = document.querySelector('[data-library-search]');
   const sortSelect = document.querySelector('[data-library-sort]');
   const downloadInfoPanel = document.querySelector('[data-download-info-panel]');
+  const filterTabsEl = document.querySelector('[data-library-filter-tabs]');
 
   let allPurchases = [];
   let reviewedSlugs = new Set();
   /** Digital Library Phase 7B — keyed `${purchaseReference}:${assetId}`, populated in load(). Absent entries render no progress line at all, never a fabricated "not started" badge. */
   let progressByKey = new Map();
+  /** Digital Library Phase F — 'all' | 'reading' | 'completed' | 'bookmarks'. */
+  let activeFilter = 'all';
+  /** Lazy-loaded only the first time the Bookmarks tab is actually opened — never fetched for a customer who never looks at it. `null` means "not yet loaded," `[]` means "loaded, genuinely none." */
+  let allBookmarks = null;
 
   document.addEventListener('dashboard:ready', load, { once: true });
 
@@ -92,12 +97,45 @@ function initLibraryList() {
     populateWelcome(allPurchases);
     if (toolbarEl) toolbarEl.hidden = false;
     if (downloadInfoPanel) downloadInfoPanel.hidden = false;
+    if (filterTabsEl) filterTabsEl.hidden = false;
 
     root.hidden = false;
     renderLibrary();
 
     if (searchInput) searchInput.addEventListener('input', renderLibrary);
     if (sortSelect) sortSelect.addEventListener('change', renderLibrary);
+    if (filterTabsEl) {
+      filterTabsEl.querySelectorAll('[data-library-filter]').forEach((btn) => {
+        btn.addEventListener('click', () => setActiveFilter(btn.getAttribute('data-library-filter')));
+      });
+    }
+  }
+
+  /**
+   * Digital Library Phase F — the Library's own status filter, kept
+   * deliberately as toggle buttons (native, fully keyboard-operable,
+   * one clear pressed state) rather than a full ARIA tabs widget with
+   * its own roving-tabindex requirements this page doesn't otherwise
+   * need. 'bookmarks' is not a filter of owned resources at all - it
+   * swaps the whole list to a different real data source, see
+   * renderBookmarksView() below.
+   */
+  function setActiveFilter(filter) {
+    activeFilter = filter;
+    if (filterTabsEl) {
+      filterTabsEl.querySelectorAll('[data-library-filter]').forEach((btn) => {
+        const isActive = btn.getAttribute('data-library-filter') === filter;
+        btn.classList.toggle('library-filter-tab--active', isActive);
+        btn.setAttribute('aria-pressed', String(isActive));
+      });
+    }
+    // Search/sort and the downloads explainer apply to owned resources,
+    // not to a list of saved positions - hidden while on Bookmarks
+    // rather than left visible and inert.
+    if (toolbarEl) toolbarEl.hidden = filter === 'bookmarks';
+    if (downloadInfoPanel) downloadInfoPanel.hidden = filter === 'bookmarks';
+    if (searchInput) searchInput.value = '';
+    renderLibrary();
   }
 
   /**
@@ -118,11 +156,27 @@ function initLibraryList() {
     }
   }
 
+  /** True if any of this purchase's owned assets currently has real, server-persisted progress at the given status - a purchase can own more than one format (Phase 9C.6), so this checks every asset, never just the first. */
+  function purchaseHasProgressStatus(purchase, status) {
+    return (purchase.assets || []).some((a) => {
+      const p = progressByKey.get(`${purchase.purchaseReference}:${a.assetId}`);
+      return p && p.status === status;
+    });
+  }
+
   function getFilteredSortedPurchases() {
     const query = (searchInput && searchInput.value.trim().toLowerCase()) || '';
     const sortMode = (sortSelect && sortSelect.value) || 'recent';
 
     let purchases = allPurchases;
+    if (activeFilter === 'reading') {
+      purchases = purchases.filter((p) => purchaseHasProgressStatus(p, 'in_progress'));
+    } else if (activeFilter === 'completed') {
+      // A resource with one format completed and another still in
+      // progress reads as "currently reading," not "completed" - the
+      // two tabs stay mutually exclusive rather than double-listing it.
+      purchases = purchases.filter((p) => purchaseHasProgressStatus(p, 'completed') && !purchaseHasProgressStatus(p, 'in_progress'));
+    }
     if (query) {
       purchases = purchases.filter((p) => p.productTitle.toLowerCase().includes(query));
     }
@@ -135,7 +189,10 @@ function initLibraryList() {
     }
     // 'recent' - the API already returns purchases newest-first; no
     // client-side re-sort needed, preserving the server's own order.
-    return { purchases: sorted, isFiltered: Boolean(query) };
+    // isFiltered also covers the reading/completed tabs, not just a
+    // search - both read as "show me exactly this," so both flatten the
+    // topic grouping below the same way a search does.
+    return { purchases: sorted, isFiltered: Boolean(query) || activeFilter !== 'all', isSearch: Boolean(query) };
   }
 
   /** Real signal: the Read action increments the exact same downloadsUsed/lastDownloadAt as Download, so this genuinely reflects the last time the customer opened or downloaded the file, never an estimate. */
@@ -149,13 +206,26 @@ function initLibraryList() {
   }
 
   function renderLibrary() {
-    const { purchases, isFiltered } = getFilteredSortedPurchases();
+    if (activeFilter === 'bookmarks') {
+      renderBookmarksView();
+      return;
+    }
+
+    const { purchases, isFiltered, isSearch } = getFilteredSortedPurchases();
     listEl.innerHTML = '';
 
     if (purchases.length === 0) {
       const noResults = document.createElement('p');
       noResults.className = 'text-secondary';
-      noResults.textContent = 'Nothing matches that search.';
+      if (isSearch) {
+        noResults.textContent = 'Nothing matches that search.';
+      } else if (activeFilter === 'reading') {
+        noResults.textContent = "You're not in the middle of anything right now. Open a book to pick up where you'd start.";
+      } else if (activeFilter === 'completed') {
+        noResults.textContent = "You haven't completed a book yet.";
+      } else {
+        noResults.textContent = 'Nothing matches that search.';
+      }
       listEl.appendChild(noResults);
       return;
     }
@@ -190,6 +260,122 @@ function initLibraryList() {
     if (untopiced.length > 0) {
       listEl.appendChild(renderTopicGroup('More resources', untopiced));
     }
+  }
+
+  /**
+   * Digital Library Phase F — the Library-wide "Bookmarks" tab. Reuses
+   * the existing GET /api/customer/bookmarks endpoint (Digital Library
+   * 2.0's own library-wide bookmark listing, already indexed
+   * server-side by customer_id - not a new API surface) and joins it
+   * client-side against `allPurchases`, the exact same pattern
+   * library-continue-reading.js already established for combining
+   * progress with purchase metadata. Fetched once, lazily, only the
+   * first time this tab is actually opened.
+   */
+  async function renderBookmarksView() {
+    listEl.innerHTML = '';
+
+    if (allBookmarks === null) {
+      const loading = document.createElement('p');
+      loading.className = 'text-secondary';
+      loading.textContent = 'Loading your bookmarks…';
+      listEl.appendChild(loading);
+      try {
+        const result = await window.CustomerDashboard.customerFetch('/api/customer/bookmarks');
+        allBookmarks = result.bookmarks || [];
+      } catch {
+        allBookmarks = [];
+      }
+      // The customer may have switched tabs again while this request
+      // was in flight - a stale response must never overwrite whatever
+      // tab is actually showing now.
+      if (activeFilter !== 'bookmarks') return;
+      listEl.innerHTML = '';
+    }
+
+    if (allBookmarks.length === 0) {
+      const empty = document.createElement('p');
+      empty.className = 'text-secondary';
+      empty.textContent = "You haven't saved any bookmarks yet. Open a book and use the bookmark icon to save your place.";
+      listEl.appendChild(empty);
+      return;
+    }
+
+    const purchaseByReference = new Map(allPurchases.map((p) => [p.purchaseReference, p]));
+    const list = document.createElement('div');
+    list.className = 'library-bookmarks-list';
+    allBookmarks.forEach((bookmark) => {
+      const purchase = purchaseByReference.get(bookmark.purchaseReference);
+      if (!purchase) return; // stale/edge case - the purchase itself is no longer visible to this customer, same discipline as library-continue-reading.js
+      list.appendChild(renderBookmarkRow(bookmark, purchase));
+    });
+    listEl.appendChild(list);
+  }
+
+  function renderBookmarkRow(bookmark, purchase) {
+    const row = document.createElement('div');
+    row.className = 'library-bookmark-row';
+
+    const cover = renderCover(purchase);
+    cover.classList.add('library-bookmark-row__cover');
+    row.appendChild(cover);
+
+    const body = document.createElement('div');
+    body.className = 'library-bookmark-row__body';
+
+    const title = document.createElement('p');
+    title.className = 'library-bookmark-row__title';
+    title.textContent = purchase.productTitle;
+    body.appendChild(title);
+
+    const location = document.createElement('p');
+    location.className = 'library-bookmark-row__location';
+    // Same honest fallback wording library-reader.js's own in-book
+    // bookmarks panel already uses - a real label if the customer gave
+    // one, otherwise a real page number for PDF, or "Saved position"
+    // for EPUB (an EPUB CFI/href is a real value but not a human-
+    // readable chapter title - never presented as if it were one).
+    location.textContent = bookmark.label || (bookmark.format === 'PDF' ? `Page ${bookmark.pageNumber}` : 'Saved position');
+    body.appendChild(location);
+
+    const date = document.createElement('p');
+    date.className = 'library-bookmark-row__date';
+    date.textContent = window.RobayerOwnership.formatOwnedDate(bookmark.createdAt);
+    body.appendChild(date);
+
+    row.appendChild(body);
+
+    const actions = document.createElement('div');
+    actions.className = 'library-bookmark-row__actions';
+
+    const jumpLink = document.createElement('a');
+    jumpLink.className = 'btn btn--accent';
+    jumpLink.textContent = 'Jump to bookmark';
+    const params = new URLSearchParams({ ref: purchase.purchaseReference, assetId: bookmark.assetId });
+    if (bookmark.format === 'PDF' && bookmark.pageNumber) params.set('page', String(bookmark.pageNumber));
+    if (bookmark.format === 'EPUB' && bookmark.cfi) params.set('cfi', bookmark.cfi);
+    jumpLink.href = `/dashboard/read/?${params.toString()}`;
+    actions.appendChild(jumpLink);
+
+    const deleteBtn = document.createElement('button');
+    deleteBtn.type = 'button';
+    deleteBtn.className = 'btn btn--secondary';
+    deleteBtn.textContent = 'Delete';
+    deleteBtn.setAttribute('aria-label', `Delete bookmark for ${purchase.productTitle}`);
+    deleteBtn.addEventListener('click', async () => {
+      deleteBtn.disabled = true;
+      try {
+        await window.CustomerDashboard.customerFetch(`/api/customer/bookmarks/${encodeURIComponent(bookmark.id)}`, { method: 'DELETE' });
+        allBookmarks = allBookmarks.filter((b) => b.id !== bookmark.id);
+        renderBookmarksView();
+      } catch {
+        deleteBtn.disabled = false;
+      }
+    });
+    actions.appendChild(deleteBtn);
+
+    row.appendChild(actions);
+    return row;
   }
 
   function renderTopicGroup(label, purchases) {
@@ -536,7 +722,13 @@ function initLibraryList() {
 
     const meta = document.createElement('p');
     meta.className = 'library-card__progress-meta';
-    meta.textContent = `Continue reading — Page ${progress.currentPage} of ${progress.totalPages}`;
+    // Same PDF-vs-EPUB shape difference library-continue-reading.js's
+    // own card handles - EPUB has no fixed page count, so
+    // currentPage/totalPages are genuinely null and this falls back to
+    // the real percentage instead of a fabricated "Page null of null."
+    meta.textContent = progress.currentPage != null && progress.totalPages != null
+      ? `Continue reading — Page ${progress.currentPage} of ${progress.totalPages}`
+      : `Continue reading — ${progress.percentComplete}% complete`;
     wrap.appendChild(meta);
 
     const track = document.createElement('div');

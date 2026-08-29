@@ -56,6 +56,13 @@ function initLibraryAiPanel() {
     if (event.detail.supportsAi) {
       trigger.hidden = false;
       subtitleEl.textContent = `Ask about "${event.detail.bookTitle}" — grounded in this book only.`;
+      // Digital Library Phase F — the Library home's "Ask Robayer AI"
+      // entry point deep-links here with `?ai=1` so the real, existing
+      // panel opens immediately with the book already in context,
+      // rather than a second, parallel AI interface living on the
+      // Library page itself. Absent for every normal reading link, so
+      // opening a book to just read never opens this uninvited.
+      if (new URLSearchParams(window.location.search).get('ai') === '1') openPanel();
     }
   });
 
