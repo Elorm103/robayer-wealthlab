@@ -48,6 +48,8 @@ export interface LibraryAiCitation {
   chunkId: number;
   pageNumber: number | null;
   chapterTitle: string | null;
+  /** EPUB only — the section's href, navigable by the reader's own display(href) call; NULL for PDF. */
+  cfi: string | null;
   score: number;
 }
 
@@ -100,10 +102,16 @@ const MODE_INSTRUCTIONS: Record<LibraryAiMode, string> = {
   ask: 'Mode: Ask Anything. Answer the reader\'s specific question directly and clearly.',
 };
 
+function describeSourceLocation(r: LibrarySearchResult): string {
+  if (r.pageNumber) return ` (page ${r.pageNumber})`;
+  if (r.chapterTitle) return ` (${r.chapterTitle})`;
+  return '';
+}
+
 function buildUserPrompt(mode: LibraryAiMode, question: string, results: LibrarySearchResult[]): string {
   const sources = results
     .slice(0, MAX_CITATIONS)
-    .map((r, i) => `Source [${i + 1}]${r.pageNumber ? ` (page ${r.pageNumber})` : ''}:\n${r.chunkText}`)
+    .map((r, i) => `Source [${i + 1}]${describeSourceLocation(r)}:\n${r.chunkText}`)
     .join('\n\n');
   return `${MODE_INSTRUCTIONS[mode]}\n\n--- Source excerpts from this book ---\n${sources}\n\n--- Reader's request ---\n${question}`;
 }
@@ -116,7 +124,7 @@ function determineConfidenceTier(results: LibrarySearchResult[]): LibraryAiConfi
 }
 
 function buildCitations(results: LibrarySearchResult[]): LibraryAiCitation[] {
-  return results.slice(0, MAX_CITATIONS).map((r) => ({ chunkId: r.chunkId, pageNumber: r.pageNumber, chapterTitle: r.chapterTitle, score: r.score }));
+  return results.slice(0, MAX_CITATIONS).map((r) => ({ chunkId: r.chunkId, pageNumber: r.pageNumber, chapterTitle: r.chapterTitle, cfi: r.cfi, score: r.score }));
 }
 
 async function logMessage(
@@ -204,9 +212,10 @@ export async function answerLibraryQuestion(env: Env, logger: Logger, request: L
   const asset = product ? findPublishedAsset(product, request.assetId) : null;
   if (!asset || !product) return { ok: false, reason: 'not_authorized' };
 
-  if (asset.fileType !== 'PDF') return { ok: false, reason: 'unsupported_format' };
+  if (asset.fileType !== 'PDF' && asset.fileType !== 'EPUB') return { ok: false, reason: 'unsupported_format' };
+  const fileType: 'PDF' | 'EPUB' = asset.fileType;
 
-  const indexResult = await ensureResourceIndexed(env, logger, deliveryRow.productSlug, request.assetId, asset.fileType, await fetchAssetBytes(env, asset.storageKey));
+  const indexResult = await ensureResourceIndexed(env, logger, deliveryRow.productSlug, request.assetId, fileType, await fetchAssetBytes(env, asset.storageKey));
   if (indexResult.status === 'unsupported_format') return { ok: false, reason: 'unsupported_format' };
   if (indexResult.status === 'failed') return { ok: false, reason: 'indexing_failed' };
 

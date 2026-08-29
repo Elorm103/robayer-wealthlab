@@ -30,6 +30,7 @@ import type { Logger } from '../../utils/logger';
 import { embedText } from '../ai/aiGateway';
 import { chunkText } from '../knowledge/chunking';
 import { extractPdfText } from './pdfExtraction';
+import { extractEpubText } from './epubExtraction';
 
 const EMBEDDING_FEATURE = 'library.embed';
 const EMBEDDING_MODEL = 'text-embedding-3-small';
@@ -66,22 +67,65 @@ interface ExistingDocumentRow {
  * content).
  */
 export async function ensureResourceIndexed(env: Env, logger: Logger, productSlug: string, assetId: string, fileType: 'PDF' | 'EPUB', fileBytes: ArrayBuffer): Promise<IndexResourceResult> {
-  if (fileType !== 'PDF') {
+  if (fileType !== 'PDF' && fileType !== 'EPUB') {
     await upsertDocumentRow(env, productSlug, assetId, fileType, null, '', 'unsupported_format', null);
     return { status: 'unsupported_format' };
   }
 
-  let extracted: Awaited<ReturnType<typeof extractPdfText>>;
-  try {
-    extracted = await extractPdfText(fileBytes);
-  } catch (err) {
-    const message = err instanceof Error ? err.message : String(err);
-    logger.error('library_knowledge.extraction_failed', { productSlug, assetId, error: message });
-    await upsertDocumentRow(env, productSlug, assetId, fileType, null, '', 'failed', message);
-    return { status: 'failed', error: message };
+  // Build every chunk BEFORE writing anything, so a failure partway
+  // through extraction/embedding never leaves a half-updated document.
+  // pageNumber is real per-page for PDF (never for EPUB, which has no
+  // fixed page count); chapterTitle/cfi are real per-section for EPUB
+  // (chapterTitle only from a real PDF outline entry, never from EPUB
+  // today — see searchService.ts/answerService.ts for how each format's
+  // fields are used downstream).
+  const pending: { pageNumber: number | null; chapterTitle: string | null; cfi: string | null; text: string; tokens: number }[] = [];
+  let totalPages: number | null = null;
+  let fullText: string;
+
+  if (fileType === 'PDF') {
+    let extracted: Awaited<ReturnType<typeof extractPdfText>>;
+    try {
+      extracted = await extractPdfText(fileBytes);
+    } catch (err) {
+      const message = err instanceof Error ? err.message : String(err);
+      logger.error('library_knowledge.extraction_failed', { productSlug, assetId, error: message });
+      await upsertDocumentRow(env, productSlug, assetId, fileType, null, '', 'failed', message);
+      return { status: 'failed', error: message };
+    }
+    totalPages = extracted.totalPages;
+    fullText = extracted.pages.map((p) => p.text).join('\n\n');
+    for (const page of extracted.pages) {
+      if (!page.text) continue; // a genuinely blank page (cover, divider) contributes nothing to index — not an error
+      for (const chunk of chunkText(page.text)) {
+        pending.push({ pageNumber: page.pageNumber, chapterTitle: null, cfi: null, text: chunk.text, tokens: chunk.tokens });
+      }
+    }
+  } else {
+    let extracted: Awaited<ReturnType<typeof extractEpubText>>;
+    try {
+      extracted = await extractEpubText(fileBytes);
+    } catch (err) {
+      const message = err instanceof Error ? err.message : String(err);
+      logger.error('library_knowledge.extraction_failed', { productSlug, assetId, error: message });
+      await upsertDocumentRow(env, productSlug, assetId, fileType, null, '', 'failed', message);
+      return { status: 'failed', error: message };
+    }
+    fullText = extracted.sections.map((s) => s.text).join('\n\n');
+    for (const section of extracted.sections) {
+      if (!section.text) continue; // a genuinely empty section contributes nothing to index — not an error
+      for (const chunk of chunkText(section.text)) {
+        // section.href (e.g. "ch01.xhtml") is stored in the reserved
+        // `cfi` column, not a byte-precise EPUB CFI — this codebase's
+        // own reader (epubRendition.display(item.href)) already accepts
+        // a plain href interchangeably with a full CFI for navigation,
+        // so a citation's "Read this section" link works identically
+        // either way, without inventing a DOM-path CFI generator.
+        pending.push({ pageNumber: null, chapterTitle: section.chapterTitle, cfi: section.href, text: chunk.text, tokens: chunk.tokens });
+      }
+    }
   }
 
-  const fullText = extracted.pages.map((p) => p.text).join('\n\n');
   const contentHash = await sha256Hex(fullText);
 
   const existing = await env.DB.prepare(`SELECT id, content_hash, status FROM library_knowledge_documents WHERE product_slug = ? AND asset_id = ?`)
@@ -93,18 +137,8 @@ export async function ensureResourceIndexed(env: Env, logger: Logger, productSlu
     return { status: 'indexed', documentId: existing.id, chunkCount: chunkCount?.n ?? 0 };
   }
 
-  // Build every chunk (per-page) BEFORE writing anything, so a failure
-  // partway through embedding never leaves a half-updated document.
-  const pending: { pageNumber: number; text: string; tokens: number }[] = [];
-  for (const page of extracted.pages) {
-    if (!page.text) continue; // a genuinely blank page (cover, divider) contributes nothing to index — not an error
-    for (const chunk of chunkText(page.text)) {
-      pending.push({ pageNumber: page.pageNumber, text: chunk.text, tokens: chunk.tokens });
-    }
-  }
-
   if (pending.length === 0) {
-    await upsertDocumentRow(env, productSlug, assetId, fileType, extracted.totalPages, contentHash, 'failed', 'No extractable text found in this file.');
+    await upsertDocumentRow(env, productSlug, assetId, fileType, totalPages, contentHash, 'failed', 'No extractable text found in this file.');
     return { status: 'failed', error: 'No extractable text found in this file.' };
   }
 
@@ -121,7 +155,7 @@ export async function ensureResourceIndexed(env: Env, logger: Logger, productSlu
     embeddings.push(...result.embeddings);
   }
 
-  const documentId = await upsertDocumentRow(env, productSlug, assetId, fileType, extracted.totalPages, contentHash, 'indexed', null, pending.length);
+  const documentId = await upsertDocumentRow(env, productSlug, assetId, fileType, totalPages, contentHash, 'indexed', null, pending.length);
 
   const vectorRecords = pending.map((chunk, i) => ({
     id: `library:${documentId}:${i}`,
@@ -144,8 +178,8 @@ export async function ensureResourceIndexed(env: Env, logger: Logger, productSlu
   await env.DB.batch(
     pending.map((chunk, i) =>
       env.DB.prepare(
-        `INSERT INTO library_knowledge_chunks (document_id, chunk_index, chunk_text, chunk_tokens, page_number, vector_id, embedding_model) VALUES (?, ?, ?, ?, ?, ?, ?)`
-      ).bind(documentId, i, chunk.text, chunk.tokens, chunk.pageNumber, vectorRecords[i].id, EMBEDDING_MODEL)
+        `INSERT INTO library_knowledge_chunks (document_id, chunk_index, chunk_text, chunk_tokens, page_number, chapter_title, cfi, vector_id, embedding_model) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`
+      ).bind(documentId, i, chunk.text, chunk.tokens, chunk.pageNumber, chunk.chapterTitle, chunk.cfi, vectorRecords[i].id, EMBEDDING_MODEL)
     )
   );
 

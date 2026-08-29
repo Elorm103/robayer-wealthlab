@@ -28,6 +28,14 @@ const logger = createLogger('test-request-id', 'test');
 const PDF_BASE64 =
   'JVBERi0xLjcKJYGBgYEKCjYgMCBvYmoKPDwKL0ZpbHRlciAvRmxhdGVEZWNvZGUKL0xlbmd0aCAxMzkKPj4Kc3RyZWFtCnicJYqxCgIxEET7/YqtBXGzSXYuIBZyOSxshP0BERVFC0X8fpOTYWB48160dRLueV9ptTs/vufP7XRcQsqQBsFQOCj7hTSx7ynMamAVjlnYn7RO0SYbITYhW7WkYsUqkmVoa0QnaHsCEFVQugltK1qAddvmp3Gz/5MaHS1r3bDfyRdUnQ70A0nKJeUKZW5kc3RyZWFtCmVuZG9iagoKNyAwIG9iago8PAovRmlsdGVyIC9GbGF0ZURlY29kZQovVHlwZSAvT2JqU3RtCi9OIDUKL0ZpcnN0IDI2Ci9MZW5ndGggMzYzCj4+CnN0cmVhbQp4nNVS30vDMBB+z19xj/ogSdOsP2QMtrVVkKFsgqL4kLVhVEYibSrzv/eu7SZ7EJ+lfCR3993l7voFIECCUhBCnICCSShhAlGgYDpl/PHrwwB/0DvTMn5XVy28YlTAGt4YX7rOegjYbMZ+uEvt9d7t2JAEAZGPjIfGVV1pGpgWeVEIEQshIoWIhJAZnktEipBoY0wmeEfEagT64lCIcI6xYkAUDzkU77mTMT/HE7kRcbKBq5LBPr1Lb+VDDflXP+mM8ZWrMu0NXGTXUshIJDIJUhWE0cslrqMx2rv/O1zff+3srxOe/efCWc/4ptv63iRnwPhCt4YiwG/N/tP4utSM57Z0VW13wJ9qO7dtfXScVyTBkGwaQ6rqdcPXpnVdU6KQiNdXpsup+FUs0gQnj5MUtTtKjT/fb99N2VPJzA/+ZuNpqsFBvpWpar1wB9SzwA93CbgbUvXcWudJ573CrcduyIpG1WPyN7AzxfYKZW5kc3RyZWFtCmVuZG9iagoKOCAwIG9iago8PAovU2l6ZSA5Ci9Sb290IDIgMCBSCi9JbmZvIDMgMCBSCi9GaWx0ZXIgL0ZsYXRlRGVjb2RlCi9UeXBlIC9YUmVmCi9MZW5ndGggNDIKL1cgWyAxIDIgMiBdCi9JbmRleCBbIDAgOSBdCj4+CnN0cmVhbQp4nGNgYPj/n4mBnYEBRDCCCCYQwQwiWBgZBBgYGBmeAAmmrQwMAGLhA+QKZW5kc3RyZWFtCmVuZG9iagoKc3RhcnR4cmVmCjY5MwolJUVPRg==';
 
+// A real, minimal, valid single-chapter EPUB (single spine item, same
+// real-ZIP construction as epubExtraction.test.ts's own fixture) —
+// "Treasury bills are short-term government securities that mature in
+// less than a year." under a real "Chapter 1: Treasury Bills Explained"
+// heading, short enough to always chunk into exactly one chunk.
+const EPUB_BASE64 =
+  'UEsDBBQAAAAAAAAAIQBvYassFAAAABQAAAAIAAAAbWltZXR5cGVhcHBsaWNhdGlvbi9lcHViK3ppcFBLAwQUAAAACAB9ph1deLV4E60AAAD6AAAAFgAAAE1FVEEtSU5GL2NvbnRhaW5lci54bWxdjsEKwjAQRO9+RdirtNWbhKYFQc8e9APWdFuDyW5oUql/L/YgxeODmXlTt3Pw6kVjcsIG9uUOFLGVzvFg4HY9Fwdom01thTM6pvEvOwfPycA0shZMLmnGQElnqyUSd2KnQJz1EtO/EWg2StWjSO6dp/SlFat+8r6ImB8GTpfbsfr2iHMpsQcVqHNY5HckAxijdxazE66E7jEVEe0TB9rOwUO1WKqVpl6mlgvNB1BLAwQUAAAACAB9ph1dgzrvwSgBAAD8AQAAEAAAAEVQVUIvY29udGVudC5vcGZNkc1ugzAQhO95CsvXCmzaQysERIrUnntIHsDFC6ziv+J1Q9++CuGnN1s78+2MtjpO1rAfGCN6V/Mil5yBa71G19f8cv7I3vixOVRBtVfVA5uscbHmA1Eohbjdbjnq0OV+7MWzlK/Ch46z5PA7QYYaHGGHMNb8y/srar5vesklbw6MVRZIaUXqgS51u9FDGs1M1q0AAxYcRVHkhZiNjFW6LQnJQHOGSOz983JiJ++vldgGm27PwlBvcZo0ujIl1CVBpAxC+soiut5AJqUsZtDu3GlGuT6pHhpws2b73wuJtdGjnnLYQaTFjAR2TtAOBWfDCN38zKeBrOHMgkaV0W+AmqsQDLaK0Dsxj58ma7hYdvzDVjGgW7veF4zQMdQre7Usqkost2z+AFBLAwQUAAAACAB9ph1d/ZEKdMwAAAAcAQAADgAAAEVQVUIvY2gxLnhodG1sRc9NboMwEAXgPacYeR9cq5sSDY6Uqj1BegAnjLAl/6DxEOD2FURqt+99i/fwsqYIT+IaSu6Vad8UUH6UIeSxVz+379OHutgGvaQIa4q59sqLTGetl2Vpl/e28KhN13V63Y3aLbnBogSJZD+9m4QYDOpXgPqoG7yXYbMNAHrzr85wY3J15g2uIcYKX+sUXcg0oPbm4JP9I/eDOCaovrCchDjBWJ7EOVEWqPSYOUigCuKdQHIyM0HIEKkeWQYHGzluUU+2Qf0ahXq/Yn8BUEsBAhQAFAAAAAAAAAAhAG9hqywUAAAAFAAAAAgAAAAAAAAAAAAAAIABAAAAAG1pbWV0eXBlUEsBAhQAFAAAAAgAfaYdXXi1eBOtAAAA+gAAABYAAAAAAAAAAAAAAIABOgAAAE1FVEEtSU5GL2NvbnRhaW5lci54bWxQSwECFAAUAAAACAB9ph1dgzrvwSgBAAD8AQAAEAAAAAAAAAAAAAAAgAEbAQAARVBVQi9jb250ZW50Lm9wZlBLAQIUABQAAAAIAH2mHV39kQp0zAAAABwBAAAOAAAAAAAAAAAAAACAAXECAABFUFVCL2NoMS54aHRtbFBLBQYAAAAABAAEAPQAAABpAwAAAAA=';
+
 function base64ToArrayBuffer(b64: string): ArrayBuffer {
   const binary = atob(b64);
   const bytes = new Uint8Array(binary.length);
@@ -78,6 +86,27 @@ async function seedProductWithAsset(slug: string, assetId: string, storageKey: s
     .bind(productRow!.id, assetId, mediaId)
     .run();
   await env.STORAGE.put(storageKey, base64ToArrayBuffer(PDF_BASE64));
+}
+
+async function seedEpubProductWithAsset(slug: string, assetId: string, storageKey: string): Promise<void> {
+  await env.DB.prepare(
+    `INSERT INTO products (product_id, slug, title, topic, product_type, status, price_pesewas, currency, pricing_model, tax_behavior, language)
+     VALUES (?, ?, ?, 'investing', 'ebook', 'active', 3900, 'GHS', 'one-time', 'inclusive', 'en')`
+  )
+    .bind(`prod-${slug}`, slug, `Title for ${slug}`)
+    .run();
+  const mediaInsert = await env.DB.prepare(
+    `INSERT INTO media_assets (filename, original_filename, mime_type, size_bytes, content_hash, storage_key, public_url, media_type, folder, status)
+     VALUES (?, ?, 'application/epub+zip', 1024, ?, ?, ?, 'document', 'books', 'ready')`
+  )
+    .bind(`${slug}.epub`, `${slug}.epub`, `hash-${slug}`, storageKey, `https://example.com/${slug}.epub`)
+    .run();
+  const mediaId = Number(mediaInsert.meta.last_row_id);
+  const productRow = await env.DB.prepare('SELECT id FROM products WHERE slug = ?').bind(slug).first<{ id: number }>();
+  await env.DB.prepare(`INSERT INTO product_files (product_id, asset_id, media_id, display_name, file_type, status) VALUES (?, ?, ?, 'EPUB', 'EPUB', 'published')`)
+    .bind(productRow!.id, assetId, mediaId)
+    .run();
+  await env.STORAGE.put(storageKey, base64ToArrayBuffer(EPUB_BASE64));
 }
 
 async function seedPurchase(reference: string, customerId: number, slug: string, assetId: string, overrides: { status?: string } = {}): Promise<void> {
@@ -270,4 +299,95 @@ describe('answerLibraryQuestion — customer isolation', () => {
       throw new Error('expected an answered response for Book A');
     }
   });
+});
+
+describe('answerLibraryQuestion — EPUB (Phase E: EPUB -> Robayer AI knowledge integration)', () => {
+  it('an entitled customer can ask Robayer AI about an EPUB and gets a real, grounded answer with EPUB-shaped citations (chapter title + section location, never a fabricated page number)', async () => {
+    await seedEpubProductWithAsset('book-epub-c', 'asset-book-epub-c', 'ebooks/book-epub-c.epub');
+    await seedPurchase('RWL-2026-900020', CUSTOMER_A, 'book-epub-c', 'asset-book-epub-c');
+    const testEnv = envWithFakeVectorize();
+    await queueIndexingAndQueryEmbeddings();
+    await queueChatAnswer();
+
+    const result = await answerLibraryQuestion(testEnv, logger, {
+      purchaseReference: 'RWL-2026-900020',
+      assetId: 'asset-book-epub-c',
+      customerId: CUSTOMER_A,
+      mode: 'ask',
+      question: 'What are treasury bills?',
+    });
+
+    expect(result.ok).toBe(true);
+    if (result.ok) {
+      expect(result.status).toBe('answered');
+      expect(result.citations.length).toBeGreaterThan(0);
+      const citation = result.citations[0];
+      // Real, extracted structure — never fabricated: this fixture's
+      // one real chapter, its real heading, and its real spine href
+      // (stored in the reserved `cfi` column; see indexingService.ts's
+      // own comment on why an href, not a byte-precise CFI, is honest
+      // here). No page number exists for an EPUB — must be null, never
+      // a guessed PDF-style value.
+      expect(citation.pageNumber).toBeNull();
+      expect(citation.chapterTitle).toBe('Chapter 1: Treasury Bills Explained');
+      expect(citation.cfi).toBe('ch1.xhtml');
+    }
+  }, 15_000);
+
+  it('a customer who does NOT own the EPUB is denied — not_authorized, same as PDF', async () => {
+    await seedEpubProductWithAsset('book-epub-c', 'asset-book-epub-c', 'ebooks/book-epub-c.epub');
+    await seedPurchase('RWL-2026-900021', CUSTOMER_A, 'book-epub-c', 'asset-book-epub-c');
+    const testEnv = envWithFakeVectorize();
+
+    const result = await answerLibraryQuestion(testEnv, logger, {
+      purchaseReference: 'RWL-2026-900021',
+      assetId: 'asset-book-epub-c',
+      customerId: CUSTOMER_B, // does not own this purchase
+      mode: 'ask',
+      question: 'What are treasury bills?',
+    });
+
+    expect(result.ok).toBe(false);
+    if (!result.ok) expect(result.reason).toBe('not_authorized');
+    const usage = await env.DB.prepare(`SELECT COUNT(*) AS n FROM ai_usage_log`).first<{ n: number }>();
+    expect(usage!.n).toBe(0);
+  });
+
+  it('cross-book leakage: a customer entitled only to the EPUB never receives citations from a separately indexed PDF book, even with identical vectors', async () => {
+    await seedEpubProductWithAsset('book-epub-c', 'asset-book-epub-c', 'ebooks/book-epub-c.epub');
+    await seedPurchase('RWL-2026-900022', CUSTOMER_A, 'book-a', 'asset-book-a-pdf'); // owns the PDF too
+    await seedPurchase('RWL-2026-900023', CUSTOMER_A, 'book-epub-c', 'asset-book-epub-c'); // owns the EPUB
+
+    const testEnv = envWithFakeVectorize();
+
+    // Index the PDF first — same fixture vector as every other test in
+    // this file, on purpose.
+    await queueIndexingAndQueryEmbeddings();
+    await queueChatAnswer();
+    const pdfResult = await answerLibraryQuestion(testEnv, logger, { purchaseReference: 'RWL-2026-900022', assetId: 'asset-book-a-pdf', customerId: CUSTOMER_A, mode: 'ask', question: 'What does compound interest mean?' });
+    expect(pdfResult.ok).toBe(true);
+
+    // Now index and ask the EPUB — identical vector, so Vectorize's own
+    // topK genuinely returns candidates from BOTH the PDF and the EPUB;
+    // only the D1 document_id-scoped join (searchService.ts) can tell
+    // them apart.
+    await queueIndexingAndQueryEmbeddings();
+    await queueChatAnswer();
+    const epubResult = await answerLibraryQuestion(testEnv, logger, { purchaseReference: 'RWL-2026-900023', assetId: 'asset-book-epub-c', customerId: CUSTOMER_A, mode: 'ask', question: 'What does compound interest mean?' });
+    expect(epubResult.ok).toBe(true);
+
+    if (epubResult.ok && epubResult.status === 'answered') {
+      const citationRows = await env.DB.prepare(
+        `SELECT lkd.product_slug AS productSlug FROM library_ai_message_citations c JOIN library_knowledge_documents lkd ON lkd.id = c.document_id WHERE c.message_id = ?`
+      )
+        .bind(epubResult.messageId)
+        .all<{ productSlug: string }>();
+      expect(citationRows.results.length).toBeGreaterThan(0);
+      for (const row of citationRows.results) {
+        expect(row.productSlug).toBe('book-epub-c');
+      }
+    } else {
+      throw new Error('expected an answered response for the EPUB');
+    }
+  }, 15_000);
 });

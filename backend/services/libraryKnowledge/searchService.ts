@@ -45,6 +45,8 @@ export interface LibrarySearchResult {
   chunkText: string;
   pageNumber: number | null;
   chapterTitle: string | null;
+  /** EPUB only — the chapter file's own href (e.g. "ch01.xhtml"), stored in the reserved `cfi` column; NULL for PDF. See indexingService.ts's own comment on why this is a real href, not a byte-precise CFI. */
+  cfi: string | null;
   vectorSimilarity: number;
   pageProximityBoost: number;
   score: number;
@@ -61,6 +63,7 @@ interface ChunkJoinRow {
   chunk_text: string;
   page_number: number | null;
   chapter_title: string | null;
+  cfi: string | null;
   vector_id: string;
 }
 
@@ -92,7 +95,7 @@ export async function searchLibraryResource(env: Env, logger: Logger, request: L
     // document_id in the WHERE clause is the real enforcement point —
     // see this file's own header comment.
     const rows = await env.DB.prepare(
-      `SELECT id AS chunk_id, chunk_text, page_number, chapter_title, vector_id
+      `SELECT id AS chunk_id, chunk_text, page_number, chapter_title, cfi, vector_id
        FROM library_knowledge_chunks
        WHERE document_id = ? AND vector_id IN (${placeholders})`
     )
@@ -112,6 +115,7 @@ export async function searchLibraryResource(env: Env, logger: Logger, request: L
           chunkText: r.chunk_text,
           pageNumber: r.page_number,
           chapterTitle: r.chapter_title,
+          cfi: r.cfi,
           vectorSimilarity,
           pageProximityBoost,
           score: Math.min(1, signals.finalScore + pageProximityBoost),

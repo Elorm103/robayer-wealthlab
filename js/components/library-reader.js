@@ -242,7 +242,7 @@ function initLibraryReader() {
     // from the page-changed event fired on every render below.
     document.dispatchEvent(
       new CustomEvent('library-reader:ready', {
-        detail: { purchaseReference: reference, assetId, productSlug: purchase.productSlug, bookTitle: purchase.productTitle, supportsAi: asset.fileType === 'PDF' },
+        detail: { purchaseReference: reference, assetId, productSlug: purchase.productSlug, bookTitle: purchase.productTitle, supportsAi: asset.fileType === 'PDF' || asset.fileType === 'EPUB' },
       })
     );
 
