@@ -73,6 +73,16 @@ function initSignInForm() {
         throw error;
       }
 
+      // Phase 9B: the header's "Sign In"/"My Library" link (nav.js)
+      // caches the signed-out state in sessionStorage for a few minutes
+      // to avoid a session check on every page view. Without clearing it
+      // here, a visitor who browsed while signed out and then signs in
+      // would land on the redirect target still seeing a stale "Sign In"
+      // link for up to that whole TTL. Same literal key as nav.js's
+      // LIBRARY_LINK_CACHE_KEY — duplicated, not imported, matching this
+      // codebase's existing no-module-system convention.
+      try { sessionStorage.removeItem('robayer_library_link_state'); } catch { /* private browsing / unavailable - next load just re-checks */ }
+
       const params = new URLSearchParams(window.location.search);
       window.location.href = sanitizeRedirectPath(params.get('redirect'));
     } catch (error) {

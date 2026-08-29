@@ -25,6 +25,17 @@
         <li><a href="/resources/">Resources</a></li>
         <li><a href="/ai-assistant/">Ask AI</a></li>
         <li><a href="/about/">About</a></li>
+        <!-- Phase 9B (Library Discoverability) — a real, top-level nav
+             item, not buried in "More": "Sign In" is the safe,
+             correct default for a not-yet-JS-evaluated or no-JS
+             visitor (the actual common case - most visitors aren't
+             signed in), swapped to "My Library" by
+             js/components/nav.js once it confirms a real session via
+             the same GET /api/customer/auth/session
+             js/components/dashboard-auth.js already uses. Never
+             blocks navigation if that check fails or is slow - the
+             link is always live at its default target either way. -->
+        <li><a href="/checkout/sign-in/" data-nav-library-link>Sign In</a></li>
         <li class="nav__more">
           <p class="nav__more-label" aria-hidden="true">More</p>
           <button

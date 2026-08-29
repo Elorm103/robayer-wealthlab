@@ -59,7 +59,17 @@ pdfjsLib.GlobalWorkerOptions.workerSrc = '/js/vendor/pdfjs/pdf.worker.min.mjs';
 const MIN_SCALE = 0.6;
 const MAX_SCALE = 2.4;
 const SCALE_STEP = 0.2;
-const DEFAULT_SCALE = 1.1;
+// Phase 9A (Reader Readability) — replaces the old fixed DEFAULT_SCALE.
+// A single constant scale looked fine on the desktop widths it was
+// tuned against and forced constant pinching on a phone, because the
+// canvas's *displayed* size used to be capped by CSS `max-width:100%`
+// regardless of this value anyway (see components.css's own comment on
+// the canvas rule) - scale genuinely changing the display size (this
+// file's other Phase 9A change) makes a fixed default wrong for most
+// screens. computeFitScale() below replaces it with a real "fit this
+// page to the available width" calculation, recomputed on load and on
+// resize/orientation-change.
+const RESIZE_DEBOUNCE_MS = 150;
 
 function initLibraryReader() {
   const root = document.querySelector('[data-reader-root]');
@@ -97,8 +107,10 @@ function initLibraryReader() {
 
   let pdfDoc = null;
   let currentPage = 1;
-  let scale = DEFAULT_SCALE;
+  let scale = null; // set on first render via computeFitScale() — see that function's own comment
+  let lastFitScale = null; // the most recent fit-to-width value, see setScale()'s own comment on why manual zoom-out needs this
   let rendering = false;
+  let resizeTimer = null;
   let currentReference = null;
   let currentAssetId = null;
   let currentProductSlug = null;
@@ -314,8 +326,13 @@ function initLibraryReader() {
   function wireControls() {
     prevBtn.addEventListener('click', () => goToPage(currentPage - 1));
     nextBtn.addEventListener('click', () => goToPage(currentPage + 1));
-    zoomInBtn.addEventListener('click', () => setScale(scale + SCALE_STEP));
-    zoomOutBtn.addEventListener('click', () => setScale(scale - SCALE_STEP));
+    // Phase 9A — guarded on `scale !== null`: wireControls() runs
+    // fractionally before the first renderPage() call resolves and
+    // sets an initial fit-to-width scale (see that call site below), a
+    // pre-existing ordering this file already had; a click in that
+    // narrow window now no-ops instead of computing off a null scale.
+    zoomInBtn.addEventListener('click', () => { if (scale !== null) setScale(scale + SCALE_STEP); });
+    zoomOutBtn.addEventListener('click', () => { if (scale !== null) setScale(scale - SCALE_STEP); });
 
     canvasWrap.addEventListener('keydown', (event) => {
       if (event.key === 'ArrowRight') goToPage(currentPage + 1);
@@ -327,6 +344,15 @@ function initLibraryReader() {
     // grounding guarantee); clicking one should genuinely take the
     // reader there, not just claim to.
     document.addEventListener('library-ai-panel:go-to-page', (event) => goToPage(event.detail.pageNumber));
+
+    // Phase 9A — re-fit to the available width on resize/orientation-
+    // change (e.g. rotating a phone), not just on first load. Debounced
+    // so a window drag re-renders once at the end, not on every
+    // intermediate pixel.
+    window.addEventListener('resize', () => {
+      if (resizeTimer) clearTimeout(resizeTimer);
+      resizeTimer = setTimeout(refitAndRerender, RESIZE_DEBOUNCE_MS);
+    });
   }
 
   function goToPage(page) {
@@ -335,9 +361,62 @@ function initLibraryReader() {
     renderPage(currentPage);
   }
 
+  /**
+   * Phase 9A — the zoom-out floor is `Math.min(MIN_SCALE, lastFitScale)`,
+   * not a bare MIN_SCALE: a real bug found during UX verification. On a
+   * genuinely narrow phone (confirmed at 320-390px against a standard-
+   * width PDF), the fit-to-width scale is already below MIN_SCALE by
+   * design (see computeFitScale()'s own comment) - clamping a manual
+   * zoom-OUT click to the higher, fixed MIN_SCALE floor made the page
+   * jump LARGER on the first zoom-out press, the opposite of what the
+   * button does everywhere else. The floor now always admits at least
+   * the current fit scale, so zoom-out never moves the wrong direction.
+   */
   function setScale(next) {
-    scale = Math.min(MAX_SCALE, Math.max(MIN_SCALE, next));
+    const floor = lastFitScale === null ? MIN_SCALE : Math.min(MIN_SCALE, lastFitScale);
+    scale = Math.min(MAX_SCALE, Math.max(floor, next));
     if (pdfDoc) renderPage(currentPage);
+  }
+
+  /** Phase 9A — the CSS-pixel width actually available for the page to fill: clientWidth already includes padding, so it's subtracted back out. computeFitScale() divides this into the page's own unscaled width. */
+  function getWrapContentWidth() {
+    const style = window.getComputedStyle(canvasWrap);
+    const paddingX = parseFloat(style.paddingLeft) + parseFloat(style.paddingRight);
+    return Math.max(200, canvasWrap.clientWidth - paddingX);
+  }
+
+  /**
+   * Phase 9A — "fit this page to the available width," replacing the
+   * old fixed DEFAULT_SCALE constant. `unscaledWidth` is the page's own
+   * real width at scale=1 (pdf.js's own unit); dividing the space
+   * actually available by it gives the scale that fills that width
+   * exactly.
+   *
+   * Deliberately clamped only against MAX_SCALE, never MIN_SCALE - a
+   * real bug found during Phase 9 UX verification: MIN_SCALE=0.6
+   * exists to stop a customer from manually zooming a page out to
+   * illegible smallness (setScale() below still enforces it for that),
+   * but reusing it here as a floor on the FIT calculation forced
+   * needless horizontal overflow at the supposedly-"fitted" default on
+   * any viewport narrower than ~415px against a standard-width PDF -
+   * confirmed live at 320/375/390px, three of the most common real
+   * phone widths. "Fits with zero overflow" must always win over an
+   * unrelated manual-zoom floor; getWrapContentWidth()'s own
+   * Math.max(200, ...) is what keeps this from ever going unreasonably
+   * small.
+   */
+  function computeFitScale(unscaledWidth) {
+    const fit = Math.min(MAX_SCALE, getWrapContentWidth() / unscaledWidth);
+    lastFitScale = fit;
+    return fit;
+  }
+
+  /** Phase 9A — resize/orientation-change handler: recomputes the fit-to-width scale for the new available width and re-renders at it, same calculation as the initial load. */
+  async function refitAndRerender() {
+    if (!pdfDoc || rendering) return;
+    const page = await pdfDoc.getPage(currentPage);
+    scale = computeFitScale(page.getViewport({ scale: 1 }).width);
+    renderPage(currentPage);
   }
 
   async function renderPage(pageNumber) {
@@ -346,12 +425,28 @@ function initLibraryReader() {
     nextBtn.disabled = pageNumber >= pdfDoc.numPages;
 
     const page = await pdfDoc.getPage(pageNumber);
-    const viewport = page.getViewport({ scale });
-    const context = canvas.getContext('2d');
-    canvas.width = viewport.width;
-    canvas.height = viewport.height;
+    if (scale === null) scale = computeFitScale(page.getViewport({ scale: 1 }).width);
 
-    await page.render({ canvasContext: context, viewport }).promise;
+    // Phase 9A — two viewports, deliberately: `viewport` is the
+    // logical, CSS-pixel size the canvas is DISPLAYED at
+    // (canvas.style.width/height) - a real change here is what makes
+    // zoom in/out and the fit-to-width default actually change the
+    // visible size, now that components.css's canvas rule no longer
+    // overrides it with `max-width:100%`. `renderViewport`, scaled
+    // additionally by devicePixelRatio, is the higher INTRINSIC pixel
+    // resolution (canvas.width/height) PDF.js actually draws into -
+    // this is what keeps text crisp on Retina/high-DPI screens instead
+    // of the canvas's own pixels being upscaled/blurred by the browser.
+    const dpr = window.devicePixelRatio || 1;
+    const viewport = page.getViewport({ scale });
+    const renderViewport = page.getViewport({ scale: scale * dpr });
+    const context = canvas.getContext('2d');
+    canvas.width = renderViewport.width;
+    canvas.height = renderViewport.height;
+    canvas.style.width = `${viewport.width}px`;
+    canvas.style.height = `${viewport.height}px`;
+
+    await page.render({ canvasContext: context, viewport: renderViewport }).promise;
 
     pageIndicatorEl.textContent = `Page ${pageNumber} of ${pdfDoc.numPages}`;
     progressFillEl.style.width = `${Math.round((pageNumber / pdfDoc.numPages) * 100)}%`;

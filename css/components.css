@@ -3101,6 +3101,19 @@ button.resource-card {
   border-bottom: 1px solid var(--color-border);
   font-size: var(--text-small);
 }
+/* Phase 9A finding — real, pre-existing bug, confirmed by direct
+   testing against the actual component, not assumed: the [hidden]
+   attribute alone loses to this class's own `display: flex` (author
+   class beats the UA [hidden] rule at equal specificity) - the exact
+   same pattern this codebase has already fixed in a dozen other places
+   (see .btn[hidden], .alert[hidden], .field__error[hidden] elsewhere
+   in this file). Without this, the resume banner - including its
+   empty text and a stray "Start from the beginning" button - has been
+   visible on every reader open since Phase 7B shipped, even a
+   genuinely first-time one with no saved progress at all. */
+.reader-resume-banner[hidden] {
+  display: none;
+}
 .reader-resume-banner__btn {
   flex-shrink: 0;
   min-height: 36px;
@@ -3155,7 +3168,13 @@ button.resource-card {
 
 .reader-canvas-wrap {
   display: flex;
-  justify-content: center;
+  /* Phase 9A — `safe center`, not plain `center`: once real zoom can
+     genuinely make the canvas wider than the wrap (see canvas rule
+     below), plain `center` on an overflowing flex child clips its
+     leading edge unreachable by scroll in most browsers - `safe`
+     falls back to start-alignment specifically when centering would
+     overflow, keeping the whole zoomed page reachable either way. */
+  justify-content: safe center;
   padding: var(--space-5) var(--space-3);
   background-color: var(--color-bg-alt);
   overflow: auto;
@@ -3166,8 +3185,16 @@ button.resource-card {
   outline-offset: -2px;
 }
 .reader-canvas-wrap canvas {
-  max-width: 100%;
-  height: auto;
+  /* Phase 9A — no `max-width:100%`/`height:auto` here on purpose: those
+     silently capped the DISPLAYED size to the wrap's width regardless
+     of PDF.js's own rendered resolution, which is exactly what made
+     the zoom controls appear to do nothing on any viewport narrower
+     than the canvas. library-reader.js now sets this canvas's display
+     width/height explicitly (its own logical CSS-pixel size, distinct
+     from its higher, device-pixel-ratio-aware intrinsic resolution) on
+     every render, so this rule no longer needs to - and must not -
+     override it. */
+  display: block;
   box-shadow: var(--shadow-2);
   background-color: var(--color-white, #fff);
 }

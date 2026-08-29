@@ -94,6 +94,82 @@ function initNav() {
   }
 
   initMoreDisclosure();
+  initLibraryNavLink();
+}
+
+/**
+ * Phase 9B (Library Discoverability) — swaps the header's "Sign In"
+ * link to "My Library" for an already-authenticated visitor, on every
+ * page site-wide, not just /dashboard/*. The customer_session cookie
+ * is httpOnly (see backend/routes/customer/auth.ts), so this can't be
+ * read directly - a real request to the same GET
+ * /api/customer/auth/session endpoint js/components/dashboard-auth.js
+ * already uses is the only way to know. Cached in sessionStorage for a
+ * few minutes (same storage mechanism js/components/analytics.js
+ * already uses for its own session id, applied here to a new purpose)
+ * so a customer clicking through several pages doesn't trigger a fresh
+ * request on every single one. Never blocks or delays navigation: the
+ * link's real, working default href/text (set directly in
+ * partials/header.html) is correct for the common case (not signed
+ * in) before this ever resolves, and any failure here (network error,
+ * sessionStorage unavailable in a private window) just leaves that
+ * default in place rather than breaking anything.
+ */
+const LIBRARY_LINK_CACHE_KEY = 'robayer_library_link_state';
+const LIBRARY_LINK_CACHE_TTL_MS = 5 * 60 * 1000;
+
+function readCachedLibraryLinkState() {
+  try {
+    const raw = sessionStorage.getItem(LIBRARY_LINK_CACHE_KEY);
+    if (!raw) return null;
+    const parsed = JSON.parse(raw);
+    if (typeof parsed.signedIn !== 'boolean' || typeof parsed.at !== 'number') return null;
+    if (Date.now() - parsed.at > LIBRARY_LINK_CACHE_TTL_MS) return null;
+    return parsed.signedIn;
+  } catch {
+    return null;
+  }
+}
+
+function writeCachedLibraryLinkState(signedIn) {
+  try {
+    sessionStorage.setItem(LIBRARY_LINK_CACHE_KEY, JSON.stringify({ signedIn, at: Date.now() }));
+  } catch {
+    // sessionStorage unavailable (private browsing, quota) - simply
+    // means the next page load re-checks instead of using a cached
+    // value; never worth failing navigation over.
+  }
+}
+
+function applyLibraryLinkState(link, signedIn) {
+  if (signedIn) {
+    link.href = '/dashboard/';
+    link.textContent = 'My Library';
+  } else {
+    link.href = '/checkout/sign-in/';
+    link.textContent = 'Sign In';
+  }
+}
+
+async function initLibraryNavLink() {
+  const link = document.querySelector('[data-nav-library-link]');
+  if (!link) return;
+
+  const cached = readCachedLibraryLinkState();
+  if (cached !== null) {
+    applyLibraryLinkState(link, cached);
+    return;
+  }
+
+  let signedIn = false;
+  try {
+    const response = await fetch('/api/customer/auth/session');
+    signedIn = response.ok;
+  } catch {
+    signedIn = false; // network error - the link's own safe default already covers this case
+  }
+  writeCachedLibraryLinkState(signedIn);
+  applyLibraryLinkState(link, signedIn);
 }
 
 /**

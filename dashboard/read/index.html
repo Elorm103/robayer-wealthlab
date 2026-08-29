@@ -31,7 +31,13 @@
 
   <main id="main-content">
     <section class="section--tight">
-      <div class="container content-column">
+      <!-- Phase 9A (Reader Readability) — deliberately `.container`
+           alone, not `.content-column` (680px, sized for prose text
+           columns, not a full document page image). This page's own
+           reader-shell/canvas now use the site's full 1200px container
+           width so the page itself, not the surrounding chrome, is
+           what dominates the layout. -->
+      <div class="container">
         <!-- Digital Library Phase 7A (Personal Learning Library,
              Reader Foundation) — the in-app reader. Query-string
              addressed (?ref=...&assetId=...), same progressive-

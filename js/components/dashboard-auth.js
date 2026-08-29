@@ -99,6 +99,11 @@ window.CustomerDashboard = (function () {
       // request (network error, already-expired session) still means
       // the customer's intent is to leave the dashboard.
     }
+    // Phase 9B: clear the header's cached "My Library" state (nav.js's
+    // LIBRARY_LINK_CACHE_KEY, duplicated here — no module system in this
+    // codebase) so the homepage this redirect lands on re-checks instead
+    // of showing a stale "My Library" link for up to the cache's TTL.
+    try { sessionStorage.removeItem('robayer_library_link_state'); } catch { /* private browsing / unavailable - next load just re-checks */ }
     window.location.href = '/';
   }
 
