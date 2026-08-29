@@ -3883,6 +3883,208 @@ button.resource-card {
 }
 
 /* ============================================================
+   LEARNING OVERLAY — Digital Library 2.0 Phase H (Interactive
+   Learning Experience). Quick Checks and Action boxes, surfaced as a
+   real interruption (the customer reached a real anchor point), not a
+   side reference panel — reuses .reader-drawer-backdrop as-is (same
+   fade, same z-index) but a centered card of its own rather than
+   .reader-drawer's slide-from-the-side treatment, since "stop and
+   answer this" reads better centered than sliding in from an edge.
+   Bottom sheet on mobile, same threshold/pattern as .ai-panel/
+   .reader-drawer above, for one consistent overlay language across
+   the whole reader.
+   ============================================================ */
+.learning-overlay {
+  position: fixed;
+  inset: 0;
+  z-index: calc(var(--z-overlay) + 1);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: var(--space-4);
+  pointer-events: none;
+}
+
+.learning-overlay__card {
+  width: min(440px, 100%);
+  max-height: min(85vh, 640px);
+  overflow-y: auto;
+  background: var(--color-surface);
+  border-radius: var(--radius-lg);
+  box-shadow: var(--shadow-3);
+  padding: var(--space-5);
+  position: relative;
+  opacity: 0;
+  transform: translateY(12px) scale(0.98);
+  transition: opacity 0.2s var(--ease-standard), transform 0.2s var(--ease-standard);
+  pointer-events: auto;
+}
+
+.learning-overlay--open .learning-overlay__card {
+  opacity: 1;
+  transform: translateY(0) scale(1);
+}
+
+.learning-overlay__close {
+  position: absolute;
+  top: var(--space-3);
+  right: var(--space-3);
+  background: none;
+  border: none;
+  font-size: 1.5rem;
+  line-height: 1;
+  color: var(--color-text-secondary);
+  cursor: pointer;
+  min-width: 44px;
+  min-height: 44px;
+  border-radius: var(--radius-sm);
+}
+.learning-overlay__close:hover,
+.learning-overlay__close:focus-visible {
+  color: var(--color-text-heading);
+  background: var(--color-bg-alt);
+}
+
+.learning-overlay__eyebrow {
+  display: block;
+  font-family: var(--font-mono);
+  font-size: var(--text-small);
+  font-weight: var(--weight-medium);
+  color: var(--color-accent);
+  letter-spacing: 0.02em;
+  text-transform: uppercase;
+  margin: 0 0 var(--space-3);
+  padding-right: var(--space-6);
+}
+
+.learning-overlay__prompt {
+  font-family: var(--font-heading);
+  font-size: var(--text-body-lg);
+  color: var(--color-text-heading);
+  margin: 0 0 var(--space-4);
+}
+
+.learning-overlay__choices {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+  margin-bottom: var(--space-4);
+}
+
+.learning-overlay__choice {
+  display: flex;
+  align-items: center;
+  gap: var(--space-3);
+  padding: var(--space-3);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-md);
+  cursor: pointer;
+  min-height: 44px;
+  transition: border-color var(--duration-base) var(--ease-standard), background-color var(--duration-base) var(--ease-standard);
+}
+.learning-overlay__choice:hover {
+  border-color: var(--color-border-strong);
+}
+.learning-overlay__choice:has(input:checked) {
+  border-color: var(--color-accent);
+  background-color: var(--color-bg-alt);
+}
+.learning-overlay__choice:has(input:focus-visible) {
+  outline: 2px solid var(--color-accent);
+  outline-offset: 2px;
+}
+.learning-overlay__choice input {
+  flex-shrink: 0;
+}
+.learning-overlay__choice-text {
+  font-size: var(--text-body);
+}
+
+/* Correct/incorrect state, applied only after submission - color is
+   never the only signal, each also gets its own icon character in the
+   feedback verdict text (see library-learning.js), never relying on
+   color alone. */
+.learning-overlay__choice--correct {
+  border-color: var(--color-success);
+  background-color: var(--color-success-tint);
+}
+.learning-overlay__choice--incorrect {
+  border-color: var(--color-error);
+  background-color: var(--color-error-tint);
+}
+
+.learning-overlay__submit {
+  width: 100%;
+}
+
+.learning-overlay__feedback {
+  margin-top: var(--space-4);
+  padding-top: var(--space-4);
+  border-top: 1px solid var(--color-border);
+}
+
+.learning-overlay__feedback-verdict {
+  font-family: var(--font-heading);
+  font-weight: var(--weight-semibold);
+  margin: 0 0 var(--space-2);
+}
+.learning-overlay__feedback-verdict--correct {
+  color: var(--color-success);
+}
+.learning-overlay__feedback-verdict--incorrect {
+  color: var(--color-error);
+}
+
+.learning-overlay__feedback-explanation {
+  color: var(--color-text-secondary);
+  margin: 0 0 var(--space-4);
+}
+
+.learning-overlay__action-label {
+  font-family: var(--font-heading);
+  font-weight: var(--weight-medium);
+  color: var(--color-text-heading);
+  background-color: var(--color-bg-alt);
+  border-radius: var(--radius-md);
+  padding: var(--space-3) var(--space-4);
+  margin: 0 0 var(--space-4);
+}
+
+.learning-overlay__actions {
+  display: flex;
+  gap: var(--space-2);
+}
+.learning-overlay__actions .btn {
+  flex: 1;
+  min-height: 44px;
+}
+
+@media (max-width: 640px) {
+  .learning-overlay {
+    align-items: flex-end;
+    padding: 0;
+  }
+  .learning-overlay__card {
+    width: 100%;
+    max-height: min(85vh, 640px);
+    border-radius: var(--radius-lg) var(--radius-lg) 0 0;
+    transform: translateY(100%);
+  }
+  .learning-overlay--open .learning-overlay__card {
+    transform: translateY(0);
+  }
+  .learning-overlay__actions {
+    flex-direction: column;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .learning-overlay__card {
+    transition: none;
+  }
+}
+
+/* ============================================================
    DARK MODE — targeted overrides
    Most components read the semantic tokens defined in tokens.css
    and already adapt automatically under [data-theme="dark"]. These

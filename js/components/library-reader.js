@@ -183,6 +183,8 @@ function initLibraryReader() {
   let epubLocationsGenerated = false;
   let epubSearching = false;
   let epubCfiSaveTimer = null;
+  /** Digital Library 2.0 Phase H — the last spine href a 'library-reader:section-changed' event was dispatched for, so relocations WITHIN a chapter (scrolling/paging, which epub.js also reports via 'relocated') don't re-fire it. */
+  let lastDispatchedEpubHref = null;
 
   document.addEventListener('dashboard:ready', load, { once: true });
 
@@ -874,7 +876,21 @@ function initLibraryReader() {
     } else {
       pageIndicatorEl.textContent = 'Reading…';
     }
-    if (location.start.href) highlightActiveTocEntry(location.start.href);
+    if (location.start.href) {
+      highlightActiveTocEntry(location.start.href);
+      // Digital Library 2.0 Phase H — the one new event this phase adds
+      // (the audit found EPUB had no per-chapter equivalent of the
+      // existing PDF-only 'library-reader:page-changed'). Fires only
+      // when the spine item itself actually changes, not on every
+      // scroll/page-turn relocation within the same chapter — mirrors
+      // the real href convention library_bookmarks.cfi and
+      // library_knowledge_chunks.cfi already use (a real spine href,
+      // never a byte-precise CFI).
+      if (location.start.href !== lastDispatchedEpubHref) {
+        lastDispatchedEpubHref = location.start.href;
+        document.dispatchEvent(new CustomEvent('library-reader:section-changed', { detail: { href: location.start.href } }));
+      }
+    }
     scheduleEpubProgressSave(cfi);
   }
 

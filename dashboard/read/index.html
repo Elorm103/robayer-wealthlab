@@ -20,7 +20,7 @@
   <link rel="stylesheet" href="/css/tokens.css?v=2706187f0b">
   <link rel="stylesheet" href="/css/base.css?v=57a963bc6f">
   <link rel="stylesheet" href="/css/layout.css?v=a6fb0c7359">
-  <link rel="stylesheet" href="/css/components.css?v=8b61b30c8a">
+  <link rel="stylesheet" href="/css/components.css?v=c8f6322eb1">
   <link rel="stylesheet" href="/css/utilities.css?v=406dfe7300">
 </head>
 <body>
@@ -197,6 +197,41 @@
             </form>
           </aside>
 
+          <!-- Digital Library 2.0 Phase H (Interactive Learning
+               Experience) — Quick Checks and Action boxes. Reuses the
+               same .reader-drawer-backdrop as the TOC/search/bookmark
+               drawers above (same fade, same z-index), a centered
+               card of its own rather than a side drawer. See
+               js/components/library-learning.js. -->
+          <div class="reader-drawer-backdrop" data-learning-backdrop hidden></div>
+          <div class="learning-overlay" data-learning-overlay hidden role="dialog" aria-modal="true" aria-labelledby="learning-overlay-prompt">
+            <div class="learning-overlay__card">
+              <button type="button" class="learning-overlay__close" data-learning-close aria-label="Close">&times;</button>
+
+              <div data-learning-quick-check hidden>
+                <span class="learning-overlay__eyebrow">🧠 Quick Check</span>
+                <p class="learning-overlay__prompt" id="learning-overlay-prompt" data-learning-prompt></p>
+                <div class="learning-overlay__choices" data-learning-choices role="radiogroup" aria-label="Answer choices"></div>
+                <button type="button" class="btn btn--accent learning-overlay__submit" data-learning-check-answer disabled>Check Answer</button>
+                <div class="learning-overlay__feedback" data-learning-feedback hidden role="status">
+                  <p class="learning-overlay__feedback-verdict" data-learning-feedback-verdict></p>
+                  <p class="learning-overlay__feedback-explanation" data-learning-feedback-explanation></p>
+                  <button type="button" class="btn btn--secondary" data-learning-continue>Continue Reading</button>
+                </div>
+              </div>
+
+              <div data-learning-action hidden>
+                <span class="learning-overlay__eyebrow">💡 Put It Into Action</span>
+                <p class="learning-overlay__prompt" data-learning-action-prompt></p>
+                <p class="learning-overlay__action-label" data-learning-action-label></p>
+                <div class="learning-overlay__actions">
+                  <button type="button" class="btn btn--accent" data-learning-action-done>&check; Done</button>
+                  <button type="button" class="btn btn--secondary" data-learning-action-skip>Continue Reading</button>
+                </div>
+              </div>
+            </div>
+          </div>
+
           <!-- Format not yet supported by the in-app reader (Phase 7A
                ships PDF only — see the approved Phase 7 sequence).
                Never silently falls back to a forced download disguised
@@ -224,8 +259,9 @@
   <script src="/js/components/dashboard-auth.js?v=bd0b352315"></script>
   <script src="/js/components/dashboard-shell.js?v=f9f75e4692"></script>
   <script src="/js/components/ownership-helpers.js?v=e4bfbeb89f"></script>
-  <script type="module" src="/js/components/library-reader.js?v=ce9b9a0445"></script>
+  <script type="module" src="/js/components/library-reader.js?v=8940493fe6"></script>
   <script src="/js/components/library-ai-panel.js?v=08d365751b"></script>
+  <script src="/js/components/library-learning.js?v=f68e028a18"></script>
   <script src="/js/main.js?v=1043f4fc00"></script>
 </body>
 </html>

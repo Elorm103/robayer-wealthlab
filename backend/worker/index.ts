@@ -103,6 +103,13 @@ import {
 } from '../routes/admin/knowledgeBase';
 import { handleAskCustomerAi, handleCustomerAiFeedback } from '../routes/customer/aiAssistant';
 import { handleAskLibraryAi } from '../routes/customer/libraryAi';
+import { handleListLearningItems as handleListCustomerLearningItems, handleSubmitLearningResponse } from '../routes/customer/libraryLearning';
+import {
+  handleListLearningItems as handleAdminListLearningItems,
+  handleCreateLearningItem,
+  handleUpdateLearningItem,
+  handleDeleteLearningItem,
+} from '../routes/admin/libraryLearning';
 import { handleGetCustomerAiAnalytics } from '../routes/admin/customerAi';
 import { processIndexingQueueBatch, recordDeadLetters, INDEXING_QUEUE_MAX_RETRIES } from '../services/knowledge/indexingService';
 import type { KnowledgeIndexQueueMessage } from '../services/knowledge/queueTypes';
@@ -692,6 +699,16 @@ const ROUTES: Route[] = [
   { pattern: new URLPattern({ pathname: '/api/customer/library/ai/ask' }), method: 'POST', handler: handleAskLibraryAi },
   { pattern: new URLPattern({ pathname: '/api/customer/ai-assistant/feedback' }), method: 'POST', handler: handleCustomerAiFeedback },
   { pattern: new URLPattern({ pathname: '/api/admin/customer-ai/analytics' }), method: 'GET', handler: handleGetCustomerAiAnalytics },
+
+  // Digital Library 2.0 Phase H (Interactive Learning Experience) —
+  // Quick Checks / Action boxes. See routes/customer/libraryLearning.ts
+  // and routes/admin/libraryLearning.ts's own header comments.
+  { pattern: new URLPattern({ pathname: '/api/customer/purchases/:reference/learning-items' }), method: 'GET', handler: handleListCustomerLearningItems },
+  { pattern: new URLPattern({ pathname: '/api/customer/purchases/:reference/learning-items/:itemId/response' }), method: 'POST', handler: handleSubmitLearningResponse },
+  { pattern: new URLPattern({ pathname: '/api/admin/library-learning-items' }), method: 'GET', handler: handleAdminListLearningItems },
+  { pattern: new URLPattern({ pathname: '/api/admin/library-learning-items' }), method: 'POST', handler: handleCreateLearningItem },
+  { pattern: new URLPattern({ pathname: '/api/admin/library-learning-items/:id' }), method: 'PUT', handler: handleUpdateLearningItem },
+  { pattern: new URLPattern({ pathname: '/api/admin/library-learning-items/:id' }), method: 'DELETE', handler: handleDeleteLearningItem },
 
   // Version 3.2 Milestone M4 — Coupon Engine, schema corrected per the
   // M4B Required Amendment 1.
