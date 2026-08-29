@@ -66,10 +66,10 @@ const HEAD_ASSETS = `
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Newsreader:ital,wght@0,600;1,500&family=Space+Grotesk:wght@500&family=Work+Sans:wght@400;500&family=IBM+Plex+Mono:wght@400;500&display=swap" rel="stylesheet">
 
-  <link rel="stylesheet" href="/css/tokens.css?v=9c1fa2346d">
+  <link rel="stylesheet" href="/css/tokens.css?v=2706187f0b">
   <link rel="stylesheet" href="/css/base.css?v=57a963bc6f">
   <link rel="stylesheet" href="/css/layout.css?v=a6fb0c7359">
-  <link rel="stylesheet" href="/css/components.css?v=45103a91b6">
+  <link rel="stylesheet" href="/css/components.css?v=69eb6874a3">
   <link rel="stylesheet" href="/css/utilities.css?v=406dfe7300">
 `;
 
@@ -143,12 +143,12 @@ ${opts.bodyContent}
   <div data-include="/partials/footer.html"></div>
 
   <script src="/js/includes.js?v=cba95d9aa1"></script>
-  <script src="/js/components/analytics.js?v=a77deb14c4"></script>
-  <script src="/js/components/nav.js?v=bf1e013818"></script>
+  <script src="/js/components/analytics.js?v=ca9a4cb0a5"></script>
+  <script src="/js/components/nav.js?v=0a04ccf371"></script>
   <script src="/js/components/theme-toggle.js?v=eebe98960c"></script>
   <script src="/js/components/branding.js?v=483b048741"></script>
   <script src="/js/content-inject.js?v=10a4d215c2"></script>
-  <script src="/js/components/newsletter-form.js?v=f95c689ae8"></script>
+  <script src="/js/components/newsletter-form.js?v=381333088d"></script>
 ${opts.scripts.map((s) => `  <script src="${s}"></script>`).join('\n')}
 </body>
 </html>`;
@@ -388,7 +388,7 @@ ${NEWSLETTER_BAND}`;
     ogImage: `${SITE_ORIGIN}/assets/branding/social/og-image.jpg`,
     extraHead: faqJsonLd() + pageContentScript,
     bodyContent: body,
-    scripts: ['/js/components/content-filters.js?v=bff036747e', '/js/main.js?v=b2c3d4e6f1'],
+    scripts: ['/js/components/content-filters.js?v=bff036747e', '/js/main.js?v=1043f4fc00'],
   });
 
   return htmlResponse(html, 200);
