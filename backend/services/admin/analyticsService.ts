@@ -565,6 +565,95 @@ export async function getPerBookFunnel(env: Env, range: PeriodRange): Promise<Pr
   }));
 }
 
+export interface LibraryEngagementRow {
+  slug: string;
+  title: string;
+  opens: number;
+  aiQuestions: number;
+  citationClicks: number;
+  resumeShown: number;
+  resumeAccepted: number;
+  resumeRestarted: number;
+}
+
+/**
+ * Phase 8 (Digital Library Observability). Same LEFT-JOIN-per-metric
+ * shape as getPerBookFunnel() above: one subquery per signal, grouped
+ * by product_slug, joined onto `products`. Two data sources, each
+ * clamped the same way its own kind already is elsewhere in this file:
+ * the four `analytics_events`-derived signals (opens, citation clicks,
+ * resume shown/restarted) are clamped to ANALYTICS_TRACKING_START_DATE,
+ * same as `views` above; `aiQuestions` reads `library_ai_messages`
+ * directly — real data Phase 7C has written since launch, not part of
+ * the analytics_events system at all, so it uses the requested range
+ * unclamped, same reasoning as purchases/checkoutStarts above.
+ * `resumeAccepted` is computed, not stored: the reader always resumes
+ * by default when it shows the banner (there's no separate "accept"
+ * click in that UI, only an opt-out) - see library-reader.js's own
+ * comment at its `library-resume-shown` call site - so accepted =
+ * shown - restarted, never negative.
+ */
+export async function getLibraryEngagement(env: Env, range: PeriodRange): Promise<LibraryEngagementRow[]> {
+  const { range: viewRange } = clampToTrackingStart(range);
+  const viewFrom = viewRange.from;
+  const viewTo = exclusiveEndDate(viewRange.to);
+  const from = range.from;
+  const to = exclusiveEndDate(range.to);
+
+  const { results } = await env.DB.prepare(
+    `SELECT p.slug AS slug, p.title AS title,
+            COALESCE(op.opens, 0) AS opens,
+            COALESCE(ai.aiQuestions, 0) AS aiQuestions,
+            COALESCE(cc.citationClicks, 0) AS citationClicks,
+            COALESCE(rs.resumeShown, 0) AS resumeShown,
+            COALESCE(rr.resumeRestarted, 0) AS resumeRestarted
+     FROM products p
+     LEFT JOIN (
+       SELECT product_slug, COUNT(*) AS opens FROM analytics_events
+       WHERE event_type = 'cta_click' AND cta_id = 'library-reader-opened' AND product_slug IS NOT NULL AND created_at >= ? AND created_at < ?
+       GROUP BY product_slug
+     ) op ON op.product_slug = p.slug
+     LEFT JOIN (
+       SELECT ps.product_slug AS product_slug, COUNT(*) AS aiQuestions
+       FROM library_ai_messages m JOIN purchase_sessions ps ON ps.purchase_reference = m.purchase_reference
+       WHERE m.created_at >= ? AND m.created_at < ?
+       GROUP BY ps.product_slug
+     ) ai ON ai.product_slug = p.slug
+     LEFT JOIN (
+       SELECT product_slug, COUNT(*) AS citationClicks FROM analytics_events
+       WHERE event_type = 'cta_click' AND cta_id = 'library-ai-citation-click' AND product_slug IS NOT NULL AND created_at >= ? AND created_at < ?
+       GROUP BY product_slug
+     ) cc ON cc.product_slug = p.slug
+     LEFT JOIN (
+       SELECT product_slug, COUNT(*) AS resumeShown FROM analytics_events
+       WHERE event_type = 'cta_click' AND cta_id = 'library-resume-shown' AND product_slug IS NOT NULL AND created_at >= ? AND created_at < ?
+       GROUP BY product_slug
+     ) rs ON rs.product_slug = p.slug
+     LEFT JOIN (
+       SELECT product_slug, COUNT(*) AS resumeRestarted FROM analytics_events
+       WHERE event_type = 'cta_click' AND cta_id = 'library-resume-restarted' AND product_slug IS NOT NULL AND created_at >= ? AND created_at < ?
+       GROUP BY product_slug
+     ) rr ON rr.product_slug = p.slug
+     ORDER BY opens DESC, aiQuestions DESC`
+  )
+    .bind(viewFrom, viewTo, from, to, viewFrom, viewTo, viewFrom, viewTo, viewFrom, viewTo)
+    .all<Omit<LibraryEngagementRow, 'resumeAccepted'>>();
+
+  return results.map((row) => ({ ...row, resumeAccepted: Math.max(0, row.resumeShown - row.resumeRestarted) }));
+}
+
+/** `GROUP BY mode` over `library_ai_messages`, unclamped (see getLibraryEngagement()'s own header comment on why this table isn't part of the analytics_events clamp). Answers "which AI modes are actually used" site-wide. */
+export async function getLibraryAiModeBreakdown(env: Env, range: PeriodRange): Promise<BreakdownRow[]> {
+  const { results } = await env.DB.prepare(
+    `SELECT mode AS label, COUNT(*) AS count FROM library_ai_messages
+     WHERE created_at >= ? AND created_at < ?
+     GROUP BY mode ORDER BY count DESC`
+  )
+    .bind(range.from, exclusiveEndDate(range.to))
+    .all<BreakdownRow>();
+  return results;
+}
+
 export interface BreakdownRow {
   label: string;
   count: number;

@@ -45,12 +45,14 @@ function initLibraryAiPanel() {
 
   let purchaseReference = null;
   let assetId = null;
+  let productSlug = null;
   let currentPage = null;
   let requestInFlight = false;
 
   document.addEventListener('library-reader:ready', (event) => {
     purchaseReference = event.detail.purchaseReference;
     assetId = event.detail.assetId;
+    productSlug = event.detail.productSlug;
     if (event.detail.supportsAi) {
       trigger.hidden = false;
       subtitleEl.textContent = `Ask about "${event.detail.bookTitle}" — grounded in this book only.`;
@@ -182,6 +184,12 @@ function initLibraryAiPanel() {
         citeBtn.className = 'ai-panel__citation';
         citeBtn.textContent = c.chapterTitle ? `${c.chapterTitle} · Page ${c.pageNumber}` : `Page ${c.pageNumber}`;
         citeBtn.addEventListener('click', () => {
+          // Phase 8 (Digital Library Observability) — a real citation
+          // click, distinct from the citations the AI merely returns
+          // (already recorded server-side in
+          // library_ai_message_citations); this is the customer
+          // actually using one.
+          if (window.RobayerAnalytics) window.RobayerAnalytics.trackLibraryEvent('library-ai-citation-click', productSlug);
           document.dispatchEvent(new CustomEvent('library-ai-panel:go-to-page', { detail: { pageNumber: c.pageNumber } }));
         });
         citeWrap.appendChild(citeBtn);

@@ -196,6 +196,7 @@ import {
   handleAnalyticsGrowth,
   handleAnalyticsOnlineNow,
   handleAnalyticsProductsFunnel,
+  handleAnalyticsLibraryEngagement,
   handleAnalyticsDevices,
   handleAnalyticsGeography,
   handleAnalyticsSourceBreakdown,
@@ -495,6 +496,8 @@ const ROUTES: Route[] = [
   { pattern: new URLPattern({ pathname: '/api/admin/analytics/growth' }), method: 'GET', handler: handleAnalyticsGrowth },
   { pattern: new URLPattern({ pathname: '/api/admin/analytics/online-now' }), method: 'GET', handler: handleAnalyticsOnlineNow },
   { pattern: new URLPattern({ pathname: '/api/admin/analytics/products/funnel' }), method: 'GET', handler: handleAnalyticsProductsFunnel },
+  // Phase 8 (Digital Library Observability) — per-book reader opens/AI questions/citation clicks/resume shown-accepted-restarted, plus site-wide AI-mode breakdown.
+  { pattern: new URLPattern({ pathname: '/api/admin/analytics/library-engagement' }), method: 'GET', handler: handleAnalyticsLibraryEngagement },
   { pattern: new URLPattern({ pathname: '/api/admin/analytics/devices' }), method: 'GET', handler: handleAnalyticsDevices },
   { pattern: new URLPattern({ pathname: '/api/admin/analytics/geography' }), method: 'GET', handler: handleAnalyticsGeography },
   // Reliable Sales Funnel Measurement pass — source-level and campaign-level funnels.

@@ -198,6 +198,29 @@ export async function handleAnalyticsProductsFunnel(request: Request, env: Env, 
   return jsonSuccess({ range, items });
 }
 
+/**
+ * Phase 8 (Digital Library Observability). Per-book reader opens, AI
+ * questions asked, citation clicks, and resume shown/accepted/restarted
+ * — plus a site-wide AI-mode breakdown. See
+ * services/admin/analyticsService.ts's getLibraryEngagement() and
+ * getLibraryAiModeBreakdown() for the exact data sources.
+ */
+export async function handleAnalyticsLibraryEngagement(request: Request, env: Env, logger: Logger): Promise<Response> {
+  const auth = await requireAuth(request, env, logger);
+  if (!auth.ok) return auth.response;
+
+  if (await isRateLimited(request, env, READ_RATE_LIMIT)) {
+    return jsonError('RATE_LIMITED', 'Too many requests. Please try again shortly.');
+  }
+
+  const range = parseRange(new URL(request.url).searchParams);
+  const [books, aiModes] = await Promise.all([
+    analyticsService.getLibraryEngagement(env, range),
+    analyticsService.getLibraryAiModeBreakdown(env, range),
+  ]);
+  return jsonSuccess({ range, books, aiModes });
+}
+
 /** Device-type breakdown, clamped to the analytics tracking start date. See services/admin/analyticsService.ts's getDeviceBreakdown(). */
 export async function handleAnalyticsDevices(request: Request, env: Env, logger: Logger): Promise<Response> {
   const auth = await requireAuth(request, env, logger);

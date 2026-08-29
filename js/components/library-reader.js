@@ -101,6 +101,7 @@ function initLibraryReader() {
   let rendering = false;
   let currentReference = null;
   let currentAssetId = null;
+  let currentProductSlug = null;
   let progressWriteTimer = null;
   let completionAlreadyReported = false;
 
@@ -150,6 +151,7 @@ function initLibraryReader() {
 
     currentReference = reference;
     currentAssetId = assetId;
+    currentProductSlug = purchase.productSlug;
 
     // Digital Library Phase 7C (AI Reading Assistant) — the one
     // integration point between the reader and the AI panel
@@ -161,9 +163,17 @@ function initLibraryReader() {
     // from the page-changed event fired on every render below.
     document.dispatchEvent(
       new CustomEvent('library-reader:ready', {
-        detail: { purchaseReference: reference, assetId, bookTitle: purchase.productTitle, supportsAi: asset.fileType === 'PDF' },
+        detail: { purchaseReference: reference, assetId, productSlug: purchase.productSlug, bookTitle: purchase.productTitle, supportsAi: asset.fileType === 'PDF' },
       })
     );
+
+    // Phase 8 (Digital Library Observability) — fires once the reader
+    // has a confirmed, owned book to show, mirroring how the site's own
+    // trackProductView() fires once a book-detail page confirms its
+    // slug (js/components/analytics.js). Fires for every format,
+    // including the honest-unsupported EPUB path below - "opened the
+    // reader for this book" is true either way.
+    if (window.RobayerAnalytics) window.RobayerAnalytics.trackLibraryEvent('library-reader-opened', purchase.productSlug);
 
     if (asset.fileType !== 'PDF') {
       unsupportedEl.hidden = false;
@@ -285,8 +295,17 @@ function initLibraryReader() {
     if (canResume) {
       resumeBannerTextEl.textContent = `Resumed — page ${savedProgress.currentPage} of ${pdfDoc.numPages}.`;
       resumeBannerEl.hidden = false;
+      // Phase 8 — the banner appearing IS the resume already having
+      // happened (currentPage was already set to the saved page above,
+      // before this render); there's no separate "accept" click in this
+      // UI, only an opt-out. "Acceptance" is computed downstream as
+      // shown-minus-restarted, so this pair of events is the complete,
+      // honest signal - firing a redundant "accepted" event equal to
+      // "shown" here would add no real information.
+      if (window.RobayerAnalytics) window.RobayerAnalytics.trackLibraryEvent('library-resume-shown', currentProductSlug);
       resumeRestartBtn.addEventListener('click', () => {
         resumeBannerEl.hidden = true;
+        if (window.RobayerAnalytics) window.RobayerAnalytics.trackLibraryEvent('library-resume-restarted', currentProductSlug);
         goToPage(1);
       });
     }

@@ -62,7 +62,14 @@ window.CustomerDashboard = (function () {
   }
 
   function signInUrlWithRedirect() {
-    return SIGN_IN_PATH + '?redirect=' + encodeURIComponent(window.location.pathname);
+    // Phase 8 fix: include the query string, not just the path — the
+    // reader page identifies which book to open via ?ref=&assetId= (see
+    // library-list.js's Read link), so a bare pathname here silently
+    // dropped the customer's book on the sign-in round trip.
+    // sign-in-form.js's sanitizeRedirectPath() already accepts and
+    // returns a matched value unmodified (no truncation), so this needs
+    // no change on that end.
+    return SIGN_IN_PATH + '?redirect=' + encodeURIComponent(window.location.pathname + window.location.search);
   }
 
   /**

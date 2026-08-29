@@ -244,4 +244,24 @@
   // partials finish loading, since it matches against whatever is in
   // the DOM at click time, not at bind time.
   document.addEventListener('DOMContentLoaded', init);
+
+  // Phase 8 (Digital Library Observability) — the only public surface
+  // this file exposes. The declarative CTA_SELECTORS list above can't
+  // express these: each needs a productSlug known only inside
+  // library-reader.js/library-ai-panel.js once their own data has
+  // loaded, not derivable from a static selector at click time. Reuses
+  // the exact same send()/getSessionId() every other event in this file
+  // uses - same endpoint, same beacon/fetch fallback, same session id,
+  // same server-side rate limit. cta_id values used by callers:
+  // library-reader-opened, library-ai-citation-click, library-resume-shown,
+  // library-resume-restarted. There's no "accepted" event - the reader
+  // resumes by default when it shows the banner, so "accepted" is
+  // computed downstream as shown-minus-restarted (see
+  // library-reader.js's own comment and analyticsService.ts's
+  // getLibraryEngagement()).
+  window.RobayerAnalytics = {
+    trackLibraryEvent(ctaId, productSlug) {
+      send({ eventType: 'cta_click', pagePath: window.location.pathname, ctaId, productSlug: productSlug || null, sessionId: getSessionId() });
+    },
+  };
 })();

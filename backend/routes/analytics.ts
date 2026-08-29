@@ -113,6 +113,15 @@ export async function handleAnalyticsEvent(request: Request, env: Env, logger: L
   if (body.eventType === 'product_view' && !isPlausibleString(body.productSlug, 100)) {
     return jsonError('VALIDATION_ERROR', 'productSlug is required for a product_view event.');
   }
+  // Phase 8 (Digital Library Observability) — productSlug is OPTIONAL on
+  // a cta_click (unlike product_view, where it's required): every other
+  // cta_click on the site has no book to attach, only the new
+  // library-* ids (fired from js/components/library-reader.js and
+  // library-ai-panel.js) ever send one. When present it's still
+  // validated exactly like product_view's own, never trusted blindly.
+  if (body.eventType === 'cta_click' && body.productSlug !== undefined && body.productSlug !== null && !isPlausibleString(body.productSlug, 100)) {
+    return jsonError('VALIDATION_ERROR', 'productSlug, if provided, must be a non-empty string up to 100 characters.');
+  }
 
   const [customerId, country] = [
     await resolveCustomerId(request, env),
@@ -134,7 +143,9 @@ export async function handleAnalyticsEvent(request: Request, env: Env, logger: L
       sanitizeOptional(body.utmCampaign),
       sanitizeOptional(body.utmContent),
       body.sessionId,
-      body.eventType === 'product_view' ? (body.productSlug as string) : null,
+      body.eventType === 'product_view' || (body.eventType === 'cta_click' && isPlausibleString(body.productSlug, 100))
+        ? (body.productSlug as string)
+        : null,
       country,
       deviceType,
       customerId
