@@ -70,6 +70,20 @@ const SCALE_STEP = 0.2;
 // page to the available width" calculation, recomputed on load and on
 // resize/orientation-change.
 const RESIZE_DEBOUNCE_MS = 150;
+// Phase 9A follow-up (Reader Readability, round 2) — a real gap found
+// after shipping fit-to-width: fitting a standard document-page-width
+// PDF (Letter/A4, ~10.5-12pt body text - confirmed against actual
+// Library books, not assumed) into a phone-width wrap produces
+// legible-on-paper-but-not-on-screen text (~5-8px effective at
+// 320-430px, measured directly). Fit-to-width alone cannot fix this -
+// the page and the phone screen are just different shapes - so the
+// default scale now also guarantees at least this many CSS pixels of
+// actual body-text height, even if that means the page becomes wider
+// than the viewport (horizontal scroll already works via this file's
+// other Phase 9A change to .reader-canvas-wrap). See
+// getDominantFontSizePt()'s own comment for why this reads the PDF's
+// real, embedded font size instead of guessing at page layout.
+const MIN_READABLE_FONT_PX = 15;
 
 function initLibraryReader() {
   const root = document.querySelector('[data-reader-root]');
@@ -386,6 +400,61 @@ function initLibraryReader() {
   }
 
   /**
+   * Phase 9A follow-up — the page's real, embedded body-text size,
+   * read from PDF.js's own text-content metadata rather than guessed
+   * from layout. Deliberately NOT content-bounding-box detection or
+   * any kind of margin-cropping heuristic: those vary page-to-page
+   * (a title page, a page with a pull-quote, a mostly-blank chapter
+   * opener) and would make the page jump between different effective
+   * zoom levels as a customer turns pages, exactly the "unreliable
+   * across books" failure mode worth avoiding - see this file's
+   * accompanying investigation notes. Font size is different: it's
+   * data the PDF already states outright for every run of text, not
+   * something inferred, and a book's body font is consistent enough
+   * page-to-page (confirmed directly against two different real
+   * Library books - a 40-page and a 12-page title, both single-column
+   * body text) that reading it from whichever page establishes the
+   * default scale (page 1, or a resumed page) is representative for
+   * the rest of that reading session.
+   *
+   * Char-count-weighted, not occurrence-weighted: a title page has few
+   * long-run title characters and often more small-print (footer/
+   * disclaimer) characters, so weighting by how much text is actually
+   * set in each size - not how many separate text runs use it - is
+   * what makes this resolve to the real body size even on a cover
+   * (confirmed directly: Treasury Bills Made Simple's own cover page
+   * resolves to its 12pt body size, not its larger title size).
+   *
+   * Non-fatal by design: a page with no extractable text (a scanned
+   * image, for instance) simply returns null and the caller falls back
+   * to plain fit-to-width, same as this file's other silent-fallback
+   * patterns.
+   */
+  async function getDominantFontSizePt(page) {
+    try {
+      const content = await page.getTextContent();
+      const charsBySize = new Map();
+      for (const item of content.items) {
+        if (!item.str || !item.str.trim()) continue;
+        const size = Math.abs(item.transform[3]);
+        if (!size) continue;
+        charsBySize.set(size, (charsBySize.get(size) || 0) + item.str.length);
+      }
+      let bestSize = null;
+      let bestCount = -1;
+      for (const [size, count] of charsBySize) {
+        if (count > bestCount) {
+          bestCount = count;
+          bestSize = size;
+        }
+      }
+      return bestSize;
+    } catch {
+      return null;
+    }
+  }
+
+  /**
    * Phase 9A — "fit this page to the available width," replacing the
    * old fixed DEFAULT_SCALE constant. `unscaledWidth` is the page's own
    * real width at scale=1 (pdf.js's own unit); dividing the space
@@ -404,18 +473,34 @@ function initLibraryReader() {
    * unrelated manual-zoom floor; getWrapContentWidth()'s own
    * Math.max(200, ...) is what keeps this from ever going unreasonably
    * small.
+   *
+   * Phase 9A follow-up — fit-to-width alone is then raised further, if
+   * needed, so the page's own real body font (see
+   * getDominantFontSizePt() above) renders at least MIN_READABLE_FONT_PX
+   * tall - a real gap found after shipping fit-to-width: on a phone,
+   * fitting a full Letter/A4-width document page legibly requires more
+   * zoom than "the whole page fits with no horizontal scroll" allows.
+   * When the two goals conflict, legibility wins and the page becomes
+   * horizontally scrollable instead - the existing overflow/pan support
+   * this file already has, not new behavior.
    */
-  function computeFitScale(unscaledWidth) {
+  async function computeFitScale(page, unscaledWidth) {
     const fit = Math.min(MAX_SCALE, getWrapContentWidth() / unscaledWidth);
-    lastFitScale = fit;
-    return fit;
+    const dominantFontPt = await getDominantFontSizePt(page);
+    let final = fit;
+    if (dominantFontPt) {
+      const minLegibleScale = MIN_READABLE_FONT_PX / dominantFontPt;
+      final = Math.min(MAX_SCALE, Math.max(fit, minLegibleScale));
+    }
+    lastFitScale = final;
+    return final;
   }
 
   /** Phase 9A — resize/orientation-change handler: recomputes the fit-to-width scale for the new available width and re-renders at it, same calculation as the initial load. */
   async function refitAndRerender() {
     if (!pdfDoc || rendering) return;
     const page = await pdfDoc.getPage(currentPage);
-    scale = computeFitScale(page.getViewport({ scale: 1 }).width);
+    scale = await computeFitScale(page, page.getViewport({ scale: 1 }).width);
     renderPage(currentPage);
   }
 
@@ -425,7 +510,7 @@ function initLibraryReader() {
     nextBtn.disabled = pageNumber >= pdfDoc.numPages;
 
     const page = await pdfDoc.getPage(pageNumber);
-    if (scale === null) scale = computeFitScale(page.getViewport({ scale: 1 }).width);
+    if (scale === null) scale = await computeFitScale(page, page.getViewport({ scale: 1 }).width);
 
     // Phase 9A — two viewports, deliberately: `viewport` is the
     // logical, CSS-pixel size the canvas is DISPLAYED at
