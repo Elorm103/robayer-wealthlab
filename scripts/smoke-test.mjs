@@ -198,21 +198,38 @@ await check('Admin dashboard health endpoint requires authentication', async () 
 // REAL deployed files, not local source, since "committed" and "actually
 // live" have differed before (see Phase 9C.6-9C.9's own history).
 
+// Reads the reader page itself for the CURRENT `?v=` hash on each asset,
+// rather than checking the bare/unversioned URL - the bare URL is never
+// what a real browser loads (dashboard/read/index.html always references
+// the versioned one; see scripts/bump-asset-versions.mjs) and can sit on
+// a stale CDN-cached response indefinitely even after a fix that changed
+// its content has shipped and its hash has moved on.
+async function currentAssetUrl(assetPath) {
+  const res = await fetch(`${BASE}/dashboard/read/`);
+  const html = await res.text();
+  const escaped = assetPath.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+  const match = html.match(new RegExp(`${escaped}(\\?v=[a-zA-Z0-9]+)?`));
+  assert(match, `${assetPath} not referenced by dashboard/read/`);
+  return `${BASE}${assetPath}${match[1] || ''}`;
+}
+
 await check('Reader CSS: .reader-canvas-wrap--epub sets a real height, not just max-height', async () => {
-  const res = await fetch(`${BASE}/css/components.css`);
-  assert(res.status === 200, `expected 200, got ${res.status}`);
+  const url = await currentAssetUrl('/css/components.css');
+  const res = await fetch(url);
+  assert(res.status === 200, `expected 200 for ${url}, got ${res.status}`);
   const css = await res.text();
   const match = css.match(/\.reader-canvas-wrap--epub\s*\{([^}]*)\}/);
-  assert(match, '.reader-canvas-wrap--epub rule not found in deployed components.css');
+  assert(match, `.reader-canvas-wrap--epub rule not found in deployed components.css (${url})`);
   assert(/(?<!max-)height\s*:\s*\d/.test(match[1]), '.reader-canvas-wrap--epub has no real (non-max-) height declaration');
 });
 
 await check('Reader JS: duplicate-.epub-container cleanup is present and wired to the "rendered" event', async () => {
-  const res = await fetch(`${BASE}/js/components/library-reader.js`);
-  assert(res.status === 200, `expected 200, got ${res.status}`);
+  const url = await currentAssetUrl('/js/components/library-reader.js');
+  const res = await fetch(url);
+  assert(res.status === 200, `expected 200 for ${url}, got ${res.status}`);
   const js = await res.text();
-  assert(js.includes('cleanupDuplicateEpubContainers'), 'cleanupDuplicateEpubContainers() missing from deployed library-reader.js');
-  assert(/rendition\.on\(\s*['"]rendered['"]\s*,/.test(js), 'cleanup is not wired to epub.js\'s "rendered" event');
+  assert(js.includes('cleanupDuplicateEpubContainers'), `cleanupDuplicateEpubContainers() missing from deployed library-reader.js (${url})`);
+  assert(/\.on\(\s*['"]rendered['"]\s*,\s*cleanupDuplicateEpubContainers/.test(js), 'cleanup is not wired to epub.js\'s "rendered" event');
   assert(js.includes('reader-canvas-wrap--epub'), 'reader-canvas-wrap--epub class toggle missing from deployed library-reader.js');
 });
 
