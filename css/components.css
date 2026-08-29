@@ -3180,6 +3180,26 @@ button.resource-card {
   overflow: auto;
   max-height: 75vh;
 }
+/* Phase 9C.10 — real, confirmed bug: for PDF, `.reader-canvas-wrap`'s
+   height is fine left as `auto` (`max-height` alone caps it), because
+   the PDF <canvas> gets its own explicit intrinsic pixel size directly
+   from library-reader.js's renderPage() and simply participates in
+   normal content-based flex sizing like an image would. epub.js's
+   `renderTo(el, {height: '100%'})` is different: it needs its own host
+   element to already have a DEFINITE height for that percentage to
+   resolve against - with the wrap's height still `auto` here, the
+   percentage has nothing definite to resolve against, so the iframe
+   epub.js creates computes to a real, present, fully-loaded, but
+   `height: 0` box. Confirmed directly: the iframe's own
+   `contentDocument.body` contained the real chapter text throughout -
+   this was never a fetch/CSP/entitlement failure, purely a layout one.
+   Applied only in EPUB mode (see openEpubReadSession()); the PDF path
+   never gets this class, so PDF sizing/zoom behavior is unchanged. */
+.reader-canvas-wrap--epub {
+  height: 75vh;
+  display: block;
+  padding: 0;
+}
 .reader-canvas-wrap:focus-visible {
   outline: 2px solid var(--color-accent);
   outline-offset: -2px;
@@ -3213,6 +3233,10 @@ button.resource-card {
   .reader-canvas-wrap {
     padding: var(--space-3) var(--space-2);
     max-height: 65vh;
+  }
+  .reader-canvas-wrap--epub {
+    height: 65vh;
+    padding: 0;
   }
 }
 

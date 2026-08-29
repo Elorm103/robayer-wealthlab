@@ -473,7 +473,21 @@ function initLibraryReader() {
     }
 
     canvas.style.display = 'none'; // this render target is PDF.js's canvas - EPUB renders into an epub.js-managed iframe alongside it instead
-    canvasWrap.style.minHeight = '70vh'; // with the canvas hidden the wrap has no other content of its own to size against
+    // Phase 9C.10 — real, confirmed bug (not a `min-height` fix, which
+    // was already here and did NOT work): epub.js's `renderTo(el,
+    // {height: '100%'})` needs its *host* element to already have a
+    // DEFINITE height for that percentage to resolve against. With the
+    // PDF <canvas> hidden, `.reader-canvas-wrap` had nothing else to
+    // size itself from - `height: auto` plus a child needing
+    // `height: 100%` is a circular dependency CSS resolves to 0, not
+    // to `min-height`'s value (`min-height` only floors an
+    // already-definite height; it does not make an auto height
+    // definite). `.reader-canvas-wrap--epub` (css/components.css)
+    // gives the wrap a real `height` instead. Confirmed directly: the
+    // iframe epub.js created was always present with the real chapter
+    // text already inside it - this was never a fetch/CSP/entitlement
+    // problem, purely a layout one.
+    canvasWrap.classList.add('reader-canvas-wrap--epub');
     pageIndicatorEl.textContent = 'Reading…';
     const loadingNotice = document.createElement('p');
     loadingNotice.className = 'text-secondary';
@@ -507,6 +521,7 @@ function initLibraryReader() {
     // would anyway.
     epubRendition = epubBook.renderTo(canvasWrap, { width: '100%', height: '100%' });
     epubRendition.on('relocated', handleEpubRelocated);
+    epubRendition.on('rendered', cleanupDuplicateEpubContainers);
 
     wireEpubControls();
     wireEpubDrawers();
@@ -656,6 +671,34 @@ function initLibraryReader() {
   function highlightActiveTocEntry(href) {
     tocListEl.querySelectorAll('.reader-toc__link').forEach((link) => {
       link.classList.toggle('reader-toc__link--active', link.dataset.href === href);
+    });
+  }
+
+  /**
+   * Phase 9C.10 — real, confirmed bug: this vendored epub.js build can
+   * end up with TWO `.epub-container` elements inside the same host
+   * (`canvasWrap`) after `renderTo()`/`display()` — one genuinely
+   * empty-looking (its iframe present, its chapter text already
+   * loaded into `contentDocument`, but collapsed to `height: 0`
+   * because it was laid out before `.reader-canvas-wrap--epub` gave
+   * the host a definite height) and, appended after it, a second one
+   * that IS correctly sized and is the one `epubRendition.manager`
+   * itself actually tracks going forward. `canvasWrap.querySelector('iframe')`-
+   * style DOM lookups (and a real visitor's eyes) find the first,
+   * stale one - reproduced directly, isolated from every other part
+   * of this file, by inspecting `.epub-container` elements one at a
+   * time. Removing every `.epub-container` except the manager's own
+   * current `stage.container` is a defensive cleanup that works
+   * regardless of why the extra one appears (a future epub.js update
+   * that stops duplicating it makes this a no-op, not a break) -
+   * called after every render, not just the first, since chapter
+   * navigation can in principle hit the same path again.
+   */
+  function cleanupDuplicateEpubContainers() {
+    if (!epubRendition || !epubRendition.manager || !epubRendition.manager.stage) return;
+    const activeContainer = epubRendition.manager.stage.container;
+    canvasWrap.querySelectorAll('.epub-container').forEach((el) => {
+      if (el !== activeContainer) el.remove();
     });
   }
 

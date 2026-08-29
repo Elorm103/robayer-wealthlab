@@ -187,6 +187,46 @@ await check('Admin dashboard health endpoint requires authentication', async () 
   assert(res.status === 401, `expected 401 for an unauthenticated health check, got ${res.status}`);
 });
 
+// ---------- Phase 9C.10: EPUB reader layout fix (blank content area) ----------
+// Guards the exact regression: `.reader-canvas-wrap`'s height was `auto`
+// (only `max-height` was set), which epub.js's `height: 100%` iframe sizing
+// can't resolve against - the iframe rendered with real chapter content
+// already inside it, but a 0px box. `.reader-canvas-wrap--epub` (a real,
+// non-`max-` `height`) and cleanupDuplicateEpubContainers() (removing the
+// stale, wrongly-sized `.epub-container` this vendored epub.js build can
+// leave behind) are what fixed it - both re-checked here against the
+// REAL deployed files, not local source, since "committed" and "actually
+// live" have differed before (see Phase 9C.6-9C.9's own history).
+
+await check('Reader CSS: .reader-canvas-wrap--epub sets a real height, not just max-height', async () => {
+  const res = await fetch(`${BASE}/css/components.css`);
+  assert(res.status === 200, `expected 200, got ${res.status}`);
+  const css = await res.text();
+  const match = css.match(/\.reader-canvas-wrap--epub\s*\{([^}]*)\}/);
+  assert(match, '.reader-canvas-wrap--epub rule not found in deployed components.css');
+  assert(/(?<!max-)height\s*:\s*\d/.test(match[1]), '.reader-canvas-wrap--epub has no real (non-max-) height declaration');
+});
+
+await check('Reader JS: duplicate-.epub-container cleanup is present and wired to the "rendered" event', async () => {
+  const res = await fetch(`${BASE}/js/components/library-reader.js`);
+  assert(res.status === 200, `expected 200, got ${res.status}`);
+  const js = await res.text();
+  assert(js.includes('cleanupDuplicateEpubContainers'), 'cleanupDuplicateEpubContainers() missing from deployed library-reader.js');
+  assert(/rendition\.on\(\s*['"]rendered['"]\s*,/.test(js), 'cleanup is not wired to epub.js\'s "rendered" event');
+  assert(js.includes('reader-canvas-wrap--epub'), 'reader-canvas-wrap--epub class toggle missing from deployed library-reader.js');
+});
+
+await check('Product-agnostic: at least two different products\' catalog entries list a real EPUB file', async () => {
+  const slugs = ['starting-to-invest-with-gh100', 'treasury-bills-made-simple'];
+  let epubCount = 0;
+  for (const slug of slugs) {
+    const { res, body } = await getJson(`/api/products/${slug}`);
+    assert(res.status === 200, `expected 200 for ${slug}, got ${res.status}`);
+    if (Array.isArray(body?.data?.files) && body.data.files.some((f) => f.fileType === 'EPUB')) epubCount += 1;
+  }
+  assert(epubCount >= 2, `expected at least 2 of ${slugs.length} test products to list an EPUB file, found ${epubCount}`);
+});
+
 // ---------- Report ----------
 
 const failed = results.filter((r) => !r.ok);
