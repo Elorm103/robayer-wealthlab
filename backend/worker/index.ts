@@ -160,6 +160,7 @@ import {
   handleProductRelationsUpdate,
   handleProductBundleItemsUpdate,
   handleProductsBulkAction,
+  handleProductBackfillEntitlements,
 } from '../routes/admin/products';
 import { handlePublicProductsList, handlePublicProductGet } from '../routes/products';
 import { handleBooksIndex, handleBookDetail, handleBookRedirect } from '../routes/books';
@@ -444,6 +445,7 @@ const ROUTES: Route[] = [
   { pattern: new URLPattern({ pathname: '/api/admin/products/:id/duplicate' }), method: 'POST', handler: handleProductDuplicate },
   { pattern: new URLPattern({ pathname: '/api/admin/products/:id/status' }), method: 'POST', handler: handleProductStatusTransition },
   { pattern: new URLPattern({ pathname: '/api/admin/products/:id/files' }), method: 'PUT', handler: handleProductFilesUpdate },
+  { pattern: new URLPattern({ pathname: '/api/admin/products/:id/backfill-entitlements' }), method: 'POST', handler: handleProductBackfillEntitlements },
   { pattern: new URLPattern({ pathname: '/api/admin/products/:id/gallery' }), method: 'PUT', handler: handleProductGalleryUpdate },
   { pattern: new URLPattern({ pathname: '/api/admin/products/:id/relations' }), method: 'PUT', handler: handleProductRelationsUpdate },
   { pattern: new URLPattern({ pathname: '/api/admin/products/:id/bundle-items' }), method: 'PUT', handler: handleProductBundleItemsUpdate },

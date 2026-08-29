@@ -451,8 +451,14 @@ ${NEWSLETTER_BAND}`;
 
   const html = renderShell({
     title: 'Financial eBooks for Ghana | Robayer WealthLab',
-    description:
-      'Practical eBooks on saving, investing, and building wealth in Ghana, starting with Starting to Invest with GH₵100. Honest guidance, no hype, from GH₵39.',
+    // Phase 9C.8 — this listing page covers every guide, not one in
+    // particular, so its description never names a specific title (the
+    // same reasoning twitterDescription just below already followed).
+    // Naming one product here previously went stale after that
+    // product's own rename (see docs/flagship-product-audit.md) without
+    // this page ever being touched — a description with no embedded
+    // product name can't go stale that way again.
+    description: 'Practical eBooks on saving, investing, and building wealth in Ghana. Honest guidance, no hype, from GH₵39.',
     twitterDescription: 'Practical eBooks on saving, investing, and building wealth in Ghana: honest guidance, no hype, from GH₵39.',
     canonical: `${SITE_ORIGIN}/books/`,
     ogImage: `${SITE_ORIGIN}/assets/branding/social/og-image.jpg`,

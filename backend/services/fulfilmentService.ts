@@ -27,6 +27,7 @@ import { fetchCatalogProduct, isAssetPublished, type DigitalAsset, type Download
 import { sendEmail } from './emailService';
 import { issuePasswordToken } from './customer/authService';
 import { computeSaleState } from './productService';
+import * as auditService from './admin/auditService';
 
 export interface FulfilPurchaseInput {
   purchaseSessionId: number;
@@ -93,6 +94,72 @@ export async function ensureEntitlementsGranted(env: Env, logger: Logger, purcha
     await markDelivered(env, purchaseSessionId, newlyGrantedAssetIds);
   }
   return newlyGrantedAssetIds;
+}
+
+export interface BackfillEntitlementsResult {
+  productSlug: string;
+  sessionsChecked: number;
+  sessionsGranted: number;
+  assetsGranted: number;
+}
+
+/**
+ * Phase 9C.6 — the bulk counterpart of `resendDownload()`'s existing
+ * single-purchase `ensureEntitlementsGranted()` call
+ * (services/admin/orderService.ts). Same idempotent, no-side-effects-
+ * beyond-`deliveries` guarantee, just applied to every verified
+ * purchase of one product in a single admin action, for the case this
+ * closes: a file (e.g. an EPUB edition) published on a product some
+ * time after customers already purchased it. Deliberately reuses
+ * `ensureEntitlementsGranted()` rather than a second entitlement
+ * implementation — see that function's own doc comment for why this is
+ * safe to call any number of times.
+ *
+ * Scope is intentionally narrow: only `purchase_sessions` whose own
+ * `product_slug` is the one being backfilled — the same session
+ * selection `resendDownload()` itself relies on (a bundle's member
+ * purchases are addressed through the bundle's own slug, not each
+ * member's, matching `ensureEntitlementsGranted()`'s existing
+ * `asset.productSlug` substitution for that case).
+ */
+export async function backfillEntitlementsForProduct(
+  env: Env,
+  logger: Logger,
+  actorId: number,
+  productId: number,
+  productSlug: string
+): Promise<BackfillEntitlementsResult> {
+  const { results } = await env.DB.prepare(`SELECT id FROM purchase_sessions WHERE product_slug = ? AND status = 'verified'`)
+    .bind(productSlug)
+    .all<{ id: number }>();
+
+  let sessionsGranted = 0;
+  let assetsGranted = 0;
+  for (const { id: purchaseSessionId } of results) {
+    const granted = await ensureEntitlementsGranted(env, logger, purchaseSessionId, productSlug);
+    if (granted.length > 0) {
+      sessionsGranted += 1;
+      assetsGranted += granted.length;
+    }
+  }
+
+  const result: BackfillEntitlementsResult = {
+    productSlug,
+    sessionsChecked: results.length,
+    sessionsGranted,
+    assetsGranted,
+  };
+
+  await auditService.record(env, logger, {
+    actorType: 'admin',
+    actorId,
+    action: 'entitlements.backfilled',
+    entityType: 'product',
+    entityId: productId,
+    metadata: { ...result },
+  });
+
+  return result;
 }
 
 /**

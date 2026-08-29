@@ -314,6 +314,23 @@ function initLibraryList() {
     }
   }
 
+  /**
+   * Phase 9C.6 (EPUB Library Availability & Production Integration) —
+   * a purchase's non-revoked assets can now be more than one (e.g. a
+   * PDF and an EPUB edition of the same book, once both are published
+   * and entitled), so a card's format label needs to distinguish them.
+   * `fileType` is the same free-text column product_files.file_type
+   * already carries (see backend/database/migrations/0008); only the
+   * two real formats today get a clean uppercase label, anything else
+   * falls back to the asset's own display name rather than showing a
+   * raw/unexpected fileType string.
+   */
+  function assetFormatLabel(asset) {
+    const type = (asset.fileType || '').toUpperCase();
+    if (type === 'PDF' || type === 'EPUB') return type;
+    return asset.displayName || type || 'File';
+  }
+
   function renderActions(purchase, reviewedSlugs, statusEl) {
     const wrap = document.createElement('div');
     // Phase 6.1 fix: the existing `.library-card__actions { grid-column: 1 / -1; }`
@@ -332,8 +349,90 @@ function initLibraryList() {
     let usageLine = null;
 
     if (purchase.status === 'ready') {
-      const ebookAsset = purchase.assets.find((a) => !a.revoked) || null;
-      if (ebookAsset) {
+      // Phase 9C.6: the pre-existing bug this replaces was
+      // `purchase.assets.find((a) => !a.revoked)` - picking exactly one
+      // owned asset even when the backend correctly returned several
+      // (e.g. PDF + EPUB). A product with only one owned asset renders
+      // through the exact same single-asset markup/wording as before
+      // (byte-identical - no regression for the PDF-only catalog that
+      // exists today); two or more owned assets is the new, real path.
+      const ownedAssets = purchase.assets.filter((a) => !a.revoked);
+      const ebookAsset = ownedAssets[0] || null;
+
+      if (ownedAssets.length > 1) {
+        // Digital Library Phase 7A's Read link (real navigation to
+        // dashboard/read/, never a download-count-consuming action) and
+        // Download button behavior are unchanged per-asset - only the
+        // rendering loops over every owned format now, grouped as
+        // "every Read button, then every Download button" per this
+        // phase's UX requirement, so a customer immediately sees they
+        // own both formats rather than reading it off a dropdown.
+        const usageLines = [];
+        const progressEls = [];
+
+        ownedAssets.forEach((asset) => {
+          const state = window.RobayerOwnership.describeDownloadState(asset);
+          const label = assetFormatLabel(asset);
+
+          const readButton = document.createElement('a');
+          readButton.className = 'btn btn--accent library-card__action-primary';
+          readButton.textContent = `Read ${label}`;
+          readButton.setAttribute('data-library-read-action', '');
+          readButton.href = `/dashboard/read/?ref=${encodeURIComponent(purchase.purchaseReference)}&assetId=${encodeURIComponent(asset.assetId)}`;
+          if (state.revoked) {
+            readButton.setAttribute('aria-disabled', 'true');
+            readButton.tabIndex = -1;
+            readButton.removeAttribute('href');
+            readButton.classList.add('btn--disabled');
+          }
+          actions.appendChild(readButton);
+        });
+
+        ownedAssets.forEach((asset) => {
+          const state = window.RobayerOwnership.describeDownloadState(asset);
+          const label = assetFormatLabel(asset);
+
+          const downloadButton = document.createElement('button');
+          downloadButton.type = 'button';
+          downloadButton.className = 'btn btn--secondary';
+          downloadButton.textContent = `Download ${label}`;
+          downloadButton.setAttribute('data-library-download-action', '');
+
+          let assetUsageLine = null;
+          if (state.limitReached) {
+            downloadButton.disabled = true;
+            downloadButton.classList.add('btn--disabled');
+            showStatus(statusEl, state.message, 'notice');
+          } else {
+            downloadButton.addEventListener('click', () =>
+              requestDownload(purchase.purchaseReference, asset, downloadButton, statusEl, assetUsageLine)
+            );
+          }
+          actions.appendChild(downloadButton);
+
+          const usageText = computeDownloadUsageText(asset);
+          if (usageText) {
+            assetUsageLine = document.createElement('p');
+            assetUsageLine.className = 'text-small text-muted mt-2 mb-0';
+            assetUsageLine.textContent = `${label}: ${usageText}`;
+            usageLines.push(assetUsageLine);
+          }
+
+          const progress = progressByKey.get(`${purchase.purchaseReference}:${asset.assetId}`);
+          const progressEl = renderProgressLine(progress);
+          if (progressEl) progressEls.push(progressEl);
+        });
+
+        const reviewLink = document.createElement('a');
+        reviewLink.className = 'btn btn--secondary';
+        reviewLink.href = `/books/${encodeURIComponent(purchase.productSlug)}/#reviews`;
+        reviewLink.textContent = reviewedSlugs.has(purchase.productSlug) ? 'Edit Review' : 'Leave a Review';
+        actions.appendChild(reviewLink);
+
+        wrap.appendChild(actions);
+        usageLines.forEach((el) => wrap.appendChild(el));
+        progressEls.forEach((el) => wrap.appendChild(el));
+      } else if (ebookAsset) {
         const state = window.RobayerOwnership.describeDownloadState(ebookAsset);
 
         // Digital Library Phase 7A: Read is a real navigation to the

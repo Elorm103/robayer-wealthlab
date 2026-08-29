@@ -33,6 +33,7 @@ import { requireCsrf } from '../../middleware/csrf';
 import * as productService from '../../services/productService';
 import type { ProductInput, ProductRecord, LifecycleAction } from '../../services/productService';
 import { TOPICS, PRODUCT_TYPES, PRODUCT_STATUSES, computeSaleState } from '../../services/productService';
+import { backfillEntitlementsForProduct } from '../../services/fulfilmentService';
 
 const EDITOR_ROLES = ['super_admin', 'editor'] as const;
 
@@ -528,6 +529,38 @@ export async function handleProductFilesUpdate(request: Request, env: Env, logge
   await productService.setProductFiles(env, logger, auth.auth.adminId, id, product.slug, files);
   const updated = await productService.getProductById(env, id);
   return jsonSuccess(toApiShape(updated!));
+}
+
+// ============================================================
+// Entitlement backfill — Phase 9C.6 (EPUB Library Availability &
+// Production Integration). For every EXISTING verified purchase of
+// this product, grants an entitlement for any published asset that
+// purchase doesn't already have one for (e.g. a file, such as an EPUB
+// edition, published after those customers already bought the
+// product). Reuses the same `ensureEntitlementsGranted()` the existing
+// per-order "Resend Download" admin action already calls
+// (services/admin/orderService.ts) — this is its bulk, whole-product
+// counterpart, not a second entitlement mechanism. Idempotent: safe to
+// call again after adding another file, or after no files changed at
+// all (a no-op).
+// ============================================================
+
+export async function handleProductBackfillEntitlements(request: Request, env: Env, logger: Logger, params: RouteParams): Promise<Response> {
+  const auth = await requireAuth(request, env, logger);
+  if (!auth.ok) return auth.response;
+  const roleFailure = await requireRole(request, env, logger, auth.auth, EDITOR_ROLES);
+  if (roleFailure) return roleFailure;
+  const csrfFailure = await requireCsrf(request, env, logger, auth.auth);
+  if (csrfFailure) return csrfFailure;
+
+  const id = parseId(params);
+  if (id === null) return jsonError('NOT_FOUND', 'This product could not be found.');
+
+  const product = await productService.getProductById(env, id);
+  if (!product) return jsonError('NOT_FOUND', 'This product could not be found.');
+
+  const result = await backfillEntitlementsForProduct(env, logger, auth.auth.adminId, id, product.slug);
+  return jsonSuccess(result);
 }
 
 export async function handleProductGalleryUpdate(request: Request, env: Env, logger: Logger, params: RouteParams): Promise<Response> {

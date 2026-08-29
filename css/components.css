@@ -3439,6 +3439,180 @@ button.resource-card {
 }
 
 /* ============================================================
+   EPUB READER — TOC / SEARCH DRAWERS — Phase 9C.5. A side drawer on
+   desktop, a bottom sheet on mobile — deliberately the exact same
+   .ai-panel/.ai-panel-backdrop pattern above, generalized to
+   .reader-drawer so TOC and search (two instances of this one class)
+   don't each duplicate it. See js/components/library-reader.js.
+   ============================================================ */
+.reader-drawer-backdrop {
+  position: fixed;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.32);
+  z-index: var(--z-overlay);
+  opacity: 0;
+  transition: opacity 0.2s var(--ease-standard);
+}
+.reader-drawer-backdrop--visible {
+  opacity: 1;
+}
+
+.reader-drawer {
+  position: fixed;
+  top: 0;
+  right: 0;
+  bottom: 0;
+  width: min(420px, 100vw);
+  background: var(--color-surface);
+  border-left: 1px solid var(--color-border);
+  box-shadow: var(--shadow-3);
+  z-index: calc(var(--z-overlay) + 1);
+  display: flex;
+  flex-direction: column;
+  transform: translateX(100%);
+  transition: transform 0.22s var(--ease-standard);
+}
+.reader-drawer--open {
+  transform: translateX(0);
+}
+
+.reader-drawer__header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: var(--space-4);
+  border-bottom: 1px solid var(--color-border);
+}
+.reader-drawer__title {
+  font-family: var(--font-heading);
+  font-size: var(--text-h4);
+  color: var(--color-text-heading);
+  margin: 0;
+}
+.reader-drawer__close {
+  background: none;
+  border: none;
+  font-size: 1.5rem;
+  line-height: 1;
+  color: var(--color-text-secondary);
+  cursor: pointer;
+  min-width: 44px;
+  min-height: 44px;
+  border-radius: var(--radius-sm);
+}
+.reader-drawer__close:hover,
+.reader-drawer__close:focus-visible {
+  color: var(--color-text-heading);
+  background: var(--color-bg-alt);
+}
+
+.reader-drawer__body {
+  flex: 1;
+  overflow-y: auto;
+  padding: var(--space-3) var(--space-4);
+}
+
+/* TOC — nested via <ul> inside <ul>; a parent-only heading (no href in
+   the EPUB's own nav - see library-reader.js's renderToc() comment)
+   renders as plain text, never a dead button. */
+.reader-toc__list,
+.reader-toc__sublist {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+.reader-toc__sublist {
+  padding-left: var(--space-4);
+}
+.reader-toc__heading {
+  display: block;
+  padding: var(--space-2) 0;
+  font-family: var(--font-heading);
+  font-size: var(--text-small);
+  color: var(--color-text-secondary);
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+}
+.reader-toc__link {
+  display: block;
+  width: 100%;
+  text-align: left;
+  background: none;
+  border: none;
+  padding: var(--space-2) var(--space-2);
+  min-height: 44px;
+  color: var(--color-text-primary);
+  border-radius: var(--radius-sm);
+  cursor: pointer;
+}
+.reader-toc__link:hover,
+.reader-toc__link:focus-visible {
+  background: var(--color-bg-alt);
+  color: var(--color-accent);
+}
+.reader-toc__link--active {
+  color: var(--color-accent);
+  font-weight: 600;
+}
+
+.reader-search__form {
+  display: flex;
+  gap: var(--space-2);
+  padding: var(--space-3) var(--space-4);
+  border-bottom: 1px solid var(--color-border);
+}
+.reader-search__form .field__input {
+  flex: 1;
+  min-height: 44px;
+}
+.reader-search__status {
+  margin: var(--space-2) var(--space-4) 0;
+}
+.reader-search-result {
+  display: block;
+  width: 100%;
+  text-align: left;
+  background: none;
+  border: none;
+  border-bottom: 1px solid var(--color-border);
+  padding: var(--space-3) var(--space-2);
+  cursor: pointer;
+  color: var(--color-text-primary);
+}
+.reader-search-result:hover,
+.reader-search-result:focus-visible {
+  background: var(--color-bg-alt);
+}
+.reader-search-result mark {
+  background: var(--color-accent-tint, rgba(255, 200, 0, 0.35));
+  color: inherit;
+}
+
+@media (max-width: 767px) {
+  .reader-drawer {
+    top: auto;
+    left: 0;
+    right: 0;
+    width: auto;
+    height: min(80vh, 640px);
+    border-left: none;
+    border-top: 1px solid var(--color-border);
+    border-radius: var(--radius-lg) var(--radius-lg) 0 0;
+    transform: translateY(100%);
+  }
+  .reader-drawer--open {
+    transform: translateY(0);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .reader-drawer,
+  .reader-drawer-backdrop {
+    transition: none;
+  }
+}
+
+/* ============================================================
    DARK MODE — targeted overrides
    Most components read the semantic tokens defined in tokens.css
    and already adapt automatically under [data-theme="dark"]. These

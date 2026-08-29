@@ -78,8 +78,20 @@
                 <button type="button" class="btn btn--secondary reader-toolbar__btn" data-reader-next-page aria-label="Next page">&rarr;</button>
               </div>
               <div class="reader-toolbar__zoom">
+                <!-- Phase 9C.5 — same buttons PDF already uses for
+                     zoom; for an EPUB, library-reader.js repoints them
+                     at font-size steps instead (see setEpubFontSize())
+                     rather than adding a second, format-specific pair
+                     of buttons for what is the same user intent
+                     ("make the text bigger/smaller") either way. -->
                 <button type="button" class="btn btn--secondary reader-toolbar__btn" data-reader-zoom-out aria-label="Zoom out">&minus;</button>
                 <button type="button" class="btn btn--secondary reader-toolbar__btn" data-reader-zoom-in aria-label="Zoom in">+</button>
+                <!-- Phase 9C.5 (EPUB reader) — hidden until an EPUB is
+                     confirmed open (PDF has no chapter list or
+                     in-book search of its own yet); see
+                     openEpubReadSession()'s toolbar wiring. -->
+                <button type="button" class="btn btn--secondary reader-toolbar__btn" data-reader-toc-trigger aria-label="Table of contents" hidden>&#9776;</button>
+                <button type="button" class="btn btn--secondary reader-toolbar__btn" data-reader-search-trigger aria-label="Search this book" hidden>&#128269;</button>
                 <!-- Digital Library Phase 7C (AI Reading Assistant).
                      Hidden until js/components/library-ai-panel.js
                      confirms this specific resource is PDF (the only
@@ -100,6 +112,33 @@
               <canvas data-reader-canvas></canvas>
             </div>
           </div>
+
+          <!-- Phase 9C.5 (EPUB reader) — TOC and search share one
+               drawer treatment (.reader-drawer, css/components.css),
+               the exact same side-panel/bottom-sheet pattern
+               .ai-panel already established; only one drawer is ever
+               open at a time, so one shared backdrop covers both. -->
+          <div class="reader-drawer-backdrop" data-reader-drawer-backdrop hidden></div>
+          <aside class="reader-drawer" data-reader-toc-panel hidden aria-label="Table of contents" role="dialog" aria-modal="true">
+            <header class="reader-drawer__header">
+              <h2 class="reader-drawer__title">Contents</h2>
+              <button type="button" class="reader-drawer__close" data-reader-toc-close aria-label="Close table of contents">&times;</button>
+            </header>
+            <nav class="reader-drawer__body" data-reader-toc-list aria-label="Chapters"></nav>
+          </aside>
+          <aside class="reader-drawer" data-reader-search-panel hidden aria-label="Search this book" role="dialog" aria-modal="true">
+            <header class="reader-drawer__header">
+              <h2 class="reader-drawer__title">Search</h2>
+              <button type="button" class="reader-drawer__close" data-reader-search-close aria-label="Close search">&times;</button>
+            </header>
+            <form class="reader-search__form" data-reader-search-form>
+              <label for="reader-search-input" class="sr-only">Search this book</label>
+              <input type="search" id="reader-search-input" class="field__input" data-reader-search-input placeholder="Search this book…" maxlength="200">
+              <button type="submit" class="btn btn--accent" data-reader-search-submit>Search</button>
+            </form>
+            <p class="reader-search__status text-small text-muted" data-reader-search-status></p>
+            <div class="reader-drawer__body" data-reader-search-results></div>
+          </aside>
 
           <!-- Digital Library Phase 7C (AI Reading Assistant). A side
                panel on desktop, a bottom sheet on mobile (same

@@ -1,0 +1,59 @@
+Robayer WealthLab — vendored epub.js build notice
+(Phase 9C.1 technical spike — this vendor bundle is NOT wired into the
+application yet; see js/components for what is actually loaded.)
+
+SOURCE
+  Repository: https://github.com/futurepress/epub.js
+  Commit:     eee359d0790002115a1156a9833c54f4bcd44c1d
+  Commit date: 2026-03-23
+  This is the current `master` branch source, NOT the stale npm
+  package `epubjs@0.3.93` (published 2022-02-16). The npm tag has not
+  been updated since; this build was produced directly from the
+  GitHub source tree instead.
+
+BUILD
+  Command:  NODE_ENV=production MINIMIZE=true webpack --progress
+            (NODE_OPTIONS=--openssl-legacy-provider required — this
+            webpack/babel toolchain predates Node's OpenSSL 3 provider
+            change and fails without it on current Node.)
+  Modification from upstream: upstream's webpack.config.js declares
+  `externals: { "jszip/dist/jszip": "JSZip", "xmldom": "xmldom" }`,
+  which produces a build that expects a separately-loaded global
+  `window.JSZip` at runtime. That externals block was removed for
+  this build so jszip and xmldom are compiled directly into
+  epub.min.js, producing one self-contained file — matching this
+  project's existing js/vendor/pdfjs/ convention (a single vendored
+  script, no second file to load, no external global to wire up).
+  This is the only change made to upstream's build configuration;
+  no application source in src/ was modified.
+
+BUNDLED THIRD-PARTY CODE AND LICENSES
+  epub.js itself           BSD-2-Clause  (c) 2013 FuturePress — see LICENSE
+  @xmldom/xmldom  0.7.5    MIT
+  jszip           3.7.1    Dual-licensed MIT OR GPL-3.0-or-later —
+                            the MIT option is the one relied on here.
+  core-js         (via @babel/preset-env polyfills)   MIT
+  lodash          (used internally by epub.js)         MIT
+  event-emitter                                        MIT
+  marks-pane      (annotations support, inert unless the
+                    Annotations API is actually called)  MIT
+  localforage / @types/localforage  (IndexedDB caching
+                    helper, inert unless Book.settings.persist
+                    or similar caching is enabled)        MIT
+
+  No GPL, LGPL, AGPL, or other copyleft-licensed code is included —
+  jszip's dual license explicitly permits choosing the MIT term, and
+  every other bundled dependency above is MIT outright.
+
+REDISTRIBUTION OBLIGATION
+  Every license above (BSD-2-Clause, MIT) requires only that the
+  copyright notice and license text be preserved somewhere
+  accompanying the software — this NOTICE file plus the adjacent
+  LICENSE file satisfy that for as long as both ship together with
+  epub.min.js. No source-disclosure, share-alike, or "same license"
+  obligation applies to code that merely loads this bundle.
+
+STATUS
+  This directory is a Phase 9C.1 spike artifact only. It is not
+  referenced by any production page. See the Phase 9C.1 report for
+  full functional/security/licensing findings.

@@ -85,6 +85,30 @@ const RESIZE_DEBOUNCE_MS = 150;
 // real, embedded font size instead of guessing at page layout.
 const MIN_READABLE_FONT_PX = 15;
 
+// Phase 9C.4 — EPUB is untrusted content (a ZIP of arbitrary HTML/CSS,
+// even when it came from our own generation pipeline): scripts and
+// popups must stay disabled forever (allowScriptedContent/allowPopups
+// are NEVER set below), and this reader — not the EPUB — owns the
+// security policy for everything else. Injected via epub.js's public
+// `spine.hooks.serialize` because it fires on each chapter's already-
+// serialized HTML string before epub.js ever assigns it to an iframe's
+// `srcdoc`, i.e. before the browser gets a chance to load a single
+// external resource (see the Phase 9C.1-9C.3 spikes for the evidence
+// behind every directive here). Any author-supplied CSP is stripped,
+// not trusted, so this policy is always the one actually enforced.
+const EPUB_READER_CSP =
+  "default-src 'none'; img-src 'self' data: blob:; style-src 'self' 'unsafe-inline'; " +
+  "font-src 'self' data: blob:; media-src 'self' data: blob:; script-src 'none'; " +
+  "connect-src 'none'; frame-src 'none'; object-src 'none'; base-uri 'none'; form-action 'none';";
+
+// Phase 9C.5 — epub.js's own themes API (never hand-rewriting chapter
+// DOM); index 1 (100%) is the default. Locations count is epub.js's
+// own commonly-used granularity for percentageFromCfi() - proven at
+// this value across every Phase 9C.1-9C.4 test against the real book.
+const EPUB_FONT_SIZE_STEPS = [90, 100, 110, 120, 130, 140, 150];
+const EPUB_DEFAULT_FONT_INDEX = 1;
+const EPUB_LOCATIONS_COUNT = 1000;
+
 function initLibraryReader() {
   const root = document.querySelector('[data-reader-root]');
   if (!root || root.hasAttribute('data-bound')) return;
@@ -108,6 +132,18 @@ function initLibraryReader() {
   const resumeBannerEl = document.querySelector('[data-reader-resume-banner]');
   const resumeBannerTextEl = document.querySelector('[data-reader-resume-text]');
   const resumeRestartBtn = document.querySelector('[data-reader-resume-restart]');
+  const tocTriggerBtn = document.querySelector('[data-reader-toc-trigger]');
+  const tocPanel = document.querySelector('[data-reader-toc-panel]');
+  const tocCloseBtn = document.querySelector('[data-reader-toc-close]');
+  const tocListEl = document.querySelector('[data-reader-toc-list]');
+  const searchTriggerBtn = document.querySelector('[data-reader-search-trigger]');
+  const searchPanel = document.querySelector('[data-reader-search-panel]');
+  const searchCloseBtn = document.querySelector('[data-reader-search-close]');
+  const searchFormEl = document.querySelector('[data-reader-search-form]');
+  const searchInputEl = document.querySelector('[data-reader-search-input]');
+  const searchStatusEl = document.querySelector('[data-reader-search-status]');
+  const searchResultsEl = document.querySelector('[data-reader-search-results]');
+  const drawerBackdropEl = document.querySelector('[data-reader-drawer-backdrop]');
 
   const TOPIC_LABELS = {
     investing: 'Investing',
@@ -130,6 +166,17 @@ function initLibraryReader() {
   let currentProductSlug = null;
   let progressWriteTimer = null;
   let completionAlreadyReported = false;
+
+  // Phase 9C.5 — EPUB reader state, kept separate from the PDF state
+  // above rather than interleaved with it (the two formats are
+  // mutually exclusive per page load - only one of these two state
+  // groups is ever actually used).
+  let epubBook = null;
+  let epubRendition = null;
+  let epubFontIndex = EPUB_DEFAULT_FONT_INDEX;
+  let epubLocationsGenerated = false;
+  let epubSearching = false;
+  let epubCfiSaveTimer = null;
 
   document.addEventListener('dashboard:ready', load, { once: true });
 
@@ -200,6 +247,15 @@ function initLibraryReader() {
     // including the honest-unsupported EPUB path below - "opened the
     // reader for this book" is true either way.
     if (window.RobayerAnalytics) window.RobayerAnalytics.trackLibraryEvent('library-reader-opened', purchase.productSlug);
+
+    if (asset.fileType === 'EPUB') {
+      // Phase 9C.4 — minimal, CSP-hardened EPUB initialization; see
+      // openEpubReadSession()'s own header comment for exactly what
+      // this does and, just as importantly, does not do yet.
+      shellEl.hidden = false;
+      await openEpubReadSession(reference, asset);
+      return;
+    }
 
     if (asset.fileType !== 'PDF') {
       unsupportedEl.hidden = false;
@@ -335,6 +391,398 @@ function initLibraryReader() {
         goToPage(1);
       });
     }
+  }
+
+  /**
+   * Phase 9C.4 — strips any author-supplied CSP (never trusted - see
+   * this file's EPUB_READER_CSP comment) and inserts the reader's own,
+   * tolerating a `<head>` with attributes (e.g. `<head lang="en">`)
+   * and mismatched case, without disturbing the rest of the chapter's
+   * markup. Registered on `book.spine.hooks.serialize`, which epub.js
+   * itself already uses internally for its own blob-URL resource
+   * substitution (confirmed via source inspection) - reading
+   * `section.output` here, not the possibly-stale `output` argument,
+   * is what makes this compose correctly with that internal hook
+   * regardless of which one runs first.
+   */
+  function injectReaderCsp(output, section) {
+    let html = section.output;
+    html = html.replace(/<meta[^>]+http-equiv=["']content-security-policy["'][^>]*>/gi, '');
+    const cspTag = `<meta http-equiv="Content-Security-Policy" content="${EPUB_READER_CSP}">`;
+    if (/<head[^>]*>/i.test(html)) {
+      html = html.replace(/<head([^>]*)>/i, (match, attrs) => `<head${attrs}>${cspTag}`);
+    } else {
+      html = html.replace(/<html[^>]*>/i, (match) => `${match}<head>${cspTag}</head>`);
+    }
+    section.output = html;
+  }
+
+  /** Phase 9C.4 — the vendored bundle is a classic UMD script (window.ePub), not an ES module PDF.js's own import can sit next to; loaded on demand, once, only when an EPUB is actually opened. */
+  let epubJsLoading = null;
+  function loadEpubJsLibrary() {
+    if (window.ePub) return Promise.resolve();
+    if (epubJsLoading) return epubJsLoading;
+    epubJsLoading = new Promise((resolve, reject) => {
+      const script = document.createElement('script');
+      script.src = '/js/vendor/epubjs/epub.min.js';
+      script.onload = () => resolve();
+      script.onerror = () => reject(new Error('Could not load the EPUB reader library.'));
+      document.head.appendChild(script);
+    });
+    return epubJsLoading;
+  }
+
+  /**
+   * Phase 9C.5 — the actual EPUB reading experience, built on the
+   * Phase 9C.4 CSP-hardened foundation: chapter navigation, TOC,
+   * search, font size, and resume. Reuses the exact same read-access
+   * token/Blob pipeline openReadSession() (above) already uses for
+   * PDF - entitlement/access control is untouched here, only the
+   * format differs. AI citations and annotations are explicitly not
+   * part of this phase.
+   */
+  async function openEpubReadSession(reference, asset) {
+    let readUrl;
+    try {
+      const permission = await window.CustomerDashboard.customerFetch(`/api/purchases/${encodeURIComponent(reference)}/read-access`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ assetId: asset.assetId }),
+      });
+      readUrl = permission.readUrl;
+    } catch (error) {
+      showError(error.message || 'This resource could not be opened right now. Please try again.');
+      return;
+    }
+
+    let arrayBuffer;
+    try {
+      const response = await fetch(readUrl);
+      if (!response.ok) throw new Error('bad response');
+      arrayBuffer = await response.arrayBuffer();
+    } catch {
+      showError('This resource could not be opened right now. Please try again, or use My Library.');
+      return;
+    }
+
+    try {
+      await loadEpubJsLibrary();
+    } catch (error) {
+      showError(error.message);
+      return;
+    }
+
+    canvas.style.display = 'none'; // this render target is PDF.js's canvas - EPUB renders into an epub.js-managed iframe alongside it instead
+    canvasWrap.style.minHeight = '70vh'; // with the canvas hidden the wrap has no other content of its own to size against
+    pageIndicatorEl.textContent = 'Reading…';
+    const loadingNotice = document.createElement('p');
+    loadingNotice.className = 'text-secondary';
+    loadingNotice.textContent = 'Loading your book…';
+    loadingNotice.setAttribute('data-reader-epub-loading', '');
+    canvasWrap.appendChild(loadingNotice);
+    const removeLoadingNotice = () => {
+      const el = canvasWrap.querySelector('[data-reader-epub-loading]');
+      if (el) el.remove();
+    };
+
+    try {
+      epubBook = window.ePub(arrayBuffer);
+      await epubBook.ready;
+    } catch {
+      removeLoadingNotice();
+      showError('This file could not be displayed. Please try again, or download it instead from My Library.');
+      return;
+    }
+
+    // Registered before renderTo()/display() ever runs, so every
+    // section - including the very first one shown - gets the
+    // reader's CSP before its content is ever parsed.
+    epubBook.spine.hooks.serialize.register(injectReaderCsp);
+    // Deliberately the default (paginated) flow, not 'scrolled-doc':
+    // confirmed directly that 'scrolled-doc' never resolves display()
+    // in this reader's actual layout (reproduced in complete isolation,
+    // outside this file entirely, so it isn't specific to anything
+    // here) - paginated flow also matches the existing Previous/Next
+    // buttons' own semantics more naturally than a continuous scroll
+    // would anyway.
+    epubRendition = epubBook.renderTo(canvasWrap, { width: '100%', height: '100%' });
+    epubRendition.on('relocated', handleEpubRelocated);
+
+    wireEpubControls();
+    wireEpubDrawers();
+
+    epubBook.loaded.navigation
+      .then((nav) => {
+        tocListEl.innerHTML = '';
+        renderTocItems(nav.toc, tocListEl);
+      })
+      .catch(() => {
+        // non-fatal - TOC just stays empty; chapter prev/next still works
+      });
+
+    const savedCfi = loadEpubProgress(asset.assetId);
+    try {
+      if (savedCfi) {
+        await epubRendition.display(savedCfi);
+        resumeBannerTextEl.textContent = 'Resumed from where you left off.';
+        resumeBannerEl.hidden = false;
+        if (window.RobayerAnalytics) window.RobayerAnalytics.trackLibraryEvent('library-resume-shown', currentProductSlug);
+        resumeRestartBtn.addEventListener('click', () => {
+          resumeBannerEl.hidden = true;
+          if (window.RobayerAnalytics) window.RobayerAnalytics.trackLibraryEvent('library-resume-restarted', currentProductSlug);
+          epubRendition.display();
+        });
+      } else {
+        await epubRendition.display();
+      }
+    } catch {
+      // Phase 9C.5 — an invalid/stale saved CFI (e.g. the file changed
+      // since it was saved) must never crash the reader; fall back to
+      // the beginning exactly like a first-time open, and clear the
+      // now-untrustworthy saved position rather than trying it again
+      // next time.
+      clearEpubProgress(asset.assetId);
+      try {
+        await epubRendition.display();
+      } catch {
+        removeLoadingNotice();
+        showError('This file could not be displayed. Please try again, or download it instead from My Library.');
+        return;
+      }
+    }
+
+    removeLoadingNotice();
+    ensureEpubLocationsGenerated();
+  }
+
+  function wireEpubControls() {
+    prevBtn.addEventListener('click', () => epubRendition.prev());
+    nextBtn.addEventListener('click', () => epubRendition.next());
+    zoomOutBtn.setAttribute('aria-label', 'Decrease font size');
+    zoomInBtn.setAttribute('aria-label', 'Increase font size');
+    zoomOutBtn.addEventListener('click', () => setEpubFontSize(epubFontIndex - 1));
+    zoomInBtn.addEventListener('click', () => setEpubFontSize(epubFontIndex + 1));
+    tocTriggerBtn.hidden = false;
+    searchTriggerBtn.hidden = false;
+
+    canvasWrap.addEventListener('keydown', (event) => {
+      if (event.key === 'ArrowRight') epubRendition.next();
+      if (event.key === 'ArrowLeft') epubRendition.prev();
+    });
+
+    // Mirrors flushProgressOnUnload()'s own reasoning above: the
+    // debounced save from the most recent relocation may not have
+    // fired yet by the time the customer navigates away.
+    window.addEventListener('pagehide', () => {
+      const loc = epubRendition && epubRendition.currentLocation();
+      if (loc && loc.start && loc.start.cfi) saveEpubProgress(loc.start.cfi);
+    });
+  }
+
+  function wireEpubDrawers() {
+    tocTriggerBtn.addEventListener('click', () => openReaderDrawer(tocPanel));
+    tocCloseBtn.addEventListener('click', closeReaderDrawers);
+    searchTriggerBtn.addEventListener('click', () => openReaderDrawer(searchPanel));
+    searchCloseBtn.addEventListener('click', closeReaderDrawers);
+    drawerBackdropEl.addEventListener('click', closeReaderDrawers);
+    document.addEventListener('keydown', (event) => {
+      if (event.key === 'Escape' && (!tocPanel.hidden || !searchPanel.hidden)) closeReaderDrawers();
+    });
+    searchFormEl.addEventListener('submit', (event) => {
+      event.preventDefault();
+      runEpubSearch(searchInputEl.value);
+    });
+  }
+
+  /** Phase 9C.5 — TOC and search share one drawer treatment (see css/components.css's .reader-drawer); only one is ever open at a time. */
+  function openReaderDrawer(panel) {
+    closeReaderDrawers();
+    panel.hidden = false;
+    drawerBackdropEl.hidden = false;
+    requestAnimationFrame(() => {
+      panel.classList.add('reader-drawer--open');
+      drawerBackdropEl.classList.add('reader-drawer-backdrop--visible');
+    });
+  }
+  function closeReaderDrawers() {
+    tocPanel.classList.remove('reader-drawer--open');
+    searchPanel.classList.remove('reader-drawer--open');
+    drawerBackdropEl.classList.remove('reader-drawer-backdrop--visible');
+    setTimeout(() => {
+      tocPanel.hidden = true;
+      searchPanel.hidden = true;
+      drawerBackdropEl.hidden = true;
+    }, 220);
+  }
+
+  /**
+   * Phase 9C.5 — a parent-only heading (a <span>, not an <a>, in this
+   * project's own real book's nav.xhtml - confirmed real, not
+   * hypothetical, in the Phase 9C.1 spike) has no href to navigate
+   * to. Rendered as inert heading text; only entries epub.js's own
+   * navigation actually resolved a real href for become clickable, so
+   * `rendition.display()` is never called with a fabricated target.
+   */
+  function renderTocItems(items, container) {
+    const list = document.createElement('ul');
+    list.className = container === tocListEl ? 'reader-toc__list' : 'reader-toc__sublist';
+    items.forEach((item) => {
+      const li = document.createElement('li');
+      if (item.href) {
+        const link = document.createElement('button');
+        link.type = 'button';
+        link.className = 'reader-toc__link';
+        link.dataset.href = item.href;
+        link.textContent = item.label.trim();
+        link.addEventListener('click', () => {
+          closeReaderDrawers();
+          epubRendition.display(item.href).catch(() => {
+            // non-fatal - stay on the current chapter rather than breaking the whole reader
+          });
+        });
+        li.appendChild(link);
+      } else {
+        const heading = document.createElement('span');
+        heading.className = 'reader-toc__heading';
+        heading.textContent = item.label.trim();
+        li.appendChild(heading);
+      }
+      if (item.subitems && item.subitems.length) renderTocItems(item.subitems, li);
+      list.appendChild(li);
+    });
+    container.appendChild(list);
+  }
+
+  function highlightActiveTocEntry(href) {
+    tocListEl.querySelectorAll('.reader-toc__link').forEach((link) => {
+      link.classList.toggle('reader-toc__link--active', link.dataset.href === href);
+    });
+  }
+
+  /** Phase 9C.5 — fires on every chapter/page change; drives the progress indicator, TOC highlight, and debounced resume save all from the one epub.js event, rather than polling. */
+  function handleEpubRelocated(location) {
+    const cfi = location && location.start && location.start.cfi;
+    if (!cfi) return;
+    if (epubLocationsGenerated) {
+      const pct = epubBook.locations.percentageFromCfi(cfi);
+      if (typeof pct === 'number' && !Number.isNaN(pct)) {
+        const roundedPct = Math.round(pct * 100);
+        pageIndicatorEl.textContent = `${roundedPct}%`;
+        progressFillEl.style.width = `${roundedPct}%`;
+      }
+    } else {
+      pageIndicatorEl.textContent = 'Reading…';
+    }
+    if (location.start.href) highlightActiveTocEntry(location.start.href);
+    scheduleEpubProgressSave(cfi);
+  }
+
+  /** Phase 9C.5 — generated once per session, not on every relocation (a full-book scan is real work); re-derives the percentage for the current position once it's ready, since the first few relocations before this resolves can only show "Reading…". */
+  function ensureEpubLocationsGenerated() {
+    if (epubLocationsGenerated || !epubBook) return;
+    epubBook.locations
+      .generate(EPUB_LOCATIONS_COUNT)
+      .then(() => {
+        epubLocationsGenerated = true;
+        const loc = epubRendition.currentLocation();
+        if (loc && loc.start && loc.start.cfi) handleEpubRelocated(loc);
+      })
+      .catch(() => {
+        // non-fatal - percentage just won't display; CFI-based resume is unaffected
+      });
+  }
+
+  function setEpubFontSize(index) {
+    epubFontIndex = Math.min(EPUB_FONT_SIZE_STEPS.length - 1, Math.max(0, index));
+    epubRendition.themes.fontSize(`${EPUB_FONT_SIZE_STEPS[epubFontIndex]}%`);
+  }
+
+  /**
+   * Phase 9C.5 — resume position is stored client-side only, in the
+   * PARENT page's own localStorage (never inside the EPUB iframe -
+   * the CSP above wouldn't allow that iframe to reach it anyway).
+   * The existing /api/customer/purchases/:reference/progress endpoint
+   * PDF uses is shaped for currentPage/totalPages, not a CFI string;
+   * extending it is a real backend change, deliberately left for a
+   * later phase rather than made here. This means EPUB resume does
+   * not yet survive a different device/browser the way PDF's
+   * server-persisted progress does - a known, reported limitation,
+   * not an oversight.
+   */
+  function epubProgressKey(assetId) {
+    return `robayer_epub_progress_${assetId}`;
+  }
+  function scheduleEpubProgressSave(cfi) {
+    if (epubCfiSaveTimer) clearTimeout(epubCfiSaveTimer);
+    epubCfiSaveTimer = setTimeout(() => saveEpubProgress(cfi), PROGRESS_WRITE_DEBOUNCE_MS);
+  }
+  function saveEpubProgress(cfi) {
+    try {
+      localStorage.setItem(epubProgressKey(currentAssetId), JSON.stringify({ cfi, updatedAt: Date.now() }));
+    } catch {
+      // Silent by design, matching writeProgress()'s own header comment - a failed save must never interrupt reading.
+    }
+  }
+  function loadEpubProgress(assetId) {
+    try {
+      const raw = localStorage.getItem(epubProgressKey(assetId));
+      if (!raw) return null;
+      const parsed = JSON.parse(raw);
+      return typeof parsed.cfi === 'string' ? parsed.cfi : null;
+    } catch {
+      return null;
+    }
+  }
+  function clearEpubProgress(assetId) {
+    try {
+      localStorage.removeItem(epubProgressKey(assetId));
+    } catch {
+      // non-fatal
+    }
+  }
+
+  /** Phase 9C.5 — one full-book scan per search submission (not per keystroke - there is no live-search here, so no separate debounce is needed), reusing epub.js's own Section.find(); never exposes iframe DOM to the parent beyond the {cfi, excerpt} pairs epub.js itself returns. */
+  async function runEpubSearch(query) {
+    const trimmed = query.trim();
+    if (epubSearching || !trimmed || !epubBook) return;
+    epubSearching = true;
+    searchStatusEl.textContent = 'Searching…';
+    searchResultsEl.innerHTML = '';
+    const results = [];
+    try {
+      for (const item of epubBook.spine.spineItems) {
+        await item.load(epubBook.load.bind(epubBook));
+        const matches = item.find(trimmed);
+        matches.forEach((match) => results.push(match));
+        item.unload();
+      }
+    } catch {
+      // non-fatal - render whatever was found before the failure
+    }
+    epubSearching = false;
+    renderEpubSearchResults(results, trimmed);
+  }
+
+  function renderEpubSearchResults(results, query) {
+    searchResultsEl.innerHTML = '';
+    if (!results.length) {
+      searchStatusEl.textContent = `No matches for "${query}".`;
+      return;
+    }
+    searchStatusEl.textContent = `${results.length} match${results.length === 1 ? '' : 'es'} found.`;
+    results.forEach((result) => {
+      const btn = document.createElement('button');
+      btn.type = 'button';
+      btn.className = 'reader-search-result';
+      btn.textContent = result.excerpt;
+      btn.addEventListener('click', () => {
+        closeReaderDrawers();
+        epubRendition.display(result.cfi).catch(() => {
+          // non-fatal - stay on the current chapter rather than breaking the whole reader
+        });
+      });
+      searchResultsEl.appendChild(btn);
+    });
   }
 
   function wireControls() {
