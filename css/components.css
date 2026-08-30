@@ -3412,6 +3412,15 @@ button.resource-card {
   display: flex;
   align-items: center;
   gap: var(--space-2);
+  /* Mobile reader fix — a flex item's default min-width is `auto`, so
+     without this, `.reader-toolbar__zoom` (up to 7 buttons: font
+     controls, TOC, search, bookmark, bookmarks list, Ask Robayer AI)
+     never shrinks below its own content's natural width even though
+     `.reader-toolbar` itself wraps — it just overflows past the
+     viewport edge instead, dragging the toolbar, and often the whole
+     page, wider than 100vw with it. `min-width: 0` lets the mobile rule
+     below actually take effect. */
+  min-width: 0;
 }
 
 .reader-toolbar__btn {
@@ -3472,6 +3481,19 @@ button.resource-card {
   height: 75vh;
   display: block;
   padding: 0;
+  /* Mobile reader fix — a defensive floor, not the fix itself: the real
+     fix is library-reader.js calling epubRendition.resize() whenever
+     the container size or font size actually changes (see
+     setEpubFontSize()'s own comment), so epub.js's internal layout
+     stays correct and this should rarely need to do anything. Kept as
+     a safety net because clipping it here, on the one element that is
+     genuinely the reading canvas, is a targeted floor - unlike
+     `overflow-x: hidden` on <body>, it can never hide a real bug
+     happening somewhere else in the page by accident. Vertical
+     overflow is unaffected (paginated EPUB content isn't expected to
+     need it, but this doesn't forbid it either). */
+  overflow-x: hidden;
+  overflow-y: auto;
 }
 .reader-canvas-wrap:focus-visible {
   outline: 2px solid var(--color-accent);
@@ -3502,6 +3524,24 @@ button.resource-card {
 @media (max-width: 640px) {
   .reader-toolbar {
     padding: var(--space-2) var(--space-3);
+  }
+  /* Mobile reader fix — up to 7 buttons (font −/+, TOC, search,
+     bookmark, bookmarks, Ask Robayer AI) at a 44px touch-target minimum
+     each genuinely do not fit in one row under ~430px. Rather than
+     shrinking touch targets below the accessible minimum or dropping a
+     control, this group scrolls horizontally within itself — the
+     option the brief itself named as acceptable. `.reader-toolbar`
+     around it already wraps, so this becomes its own row; because it
+     scrolls internally, it can never push `.reader-toolbar`, and so
+     never the page, wider than the viewport. `-webkit-overflow-
+     scrolling: touch` gives it real momentum scrolling on iOS Safari
+     instead of the default stepped/janky native behavior. */
+  .reader-toolbar__zoom {
+    flex-wrap: nowrap;
+    max-width: 100%;
+    overflow-x: auto;
+    -webkit-overflow-scrolling: touch;
+    padding-bottom: 2px; /* keeps the scrollbar (where visible) from sitting flush against the buttons */
   }
   .reader-canvas-wrap {
     padding: var(--space-3) var(--space-2);

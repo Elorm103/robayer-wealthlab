@@ -182,6 +182,8 @@ function initLibraryReader() {
   let epubFontIndex = EPUB_DEFAULT_FONT_INDEX;
   let epubLocationsGenerated = false;
   let epubSearching = false;
+  /** Mobile reader fix — mirrors the PDF path's own `resizeTimer`, debounced the same way, but drives `epubRendition.resize()` instead of `refitAndRerender()`. See wireEpubControls()'s own comment for why EPUB needs this at all. */
+  let epubResizeTimer = null;
   let epubCfiSaveTimer = null;
   /** Digital Library 2.0 Phase H — the last spine href a 'library-reader:section-changed' event was dispatched for, so relocations WITHIN a chapter (scrolling/paging, which epub.js also reports via 'relocated') don't re-fire it. */
   let lastDispatchedEpubHref = null;
@@ -554,6 +556,28 @@ function initLibraryReader() {
     epubRendition = epubBook.renderTo(canvasWrap, { width: '100%', height: '100%' });
     epubRendition.on('relocated', handleEpubRelocated);
     epubRendition.on('rendered', cleanupDuplicateEpubContainers);
+    // Mobile reader fix — a real stylesheet injected into every rendered
+    // chapter via epub.js's own theming API (Rendition.themes.default()),
+    // not a page-level CSS hack: the EPUB's own content must never be
+    // able to force horizontal overflow regardless of how a given book
+    // was authored (an oversized image, a wide table, an un-breakable
+    // long word/URL). Scoped entirely to the chapter document epub.js
+    // controls - never touches this app's own DOM/CSS.
+    epubRendition.themes.default({
+      'html, body': { 'max-width': '100%', 'overflow-x': 'hidden', 'box-sizing': 'border-box' },
+      'img, svg, video': { 'max-width': '100%', height: 'auto' },
+      table: { 'max-width': '100%', display: 'block', 'overflow-x': 'auto' },
+      // Targeted at the actual block content the book's text lives in
+      // (per the brief's own list: headings, paragraphs, lists, quotes)
+      // rather than a blanket `*` — a universal max-width/box-sizing
+      // override risks distorting an EPUB's own inline/table-based
+      // layout choices, which this fix has no reason to touch.
+      'p, div, section, article, h1, h2, h3, h4, h5, h6, li, blockquote, pre': {
+        'max-width': '100%',
+        'overflow-wrap': 'break-word',
+        'word-wrap': 'break-word',
+      },
+    });
 
     wireEpubControls();
     wireEpubDrawers();
@@ -605,6 +629,17 @@ function initLibraryReader() {
     }
 
     removeLoadingNotice();
+    // Mobile reader fix — a one-time safety-net resize once the reader
+    // is actually done loading. `renderTo(canvasWrap, {width:'100%',
+    // height:'100%'})` measures the container at the moment it's
+    // called, which is before the "Loading your book…" notice above is
+    // removed and before the resume banner/toolbar have necessarily
+    // finished their own layout - on a phone, where every pixel of
+    // width is already tight, a stale measurement from mid-load is
+    // exactly the kind of thing that produces "desktop-style
+    // dimensions" on first open. Cheap and idempotent; safe to call
+    // even if nothing actually changed.
+    epubRendition.resize();
     ensureEpubLocationsGenerated();
   }
 
@@ -627,6 +662,24 @@ function initLibraryReader() {
     // debounced save from the most recent relocation may not have
     // fired yet by the time the customer navigates away.
     window.addEventListener('pagehide', flushEpubProgressOnUnload);
+
+    // Mobile reader fix — the PDF path (wireControls()) already had this;
+    // EPUB never did, which was the other half of the mobile overflow
+    // root cause. iOS Safari's own chrome (the collapsing/expanding
+    // address bar) changes the visual viewport without necessarily
+    // firing a layout epub.js observes on its own, and a phone rotation
+    // is a real, common case too - either way, epub.js's internal
+    // paginated-layout width goes stale exactly like it does after a
+    // font-size change (see setEpubFontSize()'s own comment), and only
+    // resize() forces it to re-measure the actual current container.
+    // Same debounce constant/timer pattern as the PDF path, so a resize
+    // drag re-lays-out once at the end, not on every intermediate pixel.
+    window.addEventListener('resize', () => {
+      if (epubResizeTimer) clearTimeout(epubResizeTimer);
+      epubResizeTimer = setTimeout(() => {
+        if (epubRendition) epubRendition.resize();
+      }, RESIZE_DEBOUNCE_MS);
+    });
 
     // Phase J.2.1 — the EPUB counterpart of wireControls()'s own
     // `library-ai-panel:go-to-page` listener (below, PDF-only). Reads
@@ -926,6 +979,21 @@ function initLibraryReader() {
   function setEpubFontSize(index) {
     epubFontIndex = Math.min(EPUB_FONT_SIZE_STEPS.length - 1, Math.max(0, index));
     epubRendition.themes.fontSize(`${EPUB_FONT_SIZE_STEPS[epubFontIndex]}%`);
+    // Mobile reader fix — this was the actual root cause of "Font +"
+    // appearing to zoom the whole page instead of just the text.
+    // themes.fontSize() only changes the CSS font-size inside the
+    // chapter iframe; it does NOT re-run epub.js's own paginated-layout
+    // measurement, which computed its column/page width once, against
+    // whatever the container's size happened to be at that moment.
+    // After a font-size change, that stale width no longer matches how
+    // much text now fits per "page," and on a narrow mobile viewport
+    // the mismatch surfaces as content wider than the screen rather
+    // than the harmless letterboxing it'd be on a wide desktop window.
+    // epubRendition.resize() with no arguments re-measures the current
+    // container and re-lays-out against it — the real fix, not a CSS
+    // workaround. See wireEpubControls()'s own resize listener for the
+    // other half of this (viewport/orientation changes, not just font).
+    epubRendition.resize();
   }
 
   /**
