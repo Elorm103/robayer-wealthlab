@@ -172,6 +172,8 @@ function initLibraryReader() {
   let currentProductSlug = null;
   let progressWriteTimer = null;
   let completionAlreadyReported = false;
+  /** Drawer auto-close fix — see closeReaderDrawers()'s own comment for the bug this cancels. Shared by both formats (TOC/search are EPUB-only, but the bookmarks drawer is not — see wireBookmarkControls()'s own comment). */
+  let drawerHideTimer = null;
 
   // Phase 9C.5 — EPUB reader state, kept separate from the PDF state
   // above rather than interleaved with it (the two formats are
@@ -727,7 +729,36 @@ function initLibraryReader() {
     });
   }
 
-  /** Phase 9C.5 — TOC and search share one drawer treatment (see css/components.css's .reader-drawer); only one is ever open at a time. */
+  /**
+   * Phase 9C.5 — TOC and search share one drawer treatment (see
+   * css/components.css's .reader-drawer); only one is ever open at a
+   * time.
+   *
+   * Drawer auto-close fix — real, pre-existing bug (present since
+   * a038e5b, well before this fix): openReaderDrawer() calls
+   * closeReaderDrawers() first, to close whichever OTHER drawer might
+   * already be open. But closeReaderDrawers() unconditionally scheduled
+   * a 220ms-delayed `hidden = true` on ALL panels regardless of what
+   * happened next - so that stale timeout fired 220ms after every
+   * single open, hiding the drawer that had just been opened. Confirmed
+   * directly: a drawer was genuinely visible at 100ms and force-hidden
+   * by 300-400ms, every time, for both TOC and Search independently.
+   *
+   * The fix is in closeReaderDrawers()'s own timeout callback, not
+   * here: it now only hides a panel that is STILL actually meant to be
+   * closed at the moment the timeout fires (i.e. still lacks
+   * `reader-drawer--open`) — never one a later openReaderDrawer() call
+   * already reopened (and re-added `--open` to) in the meantime. This
+   * is deliberately not "cancel the timer on open": doing that would
+   * leave whichever drawer was open a moment ago with `hidden` never
+   * set back to `true` when switching straight from one drawer to
+   * another (e.g. TOC → Search) — invisible via the CSS transform, but
+   * still present in the tab order/accessibility tree, a real if subtle
+   * regression this design avoids. The 220ms delay itself is
+   * unchanged - it still exists purely so the close transition
+   * (`--open` class removal) has time to finish playing before the
+   * panel leaves the accessibility tree.
+   */
   function openReaderDrawer(panel) {
     closeReaderDrawers();
     panel.hidden = false;
@@ -742,11 +773,13 @@ function initLibraryReader() {
     searchPanel.classList.remove('reader-drawer--open');
     bookmarksPanel.classList.remove('reader-drawer--open');
     drawerBackdropEl.classList.remove('reader-drawer-backdrop--visible');
-    setTimeout(() => {
-      tocPanel.hidden = true;
-      searchPanel.hidden = true;
-      bookmarksPanel.hidden = true;
-      drawerBackdropEl.hidden = true;
+    if (drawerHideTimer) clearTimeout(drawerHideTimer);
+    drawerHideTimer = setTimeout(() => {
+      if (!tocPanel.classList.contains('reader-drawer--open')) tocPanel.hidden = true;
+      if (!searchPanel.classList.contains('reader-drawer--open')) searchPanel.hidden = true;
+      if (!bookmarksPanel.classList.contains('reader-drawer--open')) bookmarksPanel.hidden = true;
+      if (!drawerBackdropEl.classList.contains('reader-drawer-backdrop--visible')) drawerBackdropEl.hidden = true;
+      drawerHideTimer = null;
     }, 220);
   }
 

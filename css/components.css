@@ -3525,23 +3525,23 @@ button.resource-card {
   .reader-toolbar {
     padding: var(--space-2) var(--space-3);
   }
-  /* Mobile reader fix — up to 7 buttons (font −/+, TOC, search,
-     bookmark, bookmarks, Ask Robayer AI) at a 44px touch-target minimum
-     each genuinely do not fit in one row under ~430px. Rather than
-     shrinking touch targets below the accessible minimum or dropping a
-     control, this group scrolls horizontally within itself — the
-     option the brief itself named as acceptable. `.reader-toolbar`
-     around it already wraps, so this becomes its own row; because it
-     scrolls internally, it can never push `.reader-toolbar`, and so
-     never the page, wider than the viewport. `-webkit-overflow-
-     scrolling: touch` gives it real momentum scrolling on iOS Safari
-     instead of the default stepped/janky native behavior. */
+  /* Mobile reader fix, revised after live QA at 320-430px — up to 7
+     buttons (font −/+, TOC, search, bookmark, bookmarks, Ask Robayer
+     AI) at a 44px touch-target minimum each genuinely do not fit in
+     one row under ~430px. An internal horizontal scroll (the first
+     version of this fix) worked and never overflowed the page, but
+     live-tested at 320px it left 2 of 7 buttons — including Ask
+     Robayer AI — permanently off-screen until scrolled, which is a
+     real usability cost for a control this important. Wrapping onto a
+     second row instead means every control is visible without any
+     scrolling anywhere, on the whole page or within the toolbar - a
+     few extra pixels of toolbar height is a smaller cost than a
+     half-hidden control cluster. `justify-content: center` keeps a
+     partial second row looking deliberate rather than ragged. */
   .reader-toolbar__zoom {
-    flex-wrap: nowrap;
+    flex-wrap: wrap;
+    justify-content: center;
     max-width: 100%;
-    overflow-x: auto;
-    -webkit-overflow-scrolling: touch;
-    padding-bottom: 2px; /* keeps the scrollbar (where visible) from sitting flush against the buttons */
   }
   .reader-canvas-wrap {
     padding: var(--space-3) var(--space-2);
