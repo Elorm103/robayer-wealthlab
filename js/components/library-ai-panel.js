@@ -26,6 +26,37 @@ const MODE_LABELS = {
   ask: 'Ask',
 };
 
+/**
+ * Phase J.2.1 fix — was `citations.filter((c) => c.pageNumber != null)`,
+ * which silently dropped every EPUB citation: EPUB chunks carry `cfi`
+ * (the chapter file's own href — see searchService.ts's own comment)
+ * and `pageNumber` is always null for them, exactly the inverse of PDF.
+ * A citation is "real" if it has either real location a book can
+ * actually use to navigate — never both, per the format-specific
+ * position convention this codebase already uses everywhere else
+ * (library_bookmarks, library_learning_items). Extracted as a top-level,
+ * DOM-free function so it can be exercised directly by
+ * tests/frontend/library-ai-panel.citations.test.js, not only inferred
+ * from reading the code.
+ */
+function isRealCitation(c) {
+  return c.pageNumber != null || c.cfi != null;
+}
+
+/**
+ * PDF: unchanged. EPUB: a real chapter title when the extraction found
+ * one; otherwise an honest, non-fabricated location label — never a
+ * made-up chapter name or page number (cfi here is a chapter href, not
+ * a numbered position, so "This section" is the truthful description,
+ * matching this codebase's existing "Saved position" fallback for an
+ * EPUB bookmark with no title). Extracted for the same testability
+ * reason as isRealCitation() above.
+ */
+function formatCitationLabel(c) {
+  if (c.pageNumber != null) return c.chapterTitle ? `${c.chapterTitle} · Page ${c.pageNumber}` : `Page ${c.pageNumber}`;
+  return c.chapterTitle || 'This section';
+}
+
 function initLibraryAiPanel() {
   const panel = document.querySelector('[data-ai-panel]');
   const trigger = document.querySelector('[data-ai-panel-trigger]');
@@ -181,7 +212,7 @@ function initLibraryAiPanel() {
     textEl.textContent = text;
     bubble.appendChild(textEl);
 
-    const realCitations = citations.filter((c) => c.pageNumber != null);
+    const realCitations = citations.filter(isRealCitation);
     if (realCitations.length > 0) {
       const citeWrap = document.createElement('div');
       citeWrap.className = 'ai-panel__citations';
@@ -189,7 +220,7 @@ function initLibraryAiPanel() {
         const citeBtn = document.createElement('button');
         citeBtn.type = 'button';
         citeBtn.className = 'ai-panel__citation';
-        citeBtn.textContent = c.chapterTitle ? `${c.chapterTitle} · Page ${c.pageNumber}` : `Page ${c.pageNumber}`;
+        citeBtn.textContent = formatCitationLabel(c);
         citeBtn.addEventListener('click', () => {
           // Phase 8 (Digital Library Observability) — a real citation
           // click, distinct from the citations the AI merely returns
@@ -197,7 +228,13 @@ function initLibraryAiPanel() {
           // library_ai_message_citations); this is the customer
           // actually using one.
           if (window.RobayerAnalytics) window.RobayerAnalytics.trackLibraryEvent('library-ai-citation-click', productSlug);
-          document.dispatchEvent(new CustomEvent('library-ai-panel:go-to-page', { detail: { pageNumber: c.pageNumber } }));
+          // Phase J.2.1 — carries both; library-reader.js's PDF listener
+          // (wireControls()) reads pageNumber, its EPUB listener
+          // (wireEpubControls()) reads cfi, exactly like every other
+          // format-specific position pair in this codebase. Only one of
+          // the two branches is ever wired for a given reader session, so
+          // there is no ambiguity about which one actually navigates.
+          document.dispatchEvent(new CustomEvent('library-ai-panel:go-to-page', { detail: { pageNumber: c.pageNumber, cfi: c.cfi } }));
         });
         citeWrap.appendChild(citeBtn);
       });

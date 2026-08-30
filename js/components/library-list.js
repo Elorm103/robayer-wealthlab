@@ -65,7 +65,9 @@ function initLibraryList() {
   async function load() {
     let result;
     try {
-      result = await window.CustomerDashboard.customerFetch('/api/customer/purchases?limit=50');
+      // Phase J.2.3 — reuses the one shared, page-wide fetch of this
+      // endpoint (see library-data.js) instead of issuing its own.
+      result = await window.LibraryData.getPurchases();
     } catch (error) {
       showError(error.message);
       return;
@@ -80,19 +82,26 @@ function initLibraryList() {
 
     allPurchases = result.purchases;
 
-    try {
-      const reviewData = await window.CustomerDashboard.customerFetch('/api/customer/reviews');
-      reviewedSlugs = new Set((reviewData.reviews || []).map((r) => r.productSlug));
-    } catch {
-      // Non-fatal - every row's review link falls back to "Leave a Review".
-    }
+    // Phase J.2.3 — reviews and progress are two genuinely independent
+    // reads (neither depends on the other's result), previously awaited
+    // one after the other for no reason. Promise.allSettled runs them
+    // together and lets either fail on its own without blocking or
+    // aborting the other, preserving each original try/catch's non-fatal
+    // behavior exactly.
+    const [reviewsOutcome, progressOutcome] = await Promise.allSettled([
+      window.CustomerDashboard.customerFetch('/api/customer/reviews'),
+      window.LibraryData.getProgress(),
+    ]);
 
-    try {
-      const progressData = await window.CustomerDashboard.customerFetch('/api/customer/library/progress');
-      progressByKey = new Map((progressData.progress || []).map((p) => [`${p.purchaseReference}:${p.assetId}`, p]));
-    } catch {
-      // Non-fatal - cards simply show no progress line, same as a genuinely first-time-open resource.
+    if (reviewsOutcome.status === 'fulfilled') {
+      reviewedSlugs = new Set((reviewsOutcome.value.reviews || []).map((r) => r.productSlug));
     }
+    // Non-fatal on failure - every row's review link falls back to "Leave a Review".
+
+    if (progressOutcome.status === 'fulfilled') {
+      progressByKey = new Map((progressOutcome.value.progress || []).map((p) => [`${p.purchaseReference}:${p.assetId}`, p]));
+    }
+    // Non-fatal on failure - cards simply show no progress line, same as a genuinely first-time-open resource.
 
     populateWelcome(allPurchases);
     if (toolbarEl) toolbarEl.hidden = false;
@@ -412,7 +421,12 @@ function initLibraryList() {
     detailsList.className = 'library-card__details';
     appendDetail(detailsList, 'Purchased', window.RobayerOwnership.formatOwnedDate(purchase.createdAt));
     if (purchase.productVersion) appendDetail(detailsList, 'Version', purchase.productVersion);
-    appendDetail(detailsList, 'Reference', purchase.purchaseReference);
+    // Phase J.2.4 — the purchase reference moved out of this primary
+    // details list (a support/receipt identifier does not belong at the
+    // same visual tier as "Purchased"/"Version" on a premium bookshelf
+    // card, per the J.1 audit) and into renderActions() below, at the
+    // same quiet, secondary tier as the downloads-usage line — still
+    // visible and copyable for support/troubleshooting, never removed.
     meta.appendChild(detailsList);
 
     const statusEl = document.createElement('p');
@@ -695,6 +709,16 @@ function initLibraryList() {
       link.textContent = 'View receipt';
       actions.appendChild(link);
     }
+
+    // Phase J.2.4 — the purchase reference, demoted here from the
+    // primary details list above: still visible and copyable (support/
+    // receipts/troubleshooting all genuinely need it), but at the same
+    // quiet, secondary tier as the downloads-usage line rather than
+    // sitting under the title as if it were reading information.
+    const referenceLine = document.createElement('p');
+    referenceLine.className = 'text-small text-muted mt-2 mb-0';
+    referenceLine.textContent = `Reference: ${purchase.purchaseReference}`;
+    wrap.appendChild(referenceLine);
 
     return wrap;
   }

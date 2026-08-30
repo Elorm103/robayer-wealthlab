@@ -59,20 +59,40 @@
         <p data-library-loading class="text-secondary">Loading your library&hellip;</p>
 
         <div data-library-root hidden>
-          <!-- "Ask Robayer AI" — Digital Library 2.0 Phase F, a real
-               entry point into the existing AI Reading Assistant (see
-               js/components/library-ai-entry.js and
-               js/components/library-ai-panel.js's own `?ai=1` handling),
-               never a second AI interface. Renders nothing, stays
-               hidden, for a customer with no AI-eligible resource. -->
-          <section class="library-ai-entry" data-library-ai-entry-root hidden>
-            <div class="library-ai-entry__card">
-              <div class="library-ai-entry__body">
-                <span class="eyebrow">Ask Robayer AI</span>
-                <p class="library-ai-entry__question" data-library-ai-entry-question>Have a question about something you're reading?</p>
-              </div>
-              <a href="#" class="btn btn--accent library-ai-entry__cta" data-library-ai-entry-cta>Ask Robayer AI</a>
-            </div>
+          <!-- Phase J.2.2 — reordered per the J.1 audit finding: a
+               returning customer previously had to pass an AI entry
+               card, the filter tabs, the search/sort toolbar, and the
+               downloads explainer before reaching "Continue Reading,"
+               the single highest-value thing on this page for them.
+               Continue Reading and Your Learning ("where you are") now
+               sit immediately under the welcome header. Filter tabs and
+               the search/sort toolbar stay directly above the list they
+               actually control — moving them away from it would trade
+               one confusing order for another. Ask Robayer AI and the
+               downloads explainer, genuinely secondary utilities, moved
+               to the bottom, after Recommendations. No component's own
+               markup/behavior changed — this is a pure reorder of the
+               same six independent sections. -->
+
+          <!-- "Continue Reading" — Digital Library Phase 7B, a
+               separate, independent component, see
+               js/components/library-continue-reading.js. Renders
+               nothing, stays hidden, for a customer with no genuinely
+               in-progress reading. -->
+          <section class="library-continue-reading" data-library-continue-reading-root hidden>
+            <h2 class="library-continue-reading__heading">Continue Reading</h2>
+            <div class="library-continue-reading__list" data-library-continue-reading-list></div>
+          </section>
+
+          <!-- "Your Learning" — Digital Library 2.0 Phase I, a
+               separate, independent component, see
+               js/components/library-learning-stats.js. Every number is
+               real, persisted Quick Check/Action evidence - never
+               shown, section stays hidden, for a customer who hasn't
+               engaged with any learning content yet. -->
+          <section class="library-learning-stats" data-library-learning-stats-root hidden>
+            <h2 class="library-learning-stats__heading">Your Learning</h2>
+            <div class="library-learning-stats__list" data-library-learning-stats-list></div>
           </section>
 
           <!-- Status filter — Digital Library 2.0 Phase F. Toggle
@@ -104,6 +124,37 @@
             </div>
           </div>
 
+          <!-- Populated state — topic-grouped or, while searching/
+               sorting, a flat filtered list. Built entirely by
+               library-list.js. -->
+          <div data-library-list></div>
+
+          <!-- "Recommended for You" — Digital Library 2.0 Phase G, a
+               separate, independent component, see
+               js/components/library-recommendations.js. Renders
+               nothing, stays hidden, if there is nothing genuinely
+               relevant to recommend. -->
+          <section class="library-recommendations" data-library-recommendations-root hidden>
+            <h2 class="library-recommendations__heading">Recommended for You</h2>
+            <div class="library-recommendations__list" data-library-recommendations-list></div>
+          </section>
+
+          <!-- "Ask Robayer AI" — Digital Library 2.0 Phase F, a real
+               entry point into the existing AI Reading Assistant (see
+               js/components/library-ai-entry.js and
+               js/components/library-ai-panel.js's own `?ai=1` handling),
+               never a second AI interface. Renders nothing, stays
+               hidden, for a customer with no AI-eligible resource. -->
+          <section class="library-ai-entry" data-library-ai-entry-root hidden>
+            <div class="library-ai-entry__card">
+              <div class="library-ai-entry__body">
+                <span class="eyebrow">Ask Robayer AI</span>
+                <p class="library-ai-entry__question" data-library-ai-entry-question>Have a question about something you're reading?</p>
+              </div>
+              <a href="#" class="btn btn--accent library-ai-entry__cta" data-library-ai-entry-cta>Ask Robayer AI</a>
+            </div>
+          </section>
+
           <!-- "How your downloads work" — a permanent, elegant,
                always-reachable explainer, not a one-time interruption.
                A native <details> disclosure: no JS required, fully
@@ -128,44 +179,6 @@
               </div>
             </div>
           </details>
-
-          <!-- "Continue Reading" — Digital Library Phase 7B, a
-               separate, independent component, see
-               js/components/library-continue-reading.js. Sits above
-               the topic groups: this is "where you are," the
-               recommendations below are "where you could go next."
-               Renders nothing, stays hidden, for a customer with no
-               genuinely in-progress reading. -->
-          <section class="library-continue-reading" data-library-continue-reading-root hidden>
-            <h2 class="library-continue-reading__heading">Continue Reading</h2>
-            <div class="library-continue-reading__list" data-library-continue-reading-list></div>
-          </section>
-
-          <!-- "Your Learning" — Digital Library 2.0 Phase I, a
-               separate, independent component, see
-               js/components/library-learning-stats.js. Every number is
-               real, persisted Quick Check/Action evidence - never
-               shown, section stays hidden, for a customer who hasn't
-               engaged with any learning content yet. -->
-          <section class="library-learning-stats" data-library-learning-stats-root hidden>
-            <h2 class="library-learning-stats__heading">Your Learning</h2>
-            <div class="library-learning-stats__list" data-library-learning-stats-list></div>
-          </section>
-
-          <!-- Populated state — topic-grouped or, while searching/
-               sorting, a flat filtered list. Built entirely by
-               library-list.js. -->
-          <div data-library-list></div>
-
-          <!-- "Recommended for You" — Digital Library 2.0 Phase G, a
-               separate, independent component, see
-               js/components/library-recommendations.js. Renders
-               nothing, stays hidden, if there is nothing genuinely
-               relevant to recommend. -->
-          <section class="library-recommendations" data-library-recommendations-root hidden>
-            <h2 class="library-recommendations__heading">Recommended for You</h2>
-            <div class="library-recommendations__list" data-library-recommendations-list></div>
-          </section>
         </div>
 
         <!-- Empty state (AR-009), redesigned as a discovery moment
@@ -209,6 +222,7 @@
   <script src="/js/components/dashboard-shell.js?v=f9f75e4692"></script>
   <script src="/js/components/dashboard-activation.js?v=d3d079d10a"></script>
   <script src="/js/components/ownership-helpers.js?v=e4bfbeb89f"></script>
+  <script src="/js/components/library-data.js?v=1"></script>
   <script src="/js/components/library-list.js?v=5779742d16"></script>
   <script src="/js/components/library-continue-reading.js?v=a483558a91"></script>
   <script src="/js/components/library-ai-entry.js?v=656da608b0"></script>

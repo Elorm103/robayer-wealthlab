@@ -628,6 +628,20 @@ function initLibraryReader() {
     // fired yet by the time the customer navigates away.
     window.addEventListener('pagehide', flushEpubProgressOnUnload);
 
+    // Phase J.2.1 — the EPUB counterpart of wireControls()'s own
+    // `library-ai-panel:go-to-page` listener (below, PDF-only). Reads
+    // `cfi` instead of `pageNumber` from the same event, and navigates
+    // with the exact same epubRendition.display() call already used for
+    // TOC entries, search results, and bookmark jumps in this file — no
+    // new navigation mechanism, no new trust boundary. `cfi` only ever
+    // comes from this resource's own already-entitled AI response (see
+    // answerService.ts's documentId scoping), never from anything
+    // user-suppliable, so this can never navigate outside the book
+    // that's actually loaded in this epubRendition.
+    document.addEventListener('library-ai-panel:go-to-page', (event) => {
+      if (event.detail.cfi) epubRendition.display(event.detail.cfi).catch(() => {});
+    });
+
     wireBookmarkControls(
       () => {
         const loc = epubRendition && epubRendition.currentLocation();

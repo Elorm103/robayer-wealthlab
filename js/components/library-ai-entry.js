@@ -40,10 +40,9 @@ function initLibraryAiEntry() {
     let progressResult;
     let purchasesResult;
     try {
-      [progressResult, purchasesResult] = await Promise.all([
-        window.CustomerDashboard.customerFetch('/api/customer/library/progress'),
-        window.CustomerDashboard.customerFetch('/api/customer/purchases?limit=50'),
-      ]);
+      // Phase J.2.3 — reuses the one shared, page-wide fetch of each
+      // endpoint (see library-data.js) instead of issuing its own.
+      [progressResult, purchasesResult] = await Promise.all([window.LibraryData.getProgress(), window.LibraryData.getPurchases()]);
     } catch {
       // A missed AI entry point is never worth disrupting the rest of
       // the Library over - fail silently, section stays hidden.

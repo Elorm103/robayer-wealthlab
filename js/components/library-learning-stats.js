@@ -41,9 +41,13 @@ function initLibraryLearningStats() {
     let statsResult;
     let purchasesResult;
     try {
+      // Phase J.2.3 — learning-stats is unique to this component (not
+      // duplicated elsewhere), so it keeps its own direct fetch; only
+      // the /purchases half reuses the one shared, page-wide fetch (see
+      // library-data.js) instead of issuing its own.
       [statsResult, purchasesResult] = await Promise.all([
         window.CustomerDashboard.customerFetch('/api/customer/library/learning-stats'),
-        window.CustomerDashboard.customerFetch('/api/customer/purchases?limit=50'),
+        window.LibraryData.getPurchases(),
       ]);
     } catch {
       // A missed "Your Learning" section is never worth disrupting the rest of the Library over - fail silently.
