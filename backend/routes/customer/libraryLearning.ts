@@ -14,7 +14,7 @@ import type { RouteParams } from '../../worker/index';
 import { jsonError, jsonSuccess } from '../../utils/responses';
 import { isRateLimited } from '../../middleware/rateLimit';
 import { requireCustomerAuth } from '../../middleware/requireCustomerAuth';
-import { listLearningItemsForAsset, submitLearningResponse, type SubmitLearningResponseInput } from '../../services/customer/libraryLearningService';
+import { listLearningItemsForAsset, submitLearningResponse, getLearningStatsForCustomer, type SubmitLearningResponseInput } from '../../services/customer/libraryLearningService';
 
 function withNoStore(response: Response): Response {
   const headers = new Headers(response.headers);
@@ -52,6 +52,19 @@ export async function handleListLearningItems(request: Request, env: Env, logger
 
   const items = await listLearningItemsForAsset(env, auth.auth.customerId, reference, assetId);
   return withNoStore(jsonSuccess({ items }));
+}
+
+/** GET /api/customer/library/learning-stats — Digital Library 2.0 Phase I, the Library's "Your Learning" section. Scoped entirely by the authenticated customerId; no book-level entitlement re-check needed since this only ever reads rows this exact customer already generated themselves. */
+export async function handleGetLearningStats(request: Request, env: Env, logger: Logger): Promise<Response> {
+  const auth = await requireCustomerAuth(request, env, logger);
+  if (!auth.ok) return withNoStore(auth.response);
+
+  if (await isRateLimited(request, env, READ_RATE_LIMIT)) {
+    return withNoStore(jsonError('RATE_LIMITED', 'Too many requests. Please try again shortly.'));
+  }
+
+  const stats = await getLearningStatsForCustomer(env, auth.auth.customerId);
+  return withNoStore(jsonSuccess({ stats }));
 }
 
 interface SubmitResponseBody {

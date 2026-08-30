@@ -435,3 +435,211 @@ describe('POST /api/customer/purchases/:reference/learning-items/:itemId/respons
     expect(res.status).toBe(400);
   });
 });
+
+// ============================================================
+// Digital Library 2.0 Phase I — archiving, hard-delete guard, and
+// real learning-progress stats.
+// ============================================================
+
+describe('POST /api/admin/library-learning-items/:id/archive and /restore', () => {
+  it('archives an item, hiding it from customers while keeping its row (and any response) intact', async () => {
+    const admin = await seedAdmin('editor');
+    const createRes = await adminPost('/api/admin/library-learning-items', validQuickCheckBody, admin);
+    const itemId = (await createRes.json<any>()).data.id;
+
+    const { cookieHeader } = await seedCustomerWithPurchase('archive-visibility@example.com', 'RWL-2026-960001');
+    // Answer it first - a real response now exists for this item.
+    await SELF.fetch(`https://example.com/api/customer/purchases/RWL-2026-960001/learning-items/${itemId}/response?assetId=${TEST_ASSET_ID}`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', Cookie: cookieHeader },
+      body: JSON.stringify({ itemType: 'quick_check', selectedChoiceIndex: 1 }),
+    });
+
+    const archiveRes = await SELF.fetch(`https://example.com/api/admin/library-learning-items/${itemId}/archive`, { method: 'POST', headers: { Cookie: admin.cookieHeader, 'X-CSRF-Token': admin.csrfSecret } });
+    expect(archiveRes.status).toBe(200);
+    expect((await archiveRes.json<any>()).data.archivedAt).not.toBeNull();
+
+    // The customer's own list no longer includes it...
+    const listRes = await SELF.fetch(`https://example.com/api/customer/purchases/RWL-2026-960001/learning-items?assetId=${TEST_ASSET_ID}`, { headers: { Cookie: cookieHeader } });
+    expect((await listRes.json<any>()).data.items).toEqual([]);
+
+    // ...but the response row itself is untouched.
+    const count = await env.DB.prepare(`SELECT COUNT(*) AS n FROM library_learning_responses WHERE learning_item_id = ?`).bind(itemId).first<{ n: number }>();
+    expect(count!.n).toBe(1);
+  });
+
+  it('rejects submitting against an archived item, even with a legitimate entitlement', async () => {
+    const admin = await seedAdmin('editor');
+    const createRes = await adminPost('/api/admin/library-learning-items', validQuickCheckBody, admin);
+    const itemId = (await createRes.json<any>()).data.id;
+    await SELF.fetch(`https://example.com/api/admin/library-learning-items/${itemId}/archive`, { method: 'POST', headers: { Cookie: admin.cookieHeader, 'X-CSRF-Token': admin.csrfSecret } });
+
+    const { cookieHeader } = await seedCustomerWithPurchase('archived-submit@example.com', 'RWL-2026-960002');
+    const res = await SELF.fetch(`https://example.com/api/customer/purchases/RWL-2026-960002/learning-items/${itemId}/response?assetId=${TEST_ASSET_ID}`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', Cookie: cookieHeader },
+      body: JSON.stringify({ itemType: 'quick_check', selectedChoiceIndex: 1 }),
+    });
+    expect(res.status).toBe(404);
+  });
+
+  it('restores an archived item, making it visible to customers again', async () => {
+    const admin = await seedAdmin('editor');
+    const createRes = await adminPost('/api/admin/library-learning-items', validQuickCheckBody, admin);
+    const itemId = (await createRes.json<any>()).data.id;
+    await SELF.fetch(`https://example.com/api/admin/library-learning-items/${itemId}/archive`, { method: 'POST', headers: { Cookie: admin.cookieHeader, 'X-CSRF-Token': admin.csrfSecret } });
+
+    const restoreRes = await SELF.fetch(`https://example.com/api/admin/library-learning-items/${itemId}/restore`, { method: 'POST', headers: { Cookie: admin.cookieHeader, 'X-CSRF-Token': admin.csrfSecret } });
+    expect(restoreRes.status).toBe(200);
+    expect((await restoreRes.json<any>()).data.archivedAt).toBeNull();
+
+    const { cookieHeader } = await seedCustomerWithPurchase('restored-visibility@example.com', 'RWL-2026-960003');
+    const listRes = await SELF.fetch(`https://example.com/api/customer/purchases/RWL-2026-960003/learning-items?assetId=${TEST_ASSET_ID}`, { headers: { Cookie: cookieHeader } });
+    expect((await listRes.json<any>()).data.items).toHaveLength(1);
+  });
+
+  it('is idempotent — archiving an already-archived item succeeds without erroring', async () => {
+    const admin = await seedAdmin('editor');
+    const createRes = await adminPost('/api/admin/library-learning-items', validQuickCheckBody, admin);
+    const itemId = (await createRes.json<any>()).data.id;
+    await SELF.fetch(`https://example.com/api/admin/library-learning-items/${itemId}/archive`, { method: 'POST', headers: { Cookie: admin.cookieHeader, 'X-CSRF-Token': admin.csrfSecret } });
+    const secondArchiveRes = await SELF.fetch(`https://example.com/api/admin/library-learning-items/${itemId}/archive`, { method: 'POST', headers: { Cookie: admin.cookieHeader, 'X-CSRF-Token': admin.csrfSecret } });
+    expect(secondArchiveRes.status).toBe(200);
+  });
+
+  it('rejects archive/restore from a non-editor role', async () => {
+    const admin = await seedAdmin('editor');
+    const createRes = await adminPost('/api/admin/library-learning-items', validQuickCheckBody, admin);
+    const itemId = (await createRes.json<any>()).data.id;
+
+    const viewer = await seedAdmin('support');
+    const res = await SELF.fetch(`https://example.com/api/admin/library-learning-items/${itemId}/archive`, { method: 'POST', headers: { Cookie: viewer.cookieHeader, 'X-CSRF-Token': viewer.csrfSecret } });
+    expect(res.status).toBe(403);
+  });
+});
+
+describe('DELETE /api/admin/library-learning-items/:id — real-data guard', () => {
+  it('permanently deletes an item that nobody has ever answered', async () => {
+    const admin = await seedAdmin('editor');
+    const createRes = await adminPost('/api/admin/library-learning-items', validQuickCheckBody, admin);
+    const itemId = (await createRes.json<any>()).data.id;
+
+    const res = await SELF.fetch(`https://example.com/api/admin/library-learning-items/${itemId}`, { method: 'DELETE', headers: { Cookie: admin.cookieHeader, 'X-CSRF-Token': admin.csrfSecret } });
+    expect(res.status).toBe(200);
+
+    const stillThere = await env.DB.prepare(`SELECT id FROM library_learning_items WHERE id = ?`).bind(itemId).first();
+    expect(stillThere).toBeNull();
+  });
+
+  it('refuses to permanently delete an item that has a real customer response, instead of silently orphaning it', async () => {
+    const admin = await seedAdmin('editor');
+    const createRes = await adminPost('/api/admin/library-learning-items', validQuickCheckBody, admin);
+    const itemId = (await createRes.json<any>()).data.id;
+
+    const { cookieHeader } = await seedCustomerWithPurchase('delete-guard@example.com', 'RWL-2026-960004');
+    await SELF.fetch(`https://example.com/api/customer/purchases/RWL-2026-960004/learning-items/${itemId}/response?assetId=${TEST_ASSET_ID}`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', Cookie: cookieHeader },
+      body: JSON.stringify({ itemType: 'quick_check', selectedChoiceIndex: 1 }),
+    });
+
+    const res = await SELF.fetch(`https://example.com/api/admin/library-learning-items/${itemId}`, { method: 'DELETE', headers: { Cookie: admin.cookieHeader, 'X-CSRF-Token': admin.csrfSecret } });
+    expect(res.status).toBe(400);
+
+    const stillThere = await env.DB.prepare(`SELECT id FROM library_learning_items WHERE id = ?`).bind(itemId).first();
+    expect(stillThere).not.toBeNull();
+  });
+});
+
+describe('GET /api/customer/library/learning-stats', () => {
+  it('rejects an unauthenticated request', async () => {
+    const res = await SELF.fetch('https://example.com/api/customer/library/learning-stats');
+    expect(res.status).toBe(401);
+  });
+
+  it('returns an empty list for a customer who has never engaged with any learning content', async () => {
+    const { customerId } = await findOrCreateCustomer(env as any, 'no-learning-engagement@example.com', false);
+    const session = await createCustomerSession(env as any, customerId, { ip: null, userAgent: null });
+    const res = await SELF.fetch('https://example.com/api/customer/library/learning-stats', { headers: { Cookie: `customer_session=${session.sessionToken}` } });
+    const body = await res.json<any>();
+    expect(body.data.stats).toEqual([]);
+  });
+
+  it('computes real, correct quick-check/action counts for a book the customer engaged with', async () => {
+    const admin = await seedAdmin('editor');
+    const q1 = (await adminPost('/api/admin/library-learning-items', validQuickCheckBody, admin).then((r) => r.json<any>())).data.id;
+    const q2 = (await adminPost('/api/admin/library-learning-items', { ...validQuickCheckBody, anchorPageNumber: 10 }, admin).then((r) => r.json<any>())).data.id;
+    const a1 = (await adminPost('/api/admin/library-learning-items', validActionBody, admin).then((r) => r.json<any>())).data.id;
+
+    const { cookieHeader } = await seedCustomerWithPurchase('stats-correctness@example.com', 'RWL-2026-960005');
+    await SELF.fetch(`https://example.com/api/customer/purchases/RWL-2026-960005/learning-items/${q1}/response?assetId=${TEST_ASSET_ID}`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', Cookie: cookieHeader },
+      body: JSON.stringify({ itemType: 'quick_check', selectedChoiceIndex: 1 }), // correct
+    });
+    await SELF.fetch(`https://example.com/api/customer/purchases/RWL-2026-960005/learning-items/${q2}/response?assetId=${TEST_ASSET_ID}`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', Cookie: cookieHeader },
+      body: JSON.stringify({ itemType: 'quick_check', selectedChoiceIndex: 0 }), // wrong
+    });
+    await SELF.fetch(`https://example.com/api/customer/purchases/RWL-2026-960005/learning-items/${a1}/response?assetId=${TEST_ASSET_ID}`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', Cookie: cookieHeader },
+      body: JSON.stringify({ itemType: 'action', actionDone: true }),
+    });
+
+    const res = await SELF.fetch('https://example.com/api/customer/library/learning-stats', { headers: { Cookie: cookieHeader } });
+    const body = await res.json<any>();
+    expect(body.data.stats).toHaveLength(1);
+    const stat = body.data.stats[0];
+    expect(stat.productSlug).toBe(TEST_PRODUCT_SLUG);
+    expect(stat.quickChecksAttempted).toBe(2);
+    expect(stat.quickChecksCorrect).toBe(1);
+    expect(stat.actionsCompleted).toBe(1);
+    expect(stat.totalPublishedItems).toBe(3);
+    expect(stat.itemsCompleted).toBe(3);
+  });
+
+  it("never includes another customer's learning stats — isolation", async () => {
+    const admin = await seedAdmin('editor');
+    const itemId = (await adminPost('/api/admin/library-learning-items', validQuickCheckBody, admin).then((r) => r.json<any>())).data.id;
+
+    const customerA = await seedCustomerWithPurchase('stats-owner@example.com', 'RWL-2026-960006');
+    await SELF.fetch(`https://example.com/api/customer/purchases/RWL-2026-960006/learning-items/${itemId}/response?assetId=${TEST_ASSET_ID}`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', Cookie: customerA.cookieHeader },
+      body: JSON.stringify({ itemType: 'quick_check', selectedChoiceIndex: 1 }),
+    });
+
+    const { customerId: bId } = await findOrCreateCustomer(env as any, 'stats-other@example.com', false);
+    const bSession = await createCustomerSession(env as any, bId, { ip: null, userAgent: null });
+    const res = await SELF.fetch('https://example.com/api/customer/library/learning-stats', { headers: { Cookie: `customer_session=${bSession.sessionToken}` } });
+    expect((await res.json<any>()).data.stats).toEqual([]);
+  });
+
+  it('excludes archived items from totalPublishedItems, but caps itemsCompleted rather than exceeding it', async () => {
+    const admin = await seedAdmin('editor');
+    const q1 = (await adminPost('/api/admin/library-learning-items', validQuickCheckBody, admin).then((r) => r.json<any>())).data.id;
+    const q2 = (await adminPost('/api/admin/library-learning-items', { ...validQuickCheckBody, anchorPageNumber: 10 }, admin).then((r) => r.json<any>())).data.id;
+
+    const { cookieHeader } = await seedCustomerWithPurchase('stats-archived@example.com', 'RWL-2026-960007');
+    await SELF.fetch(`https://example.com/api/customer/purchases/RWL-2026-960007/learning-items/${q1}/response?assetId=${TEST_ASSET_ID}`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', Cookie: cookieHeader },
+      body: JSON.stringify({ itemType: 'quick_check', selectedChoiceIndex: 1 }),
+    });
+    await SELF.fetch(`https://example.com/api/customer/purchases/RWL-2026-960007/learning-items/${q2}/response?assetId=${TEST_ASSET_ID}`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', Cookie: cookieHeader },
+      body: JSON.stringify({ itemType: 'quick_check', selectedChoiceIndex: 0 }),
+    });
+    // Archive one of the two items the customer already answered.
+    await SELF.fetch(`https://example.com/api/admin/library-learning-items/${q2}/archive`, { method: 'POST', headers: { Cookie: admin.cookieHeader, 'X-CSRF-Token': admin.csrfSecret } });
+
+    const res = await SELF.fetch('https://example.com/api/customer/library/learning-stats', { headers: { Cookie: cookieHeader } });
+    const stat = (await res.json<any>()).data.stats[0];
+    expect(stat.totalPublishedItems).toBe(1); // only q1 remains published+active
+    expect(stat.quickChecksAttempted).toBe(2); // real history, unaffected by archiving
+    expect(stat.itemsCompleted).toBe(1); // capped at what currently exists, never overstated
+  });
+});

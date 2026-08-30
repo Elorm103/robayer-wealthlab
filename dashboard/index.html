@@ -21,7 +21,7 @@
   <link rel="stylesheet" href="/css/tokens.css?v=2706187f0b">
   <link rel="stylesheet" href="/css/base.css?v=57a963bc6f">
   <link rel="stylesheet" href="/css/layout.css?v=a6fb0c7359">
-  <link rel="stylesheet" href="/css/components.css?v=c8f6322eb1">
+  <link rel="stylesheet" href="/css/components.css?v=857aafcbd1">
   <link rel="stylesheet" href="/css/utilities.css?v=406dfe7300">
 </head>
 <body>
@@ -141,6 +141,17 @@
             <div class="library-continue-reading__list" data-library-continue-reading-list></div>
           </section>
 
+          <!-- "Your Learning" — Digital Library 2.0 Phase I, a
+               separate, independent component, see
+               js/components/library-learning-stats.js. Every number is
+               real, persisted Quick Check/Action evidence - never
+               shown, section stays hidden, for a customer who hasn't
+               engaged with any learning content yet. -->
+          <section class="library-learning-stats" data-library-learning-stats-root hidden>
+            <h2 class="library-learning-stats__heading">Your Learning</h2>
+            <div class="library-learning-stats__list" data-library-learning-stats-list></div>
+          </section>
+
           <!-- Populated state — topic-grouped or, while searching/
                sorting, a flat filtered list. Built entirely by
                library-list.js. -->
@@ -189,7 +200,7 @@
        library-recommendation-click cta_click entries in analytics.js
        already target — not a new tracking system, just this page's
        first real connection to the one that already exists. -->
-  <script src="/js/components/analytics.js?v=ca9a4cb0a5"></script>
+  <script src="/js/components/analytics.js?v=e2ac84dc99"></script>
   <script src="/js/components/nav.js?v=0a04ccf371"></script>
   <script src="/js/components/theme-toggle.js?v=eebe98960c"></script>
   <script src="/js/components/branding.js?v=483b048741"></script>
@@ -201,6 +212,7 @@
   <script src="/js/components/library-list.js?v=5779742d16"></script>
   <script src="/js/components/library-continue-reading.js?v=a483558a91"></script>
   <script src="/js/components/library-ai-entry.js?v=656da608b0"></script>
+  <script src="/js/components/library-learning-stats.js?v=56a519f7b2"></script>
   <script src="/js/components/library-recommendations.js?v=d6cb927f49"></script>
   <script src="/js/main.js?v=1043f4fc00"></script>
 </body>

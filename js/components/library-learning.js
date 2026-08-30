@@ -48,6 +48,7 @@ function initLibraryLearning() {
 
   let purchaseReference = null;
   let assetId = null;
+  let productSlug = null;
   let items = [];
   const shownItemIds = new Set();
   let currentItem = null;
@@ -57,6 +58,7 @@ function initLibraryLearning() {
   document.addEventListener('library-reader:ready', (event) => {
     purchaseReference = event.detail.purchaseReference;
     assetId = event.detail.assetId;
+    productSlug = event.detail.productSlug;
     load();
   });
   document.addEventListener('library-reader:page-changed', (event) => {
@@ -150,7 +152,7 @@ function initLibraryLearning() {
         { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ itemType: 'quick_check', selectedChoiceIndex }) }
       );
       renderQuickCheckFeedback(result, selectedChoiceIndex);
-      if (window.RobayerAnalytics) window.RobayerAnalytics.trackLibraryEvent(result.isCorrect ? 'library-quick-check-correct' : 'library-quick-check-incorrect', null);
+      if (window.RobayerAnalytics) window.RobayerAnalytics.trackLibraryEvent(result.isCorrect ? 'library-quick-check-correct' : 'library-quick-check-incorrect', productSlug);
     } catch {
       // A grading failure should never trap the reader - let them continue.
       feedbackEl.hidden = false;
@@ -185,7 +187,7 @@ function initLibraryLearning() {
         `/api/customer/purchases/${encodeURIComponent(purchaseReference)}/learning-items/${item.id}/response?assetId=${encodeURIComponent(assetId)}`,
         { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ itemType: 'action', actionDone: true }) }
       );
-      if (window.RobayerAnalytics) window.RobayerAnalytics.trackLibraryEvent('library-action-done', null);
+      if (window.RobayerAnalytics) window.RobayerAnalytics.trackLibraryEvent('library-action-done', productSlug);
     } catch {
       // Non-fatal - the local "shown" state still prevents re-nagging this session either way.
     } finally {

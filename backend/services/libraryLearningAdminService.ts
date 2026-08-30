@@ -42,6 +42,8 @@ export interface LearningItemRecord {
   actionLabel: string | null;
   status: LearningItemStatus;
   sortOrder: number;
+  /** Null = active. A real timestamp means this item is retired - never shown to customers regardless of `status` - but its row (and every response's real context) stays intact. See migration 0054's own header comment for why this is a separate column rather than a third status value. */
+  archivedAt: string | null;
   createdAt: string;
   updatedAt: string;
 }
@@ -61,6 +63,7 @@ interface LearningItemRow {
   action_label: string | null;
   status: LearningItemStatus;
   sort_order: number;
+  archived_at: string | null;
   created_at: string;
   updated_at: string;
 }
@@ -81,6 +84,7 @@ function rowToRecord(row: LearningItemRow): LearningItemRecord {
     actionLabel: row.action_label,
     status: row.status,
     sortOrder: row.sort_order,
+    archivedAt: row.archived_at,
     createdAt: row.created_at,
     updatedAt: row.updated_at,
   };
@@ -245,17 +249,54 @@ export async function updateLearningItem(env: Env, logger: Logger, actorId: numb
   return { ok: true, record: record! };
 }
 
-export async function deleteLearningItem(env: Env, logger: Logger, actorId: number, id: number): Promise<{ ok: boolean }> {
-  const result = await env.DB.prepare(`DELETE FROM library_learning_items WHERE id = ?`).bind(id).run();
-  if (result.meta.changes === 0) return { ok: false };
-  // Responses referencing a deleted item are real historical records of
-  // what a customer actually answered at the time - deleting the item
-  // itself doesn't retroactively erase that they engaged with it, so
-  // library_learning_responses rows are intentionally left in place
-  // (same "don't rewrite history" posture audit_logs/consultation_notes
-  // already use elsewhere in this codebase).
+export type DeleteLearningItemResult = { ok: true } | { ok: false; reason: 'not_found' | 'has_responses' };
+
+/**
+ * A genuine, permanent DELETE - only ever safe for an item nobody has
+ * ever answered/completed (checked explicitly here, not left to D1's
+ * own FK enforcement to reject at the last second - see migration
+ * 0054's own header comment on why that enforcement is real and why
+ * this check now exists on purpose). Once a real response exists,
+ * archiveLearningItem() below is the only retirement path - it keeps
+ * the item's row, and therefore every response's real context, intact.
+ */
+export async function deleteLearningItem(env: Env, logger: Logger, actorId: number, id: number): Promise<DeleteLearningItemResult> {
+  const existing = await env.DB.prepare(`SELECT id FROM library_learning_items WHERE id = ?`).bind(id).first<{ id: number }>();
+  if (!existing) return { ok: false, reason: 'not_found' };
+
+  const responseCount = await env.DB.prepare(`SELECT COUNT(*) AS n FROM library_learning_responses WHERE learning_item_id = ?`).bind(id).first<{ n: number }>();
+  if ((responseCount?.n ?? 0) > 0) return { ok: false, reason: 'has_responses' };
+
+  await env.DB.prepare(`DELETE FROM library_learning_items WHERE id = ?`).bind(id).run();
   await auditService.record(env, logger, { actorType: 'admin', actorId, action: 'library_learning_item.deleted', entityType: 'library_learning_item', entityId: id });
   return { ok: true };
+}
+
+export type ArchiveLearningItemResult = { ok: true; record: LearningItemRecord } | { ok: false; reason: 'not_found' };
+
+/** Retires an item without touching its row - customer reads (listLearningItemsForAsset) exclude anything with archived_at set, regardless of status, so this is the real "remove from circulation" action once an item has ever been answered. */
+export async function archiveLearningItem(env: Env, logger: Logger, actorId: number, id: number): Promise<ArchiveLearningItemResult> {
+  const result = await env.DB.prepare(`UPDATE library_learning_items SET archived_at = datetime('now'), updated_at = datetime('now') WHERE id = ? AND archived_at IS NULL`).bind(id).run();
+  if (result.meta.changes === 0) {
+    const stillThere = await getLearningItem(env, id);
+    if (!stillThere) return { ok: false, reason: 'not_found' };
+    // Already archived - idempotent, return the current record rather than erroring on a double-click.
+    return { ok: true, record: stillThere };
+  }
+  await auditService.record(env, logger, { actorType: 'admin', actorId, action: 'library_learning_item.archived', entityType: 'library_learning_item', entityId: id });
+  const record = await getLearningItem(env, id);
+  return { ok: true, record: record! };
+}
+
+export type RestoreLearningItemResult = { ok: true; record: LearningItemRecord } | { ok: false; reason: 'not_found' };
+
+/** Reverses archiveLearningItem() - the item's own status (draft/published) is exactly what it was before archiving, since archiving never touched it. */
+export async function restoreLearningItem(env: Env, logger: Logger, actorId: number, id: number): Promise<RestoreLearningItemResult> {
+  const result = await env.DB.prepare(`UPDATE library_learning_items SET archived_at = NULL, updated_at = datetime('now') WHERE id = ?`).bind(id).run();
+  if (result.meta.changes === 0) return { ok: false, reason: 'not_found' };
+  await auditService.record(env, logger, { actorType: 'admin', actorId, action: 'library_learning_item.restored', entityType: 'library_learning_item', entityId: id });
+  const record = await getLearningItem(env, id);
+  return { ok: true, record: record! };
 }
 
 export async function getLearningItem(env: Env, id: number): Promise<LearningItemRecord | null> {

@@ -1,0 +1,189 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+
+  <title>Learning Studio | Robayer WealthLab Admin</title>
+  <meta name="description" content="Author Quick Checks and Action boxes for the Digital Library reader.">
+  <link rel="canonical" href="https://robayerwealthlab.com/admin/library-learning/">
+  <meta name="robots" content="noindex, nofollow">
+
+  <link rel="icon" type="image/svg+xml" href="/assets/icons/favicon.svg">
+  <link rel="icon" type="image/png" sizes="32x32" href="/assets/icons/favicon-32.png">
+  <link rel="apple-touch-icon" href="/assets/icons/apple-touch-icon.png">
+
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Newsreader:ital,wght@0,600;1,500&family=Space+Grotesk:wght@500&family=Work+Sans:wght@400;500&family=IBM+Plex+Mono:wght@400;500&display=swap" rel="stylesheet">
+
+  <link rel="stylesheet" href="/css/tokens.css?v=2706187f0b">
+  <link rel="stylesheet" href="/css/base.css?v=57a963bc6f">
+  <link rel="stylesheet" href="/css/layout.css?v=a6fb0c7359">
+  <link rel="stylesheet" href="/css/components.css?v=857aafcbd1">
+  <link rel="stylesheet" href="/css/utilities.css?v=406dfe7300">
+  <link rel="stylesheet" href="/css/admin.css?v=2314b5b33d">
+</head>
+<body>
+  <a href="#main-content" class="skip-link">Skip to main content</a>
+
+  <div class="admin-shell" data-sidebar-collapsed="false">
+    <div class="admin-include" data-include="/partials/admin-sidebar.html"></div>
+
+    <div class="admin-main">
+      <div class="admin-include" data-include="/partials/admin-topbar.html"></div>
+
+      <main class="admin-content" id="main-content" data-learning-root>
+        <header class="mb-4">
+          <h1 class="mb-1">Learning Studio</h1>
+          <p class="text-secondary mb-0">Author Quick Checks and Action boxes that appear inside the reader at a real page/chapter position. Only <strong>Published</strong> items ever reach a customer.</p>
+        </header>
+
+        <p class="alert alert--error" role="alert" data-learning-load-error hidden></p>
+        <p class="alert alert--success" role="status" data-learning-action-success hidden></p>
+
+        <div class="drawer__field-row mb-4">
+          <div class="field">
+            <label class="field__label" for="learning-filter-product">Product</label>
+            <select id="learning-filter-product" class="field__select" data-learning-filter-product>
+              <option value="">Choose a product…</option>
+            </select>
+          </div>
+        </div>
+
+        <div data-learning-product-panel hidden>
+          <div class="toolbar mb-3">
+            <div class="toolbar__group">
+              <span class="text-small text-secondary" data-learning-result-count></span>
+            </div>
+            <div class="toolbar__group">
+              <button type="button" class="btn btn--primary" data-learning-new-toggle>New learning item</button>
+            </div>
+          </div>
+
+          <!-- Create/edit form + live preview, side by side on desktop. -->
+          <div class="learning-studio-editor" data-learning-form-panel hidden>
+            <form data-learning-form class="stack gap-3">
+              <p class="alert alert--error" role="alert" data-learning-form-error hidden></p>
+              <input type="hidden" data-learning-form-id value="">
+
+              <div class="field">
+                <label class="field__label" for="learning-asset">Target asset</label>
+                <select id="learning-asset" class="field__select" data-learning-form-asset required></select>
+              </div>
+
+              <fieldset class="field" style="border:none;padding:0;margin:0;">
+                <legend class="field__label">Item type</legend>
+                <div class="drawer__field-row">
+                  <label class="field field--checkbox mb-0"><input type="radio" name="itemType" value="quick_check" data-learning-form-type checked> Quick Check</label>
+                  <label class="field field--checkbox mb-0"><input type="radio" name="itemType" value="action" data-learning-form-type> Action box</label>
+                </div>
+              </fieldset>
+
+              <div class="drawer__field-row">
+                <div class="field" data-learning-anchor-page-field>
+                  <label class="field__label" for="learning-anchor-page">Anchor page number (PDF)</label>
+                  <input type="number" id="learning-anchor-page" class="field__input" min="1" step="1" data-learning-form-anchor-page>
+                </div>
+                <div class="field" data-learning-anchor-cfi-field hidden>
+                  <label class="field__label" for="learning-anchor-cfi">Anchor chapter href (EPUB)</label>
+                  <input type="text" id="learning-anchor-cfi" class="field__input" placeholder="e.g. ch01.xhtml" data-learning-form-anchor-cfi>
+                </div>
+                <div class="field">
+                  <label class="field__label" for="learning-sort-order">Sort order</label>
+                  <input type="number" id="learning-sort-order" class="field__input" min="0" step="1" value="0" data-learning-form-sort-order>
+                </div>
+              </div>
+
+              <div class="field">
+                <label class="field__label" for="learning-prompt">Prompt</label>
+                <textarea id="learning-prompt" class="field__input" rows="2" maxlength="1000" required data-learning-form-prompt></textarea>
+              </div>
+
+              <div data-learning-quick-check-fields>
+                <div class="field">
+                  <span class="field__label">Choices</span>
+                  <div data-learning-form-choices></div>
+                  <button type="button" class="btn btn--secondary mt-2" data-learning-add-choice style="padding:6px 12px;font-size:var(--text-small);">+ Add choice</button>
+                </div>
+                <div class="field">
+                  <label class="field__label" for="learning-explanation">Explanation (shown after answering)</label>
+                  <textarea id="learning-explanation" class="field__input" rows="2" maxlength="2000" data-learning-form-explanation></textarea>
+                </div>
+              </div>
+
+              <div data-learning-action-fields hidden>
+                <div class="field">
+                  <label class="field__label" for="learning-action-label">Action label (the concrete next step)</label>
+                  <input type="text" id="learning-action-label" class="field__input" maxlength="300" data-learning-form-action-label>
+                </div>
+              </div>
+
+              <div class="drawer__field-row">
+                <div class="field">
+                  <label class="field__label" for="learning-status">Status</label>
+                  <select id="learning-status" class="field__select" data-learning-form-status>
+                    <option value="draft">Draft</option>
+                    <option value="published">Published</option>
+                  </select>
+                </div>
+              </div>
+
+              <div class="toolbar__group">
+                <button type="submit" class="btn btn--primary" data-learning-form-submit>Create item</button>
+                <button type="button" class="btn btn--secondary" data-learning-new-cancel>Cancel</button>
+              </div>
+            </form>
+
+            <div class="learning-studio-preview">
+              <p class="text-small text-secondary mb-2" style="text-transform:uppercase;letter-spacing:0.02em;">Customer preview</p>
+              <div class="learning-overlay__card" style="position:static;transform:none;opacity:1;box-shadow:var(--shadow-1);">
+                <div data-learning-preview-quick-check>
+                  <span class="learning-overlay__eyebrow">🧠 Quick Check</span>
+                  <p class="learning-overlay__prompt" data-learning-preview-prompt>Your prompt appears here.</p>
+                  <div class="learning-overlay__choices" data-learning-preview-choices></div>
+                  <button type="button" class="btn btn--accent learning-overlay__submit" disabled>Check Answer</button>
+                </div>
+                <div data-learning-preview-action hidden>
+                  <span class="learning-overlay__eyebrow">💡 Put It Into Action</span>
+                  <p class="learning-overlay__prompt" data-learning-preview-action-prompt>Your prompt appears here.</p>
+                  <p class="learning-overlay__action-label" data-learning-preview-action-label>Your action label appears here.</p>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <div class="empty-state" data-learning-empty hidden>
+            <svg class="icon empty-state__icon" viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="9"/><path d="M12 8v4l3 2"/></svg>
+            <p class="empty-state__title">No learning items yet for this product</p>
+            <p class="empty-state__body">Create one above to add a Quick Check or Action box to the reader.</p>
+          </div>
+
+          <div class="admin-table-wrap" data-learning-table-wrap hidden>
+            <table class="table" aria-label="Learning items">
+              <thead>
+                <tr>
+                  <th scope="col">Type</th>
+                  <th scope="col">Asset</th>
+                  <th scope="col">Anchor</th>
+                  <th scope="col">Prompt</th>
+                  <th scope="col">Status</th>
+                  <th scope="col">Actions</th>
+                </tr>
+              </thead>
+              <tbody data-learning-table-body></tbody>
+            </table>
+          </div>
+        </div>
+      </main>
+    </div>
+  </div>
+
+  <script src="/js/includes.js?v=cba95d9aa1"></script>
+  <script src="/js/components/theme-toggle.js?v=eebe98960c"></script>
+  <script src="/js/components/branding.js?v=483b048741"></script>
+  <script src="/js/components/admin/admin-auth.js?v=bb1cec7934"></script>
+  <script src="/js/components/admin/admin-shell.js?v=7233204897"></script>
+  <script src="/js/components/admin/admin-library-learning.js?v=1de6486948"></script>
+</body>
+</html>

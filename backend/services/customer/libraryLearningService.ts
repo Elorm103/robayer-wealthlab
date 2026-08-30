@@ -65,7 +65,7 @@ export async function listLearningItemsForAsset(env: Env, customerId: number, pu
             lr.selected_choice_index, lr.is_correct, lr.action_done
      FROM library_learning_items li
      LEFT JOIN library_learning_responses lr ON lr.learning_item_id = li.id AND lr.customer_id = ?
-     WHERE li.product_slug = ? AND li.asset_id = ? AND li.status = 'published'
+     WHERE li.product_slug = ? AND li.asset_id = ? AND li.status = 'published' AND li.archived_at IS NULL
      ORDER BY li.sort_order ASC, li.id ASC`
   )
     .bind(customerId, deliveryRow.productSlug, assetId)
@@ -103,6 +103,7 @@ interface FullItemRow {
   correct_choice_index: number | null;
   explanation: string | null;
   status: string;
+  archived_at: string | null;
 }
 
 export async function submitLearningResponse(
@@ -123,8 +124,8 @@ export async function submitLearningResponse(
   const deliveryRow = await env.DB.prepare(`SELECT product_slug AS productSlug FROM deliveries WHERE id = ?`).bind(check.deliveryId).first<{ productSlug: string }>();
   if (!deliveryRow) return { ok: false, reason: 'not_authorized' };
 
-  const item = await env.DB.prepare(`SELECT id, product_slug, asset_id, item_type, choices, correct_choice_index, explanation, status FROM library_learning_items WHERE id = ?`).bind(itemId).first<FullItemRow>();
-  if (!item || item.status !== 'published') return { ok: false, reason: 'not_found' };
+  const item = await env.DB.prepare(`SELECT id, product_slug, asset_id, item_type, choices, correct_choice_index, explanation, status, archived_at FROM library_learning_items WHERE id = ?`).bind(itemId).first<FullItemRow>();
+  if (!item || item.status !== 'published' || item.archived_at !== null) return { ok: false, reason: 'not_found' };
 
   // The item must genuinely belong to the exact (product, asset) this
   // customer's own entitlement check just verified - this is the real
@@ -169,4 +170,88 @@ export async function submitLearningResponse(
     .run();
 
   return { ok: true, itemType: 'action', actionDone: input.actionDone };
+}
+
+/**
+ * Digital Library 2.0 Phase I — real, persisted learning evidence for
+ * the Library's "Your Learning" section. Every number here is a direct
+ * COUNT/SUM over this customer's own library_learning_responses rows -
+ * no invented "mastery score." Deliberately per-book and only for
+ * books this customer has actually engaged with (an inner join to
+ * their responses) - a book with zero learning engagement doesn't get
+ * a row at all, so the caller never has to decide whether to hide an
+ * all-zero card; there simply isn't one, matching this phase's own
+ * "do not display empty metrics" requirement.
+ *
+ * itemsCompleted / totalPublishedItems is an honest "how much of this
+ * book's learning content have you engaged with" ratio - not
+ * presented as "chapter completion" or "mastery," since no reliable
+ * chapter-boundary data exists (confirmed during the Phase I audit:
+ * PDF chapter_title is never populated, EPUB's real TOC lives only
+ * client-side in epub.js). totalPublishedItems counts every currently
+ * published, non-archived item for the product (both PDF and EPUB
+ * assets combined, when a book has both) - a customer working through
+ * either format's items is making real progress on the same book.
+ */
+export interface LibraryLearningStatsForBook {
+  productSlug: string;
+  productTitle: string;
+  quickChecksAttempted: number;
+  quickChecksCorrect: number;
+  actionsCompleted: number;
+  totalPublishedItems: number;
+  itemsCompleted: number;
+  lastEngagedAt: string;
+}
+
+interface StatsRow {
+  productSlug: string;
+  productTitle: string;
+  quickChecksAttempted: number;
+  quickChecksCorrect: number;
+  actionsCompleted: number;
+  lastEngagedAt: string;
+}
+
+export async function getLearningStatsForCustomer(env: Env, customerId: number): Promise<LibraryLearningStatsForBook[]> {
+  const { results: statsRows } = await env.DB.prepare(
+    `SELECT p.slug AS productSlug, p.title AS productTitle,
+            SUM(CASE WHEN lr.selected_choice_index IS NOT NULL THEN 1 ELSE 0 END) AS quickChecksAttempted,
+            SUM(CASE WHEN lr.is_correct = 1 THEN 1 ELSE 0 END) AS quickChecksCorrect,
+            SUM(CASE WHEN lr.action_done = 1 THEN 1 ELSE 0 END) AS actionsCompleted,
+            MAX(lr.updated_at) AS lastEngagedAt
+     FROM library_learning_responses lr
+     JOIN library_learning_items li ON li.id = lr.learning_item_id
+     JOIN products p ON p.slug = li.product_slug
+     WHERE lr.customer_id = ?
+     GROUP BY p.slug
+     ORDER BY lastEngagedAt DESC`
+  )
+    .bind(customerId)
+    .all<StatsRow>();
+
+  if (statsRows.length === 0) return [];
+
+  const slugs = statsRows.map((r) => r.productSlug);
+  const placeholders = slugs.map(() => '?').join(', ');
+  const { results: totalsRows } = await env.DB.prepare(
+    `SELECT product_slug AS productSlug, COUNT(*) AS total
+     FROM library_learning_items
+     WHERE product_slug IN (${placeholders}) AND status = 'published' AND archived_at IS NULL
+     GROUP BY product_slug`
+  )
+    .bind(...slugs)
+    .all<{ productSlug: string; total: number }>();
+  const totalByProduct = new Map(totalsRows.map((r) => [r.productSlug, r.total]));
+
+  return statsRows.map((row) => ({
+    productSlug: row.productSlug,
+    productTitle: row.productTitle,
+    quickChecksAttempted: row.quickChecksAttempted,
+    quickChecksCorrect: row.quickChecksCorrect,
+    actionsCompleted: row.actionsCompleted,
+    totalPublishedItems: totalByProduct.get(row.productSlug) ?? 0,
+    itemsCompleted: Math.min(row.quickChecksAttempted + row.actionsCompleted, totalByProduct.get(row.productSlug) ?? 0),
+    lastEngagedAt: row.lastEngagedAt,
+  }));
 }

@@ -1,0 +1,48 @@
+-- ============================================================
+-- 0054_library_learning_items_archive.sql — Digital Library 2.0,
+-- Phase I (Learning Studio + Personal Mastery).
+--
+-- Real gap found during the Phase I audit: 0053's own DELETE path
+-- (libraryLearningAdminService.deleteLearningItem) hard-deletes a
+-- library_learning_items row while its own comment claimed
+-- library_learning_responses rows are "intentionally left in place."
+-- That was only half true - D1 genuinely enforces the foreign key
+-- (confirmed directly: PRAGMA foreign_keys reads back as 1/ON even
+-- immediately after issuing PRAGMA foreign_keys=OFF in the same
+-- batch - D1 does not honor that pragma), so a hard DELETE while any
+-- response references the item was never silently orphaning rows; it
+-- was already failing outright at the DB layer with an unhandled
+-- constraint error. Phase I's service now checks for responses
+-- explicitly first and returns a clean, intentional result instead.
+--
+-- Because D1 won't disable FK enforcement even temporarily, the usual
+-- SQLite "rebuild the table to change a CHECK constraint" recipe
+-- (create new shape, copy rows, DROP the old parent table, rename)
+-- is not viable here - DROPping library_learning_items while
+-- library_learning_responses.learning_item_id still references it is
+-- rejected outright, with no way to suppress that check. Adding
+-- 'archived' as a third CHECK-constrained status value is therefore
+-- not achievable without dropping and recreating the table.
+--
+-- Real fix: a separate, nullable archived_at TEXT column - exactly
+-- products.deleted_at's own established soft-retirement pattern
+-- already used elsewhere in this schema - added via a plain ALTER
+-- TABLE ADD COLUMN (SQLite/D1 both support this with zero FK
+-- involvement, since it never touches the table's identity or any
+-- other table's schema). An item is archived when archived_at IS NOT
+-- NULL; status is left untouched by archiving (so "was published,
+-- later archived" stays distinguishable from "was never published"
+-- for the admin's own history). Customer-facing reads
+-- (libraryLearningService.listLearningItemsForAsset) now filter on
+-- BOTH status = 'published' AND archived_at IS NULL, so an archived
+-- item can never reach a customer's reader regardless of its status
+-- value.
+--
+-- Rollback: `ALTER TABLE library_learning_items DROP COLUMN
+-- archived_at;` (SQLite supports DROP COLUMN directly; safe, nothing
+-- else references this column by name in a REFERENCES clause).
+-- ============================================================
+
+ALTER TABLE library_learning_items ADD COLUMN archived_at TEXT;
+
+CREATE INDEX idx_library_learning_items_archived ON library_learning_items(archived_at);

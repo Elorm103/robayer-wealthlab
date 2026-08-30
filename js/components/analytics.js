@@ -254,7 +254,11 @@
   // uses - same endpoint, same beacon/fetch fallback, same session id,
   // same server-side rate limit. cta_id values used by callers:
   // library-reader-opened, library-ai-citation-click, library-resume-shown,
-  // library-resume-restarted. There's no "accepted" event - the reader
+  // library-resume-restarted, library-bookmark-added, library-recommendation-click,
+  // library-download-info-toggle, library-quick-check-correct,
+  // library-quick-check-incorrect, library-action-done (the last three
+  // added in Digital Library 2.0 Phase H/I - see library-learning.js).
+  // There's no "accepted" event - the reader
   // resumes by default when it shows the banner, so "accepted" is
   // computed downstream as shown-minus-restarted (see
   // library-reader.js's own comment and analyticsService.ts's

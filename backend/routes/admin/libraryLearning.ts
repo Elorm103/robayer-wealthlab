@@ -46,6 +46,7 @@ function toApiShape(record: learningAdminService.LearningItemRecord) {
     actionLabel: record.actionLabel,
     status: record.status,
     sortOrder: record.sortOrder,
+    archivedAt: record.archivedAt,
     createdAt: record.createdAt,
     updatedAt: record.updatedAt,
   };
@@ -181,6 +182,51 @@ export async function handleDeleteLearningItem(request: Request, env: Env, logge
   if (!Number.isInteger(id)) return jsonError('NOT_FOUND', 'This learning item could not be found.');
 
   const result = await learningAdminService.deleteLearningItem(env, logger, auth.auth.adminId, id);
-  if (!result.ok) return jsonError('NOT_FOUND', 'This learning item could not be found.');
+  if (!result.ok) {
+    if (result.reason === 'has_responses') {
+      return jsonError('VALIDATION_ERROR', 'This item has real customer responses and cannot be permanently deleted — archive it instead.');
+    }
+    return jsonError('NOT_FOUND', 'This learning item could not be found.');
+  }
   return jsonSuccess({ deleted: true });
+}
+
+export async function handleArchiveLearningItem(request: Request, env: Env, logger: Logger, params: RouteParams): Promise<Response> {
+  const auth = await requireAuth(request, env, logger);
+  if (!auth.ok) return auth.response;
+  const roleFailure = await requireRole(request, env, logger, auth.auth, EDITOR_ROLES);
+  if (roleFailure) return roleFailure;
+  const csrfFailure = await requireCsrf(request, env, logger, auth.auth);
+  if (csrfFailure) return csrfFailure;
+
+  if (await isRateLimited(request, env, WRITE_RATE_LIMIT)) {
+    return jsonError('RATE_LIMITED', 'Too many requests. Please try again shortly.');
+  }
+
+  const id = parseInt(params.id ?? '', 10);
+  if (!Number.isInteger(id)) return jsonError('NOT_FOUND', 'This learning item could not be found.');
+
+  const result = await learningAdminService.archiveLearningItem(env, logger, auth.auth.adminId, id);
+  if (!result.ok) return jsonError('NOT_FOUND', 'This learning item could not be found.');
+  return jsonSuccess(toApiShape(result.record));
+}
+
+export async function handleRestoreLearningItem(request: Request, env: Env, logger: Logger, params: RouteParams): Promise<Response> {
+  const auth = await requireAuth(request, env, logger);
+  if (!auth.ok) return auth.response;
+  const roleFailure = await requireRole(request, env, logger, auth.auth, EDITOR_ROLES);
+  if (roleFailure) return roleFailure;
+  const csrfFailure = await requireCsrf(request, env, logger, auth.auth);
+  if (csrfFailure) return csrfFailure;
+
+  if (await isRateLimited(request, env, WRITE_RATE_LIMIT)) {
+    return jsonError('RATE_LIMITED', 'Too many requests. Please try again shortly.');
+  }
+
+  const id = parseInt(params.id ?? '', 10);
+  if (!Number.isInteger(id)) return jsonError('NOT_FOUND', 'This learning item could not be found.');
+
+  const result = await learningAdminService.restoreLearningItem(env, logger, auth.auth.adminId, id);
+  if (!result.ok) return jsonError('NOT_FOUND', 'This learning item could not be found.');
+  return jsonSuccess(toApiShape(result.record));
 }
