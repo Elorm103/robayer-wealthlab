@@ -92,25 +92,44 @@
                      openEpubReadSession()'s toolbar wiring. -->
                 <button type="button" class="btn btn--secondary reader-toolbar__btn" data-reader-toc-trigger aria-label="Table of contents" hidden>&#9776;</button>
                 <button type="button" class="btn btn--secondary reader-toolbar__btn" data-reader-search-trigger aria-label="Search this book" hidden>&#128269;</button>
-                <!-- Digital Library 2.0 (Bookmarks) — unlike TOC/search,
-                     these work for BOTH formats (a bookmark is just a
-                     position + optional label; PDF supplies a page
-                     number, EPUB a CFI — see library-reader.js's
-                     wireBookmarkControls()), so they start hidden and
-                     are revealed once either reader path is ready,
-                     the same "never a dead affordance" rule TOC/search
-                     already follow. -->
-                <button type="button" class="btn btn--secondary reader-toolbar__btn" data-reader-bookmark-add aria-label="Bookmark this page" hidden>&#128278;</button>
-                <button type="button" class="btn btn--secondary reader-toolbar__btn" data-reader-bookmarks-trigger aria-label="My bookmarks for this book" hidden>&#128209;</button>
                 <!-- Digital Library Phase 7C (AI Reading Assistant).
                      Hidden until js/components/library-ai-panel.js
                      confirms this specific resource is PDF (the only
                      format the assistant supports, matching the
                      reader itself) — never shown as a dead affordance
-                     for an unsupported resource. -->
-                <button type="button" class="btn btn--accent reader-toolbar__ai-trigger" data-ai-panel-trigger hidden>
-                  <span aria-hidden="true">&#10022;</span> Ask Robayer AI
+                     for an unsupported resource. aria-label carries the
+                     full "Ask Robayer AI" name at every width, even on
+                     mobile where components.css hides the visible
+                     label text to save row space — the branding stays;
+                     only its redundant-with-the-label visible copy is
+                     dropped on the narrowest screens. -->
+                <button type="button" class="btn btn--accent reader-toolbar__ai-trigger" data-ai-panel-trigger aria-label="Ask Robayer AI" hidden>
+                  <span aria-hidden="true">&#10022;</span><span class="reader-toolbar__ai-label">Ask Robayer AI</span>
                 </button>
+                <!-- Mobile toolbar restructuring (blank-canvas fix
+                     phase) — see library-reader.js's wireMoreMenu() for
+                     the full reasoning and the real per-breakpoint
+                     measurements behind this. Above 640px this panel is
+                     plain, always-visible toolbar content (no trigger,
+                     no popover — components.css's default
+                     `display:contents` on .reader-toolbar__more-panel);
+                     only at 640px and below does it become an actual
+                     anchored "More actions" popover. -->
+                <div class="reader-toolbar__more" data-reader-more-menu>
+                  <button type="button" class="btn btn--secondary reader-toolbar__btn reader-toolbar__more-trigger" data-reader-more-trigger aria-haspopup="true" aria-expanded="false" aria-label="More actions" hidden>&#8942;</button>
+                  <div class="reader-toolbar__more-panel" data-reader-more-panel role="menu" aria-label="More actions">
+                    <!-- Digital Library 2.0 (Bookmarks) — unlike
+                         TOC/search, these work for BOTH formats (a
+                         bookmark is just a position + optional label;
+                         PDF supplies a page number, EPUB a CFI — see
+                         library-reader.js's wireBookmarkControls()), so
+                         they start hidden and are revealed once either
+                         reader path is ready, the same "never a dead
+                         affordance" rule TOC/search already follow. -->
+                    <button type="button" class="reader-toolbar__more-item" data-reader-bookmark-add role="menuitem" hidden><span aria-hidden="true">&#128278;</span> Bookmark this page</button>
+                    <button type="button" class="reader-toolbar__more-item" data-reader-bookmarks-trigger role="menuitem" hidden><span aria-hidden="true">&#128209;</span> My bookmarks</button>
+                  </div>
+                </div>
               </div>
             </div>
 
@@ -120,6 +139,17 @@
 
             <div class="reader-canvas-wrap" data-reader-canvas-wrap tabindex="0">
               <canvas data-reader-canvas></canvas>
+              <!-- Blank-canvas fix — a true render-failure fallback, not
+                   a mask: only ever shown when a queued epub.js
+                   operation genuinely rejects (library-reader.js's
+                   queueEpubOperation()), and hidden again the moment any
+                   later operation succeeds or a real relocation fires.
+                   EPUB-only; the PDF path has no equivalent in-place
+                   recovery for this reader to offer. -->
+              <div class="reader-render-error" data-reader-epub-render-error hidden role="alert">
+                <p class="reader-render-error__message">This page could not be rendered. Try again.</p>
+                <button type="button" class="btn btn--secondary" data-reader-epub-retry>Retry</button>
+              </div>
             </div>
           </div>
 

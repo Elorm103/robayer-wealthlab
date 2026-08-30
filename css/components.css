@@ -3494,6 +3494,56 @@ button.resource-card {
      need it, but this doesn't forbid it either). */
   overflow-x: hidden;
   overflow-y: auto;
+  /* Blank-canvas fix — position:relative gives .reader-render-error
+     (below) a positioning context, and the opacity transition is what
+     makes .reader-canvas-wrap--busy (library-reader.js's
+     queueEpubOperation()) a genuine, gradual "working on it" cue
+     instead of an instant, jarring flash for the fast (<200ms)
+     operations that make up most navigation. */
+  position: relative;
+  transition: opacity 200ms ease;
+}
+/* Blank-canvas fix — a deliberate, visible "an operation is in flight"
+   state (dimmed, never hidden — no display:none/visibility:hidden here,
+   per the explicit requirement that this reader never mask content
+   that's still genuinely on screen) toggled by library-reader.js's
+   queueEpubOperation() for the duration of every queued epub.js call. */
+.reader-canvas-wrap--busy {
+  opacity: 0.55;
+}
+@media (prefers-reduced-motion: reduce) {
+  .reader-canvas-wrap--epub {
+    transition: none;
+  }
+}
+
+/* Blank-canvas fix — a true render-failure fallback (library-reader.js's
+   showEpubRenderError()/hideEpubRenderError()), only ever shown when a
+   queued epub.js operation genuinely rejects; never a mask for content
+   that's still actually there. Sits above the canvas via normal DOM
+   stacking order (it's the canvas's own later sibling) rather than a
+   z-index war. */
+.reader-render-error {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: var(--space-3);
+  padding: var(--space-4);
+  background-color: var(--color-bg-alt);
+  text-align: center;
+}
+/* Same [hidden]-loses-to-a-class-of-equal-specificity bug this file has
+   already fixed in several other places (see .reader-resume-banner[hidden]
+   above) — explicit here for the same reason. */
+.reader-render-error[hidden] {
+  display: none;
+}
+.reader-render-error__message {
+  color: var(--color-text-secondary);
+  max-width: 32ch;
 }
 .reader-canvas-wrap:focus-visible {
   outline: 2px solid var(--color-accent);
@@ -3571,6 +3621,117 @@ button.resource-card {
   min-height: 44px;
   font-size: var(--text-small);
   white-space: nowrap;
+}
+
+/* Mobile toolbar restructuring (blank-canvas fix phase) — the "More
+   actions" popover. Desktop/tablet default: a plain, always-visible
+   part of the toolbar row (`display: contents` — its children
+   participate directly in .reader-toolbar__zoom's own flex row, in DOM
+   order), no trigger, no popover; the ≤640px override below is what
+   turns it into an actual anchored disclosure. See
+   library-reader.js's wireMoreMenu() for the full reasoning and the
+   real per-breakpoint measurements this is based on. */
+.reader-toolbar__more {
+  display: contents;
+}
+.reader-toolbar__more-trigger {
+  display: none;
+}
+.reader-toolbar__more-panel {
+  display: contents;
+}
+/* Desktop/tablet base styling — on these widths .reader-toolbar__more-panel
+   is `display: contents` (above), so these buttons render as plain
+   inline members of the toolbar row, not inside a popover; give them
+   the same button treatment as their siblings (border, height,
+   alignment) instead of the browser's unstyled <button> default. The
+   ≤640px media query below replaces this with the popover-menu-item
+   treatment instead. */
+.reader-toolbar__more-item {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-1);
+  min-height: 44px;
+  padding: var(--space-1) var(--space-3);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-md);
+  background-color: var(--color-surface);
+  color: var(--color-text);
+  font-size: var(--text-small);
+  cursor: pointer;
+}
+.reader-toolbar__more-item:hover,
+.reader-toolbar__more-item:focus-visible {
+  background-color: var(--color-bg-alt);
+}
+.reader-toolbar__more-item[hidden] {
+  display: none;
+}
+
+@media (max-width: 640px) {
+  /* The visible-label copy is dropped only on the narrowest screens,
+     purely to save row width — .reader-toolbar__ai-trigger's own
+     aria-label (dashboard/read/index.html) keeps the full "Ask Robayer
+     AI" name as this button's accessible name regardless. */
+  .reader-toolbar__ai-label {
+    display: none;
+  }
+  .reader-toolbar__ai-trigger {
+    padding-left: var(--space-2);
+    padding-right: var(--space-2);
+    /* The icon-only mobile button (visible label hidden above) must
+       still clear the 44×44px touch-target minimum — min-height alone
+       (already set, unconditionally) doesn't guarantee width once the
+       button shrinks to its remaining content (one glyph + padding). */
+    min-width: 44px;
+  }
+
+  .reader-toolbar__more {
+    display: block;
+    position: relative;
+  }
+  .reader-toolbar__more-trigger {
+    display: inline-flex;
+  }
+  .reader-toolbar__more-panel {
+    display: none;
+    position: absolute;
+    right: 0;
+    top: calc(100% + var(--space-2));
+    flex-direction: column;
+    gap: var(--space-1);
+    background-color: var(--color-surface);
+    border: 1px solid var(--color-border);
+    border-radius: var(--radius-md);
+    box-shadow: var(--shadow-2);
+    padding: var(--space-2);
+    min-width: 220px;
+    z-index: calc(var(--z-sticky) + 1);
+  }
+  .reader-toolbar__more-panel--open {
+    display: flex;
+  }
+  .reader-toolbar__more-item {
+    display: flex;
+    align-items: center;
+    gap: var(--space-2);
+    min-height: 44px;
+    padding: var(--space-2) var(--space-3);
+    text-align: left;
+    background: none;
+    border: none;
+    border-radius: var(--radius-sm);
+    font-size: var(--text-body);
+    color: var(--color-text);
+    cursor: pointer;
+  }
+  .reader-toolbar__more-item:hover,
+  .reader-toolbar__more-item:focus-visible {
+    background-color: var(--color-bg-alt);
+  }
+  .reader-toolbar__more-item[hidden] {
+    display: none;
+  }
 }
 
 .ai-panel-backdrop {

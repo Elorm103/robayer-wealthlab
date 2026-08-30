@@ -150,6 +150,10 @@ function initLibraryReader() {
   const bookmarksCloseBtn = document.querySelector('[data-reader-bookmarks-close]');
   const bookmarksListEl = document.querySelector('[data-reader-bookmarks-list]');
   const bookmarksEmptyEl = document.querySelector('[data-reader-bookmarks-empty]');
+  const moreMenuTriggerBtn = document.querySelector('[data-reader-more-trigger]');
+  const moreMenuPanel = document.querySelector('[data-reader-more-panel]');
+  const epubRenderErrorEl = document.querySelector('[data-reader-epub-render-error]');
+  const epubRenderRetryBtn = document.querySelector('[data-reader-epub-retry]');
 
   const TOPIC_LABELS = {
     investing: 'Investing',
@@ -184,9 +188,32 @@ function initLibraryReader() {
   let epubFontIndex = EPUB_DEFAULT_FONT_INDEX;
   let epubLocationsGenerated = false;
   let epubSearching = false;
-  /** Mobile reader fix — mirrors the PDF path's own `resizeTimer`, debounced the same way, but drives `epubRendition.resize()` instead of `refitAndRerender()`. See wireEpubControls()'s own comment for why EPUB needs this at all. */
-  let epubResizeTimer = null;
   let epubCfiSaveTimer = null;
+  /**
+   * Blank-canvas root-cause fix — confirmed directly by reading the
+   * vendored epub.js source (js/vendor/epubjs/epub.min.js), not
+   * assumed: Rendition.next()/prev()/display() already share ONE
+   * internal queue inside epub.js itself (Rendition.q), but
+   * Rendition.resize() bypasses that queue entirely and calls the view
+   * manager directly. Worse, epub.js's own DefaultViewManager ALSO
+   * installs its own automatic, internally-debounced (50ms)
+   * `window.resize` listener whenever the rendition isn't given fixed
+   * numeric width/height — which is exactly this reader's own
+   * configuration (`renderTo(canvasWrap, {width:'100%', height:'100%'})`,
+   * see openEpubReadSession() below). The earlier "mobile reader fix"
+   * phase added a SECOND, independently-debounced (150ms) manual
+   * `window.resize` listener on top of that already-automatic one —
+   * two uncoordinated resize-triggered clear()+relayout cycles firing
+   * off the same physical resize event, each capable of clearing the
+   * view the other was mid-render into. That duplicate listener is
+   * removed below (see wireEpubControls()'s own comment); this queue is
+   * this file's OWN external serialization, layered on top of epub.js's
+   * internal one, so every resize()/display()/next()/prev() THIS FILE
+   * initiates can never overlap each other either.
+   */
+  let epubOperationChain = Promise.resolve();
+  /** The most recent CFI a real, successful relocation confirmed — used both to restore position after a resize (passed as resize()'s own third argument, its native redisplay-target parameter) and as the Retry button's target after a genuine render failure. Never epubRendition.currentLocation() directly, which can be stale/unset mid-failure. */
+  let lastKnownGoodCfi = null;
   /** Digital Library 2.0 Phase H — the last spine href a 'library-reader:section-changed' event was dispatched for, so relocations WITHIN a chapter (scrolling/paging, which epub.js also reports via 'relocated') don't re-fire it. */
   let lastDispatchedEpubHref = null;
 
@@ -469,6 +496,155 @@ function initLibraryReader() {
   }
 
   /**
+   * Serializes every epub.js-mutating call this file makes — display(),
+   * next(), prev(), resize() — through one promise chain, so two never
+   * execute concurrently against the same rendition. See the
+   * epubOperationChain declaration above for the exact vendored-source
+   * evidence this is fixing. A rejected operation never breaks the
+   * chain for the next queued one; it surfaces a real, visible render-
+   * error state instead of leaving the canvas silently blank (see
+   * showEpubRenderError() below) — never console-only, and never
+   * masked with display:none/visibility:hidden on content that's
+   * genuinely still there.
+   */
+  /**
+   * How long a single queued operation is allowed to block the rest of
+   * the queue before this file forces the queue to move on regardless
+   * of whether the underlying epub.js call has actually settled. Real
+   * chapter transitions in this book measured well under 2s; this is a
+   * bound on correctness (the queue must never deadlock), not a
+   * normal-path timing budget — see this function's own comment for
+   * why it's needed at all.
+   */
+  const EPUB_BUSY_SAFETY_TIMEOUT_MS = 8000;
+
+  function queueEpubOperation(operation) {
+    const run = () => {
+      canvasWrap.classList.add('reader-canvas-wrap--busy');
+      // Confirmed live, not hypothetical: a sufficiently pathological
+      // epub.js-internal failure (reproduced with a deliberately
+      // malformed CFI — no real code path in this app can ever produce
+      // one) can leave epub.js's own internal state confused enough
+      // that the promise this operation returns never settles AT ALL,
+      // even though a LATER call recovers real, correct content. An
+      // ordinary `.then()` chain attached only to that promise would
+      // therefore never run either — meaning every operation queued
+      // AFTER this one would be blocked forever too, a genuine
+      // deadlock, not just a stuck-looking UI. Promise.race() against a
+      // plain, independent timeout is what guarantees run()'s own
+      // returned promise — and so the shared epubOperationChain itself
+      // — always settles within EPUB_BUSY_SAFETY_TIMEOUT_MS regardless
+      // of what the underlying epub.js promise ever does, so the queue
+      // can never be blocked longer than that bound. If the operation
+      // genuinely does complete later, its own .then()/.catch() below
+      // still run then and update the UI correctly at that point — this
+      // only bounds how long everything ELSE has to wait behind it.
+      const attempt = Promise.resolve()
+        .then(operation)
+        .then(() => {
+          hideEpubRenderError();
+        })
+        .catch((error) => {
+          console.error('[library-reader] EPUB operation failed', error);
+          showEpubRenderError();
+        });
+      const safetyTimeout = new Promise((resolve) => {
+        setTimeout(() => {
+          console.error('[library-reader] EPUB operation exceeded the safety timeout — releasing the queue without it');
+          resolve();
+        }, EPUB_BUSY_SAFETY_TIMEOUT_MS);
+      });
+      return Promise.race([attempt, safetyTimeout]).then(() => {
+        canvasWrap.classList.remove('reader-canvas-wrap--busy');
+        // A real relocated event (handleEpubRelocated) is the normal,
+        // authoritative way the render-error state clears. Reached here
+        // only once the safety timeout has already won the race, so a
+        // genuine relocation in the meantime is the best evidence
+        // available that content actually recovered — trust it the
+        // same way handleEpubRelocated itself does.
+        if (epubRendition && epubRendition.currentLocation && epubRendition.currentLocation().start) hideEpubRenderError();
+      });
+    };
+    epubOperationChain = epubOperationChain.then(run, run);
+    return epubOperationChain;
+  }
+
+  /**
+   * Resize specifically — queued like everything else above, and
+   * passes the CURRENT cfi as resize()'s own third argument rather than
+   * this file re-implementing "remember and restore position" by hand:
+   * Rendition.onResized() (confirmed in the vendored source) already
+   * redisplays exactly that cfi once the manager's relayout finishes,
+   * so this uses epub.js's own native position-preserving path instead
+   * of a bespoke one. Skips a resize outright while the container is
+   * momentarily unmeasurable (e.g. mid-orientation-change, or a
+   * hidden/backgrounded tab) rather than laying out against a bogus
+   * 0×0 size — a later resize (epub.js's own internal listener, or the
+   * next font-size change) simply retries once the container is
+   * measurable again.
+   */
+  function queueEpubResize() {
+    return queueEpubOperation(() => {
+      if (!epubRendition) return;
+      if (canvasWrap.clientWidth === 0 || canvasWrap.clientHeight === 0) return;
+      const loc = epubRendition.currentLocation();
+      const cfi = (loc && loc.start && loc.start.cfi) || lastKnownGoodCfi;
+      return epubRendition.resize(undefined, undefined, cfi || undefined);
+    });
+  }
+
+  /**
+   * A true fallback for a genuine render failure — a queued operation
+   * actually threw/rejected — never a mask for content that's still
+   * really there. Self-heals the moment any later operation succeeds or
+   * a real relocation fires (see handleEpubRelocated()), so it never
+   * lingers once the reader has recovered.
+   */
+  function showEpubRenderError() {
+    if (epubRenderErrorEl) epubRenderErrorEl.hidden = false;
+  }
+  function hideEpubRenderError() {
+    if (epubRenderErrorEl) epubRenderErrorEl.hidden = true;
+  }
+
+  /**
+   * Defensive safety net beyond queueEpubOperation()'s own .catch() —
+   * confirmed live, not hypothetical: a genuinely malformed CFI (e.g.
+   * corrupted saved progress/bookmark data) can make epub.js's internal
+   * CFI parsing throw a plain, UNCAUGHT error on a delayed tick inside
+   * its own queue internals, decoupled from the promise
+   * queueEpubOperation() is actually chained to — one that never
+   * reaches that function's own .catch() no matter how it's written,
+   * because by the time it fires the operation's own promise has
+   * already settled (however it settled) and the queue has moved on.
+   * Gated on canvasWrap still carrying `reader-canvas-wrap--busy` (i.e.
+   * a queued operation is genuinely still in flight right now) —
+   * confirmed live this matters: without that gate, a stray error from
+   * an ALREADY-superseded failed attempt can arrive after a LATER,
+   * genuinely successful operation already hid the error state, and
+   * incorrectly re-show it over content that's actually fine. Also
+   * scoped to errors that plausibly originate from epub.js itself
+   * (checked via the error's own filename/stack) so this never
+   * mistakes an unrelated page error for a render failure.
+   */
+  function looksLikeEpubJsError(source) {
+    return typeof source === 'string' && /epub\.min\.js|epubjs/i.test(source);
+  }
+  window.addEventListener('error', (event) => {
+    if (!epubRendition || !canvasWrap.classList.contains('reader-canvas-wrap--busy')) return;
+    if (!looksLikeEpubJsError(event.filename) && !looksLikeEpubJsError(event.error && event.error.stack)) return;
+    console.error('[library-reader] Uncaught EPUB render error', event.error || event.message);
+    showEpubRenderError();
+  });
+  window.addEventListener('unhandledrejection', (event) => {
+    if (!epubRendition || !canvasWrap.classList.contains('reader-canvas-wrap--busy')) return;
+    const stack = event.reason && event.reason.stack;
+    if (!looksLikeEpubJsError(stack)) return;
+    console.error('[library-reader] Unhandled EPUB render rejection', event.reason);
+    showEpubRenderError();
+  });
+
+  /**
    * Phase 9C.5 — the actual EPUB reading experience, built on the
    * Phase 9C.4 CSP-hardened foundation: chapter navigation, TOC,
    * search, font size, and resume. Reuses the exact same read-access
@@ -581,9 +757,6 @@ function initLibraryReader() {
       },
     });
 
-    wireEpubControls();
-    wireEpubDrawers();
-
     epubBook.loaded.navigation
       .then((nav) => {
         tocListEl.innerHTML = '';
@@ -607,7 +780,7 @@ function initLibraryReader() {
         resumeRestartBtn.addEventListener('click', () => {
           resumeBannerEl.hidden = true;
           if (!jumpCfi && window.RobayerAnalytics) window.RobayerAnalytics.trackLibraryEvent('library-resume-restarted', currentProductSlug);
-          epubRendition.display();
+          queueEpubOperation(() => epubRendition.display());
         });
       } else {
         await epubRendition.display();
@@ -631,23 +804,37 @@ function initLibraryReader() {
     }
 
     removeLoadingNotice();
-    // Mobile reader fix — a one-time safety-net resize once the reader
-    // is actually done loading. `renderTo(canvasWrap, {width:'100%',
-    // height:'100%'})` measures the container at the moment it's
-    // called, which is before the "Loading your book…" notice above is
-    // removed and before the resume banner/toolbar have necessarily
-    // finished their own layout - on a phone, where every pixel of
-    // width is already tight, a stale measurement from mid-load is
-    // exactly the kind of thing that produces "desktop-style
-    // dimensions" on first open. Cheap and idempotent; safe to call
-    // even if nothing actually changed.
-    epubRendition.resize();
+    // Blank-canvas root-cause fix — controls are wired only once the
+    // FIRST display() above has genuinely resolved, not before: with
+    // the toolbar visible (and interactive) from the moment the
+    // "Loading your book…" notice appears, a customer tapping
+    // Next/Zoom during that async window used to be able to fire
+    // straight into a rendition that hadn't finished its first
+    // display() yet - exactly the kind of overlapping-operation race
+    // this whole fix is about closing. Wiring the controls here instead
+    // means every click these listeners can possibly produce is
+    // already safely behind this point.
+    wireEpubControls();
+    wireEpubDrawers();
+    // Mobile reader fix — a one-time safety-net resize/relayout once
+    // the reader is actually done loading. `renderTo(canvasWrap,
+    // {width:'100%', height:'100%'})` measures the container at the
+    // moment it's called, which is before the "Loading your book…"
+    // notice above is removed and before the resume banner/toolbar have
+    // necessarily finished their own layout - on a phone, where every
+    // pixel of width is already tight, a stale measurement from
+    // mid-load is exactly the kind of thing that produces
+    // "desktop-style dimensions" on first open. Routed through
+    // queueEpubResize() like every other epub.js-mutating call now
+    // (see that function's own comment) rather than calling
+    // epubRendition.resize() directly.
+    queueEpubResize();
     ensureEpubLocationsGenerated();
   }
 
   function wireEpubControls() {
-    prevBtn.addEventListener('click', () => epubRendition.prev());
-    nextBtn.addEventListener('click', () => epubRendition.next());
+    prevBtn.addEventListener('click', () => queueEpubOperation(() => epubRendition.prev()));
+    nextBtn.addEventListener('click', () => queueEpubOperation(() => epubRendition.next()));
     zoomOutBtn.setAttribute('aria-label', 'Decrease font size');
     zoomInBtn.setAttribute('aria-label', 'Increase font size');
     zoomOutBtn.addEventListener('click', () => setEpubFontSize(epubFontIndex - 1));
@@ -656,8 +843,8 @@ function initLibraryReader() {
     searchTriggerBtn.hidden = false;
 
     canvasWrap.addEventListener('keydown', (event) => {
-      if (event.key === 'ArrowRight') epubRendition.next();
-      if (event.key === 'ArrowLeft') epubRendition.prev();
+      if (event.key === 'ArrowRight') queueEpubOperation(() => epubRendition.next());
+      if (event.key === 'ArrowLeft') queueEpubOperation(() => epubRendition.prev());
     });
 
     // Mirrors flushProgressOnUnload()'s own reasoning above: the
@@ -665,23 +852,31 @@ function initLibraryReader() {
     // fired yet by the time the customer navigates away.
     window.addEventListener('pagehide', flushEpubProgressOnUnload);
 
-    // Mobile reader fix — the PDF path (wireControls()) already had this;
-    // EPUB never did, which was the other half of the mobile overflow
-    // root cause. iOS Safari's own chrome (the collapsing/expanding
-    // address bar) changes the visual viewport without necessarily
-    // firing a layout epub.js observes on its own, and a phone rotation
-    // is a real, common case too - either way, epub.js's internal
-    // paginated-layout width goes stale exactly like it does after a
-    // font-size change (see setEpubFontSize()'s own comment), and only
-    // resize() forces it to re-measure the actual current container.
-    // Same debounce constant/timer pattern as the PDF path, so a resize
-    // drag re-lays-out once at the end, not on every intermediate pixel.
-    window.addEventListener('resize', () => {
-      if (epubResizeTimer) clearTimeout(epubResizeTimer);
-      epubResizeTimer = setTimeout(() => {
-        if (epubRendition) epubRendition.resize();
-      }, RESIZE_DEBOUNCE_MS);
-    });
+    // Blank-canvas root-cause fix — the manual, independently-debounced
+    // (150ms) window-resize listener the earlier "mobile reader fix"
+    // phase added here is REMOVED, not kept: confirmed directly in the
+    // vendored epub.js source (js/vendor/epubjs/epub.min.js) that
+    // DefaultViewManager already installs its OWN automatic,
+    // internally-debounced (50ms) `window.resize` listener whenever the
+    // rendition isn't given fixed numeric width/height - which is
+    // exactly this reader's own configuration (renderTo(canvasWrap,
+    // {width:'100%', height:'100%'})). Keeping both meant every single
+    // window resize (including an orientation change, which epub.js's
+    // Stage also already listens for on its own) fired TWO independent,
+    // differently-timed clear()+relayout cycles against the same
+    // rendition - each capable of clearing the view the other was still
+    // mid-render into. This was never "the resize fix is wrong to
+    // exist"; it's that this file was redundantly re-implementing a
+    // mechanism epub.js's own lifecycle already provides, and the
+    // duplication itself was the race. The one case epub.js's own
+    // listener CANNOT cover - a font-size change, which fires no window
+    // 'resize' event at all - still gets its own, now-queued resize
+    // call; see setEpubFontSize()'s own comment.
+    if (epubRenderRetryBtn) {
+      epubRenderRetryBtn.addEventListener('click', () => {
+        queueEpubOperation(() => epubRendition.display(lastKnownGoodCfi || undefined));
+      });
+    }
 
     // Phase J.2.1 — the EPUB counterpart of wireControls()'s own
     // `library-ai-panel:go-to-page` listener (below, PDF-only). Reads
@@ -694,7 +889,7 @@ function initLibraryReader() {
     // user-suppliable, so this can never navigate outside the book
     // that's actually loaded in this epubRendition.
     document.addEventListener('library-ai-panel:go-to-page', (event) => {
-      if (event.detail.cfi) epubRendition.display(event.detail.cfi).catch(() => {});
+      if (event.detail.cfi) queueEpubOperation(() => epubRendition.display(event.detail.cfi));
     });
 
     wireBookmarkControls(
@@ -709,7 +904,7 @@ function initLibraryReader() {
         return { format: 'EPUB', cfi, label: activeLink ? activeLink.textContent.trim() : null };
       },
       (bookmark) => {
-        if (bookmark.cfi) epubRendition.display(bookmark.cfi).catch(() => {});
+        if (bookmark.cfi) queueEpubOperation(() => epubRendition.display(bookmark.cfi));
       }
     );
   }
@@ -784,6 +979,62 @@ function initLibraryReader() {
   }
 
   /**
+   * UI/UX Pro Max mobile toolbar restructuring (blank-canvas fix
+   * phase) — Bookmark-add and Bookmarks-list move into this small
+   * "More actions" popover ONLY at mobile widths (css/components.css's
+   * own media query controls this purely via CSS:
+   * `.reader-toolbar__more-panel` is `display:contents` — plain,
+   * always-visible toolbar content, no popover — above 640px, and only
+   * becomes an actual anchored popover, toggled by this function, at
+   * 640px and below). Real math, not a guess: at 320-430px the toolbar
+   * cannot fit all 7 controls at the required 44×44px touch-target
+   * minimum in one row no matter how they're arranged — the nav group
+   * (Prev/indicator/Next) alone already consumes roughly half of a
+   * 320px-wide toolbar's available content width. Moving the two least
+   * time-pressured actions (adding/viewing a bookmark is never a
+   * per-page-turn action, unlike Next/Prev/zoom/TOC/search/Ask Robayer
+   * AI) out of the always-visible row is what lets the primary row
+   * genuinely fit in one line at realistic phone widths. Called once
+   * from wireBookmarkControls() — shared by both the PDF and EPUB
+   * paths, since bookmarks (and so this menu) work identically for
+   * both formats.
+   */
+  function wireMoreMenu() {
+    if (!moreMenuTriggerBtn || !moreMenuPanel || moreMenuTriggerBtn.hasAttribute('data-bound')) return;
+    moreMenuTriggerBtn.setAttribute('data-bound', 'true');
+    moreMenuTriggerBtn.hidden = false;
+
+    function closeMoreMenu() {
+      moreMenuPanel.classList.remove('reader-toolbar__more-panel--open');
+      moreMenuTriggerBtn.setAttribute('aria-expanded', 'false');
+    }
+    moreMenuTriggerBtn.addEventListener('click', (event) => {
+      event.stopPropagation();
+      const isOpen = moreMenuPanel.classList.contains('reader-toolbar__more-panel--open');
+      if (isOpen) {
+        closeMoreMenu();
+        return;
+      }
+      moreMenuPanel.classList.add('reader-toolbar__more-panel--open');
+      moreMenuTriggerBtn.setAttribute('aria-expanded', 'true');
+    });
+    document.addEventListener('click', (event) => {
+      if (!moreMenuPanel.contains(event.target) && event.target !== moreMenuTriggerBtn) closeMoreMenu();
+    });
+    document.addEventListener('keydown', (event) => {
+      if (event.key === 'Escape') closeMoreMenu();
+    });
+    // The menu's own items (bookmarkAddBtn/bookmarksTriggerBtn) have
+    // their real click handlers registered by this function's caller
+    // (wireBookmarkControls) — this only closes the popover once one of
+    // them has actually been activated, since those handlers have no
+    // reason to know this popover exists.
+    moreMenuPanel.addEventListener('click', (event) => {
+      if (event.target.closest('button')) closeMoreMenu();
+    });
+  }
+
+  /**
    * Digital Library 2.0 (Bookmarks) — the one piece of reader chrome
    * genuinely shared, unmodified, between the PDF and EPUB paths (a
    * bookmark is just "a position + an optional real label"; only how
@@ -798,6 +1049,7 @@ function initLibraryReader() {
   function wireBookmarkControls(getPosition, goTo) {
     bookmarkAddBtn.hidden = false;
     bookmarksTriggerBtn.hidden = false;
+    wireMoreMenu();
 
     bookmarkAddBtn.addEventListener('click', async () => {
       const position = getPosition();
@@ -911,9 +1163,7 @@ function initLibraryReader() {
         link.textContent = item.label.trim();
         link.addEventListener('click', () => {
           closeReaderDrawers();
-          epubRendition.display(item.href).catch(() => {
-            // non-fatal - stay on the current chapter rather than breaking the whole reader
-          });
+          queueEpubOperation(() => epubRendition.display(item.href));
         });
         li.appendChild(link);
       } else {
@@ -966,6 +1216,18 @@ function initLibraryReader() {
   function handleEpubRelocated(location) {
     const cfi = location && location.start && location.start.cfi;
     if (!cfi) return;
+    lastKnownGoodCfi = cfi;
+    hideEpubRenderError();
+    // A real 'relocated' event only ever fires once epub.js has
+    // genuinely displayed something - unambiguous, first-hand proof
+    // the canvas is not actually stuck, regardless of what
+    // queueEpubOperation()'s own promise bookkeeping currently thinks
+    // is still in flight (confirmed live: a sufficiently pathological
+    // epub.js-internal failure can leave that bookkeeping believing an
+    // operation never finished even after a LATER call has already
+    // succeeded and genuinely relocated - trust this actual lifecycle
+    // signal over that bookkeeping).
+    canvasWrap.classList.remove('reader-canvas-wrap--busy');
     if (epubLocationsGenerated) {
       const pct = epubBook.locations.percentageFromCfi(cfi);
       if (typeof pct === 'number' && !Number.isNaN(pct)) {
@@ -1024,9 +1286,14 @@ function initLibraryReader() {
     // than the harmless letterboxing it'd be on a wide desktop window.
     // epubRendition.resize() with no arguments re-measures the current
     // container and re-lays-out against it — the real fix, not a CSS
-    // workaround. See wireEpubControls()'s own resize listener for the
-    // other half of this (viewport/orientation changes, not just font).
-    epubRendition.resize();
+    // workaround. Routed through queueEpubResize() (see that function's
+    // own comment) rather than called directly, both so it can never
+    // overlap an in-flight next()/prev()/display(), and so the current
+    // reading position is explicitly preserved across the reflow via
+    // epub.js's own native resize(width,height,cfi) parameter, instead
+    // of a font-size change silently throwing the customer back to the
+    // top of the chapter.
+    queueEpubResize();
   }
 
   /**
@@ -1165,9 +1432,7 @@ function initLibraryReader() {
       btn.textContent = result.excerpt;
       btn.addEventListener('click', () => {
         closeReaderDrawers();
-        epubRendition.display(result.cfi).catch(() => {
-          // non-fatal - stay on the current chapter rather than breaking the whole reader
-        });
+        queueEpubOperation(() => epubRendition.display(result.cfi));
       });
       searchResultsEl.appendChild(btn);
     });
