@@ -60,6 +60,17 @@
       <div class="card">
         <h1 class="card__title mb-4">Choose a new password</h1>
 
+        <!-- Phase J.0.2 fix — these two elements are deliberately
+             OUTSIDE <form>: the success path below sets `form.hidden =
+             true` (hiding the whole form at once, this page's only
+             content) while independently revealing successEl as a
+             sibling — that only works if successEl is not itself a
+             descendant of the now-hidden form. The actual bug was in
+             admin-reset-password.js, which queried both elements via
+             `form.querySelector(...)` — scoped to descendants only, so
+             it silently found neither. See that file's own comment for
+             the confirmed failure trace; this HTML was correct as
+             originally authored. -->
         <p class="alert alert--error" role="alert" data-admin-reset-error hidden></p>
         <p class="alert alert--success" role="status" data-admin-reset-success hidden>Your password has been reset. You can now sign in.</p>
 
