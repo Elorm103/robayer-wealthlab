@@ -136,7 +136,7 @@
           <img
             class="rounded-lg aspect-4-5 img-cover"
             src="/assets/branding/founder/founder-portrait.jpg"
-            alt="Robert Loh Kobla, Founder &amp; CEO of Robayer WealthLab"
+            alt="Robert Loh Kobla, founder of Robayer WealthLab"
             width="648"
             height="810"
             loading="eager"
@@ -147,34 +147,304 @@
     </section>
 
     <!-- ============================================================
-         WHY ROBAYER WEALTHLAB EXISTS
-         Reuses .feature-banner__* color classes standalone (no image
-         side), same pattern as Resources' featured-resource section.
+         FOUNDER NARRATIVE — Version 4.3 Founder/About Redesign.
+         Eight sections telling one continuous story, replacing the old
+         short "why we exist" banner and single-block founder bio.
+         Alternates light (bg-paper/bg-sand) and dark (bg-navy) sections
+         for visual rhythm: the three dark moments (Why We Exist,
+         Robert's financial background, the closing brand statement)
+         are the narrative's three biggest declarative beats. Reuses
+         .article-body/.content-column for prose, .pull-quote/
+         .check-item/.grid--4 exactly as used elsewhere on this page,
+         and a small set of new desktop-editorial components
+         (.editorial-split, .editorial-columns, .content-column--wide,
+         .pull-quote--wide/--left, .statement-line, .question-list,
+         .pull-quote--inverse — see their definitions in components.css)
+         only where nothing existing fit. See docs/ for the approved
+         narrative brief this implements verbatim, edited only for
+         HTML/heading structure.
          ============================================================ -->
-    <section class="section bg-navy" aria-labelledby="why-exist-heading">
-      <div class="container content-column text-center">
-        <span class="eyebrow feature-banner__eyebrow">Why we exist</span>
-        <h2 id="why-exist-heading" class="mt-2 mb-4 feature-banner__title">Financial education wasn't built for people like you. So we built this instead.</h2>
-        <p class="feature-banner__copy mx-auto">Most financial education assumes you already have money, already went to business school, or already know what a treasury bill is. Robayer WealthLab exists for everyone that assumption leaves out, built for people starting with their first GH₵100, not their first GH₵100,000.</p>
+
+    <!-- SECTION 1 — Meet the founder. Editorial split: story column
+         (40%), portrait column (60%, order matches the hero directly
+         above it) — the portrait leads on desktop, per the brief's
+         explicit ask to give it real editorial weight. Keeps the
+         #founder-story id the hero's "Read our story" button already
+         links to. -->
+    <section class="section" id="founder-story" aria-labelledby="founder-story-heading" data-reveal>
+      <div class="container">
+        <div class="editorial-split">
+          <div>
+            <span class="eyebrow">Meet the founder</span>
+            <h2 id="founder-story-heading" class="mt-2 mb-1" data-content="founder.name">Robert Loh Kobla</h2>
+            <p class="text-secondary text-small mb-4" data-content="founder.title">Founder, Robayer WealthLab</p>
+
+            <div class="article-body">
+              <p>Robert Loh Kobla is a laboratory technologist by profession, an entrepreneur by passion, and a quality assurance professional by practice.</p>
+              <p>He currently works as a Quality Assurance Executive with a leading cGMP pharmaceutical company in Accra, where his work involves quality systems, compliance, documentation, auditing, procedures, and making sure that things are done properly, not simply assumed to be right.</p>
+              <p>His professional journey has also taken him through roles as a teaching assistant, laboratory assistant, and research assistant: experiences that shaped something else that would eventually become central to Robayer WealthLab, the ability to take something complicated and make it understandable.</p>
+              <p>But Robert did not start Robayer WealthLab because he was a financial expert.</p>
+              <p>He started it because he realised that too many ordinary Ghanaians were being left out of the conversation about money.</p>
+            </div>
+          </div>
+          <img
+            class="rounded-lg aspect-4-5 img-cover portrait-frame"
+            src="/assets/branding/founder/founder-portrait.jpg"
+            alt="Robert Loh Kobla, founder of Robayer WealthLab"
+            width="648"
+            height="810"
+            loading="lazy"
+            decoding="async"
+          >
+        </div>
       </div>
     </section>
 
-    <!-- ============================================================
-         FOUNDER STORY
-         Approved author biography, set as long-form prose via
-         .article-body (Sprint 6) inside .content-column.
-         ============================================================ -->
-    <section class="section" id="founder-story" aria-labelledby="founder-story-heading">
-      <div class="container content-column">
-        <span class="eyebrow text-center">The founder</span>
-        <h2 id="founder-story-heading" class="mt-2 mb-1 text-center" data-content="founder.name">Robert Loh Kobla</h2>
-        <p class="text-center text-secondary text-small mb-4" data-content="founder.title">Founder &amp; CEO</p>
-
-        <div class="article-body" data-founder-bio="long">
-          <p>Robert started Robayer WealthLab after watching too many smart, hardworking people in his own circle stay away from investing, not because they didn't want to build something, but because no one had ever explained it to them in plain language. Treasury bills, MoMo savings, and the Ghana Stock Exchange all felt like they belonged to people with more money, more connections, or more schooling than they had.</p>
-          <p>He didn't set out to build a financial institution. He set out to be the person he wished he'd had early on: someone slightly ahead on the journey, willing to explain the confusing parts without making anyone feel behind.</p>
-          <p>That's still the whole model. No hype, no guaranteed returns, no jargon for the sake of sounding smart. Just honest, practical guidance for wherever you're starting from, delivered one guide, one article, and one better decision at a time.</p>
+    <!-- SECTION 2 — The question that started it. Editorial split: the
+         eyebrow/heading/quote lead as a 40% kicker column, the story
+         itself as the 60% main column, instead of one centered block. -->
+    <section class="section bg-paper" aria-labelledby="founder-question-heading" data-reveal>
+      <div class="container">
+        <div class="editorial-split editorial-split--top">
+          <div>
+            <span class="eyebrow">The question that started it</span>
+            <h2 id="founder-question-heading" class="mt-2">It began with a simple question.</h2>
+            <blockquote class="pull-quote pull-quote--left mt-4">Are you investing?</blockquote>
+          </div>
+          <div class="article-body">
+            <p>Robert started asking colleagues and people around him a simple question.</p>
+            <p>The answers were revealing.</p>
+            <p>Some had never heard of the Ghana Stock Exchange in any meaningful way. Others had heard of Treasury bills but did not really understand how they worked. Some knew the words mutual funds, shares, bonds, investment platforms, dividends, brokerage accounts, and money market funds, but had no idea how these things actually fitted together.</p>
+            <p>And many had quietly reached the same conclusion: <em>investing is for people who already have money.</em></p>
+            <p>That assumption is one of the biggest barriers to financial participation.</p>
+            <p>So Robert started researching. Not for a weekend. Not by watching a few motivational videos and calling himself an expert.</p>
+            <p>Months of reading, comparing, questioning, learning, and researching followed: hundreds of hours of it.</p>
+            <p>What became increasingly clear was that there was a knowledge and communication gap between many ordinary Ghanaians (students, graduates, young professionals, national service personnel, and first-time earners) and the financial opportunities available around them.</p>
+            <p>The problem was not that people did not care. Many simply did not know where to start.</p>
+          </div>
         </div>
+      </div>
+    </section>
+
+    <!-- SECTION 3 — The problem wasn't always the information. The
+         HPLC/laboratory analogy, told in Robert's own professional
+         language, is the section's whole argument, so it stays as
+         plain prose rather than being broken into cards — but flows as
+         two newspaper-style columns (.editorial-columns) from tablet
+         upward, a deliberately different desktop device from Sections
+         2/6's aside+story split, for rhythm variation. -->
+    <section class="section bg-sand" aria-labelledby="founder-analogy-heading" data-reveal>
+      <div class="container content-column content-column--wide">
+        <span class="eyebrow text-center">Where financial education goes wrong</span>
+        <h2 id="founder-analogy-heading" class="mt-2 mb-5 text-center">Sometimes, information is simply introduced from the wrong place.</h2>
+
+        <div class="article-body editorial-columns">
+          <p>A lot of financial education seemed to begin somewhere in the middle.</p>
+          <p>It reminded Robert of something he knew very well from the laboratory.</p>
+          <p>You would not teach a new Quality Control analyst how to use an HPLC by beginning with a chromatogram and assuming they already know everything that happened before the peaks appeared.</p>
+          <p>You would first show them the instrument. Explain what it does. Show them the important parts. Show them where to switch it on. Then teach them how to use it properly.</p>
+          <p>You do not hand someone the keys to a Ferrari and start explaining engine diagnostics when they have not learned how to drive.</p>
+          <p>Financial education should not work that way either.</p>
+          <p>People should not have to understand ten financial concepts before someone finally explains the first one.</p>
+        </div>
+        <p class="statement-line mt-5">Start where the learner is. Then build from there.</p>
+        <p class="text-center text-secondary text-small mt-3">That became the philosophy behind Robayer WealthLab.</p>
+      </div>
+    </section>
+
+    <!-- SECTION 4 — Why Robayer WealthLab exists. The one dark section
+         of the three that replaces the old bg-navy "why we exist"
+         banner's role on the page. -->
+    <section class="section bg-navy" aria-labelledby="why-we-exist-heading" data-reveal>
+      <div class="container content-column content-column--wide text-center">
+        <span class="eyebrow feature-banner__eyebrow">Why we exist</span>
+        <h2 id="why-we-exist-heading" class="mt-2 mb-4 feature-banner__title">We believe people deserve to understand what they're doing.</h2>
+        <p class="feature-banner__copy mx-auto">Robayer WealthLab was founded to bridge that gap. Not by pretending that everyone needs to become a financial professional. Not by drowning beginners in jargon. And certainly not by promising guaranteed wealth.</p>
+        <p class="feature-banner__copy mx-auto mt-3">We believe people deserve to understand what they are doing before they are expected to make decisions about their money. That is why our guides are built around practical questions:</p>
+
+        <ul class="question-list mt-5">
+          <li class="question-list__item">What is this?</li>
+          <li class="question-list__item">How does it work in Ghana?</li>
+          <li class="question-list__item">Where do I start?</li>
+          <li class="question-list__item">What do I need?</li>
+          <li class="question-list__item">What does this term actually mean?</li>
+          <li class="question-list__item">What happens after I take the first step?</li>
+        </ul>
+
+        <p class="feature-banner__copy mx-auto mt-5">And perhaps most importantly:</p>
+        <p class="statement-line statement-line--inverse mt-2">"What does this mean for someone like me?"</p>
+      </div>
+    </section>
+
+    <!-- SECTION 5 — The AI-powered learning library. Explicitly
+         required to be visually prominent: the seven Robayer AI
+         actions get the same icon+heading+description grid Core
+         Values uses below, the one place on this page a card grid
+         genuinely earns its keep (seven distinct, scannable actions). -->
+    <section class="section" aria-labelledby="learning-library-heading" data-reveal>
+      <div class="container content-column text-center">
+        <span class="eyebrow">The learning experience</span>
+        <h2 id="learning-library-heading" class="mt-2 mb-4">Not just a library. A learning environment.</h2>
+        <div class="article-body text-left">
+          <p>Robayer WealthLab is not simply a collection of PDFs sitting on a website.</p>
+          <p>We built an AI-powered digital learning library designed around the way people actually learn today. You can read a guide at your own pace, return to it whenever you need it, search for what you are looking for, and, where the feature is available, interact with Robayer AI directly within the book.</p>
+        </div>
+      </div>
+
+      <div class="container">
+        <ul class="grid grid--4 text-left mt-5">
+          <li>
+            <svg class="icon icon--lg mb-2" viewBox="0 0 24 24" aria-hidden="true"><path d="M4 5h16v11H8l-4 4V5z"/><path d="M8 9h8M8 12h5"/></svg>
+            <h3 class="mb-2 font-body font-medium text-body-lg">Explain a concept</h3>
+            <p class="text-secondary text-small">Ask Robayer AI to break down something confusing.</p>
+          </li>
+          <li>
+            <svg class="icon icon--lg mb-2" viewBox="0 0 24 24" aria-hidden="true"><path d="M4 6h16M4 12h11M4 18h14"/></svg>
+            <h3 class="mb-2 font-body font-medium text-body-lg">Summarise a chapter</h3>
+            <p class="text-secondary text-small">Get the important ideas without losing the context.</p>
+          </li>
+          <li>
+            <svg class="icon icon--lg mb-2" viewBox="0 0 24 24" aria-hidden="true"><path d="M12 6.5c-2-1.4-5-1.8-8-0.9v12.6c3-0.9 6-0.5 8 0.9c2-1.4 5-1.8 8-0.9V5.6c-3-0.9-6-0.5-8 0.9z"/><path d="M12 6.5v12.6"/></svg>
+            <h3 class="mb-2 font-body font-medium text-body-lg">Teach me</h3>
+            <p class="text-secondary text-small">Turn the material into a guided learning experience.</p>
+          </li>
+          <li>
+            <svg class="icon icon--lg mb-2" viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="8"/><circle cx="12" cy="12" r="3.5"/></svg>
+            <h3 class="mb-2 font-body font-medium text-body-lg">Give me an example</h3>
+            <p class="text-secondary text-small">Make abstract financial concepts practical.</p>
+          </li>
+          <li>
+            <svg class="icon icon--lg mb-2" viewBox="0 0 24 24" aria-hidden="true"><rect x="4" y="4" width="16" height="16" rx="3"/><path d="M8 12.5l2.4 2.4L16 9.5"/></svg>
+            <h3 class="mb-2 font-body font-medium text-body-lg">Quiz me</h3>
+            <p class="text-secondary text-small">Test whether you've actually understood what you read.</p>
+          </li>
+          <li>
+            <svg class="icon icon--lg mb-2" viewBox="0 0 24 24" aria-hidden="true"><path d="M12 3.5l2.5 5.6 6 0.7-4.5 4.1 1.2 6.1-5.2-3.1-5.2 3.1 1.2-6.1-4.5-4.1 6-0.7z"/></svg>
+            <h3 class="mb-2 font-body font-medium text-body-lg">Key takeaways</h3>
+            <p class="text-secondary text-small">Pull out the ideas worth remembering.</p>
+          </li>
+          <li>
+            <svg class="icon icon--lg mb-2" viewBox="0 0 24 24" aria-hidden="true"><path d="M4 5h16v11H9l-5 4V5z"/><path d="M10 9.8c0-1.3 0.9-2 2-2s2 0.6 2 1.8c0 1.2-2 1.3-2 2.6"/></svg>
+            <h3 class="mb-2 font-body font-medium text-body-lg">Ask questions</h3>
+            <p class="text-secondary text-small">Ask about the book while you're reading it.</p>
+          </li>
+        </ul>
+      </div>
+
+      <div class="container mt-6">
+        <div class="editorial-split">
+          <div>
+            <p class="statement-line statement-line--left">That changes the experience from "I bought a book" to "I have a learning environment."</p>
+          </div>
+          <div class="article-body">
+            <p>You do not have to finish an entire book before asking a question.</p>
+            <p>You do not have to leave the page, open another browser tab, search through five websites, and try to figure out which explanation applies to Ghana.</p>
+            <p>The learning happens around the book.</p>
+            <p>And because our guides are designed specifically around the Ghanaian context, we are not simply taking generic financial education and changing a few words. We are asking: how does this actually work here?</p>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- SECTION 6 — About Robert's financial background. The
+         credibility cornerstone and the page's star desktop treatment:
+         story leading at 60% (.editorial-split--lead-wide), a new
+         short "a different kind of expertise" statement at 40% —
+         directly implementing that positioning, not present as a
+         standalone phrase in the original approved copy — and the
+         closing statement given the strongest visual treatment on the
+         page (.pull-quote--inverse.pull-quote--wide, large and gold). -->
+    <section class="section bg-navy" aria-labelledby="founder-background-heading" data-reveal>
+      <div class="container content-column content-column--wide text-center">
+        <span class="eyebrow feature-banner__eyebrow">About Robert's financial background</span>
+        <h2 id="founder-background-heading" class="mt-2 mb-5 feature-banner__title">Let's be completely transparent.</h2>
+      </div>
+
+      <div class="container">
+        <div class="editorial-split editorial-split--lead-wide">
+          <div class="article-body">
+            <p>Robert is not a chartered accountant.</p>
+            <p>He is not presenting himself as a licensed investment adviser.</p>
+            <p>He does not claim to replace accountants, licensed financial professionals, fund managers, brokers, tax professionals, or other specialists.</p>
+            <p>And he does not need to pretend otherwise.</p>
+            <p>His role is different. He is a researcher, educator, practitioner, and entrepreneur who recognised a problem and built a platform to solve it.</p>
+            <p>Robayer WealthLab is about making financial concepts understandable, practical, and accessible to people who may be encountering them for the first time.</p>
+            <p>As the platform grows, appropriately qualified professionals, including chartered accountants and other specialists, will be brought on board where their expertise is required.</p>
+          </div>
+          <div>
+            <p class="statement-line statement-line--inverse statement-line--left">A different kind of expertise.</p>
+            <p class="feature-banner__copy mt-3">His background is different. That does not make Robayer WealthLab less credible. It explains why the platform exists, and why it teaches from the beginning rather than the middle.</p>
+          </div>
+        </div>
+
+        <div class="content-column content-column--wide text-center">
+          <blockquote class="pull-quote pull-quote--inverse pull-quote--wide mt-6">Good financial education doesn't require one person to know everything. It requires knowing what you know, knowing what you don't, and knowing who should handle what comes next.</blockquote>
+        </div>
+      </div>
+    </section>
+
+    <!-- SECTION 7 — So, why learn here? Warm, welcoming close before
+         the final brand statement; reuses .check-item exactly as
+         "Our promises to readers" below does, and now the same
+         .grid--2 wrapper that section already uses too (2 columns
+         from desktop, 1 column through tablet/mobile) instead of a
+         single centered stack. -->
+    <section class="section bg-sand" aria-labelledby="why-learn-here-heading" data-reveal>
+      <div class="container content-column content-column--wide">
+        <span class="eyebrow text-center">So, why learn here?</span>
+        <h2 id="why-learn-here-heading" class="mt-2 mb-4 text-center">You don't need someone pretending to be ten years ahead of you.</h2>
+        <p class="text-center mb-2">Sometimes you need someone who has done the reading, asked the questions, broken down the complicated parts, and is willing to walk through them with you.</p>
+        <p class="statement-line mb-5">That's what Robert set out to build.</p>
+
+        <ul class="grid grid--2 gap-4">
+          <li class="check-item">
+            <svg class="icon check-item__icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M5 12l4 4 10-10"/></svg>
+            <span class="check-item__text">A place where a student can ask a question without feeling embarrassed.</span>
+          </li>
+          <li class="check-item">
+            <svg class="icon check-item__icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M5 12l4 4 10-10"/></svg>
+            <span class="check-item__text">Where national service personnel can learn about investing before earning their first serious salary.</span>
+          </li>
+          <li class="check-item">
+            <svg class="icon check-item__icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M5 12l4 4 10-10"/></svg>
+            <span class="check-item__text">Where a graduate can finally understand what a brokerage account is.</span>
+          </li>
+          <li class="check-item">
+            <svg class="icon check-item__icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M5 12l4 4 10-10"/></svg>
+            <span class="check-item__text">Where someone starting with GH₵100 doesn't feel that investing is a conversation reserved for millionaires.</span>
+          </li>
+          <li class="check-item">
+            <svg class="icon check-item__icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M5 12l4 4 10-10"/></svg>
+            <span class="check-item__text">Where "I don't understand this" is not the end of the conversation. It's the beginning.</span>
+          </li>
+        </ul>
+      </div>
+    </section>
+
+    <!-- SECTION 8 — Final Robayer WealthLab statement. Closes the
+         narrative arc on the same dark, declarative register as
+         Sections 4 and 6, before the page continues into Mission &
+         Vision below. Deliberately the QUIETEST desktop treatment of
+         the three dark sections — a strong close doesn't need to be
+         the widest; staying tight and centered here is itself part of
+         the page's rhythm, in contrast against Section 6's fuller
+         editorial-split treatment immediately before it. -->
+    <section class="section bg-navy" aria-labelledby="brand-statement-heading" data-reveal>
+      <div class="container content-column content-column--wide text-center">
+        <span class="eyebrow feature-banner__eyebrow">Robayer WealthLab</span>
+        <h2 id="brand-statement-heading" class="mt-2 mb-4 feature-banner__title">We don't believe you should need a finance degree to understand your finances.</h2>
+
+        <div class="article-body text-left">
+          <p>You don't need to become a chartered accountant to understand a Treasury bill.</p>
+          <p>You don't need an economics degree to understand a share.</p>
+          <p>You don't need to work in a bank to understand a mutual fund.</p>
+          <p>And you certainly don't need to be rich before you start learning.</p>
+        </div>
+
+        <p class="statement-line statement-line--inverse mt-5 mb-3">The old model of education was: find an expert, sit in front of them, listen, and hope you understood.</p>
+        <p class="feature-banner__copy mx-auto">We live in a different age. Today, knowledge can be interactive, searchable, personalised, and available whenever you need it. That is the opportunity we're building with Robayer WealthLab.</p>
+
+        <blockquote class="pull-quote pull-quote--inverse pull-quote--wide mt-6">Practical financial education for ordinary Ghanaians. One concept, one question, and one better decision at a time.</blockquote>
       </div>
     </section>
 
@@ -401,8 +671,8 @@
   <script src="/js/components/theme-toggle.js?v=eebe98960c"></script>
   <script src="/js/components/branding.js?v=483b048741"></script>
   <script src="/js/content-inject.js?v=10a4d215c2"></script>
-  <script src="/js/components/founder-bio.js?v=d293db3873"></script>
   <script src="/js/components/newsletter-form.js?v=381333088d"></script>
+  <script src="/js/components/scroll-reveal.js?v=fc50a299c3" defer></script>
   <script src="/js/main.js?v=1043f4fc00"></script>
 </body>
 </html>

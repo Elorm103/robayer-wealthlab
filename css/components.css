@@ -4630,3 +4630,204 @@ button.resource-card {
     position: static;
   }
 }
+
+/* ============================================================
+   FOUNDER/ABOUT REDESIGN — three small additions the existing system
+   had no equivalent for, scoped to the About page's new founder
+   narrative (about/index.html) but generic enough to reuse anywhere
+   a similar declarative statement or dark-background pull quote is
+   needed later.
+   ============================================================ */
+
+/* Short, bold, centered "declaration" statement — distinct from
+   .pull-quote's softer italic serif treatment: Space Grotesk (the
+   heading font), not Newsreader, and solid accent-green rather than
+   the heading-ink color, so it reads as a philosophy/thesis statement
+   rather than a quoted remark. Used sparingly (2-3 times per page). */
+.statement-line {
+  font-family: var(--font-heading);
+  font-weight: var(--weight-semibold);
+  font-size: var(--text-h4);
+  color: var(--color-accent);
+  text-align: center;
+  max-width: 560px;
+  margin-inline: auto;
+}
+
+/* On a fixed-dark section (.bg-navy), .statement-line's green is the
+   wrong contrast pairing (tuned for --color-bg/--color-surface, not
+   navy) — gold is both legible here and already this page's dark-
+   section accent (.feature-banner__eyebrow uses the same token). */
+.statement-line--inverse {
+  color: var(--color-sika-gold);
+}
+
+/* .pull-quote's default color (--color-text-heading) is navy-on-navy
+   inside a fixed-dark (.bg-navy) section — this modifier is the same
+   white .feature-banner__title already uses on that background, kept
+   as a separate class rather than folding into .pull-quote itself so
+   every existing light-background pull quote elsewhere is untouched. */
+.pull-quote--inverse {
+  color: var(--color-white);
+}
+
+/* Compact two-column list of short question phrases (About page,
+   "Why we exist" section) — deliberately not .check-item (a checkmark
+   next to a question reads as an affirmation, which these aren't) and
+   not .toc (built for chapter numbers/borders tuned for a light
+   background). A small gold marker instead, matching the dark
+   section's existing gold accent. */
+.question-list {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: var(--space-3) var(--space-5);
+  max-width: 560px;
+  margin-inline: auto;
+  text-align: left;
+}
+
+@media (max-width: 767px) {
+  .question-list {
+    grid-template-columns: 1fr;
+  }
+}
+
+.question-list__item {
+  position: relative;
+  padding-left: var(--space-4);
+  font-family: var(--font-heading);
+  font-weight: var(--weight-medium);
+  color: var(--color-light-sand);
+}
+
+.question-list__item::before {
+  content: "";
+  position: absolute;
+  left: 0;
+  top: 0.65em;
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background-color: var(--color-sika-gold);
+}
+
+/* .article-body's own text color is inherited from the theme-flipping
+   --color-text-primary — wrong on a section that's deliberately dark
+   regardless of theme (.bg-navy, same "fixed dark" convention as
+   .feature-banner). No page combines .bg-navy with multi-paragraph
+   .article-body prose elsewhere, so this is scoped safely rather than
+   needing a dedicated wrapper class. */
+.bg-navy .article-body {
+  color: var(--color-light-sand);
+}
+
+/* ============================================================
+   FOUNDER/ABOUT DESKTOP EDITORIAL REFINEMENT — About page's eight
+   narrative sections were reading as identical centered
+   .content-column blocks on desktop, leaving large unused margins
+   inside the existing 1200px .container (that container's own max
+   width is untouched — this is only about what happens inside it).
+   Six small, reused-multiple-times additions below; the same
+   min-width: 1200px breakpoint .grid--2/.hero--split already use, so
+   tablet keeps behaving exactly like those established patterns.
+   ============================================================ */
+
+/* A 40/60 two-column composition pairing a short "aside" (an eyebrow
+   + heading + statement, or a portrait) against longer prose. One
+   column on tablet/mobile — .editorial-split__aside deliberately has
+   no special styling of its own (no centering), so this collapses to
+   the same natural left-aligned single-column reading order .article-
+   body already produces elsewhere on this page. */
+.editorial-split {
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: var(--space-5);
+}
+
+@media (min-width: 1200px) {
+  .editorial-split {
+    grid-template-columns: 2fr 3fr;
+    gap: var(--space-7);
+    align-items: center;
+  }
+  /* Swaps which side is wide, for sections where the first (left)
+     column should carry the primary content — e.g. founder story
+     leading, with the shorter aside statement trailing on the right. */
+  .editorial-split--lead-wide {
+    grid-template-columns: 3fr 2fr;
+  }
+  /* Default center-alignment reads correctly when the shorter column
+     is a portrait or a standalone pull-out statement (both feel
+     intentionally poised floating beside the taller column) — found,
+     during live design review, to read wrong for the one case the
+     shorter column IS the section's own page heading: a heading
+     floating mid-column beside a long story looks unanchored rather
+     than deliberate. This anchors that one case to the top instead,
+     the more conventional placement for an actual headline. */
+  .editorial-split--top {
+    align-items: start;
+  }
+}
+
+/* Two-column "newspaper" prose — a different editorial device from
+   .editorial-split, used where the content is one sustained argument
+   rather than a statement-plus-explanation pairing (the About page's
+   HPLC/laboratory analogy section). break-inside: avoid keeps a single
+   short paragraph from splitting mid-sentence across the column gap.
+   Starts at tablet (768px), not 1200px: two ~350-450px columns are
+   still a comfortable reading measure well before desktop. */
+@media (min-width: 768px) {
+  .editorial-columns {
+    columns: 2;
+    column-gap: var(--space-6);
+  }
+  .editorial-columns > * {
+    break-inside: avoid;
+  }
+}
+
+/* A wider alternative to .content-column (680px) for sections that
+   read better with more breathing room than the article-prose measure
+   but shouldn't stretch to the full 1200px container — used alongside
+   .content-column, not instead of it, so it inherits that class's own
+   margin-inline: auto and only overrides the max-width. */
+.content-column--wide {
+  max-width: 900px;
+}
+
+/* .pull-quote's default 480px cap suits a mid-narrative aside; the
+   About page's two closing, highest-emphasis quotes (financial
+   background, final brand statement) earn more visual weight. */
+.pull-quote--wide {
+  max-width: 720px;
+  font-size: var(--text-h4);
+}
+
+/* .pull-quote is centered (margin-inline: auto, text-align inherited
+   as centered via its container elsewhere) by convention — this
+   modifier is for the one case a pull quote sits inside a narrower
+   .editorial-split aside column instead, where centering would look
+   like a mistake next to the aside's left-aligned eyebrow/heading. */
+.pull-quote--left {
+  margin-inline: 0;
+  text-align: left;
+}
+
+/* Same reasoning as .pull-quote--left, for .statement-line's own
+   default centered/auto-margin treatment — used where a statement
+   sits inside a narrower .editorial-split column rather than a
+   full-width centered block. */
+.statement-line--left {
+  margin-inline: 0;
+  text-align: left;
+}
+
+/* Desktop-only widening of the existing .question-list (About page,
+   "Why we exist" section): 3 columns instead of 2, with more room to
+   breathe, once there's enough width to avoid cramming. */
+@media (min-width: 1200px) {
+  .question-list {
+    grid-template-columns: repeat(3, 1fr);
+    max-width: 760px;
+  }
+}
