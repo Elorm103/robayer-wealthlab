@@ -98,7 +98,18 @@ test('epubAdvancePage() — the \'scrolled-doc\'-flow page-turn implementation �
   assert.match(body, /epubRendition\.prev\(\)/, 'reaching the top of a chapter must fall through to a real chapter transition via epubRendition.prev()');
   assert.doesNotMatch(body, /\.scrollLeft\s*=/, 'must never manipulate scrollLeft directly — this reader no longer uses a horizontally-paginated flow');
   assert.doesNotMatch(body, /removeChild|insertBefore|appendChild/, 'must never detach/reattach the iframe — that technique was tried and rejected (it also destroys injected theme/CSS state); see openEpubReadSession()\'s own header comment on the flow choice');
-  assert.doesNotMatch(body, /setTimeout|requestAnimationFrame/, 'must be a synchronous, deterministic scroll — no arbitrary delays or repaint-forcing frame waits');
+  assert.doesNotMatch(body, /setTimeout|requestAnimationFrame/, 'epubAdvancePage() itself must contain no timing logic of its own — any wait for content to become visible must live in, and be bounded by, a dedicated, separately-tested function (waitForEpubChapterPaint()), not an inline delay here');
+  assert.match(body, /waitForEpubChapterPaint\(\)/, 'a chapter transition (the atEdge branch) must verify the new content actually became visible before considering the navigation complete — see waitForEpubChapterPaint()\'s own header comment for why next()/prev() resolving is not by itself sufficient proof of that');
+  assert.match(body, /if\s*\(!painted\)\s*throw/, 'if content never becomes visible within the bound, this must throw (so queueEpubOperation()\'s existing catch() surfaces the real render-error/Retry state), never silently return as if navigation succeeded');
+});
+
+test('waitForEpubChapterPaint() is a bounded, condition-checked wait for real painted content — never a fixed-duration delay used as the fix', () => {
+  const body = fnBody('waitForEpubChapterPaint');
+  assert.match(body, /EPUB_CHAPTER_PAINT_TIMEOUT_MS/, 'must be bounded by a real timeout constant, so a genuinely-failed transition can never hang the reader indefinitely');
+  assert.match(body, /elementFromPoint\(/, 'must verify real paint/hit-testability (the same technique that root-caused this reader\'s original architecture bug), not just DOM/text presence — DOM text can be present while still not actually painted');
+  assert.match(body, /getClientRects\(/, 'must check the real laid-out position of actual text nodes, not one fixed coordinate — a fixed point can land on whitespace/margin and produce a false "not painted" read even when real content is visible elsewhere on the page');
+  assert.match(body, /resolve\(true\)/, 'must resolve true as soon as real content is confirmed');
+  assert.match(body, /resolve\(false\)/, 'must resolve false (not reject, not hang) once the bound is reached with nothing ever confirmed, so the caller can surface a real error state');
 });
 
 test('wireEpubControls() wires the render-error Retry button through queueEpubOperation(), targeting lastKnownGoodCfi', () => {

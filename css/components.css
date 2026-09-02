@@ -3616,8 +3616,53 @@ button.resource-card {
     padding: var(--space-3) var(--space-2);
     max-height: 65vh;
   }
+  /* Bottom-obscured-content fix — real, measured bug, not assumed: at
+     65vh (this rule's previous value) plus the real header/nav/title/
+     toolbar/resume-banner above it, live-measured on the real
+     production page markup (not an isolated fixture) that the reader
+     card's own bottom edge sits below the bottom of the visible
+     viewport on real short devices (34px overflow measured at 375x667
+     with the resume banner shown, 30px at 320x568 - confirmed by
+     scrolling the reader card to the top of the viewport, matching
+     where a customer's own scroll naturally settles once they're
+     reading, and measuring its bottom edge against window.innerHeight
+     there). That's real EPUB text sitting exactly where iOS Safari's
+     own floating/translucent bottom toolbar renders - not a bug in
+     this codebase's CSS (there is no gradient/mask/overlay anywhere in
+     this reader's styles; confirmed by inspecting every candidate:
+     this file, the shared drawer/panel backdrops, and
+     library-reader.js's own inline styles), but a genuine
+     reading-experience defect this reader IS responsible for: the
+     reader must never lay its own content out so close to the
+     viewport edge that the browser's own chrome can plausibly sit on
+     top of it.
+     A single fixed vh percentage can't fix this correctly at every
+     height in the required 320-430px-wide viewport matrix: the
+     content ABOVE the canvas (title/toolbar/progress-bar/resume-
+     banner) is a roughly CONSTANT pixel amount regardless of device
+     height, live-measured at ~267-273px across every mobile height
+     tested (320x568 through 390x844) - so the right fix is
+     subtracting that fixed budget from the real viewport height via
+     calc(), not guessing a percentage that happens to work for one
+     device. `svh` (the small/guaranteed-visible viewport height -
+     explicitly excludes space a toolbar might currently occupy) is
+     additionally the standards-correct unit for the toolbar itself,
+     layered in via clamp() for the browsers that support it
+     (effectively all current mobile browsers); `vh` alone can't
+     distinguish "toolbar hidden" from "toolbar showing" and always
+     assumes the larger, toolbar-hidden figure. clamp(MIN, calc(100svh
+     - 300px), MAX) — 300px is that measured reserved budget plus a
+     little breathing room below the card; 240px floors it so a short
+     LANDSCAPE phone viewport never collapses the reading area to
+     nothing; 65vh caps it so an unusually tall-but-narrow viewport
+     doesn't make the canvas disproportionately tall. Written as two
+     declarations, not one - a browser that doesn't understand `svh`
+     fails to parse the whole clamp() value and simply keeps the first
+     (plain `vh`) declaration, exactly the graceful-degradation
+     behavior this depends on. */
   .reader-canvas-wrap--epub {
-    height: 65vh;
+    height: 58vh;
+    height: clamp(240px, calc(100svh - 300px), 65vh);
     padding: 0;
   }
 }

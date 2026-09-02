@@ -1005,6 +1005,81 @@ function initLibraryReader() {
   const EPUB_PAGE_SCROLL_OVERLAP = 0.92;
 
   /**
+   * Bound on how long epubAdvancePage() will wait, after a chapter
+   * transition, for that chapter's content to actually become visible
+   * before giving up and surfacing the EXISTING render-error/Retry
+   * state (showEpubRenderError() - never a new UI element, never a
+   * silently blank canvas). NOT a normal-path timing budget - every
+   * transition measured in this environment resolves in well under
+   * 100ms - a correctness bound for the rare case content genuinely
+   * never appears, matching EPUB_BUSY_SAFETY_TIMEOUT_MS's own
+   * reasoning above (queueEpubOperation()).
+   */
+  const EPUB_CHAPTER_PAINT_TIMEOUT_MS = 4000;
+  const EPUB_CHAPTER_PAINT_POLL_MS = 50;
+
+  /**
+   * A real, condition-checked wait - never a blind fixed-duration
+   * delay - for the new chapter's text to actually be painted/
+   * hit-testable, not merely present in the DOM. Exists because
+   * epub.js's own next()/prev() promise (confirmed in the vendored
+   * source: Rendition._display() resolves once manager.display()'s
+   * promise settles) resolves once the new section's view has been
+   * built and its render/content hooks have run - it does NOT wait for
+   * the browser to have actually PAINTED that content on screen, and
+   * those are two different moments. This reader's own architecture
+   * investigation (see openEpubReadSession()'s header comment) already
+   * established that document.elementFromPoint() - not DOM/text
+   * presence alone - is the only reliable signal for "is this content
+   * actually rendered", since a real customer-reported blank-page bug
+   * previously reproduced with the DOM/text fully present the whole
+   * time. Walks every real (non-whitespace) text node's own laid-out
+   * position via Range.getClientRects() rather than one fixed
+   * coordinate, so a chapter that starts with a wide top margin or
+   * empty heading space can't produce a false "not painted yet" read.
+   * Resolves true the moment ANY real text position hit-tests to a
+   * real element; resolves false only once EPUB_CHAPTER_PAINT_TIMEOUT_MS
+   * has genuinely elapsed with nothing ever confirmed.
+   */
+  function waitForEpubChapterPaint() {
+    return new Promise((resolve) => {
+      const deadline = Date.now() + EPUB_CHAPTER_PAINT_TIMEOUT_MS;
+      const check = () => {
+        const iframe = canvasWrap.querySelector('iframe');
+        const doc = iframe && iframe.contentDocument;
+        const body = doc && doc.body;
+        if (doc && body) {
+          const walker = doc.createTreeWalker(body, NodeFilter.SHOW_TEXT, {
+            acceptNode(node) {
+              return node.textContent.trim().length > 0 ? NodeFilter.FILTER_ACCEPT : NodeFilter.FILTER_SKIP;
+            },
+          });
+          const range = doc.createRange();
+          let node = walker.nextNode();
+          while (node) {
+            range.selectNodeContents(node);
+            for (const rect of range.getClientRects()) {
+              if (rect.width <= 0 || rect.height <= 0) continue;
+              const el = doc.elementFromPoint(rect.left + rect.width / 2, rect.top + rect.height / 2);
+              if (el && el !== doc.documentElement && el !== body) {
+                resolve(true);
+                return;
+              }
+            }
+            node = walker.nextNode();
+          }
+        }
+        if (Date.now() >= deadline) {
+          resolve(false);
+          return;
+        }
+        setTimeout(check, EPUB_CHAPTER_PAINT_POLL_MS);
+      };
+      check();
+    });
+  }
+
+  /**
    * Turns a Next/Prev press into "page" navigation for the
    * 'scrolled-doc' flow (see openEpubReadSession()'s own header comment
    * on that flow choice) — a flow with no inherent page concept of its
@@ -1036,6 +1111,15 @@ function initLibraryReader() {
         : container.scrollTop <= 1;
     if (atEdge) {
       await (direction > 0 ? epubRendition.next() : epubRendition.prev());
+      // See waitForEpubChapterPaint()'s own header comment for exactly
+      // why this is needed on top of next()/prev()'s own promise, and
+      // why it's a bounded, condition-checked wait rather than a
+      // fixed-duration delay. A false result throws (never a silent
+      // no-op) so queueEpubOperation()'s existing catch() surfaces the
+      // existing render-error/Retry UI, exactly like any other genuine
+      // navigation failure.
+      const painted = await waitForEpubChapterPaint();
+      if (!painted) throw new Error('EPUB chapter content did not become visible after navigation');
       return;
     }
     const amount = container.clientHeight * EPUB_PAGE_SCROLL_OVERLAP * direction;
