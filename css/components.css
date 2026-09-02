@@ -3503,6 +3503,25 @@ button.resource-card {
   position: relative;
   transition: opacity 200ms ease;
 }
+/* White-flash fix — an <iframe> element is opaque white by default
+   regardless of what its own content/CSS ever does, unless something
+   explicitly makes the iframe ELEMENT ITSELF a different color. This
+   targets that outer layer directly (parent-side CSS, applied the
+   instant epub.js creates the iframe, with zero dependency on the
+   book's content/CSS having loaded yet) so the reading surface can
+   never flash white while a new chapter's document is still loading -
+   library-reader.js's applyEpubReadingTheme() handles the INSIDE of
+   the iframe (the book's own html/body) separately, since CSS custom
+   properties can't cross into that isolated document. Reuses
+   --color-bg-alt directly (not a hardcoded literal) specifically so
+   this layer, unlike the inside-the-iframe one, tracks the site's
+   theme automatically with no JS of its own - it's already the same
+   token .reader-canvas-wrap itself uses, so the iframe can never read
+   as a different tone than the wrap immediately around it either. */
+.reader-canvas-wrap--epub .epub-container,
+.reader-canvas-wrap--epub iframe {
+  background-color: var(--color-bg-alt);
+}
 /* Blank-canvas fix — a deliberate, visible "an operation is in flight"
    state (dimmed, never hidden — no display:none/visibility:hidden here,
    per the explicit requirement that this reader never mask content

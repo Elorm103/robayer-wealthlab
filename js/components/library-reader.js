@@ -97,7 +97,7 @@ const MIN_READABLE_FONT_PX = 15;
 // behind every directive here). Any author-supplied CSP is stripped,
 // not trusted, so this policy is always the one actually enforced.
 const EPUB_READER_CSP =
-  "default-src 'none'; img-src 'self' data: blob:; style-src 'self' 'unsafe-inline'; " +
+  "default-src 'none'; img-src 'self' data: blob:; style-src 'self' blob: 'unsafe-inline'; " +
   "font-src 'self' data: blob:; media-src 'self' data: blob:; script-src 'none'; " +
   "connect-src 'none'; frame-src 'none'; object-src 'none'; base-uri 'none'; form-action 'none';";
 
@@ -108,6 +108,44 @@ const EPUB_READER_CSP =
 const EPUB_FONT_SIZE_STEPS = [90, 100, 110, 120, 130, 140, 150];
 const EPUB_DEFAULT_FONT_INDEX = 1;
 const EPUB_LOCATIONS_COUNT = 1000;
+
+// White-flash/readability fix — confirmed directly against the real
+// "Understanding the Ghana Stock Exchange" EPUB: its own style/main.css
+// sets font-family/line-height and a handful of heading colors, but
+// never an explicit background-color or body text color. Without an
+// explicit one from this reader, a chapter's <html>/<body> render
+// browser-default black text over whatever background happens to show
+// through - live-confirmed to be nearly unreadable (near-black-on-
+// near-black) against a dark reading surface, and jarring (default
+// opaque white, the real source of the reported "bright/white EPUB
+// page" - an <iframe> is opaque white by default regardless of its own
+// content unless something says otherwise, and nothing here ever did)
+// wherever that transparency chain doesn't resolve to something dark.
+// Two named epub.js themes (see applyEpubReadingTheme() below), so the
+// reading surface always matches the reader shell around it and
+// switches live with the site's own dark-mode toggle. `!important` is
+// deliberately scoped to ONLY html/body background-color and color -
+// this sets the page's baseline/inherited default, never a book
+// element's own explicit styling (a class-based heading color, a
+// callout box's own background, etc.), which only competes for the
+// SAME property on the SAME element it targets and so is completely
+// unaffected by an !important rule on a different element (see this
+// file's own header comment on EPUB_READING_THEMES for the fuller
+// reasoning). Literal hex values, not var() references, because CSS
+// custom properties don't cross into an epub.js iframe's own isolated
+// document - these are the exact values of this site's own
+// --color-bg-alt/--color-text-primary/--color-accent tokens
+// (tokens.css), kept in sync with that file, not a separate palette.
+const EPUB_READING_THEMES = {
+  light: {
+    'html, body': { 'background-color': '#FAF6EF !important', color: '#22252B !important' },
+    a: { color: '#206F34 !important' },
+  },
+  dark: {
+    'html, body': { 'background-color': '#1B222D !important', color: '#E4E1D8 !important' },
+    a: { color: '#53C679 !important' },
+  },
+};
 
 function initLibraryReader() {
   const root = document.querySelector('[data-reader-root]');
@@ -468,6 +506,35 @@ function initLibraryReader() {
    * is what makes this compose correctly with that internal hook
    * regardless of which one runs first.
    */
+  function isSiteDarkTheme() {
+    return document.documentElement.getAttribute('data-theme') === 'dark';
+  }
+
+  /**
+   * Selects the epub.js theme ('light'/'dark', registered from
+   * EPUB_READING_THEMES) matching the site's current data-theme, and
+   * is re-run live if that attribute ever changes while a chapter is
+   * open (see the MutationObserver set up once in
+   * openEpubReadSession() below — theme-toggle.js has no change event
+   * of its own, and a MutationObserver on this file's own DOM read is
+   * a non-invasive way to react to it without modifying that shared,
+   * site-wide file). themes.select() is synchronous, touches only
+   * CSS/class state on the currently-rendered content, and never
+   * triggers a pagination/layout recalculation (confirmed in the
+   * vendored epub.js source — Themes.select() → update() → add() →
+   * CSSStyleSheet.insertRule()), so this is deliberately NOT routed
+   * through queueEpubOperation() like next()/prev()/display()/resize()
+   * are. It can't race a chapter transition either: epub.js's own
+   * content hook re-applies whichever theme is current to every
+   * newly-created chapter view at creation time, reading that value
+   * fresh each time, regardless of exactly when a theme switch and a
+   * navigation happen to overlap.
+   */
+  function applyEpubReadingTheme() {
+    if (!epubRendition) return;
+    epubRendition.themes.select(isSiteDarkTheme() ? 'dark' : 'light');
+  }
+
   function injectReaderCsp(output, section) {
     let html = section.output;
     html = html.replace(/<meta[^>]+http-equiv=["']content-security-policy["'][^>]*>/gi, '');
@@ -539,17 +606,31 @@ function initLibraryReader() {
       // genuinely does complete later, its own .then()/.catch() below
       // still run then and update the UI correctly at that point — this
       // only bounds how long everything ELSE has to wait behind it.
+      //
+      // Real bug found and fixed here (live-instrumented, not assumed):
+      // the timer backing safetyTimeout was never cancelled once attempt
+      // won the race, so on completely NORMAL navigation (confirmed live:
+      // every ordinary next()/prev()/display() actually settles in well
+      // under 100ms) this still fired 8 seconds later and logged a false
+      // "exceeded the safety timeout" error — every single page turn, for
+      // every reader session, regardless of whether anything was ever
+      // actually wrong. clearTimeout() below is what makes that log line
+      // mean what it says: a genuine, otherwise-never-settling operation,
+      // not routine noise on top of completely healthy navigation.
+      let safetyTimer;
       const attempt = Promise.resolve()
         .then(operation)
         .then(() => {
+          clearTimeout(safetyTimer);
           hideEpubRenderError();
         })
         .catch((error) => {
+          clearTimeout(safetyTimer);
           console.error('[library-reader] EPUB operation failed', error);
           showEpubRenderError();
         });
       const safetyTimeout = new Promise((resolve) => {
-        setTimeout(() => {
+        safetyTimer = setTimeout(() => {
           console.error('[library-reader] EPUB operation exceeded the safety timeout — releasing the queue without it');
           resolve();
         }, EPUB_BUSY_SAFETY_TIMEOUT_MS);
@@ -724,14 +805,70 @@ function initLibraryReader() {
     // section - including the very first one shown - gets the
     // reader's CSP before its content is ever parsed.
     epubBook.spine.hooks.serialize.register(injectReaderCsp);
-    // Deliberately the default (paginated) flow, not 'scrolled-doc':
-    // confirmed directly that 'scrolled-doc' never resolves display()
-    // in this reader's actual layout (reproduced in complete isolation,
-    // outside this file entirely, so it isn't specific to anything
-    // here) - paginated flow also matches the existing Previous/Next
-    // buttons' own semantics more naturally than a continuous scroll
-    // would anyway.
-    epubRendition = epubBook.renderTo(canvasWrap, { width: '100%', height: '100%' });
+    // Rendering architecture — 'scrolled-doc' flow, not the default
+    // paginated (CSS multi-column) flow a much earlier version of this
+    // file used. Root-caused directly, live, against the real GSE book:
+    // the paginated flow renders an entire chapter into ONE very wide
+    // multi-column iframe and pages through it by scrolling an ANCESTOR
+    // element horizontally. Using Range.getClientRects() (real layout
+    // geometry) against document.elementFromPoint() (real paint/hit-
+    // test state), both read from INSIDE the chapter iframe's own
+    // document, proved that content in any column beyond whichever one
+    // was on-screen when that iframe was first inserted was correctly
+    // laid out but never actually painted or hit-testable - a genuinely
+    // blank page, 100% reproducible, on every chapter tested, at every
+    // viewport tested. No CSS/paint workaround fixed it (forced reflow,
+    // resize, GPU-layer promotion via transform/will-change, and even
+    // epub.js's own official manager.resize()/view.reframe() APIs were
+    // all tried and all failed) - the ONLY thing that worked was
+    // force-reloading the iframe, which also destroyed this reader's
+    // injected theme/CSS state and epub.js's own internal view wiring,
+    // an unacceptable trade-off for a production reader.
+    // 'scrolled-doc' avoids the specific combination that triggers this
+    // (CSS multi-column layout + horizontal ancestor-scroll of a huge
+    // iframe) entirely: it lays each chapter out as ordinary vertical
+    // document flow in an iframe scrolled VERTICALLY by an ancestor -
+    // architecturally the exact same "ancestor scrolls a big iframe"
+    // shape, but without CSS columns. Verified directly, the same way
+    // the bug itself was found: walked Range.getClientRects()/
+    // elementFromPoint() across the full height of multiple real
+    // chapters, across multiple real books (including one much larger
+    // than this one), through repeated virtual-page navigation,
+    // font-size changes, and container resizes - zero paint/hit-test
+    // failures anywhere, at any depth. This is a well-supported,
+    // documented epub.js flow (not an undocumented internal hack),
+    // deliberately NOT combined with epub.js's own paginated-vertical
+    // internal mode (isPaginated + axis:'vertical' does exist in the
+    // vendored source, but is not reachable through any public
+    // configuration option - only by mutating manager internals
+    // directly, which is exactly the kind of unsupported hack this
+    // phase's fix is trying to get away from).
+    //
+    // A much earlier version of this comment claimed 'scrolled-doc'
+    // "never resolves display()" in this reader's actual layout. That
+    // was re-tested directly against this exact canvasWrap/CSS this
+    // phase, including while canvasWrap starts hidden and the PDF
+    // canvas is display:none (the exact circumstances Phase 9C.10's own
+    // fix above was about) - display() resolves correctly and
+    // reliably. Whatever caused that original observation, it isn't
+    // reproducible now; if it resurfaces, it needs its own root-cause
+    // investigation rather than reverting to the multi-column flow this
+    // phase just proved is unsafe for production.
+    //
+    // "Pages" are now an application-level concept the paginated flow
+    // used to provide for free - epubAdvancePage() below (used by both
+    // the toolbar buttons and arrow-key navigation) turns a Next/Prev
+    // press into "scroll the chapter by one viewport, or cross into the
+    // next/previous chapter at a boundary" using epub.js's own public
+    // manager.scrollBy()/next()/prev() APIs - never a raw DOM/scroll
+    // hack. Progress/percentage/TOC-highlighting need no changes at
+    // all: epub.js's 'relocated' event (handleEpubRelocated, wired
+    // below) fires correctly off BOTH this app-level page-turn AND any
+    // organic mouse-wheel/touch scroll the customer does directly on
+    // the chapter (confirmed live) - this reader is not turning that
+    // off, since free scrolling is a genuine improvement over the old
+    // paginated flow's fixed page boundaries, not a regression.
+    epubRendition = epubBook.renderTo(canvasWrap, { width: '100%', height: '100%', flow: 'scrolled-doc' });
     epubRendition.on('relocated', handleEpubRelocated);
     epubRendition.on('rendered', cleanupDuplicateEpubContainers);
     // Mobile reader fix — a real stylesheet injected into every rendered
@@ -742,6 +879,16 @@ function initLibraryReader() {
     // long word/URL). Scoped entirely to the chapter document epub.js
     // controls - never touches this app's own DOM/CSS.
     epubRendition.themes.default({
+      // Structural safety rules — unrelated to the flow/architecture
+      // decision above (these apply identically whether the chapter is
+      // laid out in columns or, as now, plain vertical flow): the
+      // book's own content must never be able to force horizontal
+      // overflow regardless of how it was authored. No column-gap rule
+      // here any more - that was a fix for a CSS-multicolumn pagination
+      // math bug (epub.js's paginated Layout.calculate() under-counting
+      // column-gap in its Next()/Prev() scroll distance) that doesn't
+      // exist for 'scrolled-doc' flow, which uses no CSS columns at
+      // all.
       'html, body': { 'max-width': '100%', 'overflow-x': 'hidden', 'box-sizing': 'border-box' },
       'img, svg, video': { 'max-width': '100%', height: 'auto' },
       table: { 'max-width': '100%', display: 'block', 'overflow-x': 'auto' },
@@ -756,6 +903,21 @@ function initLibraryReader() {
         'word-wrap': 'break-word',
       },
     });
+    // White-flash/readability fix — registers the two named themes
+    // from EPUB_READING_THEMES (composed together with the safety
+    // rules above, not replacing them — epub.js applies every
+    // registered theme matching either 'default' or the current
+    // selection to each rendered chapter) and selects the one
+    // matching the site's current dark/light mode. The observer keeps
+    // that selection correct if the customer toggles the site's own
+    // theme while a chapter is already open — disconnected on
+    // pagehide alongside this file's other unload cleanup, since
+    // nothing after that point can still call applyEpubReadingTheme().
+    epubRendition.themes.register(EPUB_READING_THEMES);
+    applyEpubReadingTheme();
+    const epubThemeObserver = new MutationObserver(applyEpubReadingTheme);
+    epubThemeObserver.observe(document.documentElement, { attributes: true, attributeFilter: ['data-theme'] });
+    window.addEventListener('pagehide', () => epubThemeObserver.disconnect());
 
     epubBook.loaded.navigation
       .then((nav) => {
@@ -832,9 +994,59 @@ function initLibraryReader() {
     ensureEpubLocationsGenerated();
   }
 
+  /**
+   * How much of the viewport a single Next/Prev press scrolls by, as a
+   * fraction of the chapter container's own height. Deliberately not
+   * 1.0 — a small overlap (matching the "keep the last line or two in
+   * view" convention real e-readers and PDF viewers already use) so a
+   * page turn never drops the customer mid-sentence with no visual
+   * continuity from the page before.
+   */
+  const EPUB_PAGE_SCROLL_OVERLAP = 0.92;
+
+  /**
+   * Turns a Next/Prev press into "page" navigation for the
+   * 'scrolled-doc' flow (see openEpubReadSession()'s own header comment
+   * on that flow choice) — a flow with no inherent page concept of its
+   * own; epub.js's next()/prev() jump a whole SECTION at a time under
+   * it, which is correct chapter-boundary behavior but too coarse to
+   * be this reader's only Next/Prev granularity. Only ever touches the
+   * DOM through epub.js's own public APIs — manager.scrollBy() for the
+   * within-chapter case (the exact same method epub.js's own internal
+   * next()/prev() call for its paginated-vertical mode; confirmed in
+   * the vendored source), epubRendition.next()/prev() for genuine
+   * chapter transitions. Never a raw scrollTop/scrollLeft assignment,
+   * a forced reflow, a resize, or any of the other techniques this
+   * phase's investigation tried and rejected for the old flow.
+   *
+   * `direction` is 1 for Next, -1 for Prev. Boundary detection reads
+   * the manager's own live container (`epubRendition.manager.container`)
+   * rather than re-querying `.epub-container` from this file's own DOM
+   * lookup, so this can never target a stale/duplicate container (see
+   * cleanupDuplicateEpubContainers()'s own header comment for why more
+   * than one can transiently exist).
+   */
+  async function epubAdvancePage(direction) {
+    const manager = epubRendition && epubRendition.manager;
+    const container = manager && manager.container;
+    if (!container) return;
+    const atEdge =
+      direction > 0
+        ? container.scrollTop + container.clientHeight >= container.scrollHeight - 1
+        : container.scrollTop <= 1;
+    if (atEdge) {
+      await (direction > 0 ? epubRendition.next() : epubRendition.prev());
+      return;
+    }
+    const amount = container.clientHeight * EPUB_PAGE_SCROLL_OVERLAP * direction;
+    const maxScrollTop = container.scrollHeight - container.clientHeight;
+    const targetScrollTop = Math.min(Math.max(container.scrollTop + amount, 0), maxScrollTop);
+    manager.scrollBy(0, targetScrollTop - container.scrollTop, false);
+  }
+
   function wireEpubControls() {
-    prevBtn.addEventListener('click', () => queueEpubOperation(() => epubRendition.prev()));
-    nextBtn.addEventListener('click', () => queueEpubOperation(() => epubRendition.next()));
+    prevBtn.addEventListener('click', () => queueEpubOperation(() => epubAdvancePage(-1)));
+    nextBtn.addEventListener('click', () => queueEpubOperation(() => epubAdvancePage(1)));
     zoomOutBtn.setAttribute('aria-label', 'Decrease font size');
     zoomInBtn.setAttribute('aria-label', 'Increase font size');
     zoomOutBtn.addEventListener('click', () => setEpubFontSize(epubFontIndex - 1));
@@ -843,8 +1055,8 @@ function initLibraryReader() {
     searchTriggerBtn.hidden = false;
 
     canvasWrap.addEventListener('keydown', (event) => {
-      if (event.key === 'ArrowRight') queueEpubOperation(() => epubRendition.next());
-      if (event.key === 'ArrowLeft') queueEpubOperation(() => epubRendition.prev());
+      if (event.key === 'ArrowRight') queueEpubOperation(() => epubAdvancePage(1));
+      if (event.key === 'ArrowLeft') queueEpubOperation(() => epubAdvancePage(-1));
     });
 
     // Mirrors flushProgressOnUnload()'s own reasoning above: the

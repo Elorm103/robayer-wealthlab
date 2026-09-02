@@ -76,18 +76,29 @@ test('wireEpubControls() does NOT register its own window resize listener — th
   assert.doesNotMatch(body, /window\.addEventListener\('resize',/, 'a manual window resize listener here would duplicate epub.js\'s own internal DefaultViewManager resize handling (confirmed in the vendored source) and race it — see this function\'s own comment for the full evidence');
 });
 
-test('wireEpubControls() routes prev()/next() (both the toolbar buttons and arrow-key navigation) through queueEpubOperation(), never called directly', () => {
+test('wireEpubControls() routes page navigation (both the toolbar buttons and arrow-key navigation) through queueEpubOperation() calling epubAdvancePage(), never epubRendition.next()/prev() directly', () => {
   const body = fnBody('wireEpubControls');
-  const wrappedPrev = 'queueEpubOperation(() => epubRendition.prev())';
-  const wrappedNext = 'queueEpubOperation(() => epubRendition.next())';
-  const prevCount = body.split('epubRendition.prev()').length - 1;
-  const nextCount = body.split('epubRendition.next()').length - 1;
+  const wrappedPrev = 'queueEpubOperation(() => epubAdvancePage(-1))';
+  const wrappedNext = 'queueEpubOperation(() => epubAdvancePage(1))';
+  const prevCount = body.split('epubAdvancePage(-1)').length - 1;
+  const nextCount = body.split('epubAdvancePage(1)').length - 1;
   const wrappedPrevCount = body.split(wrappedPrev).length - 1;
   const wrappedNextCount = body.split(wrappedNext).length - 1;
-  assert.ok(prevCount >= 2, 'expects both the toolbar button and the ArrowLeft key handler to call prev()');
-  assert.ok(nextCount >= 2, 'expects both the toolbar button and the ArrowRight key handler to call next()');
-  assert.equal(prevCount, wrappedPrevCount, 'every epubRendition.prev() call must be wrapped in queueEpubOperation() — a bare one can race a concurrent display()/resize()');
-  assert.equal(nextCount, wrappedNextCount, 'every epubRendition.next() call must be wrapped in queueEpubOperation() — a bare one can race a concurrent display()/resize()');
+  assert.ok(prevCount >= 2, 'expects both the toolbar button and the ArrowLeft key handler to call epubAdvancePage(-1)');
+  assert.ok(nextCount >= 2, 'expects both the toolbar button and the ArrowRight key handler to call epubAdvancePage(1)');
+  assert.equal(prevCount, wrappedPrevCount, 'every epubAdvancePage(-1) call must be wrapped in queueEpubOperation() — a bare one can race a concurrent display()/resize()');
+  assert.equal(nextCount, wrappedNextCount, 'every epubAdvancePage(1) call must be wrapped in queueEpubOperation() — a bare one can race a concurrent display()/resize()');
+  assert.doesNotMatch(body, /epubRendition\.(next|prev)\(\)/, 'the toolbar/keyboard handlers must go through epubAdvancePage(), not call epubRendition.next()/prev() directly — see epubAdvancePage()\'s own header comment for why a raw next()/prev() is too coarse a grain for a single Next/Prev press under \'scrolled-doc\' flow');
+});
+
+test('epubAdvancePage() — the \'scrolled-doc\'-flow page-turn implementation — only ever uses epub.js\'s own public manager.scrollBy()/rendition.next()/rendition.prev() APIs, never a raw scrollTop/scrollLeft assignment or any forced-repaint technique', () => {
+  const body = fnBody('epubAdvancePage');
+  assert.match(body, /manager\.scrollBy\(/, 'within-chapter page turns must go through epub.js\'s own public manager.scrollBy(), not a raw container.scrollTop assignment');
+  assert.match(body, /epubRendition\.next\(\)/, 'reaching the bottom of a chapter must fall through to a real chapter transition via epubRendition.next()');
+  assert.match(body, /epubRendition\.prev\(\)/, 'reaching the top of a chapter must fall through to a real chapter transition via epubRendition.prev()');
+  assert.doesNotMatch(body, /\.scrollLeft\s*=/, 'must never manipulate scrollLeft directly — this reader no longer uses a horizontally-paginated flow');
+  assert.doesNotMatch(body, /removeChild|insertBefore|appendChild/, 'must never detach/reattach the iframe — that technique was tried and rejected (it also destroys injected theme/CSS state); see openEpubReadSession()\'s own header comment on the flow choice');
+  assert.doesNotMatch(body, /setTimeout|requestAnimationFrame/, 'must be a synchronous, deterministic scroll — no arbitrary delays or repaint-forcing frame waits');
 });
 
 test('wireEpubControls() wires the render-error Retry button through queueEpubOperation(), targeting lastKnownGoodCfi', () => {
@@ -141,6 +152,12 @@ test('openEpubReadSession() injects a content-reflow theme via epub.js\'s own th
   const themeCallIndex = body.indexOf('epubRendition.themes.default(');
   const displayCallIndex = body.indexOf('epubRendition.display(');
   assert.ok(themeCallIndex !== -1 && displayCallIndex !== -1 && themeCallIndex < displayCallIndex, 'the theme must be registered BEFORE display() ever runs, so even the first-shown chapter gets it');
+});
+
+test('openEpubReadSession() renders with the \'scrolled-doc\' flow, not the default paginated (CSS multi-column) flow — the confirmed-unsafe architecture this phase moved away from', () => {
+  const body = fnBody('openEpubReadSession');
+  assert.match(body, /renderTo\(canvasWrap,\s*\{[^}]*flow:\s*'scrolled-doc'/, 'must explicitly opt into scrolled-doc flow — the default paginated flow lays each chapter out as CSS multi-column content scrolled by an ancestor, which was proven (live, against the real book) to fail to paint/hit-test content beyond the first on-screen column');
+  assert.doesNotMatch(body, /renderTo\(canvasWrap,\s*\{[^}]*gap:\s*0/, 'the old gap:0 renderTo() option was a fix specific to CSS multi-column pagination math and no longer applies once that flow is gone');
 });
 
 test('the AI trigger button, panel title, panel aria-label, and composer label all say "Robayer AI", never the old "WealthLab AI"', () => {
