@@ -42,6 +42,8 @@ import { createOrderArtifacts } from './orders/orderService';
 import { validateCoupon, redeemCoupon, checkFirstPurchaseOnlyViolation } from './couponService';
 import { dispatchPurchase } from './analytics/conversionDispatchService';
 import { paystackKeyToDataClassification } from '../utils/paystackEnvironment';
+import { resolveAffiliateForCheckout } from './affiliateAttributionService';
+import { recordCommission } from './affiliateCommissionService';
 
 /** A pending session outlives a genuinely slow checkout, but doesn't sit "pending" forever if the visitor abandons it — see docs/commerce-foundation.md. */
 const PURCHASE_SESSION_TTL_MINUTES = 30;
@@ -142,6 +144,17 @@ export interface CreateCheckoutSessionInput {
   utmCampaign: string | null;
   /** Reliable Sales Funnel Measurement pass (migration 0046) — the 4th UTM dimension, e.g. "50_percent_offer". Same sanitize/forward path as the other three; never feeds attribution_confidence (a sub-dimension of an already-attributed campaign, not itself evidence of attribution). */
   utmContent: string | null;
+  /**
+   * Affiliate Programme: the `rwl_ref` attribution cookie's value, if
+   * present, read by routes/checkout.ts exactly like fbc/fbp above (a
+   * cookie on this same real customer request). A code, never an
+   * affiliate id or a commission amount; resolveAffiliateForCheckout()
+   * below re-validates it fully (real code, currently 'approved',
+   * not a self-referral) before anything is locked onto the session.
+   * See services/affiliateAttributionService.ts's own header comment
+   * for the full last-click, 30-day attribution model.
+   */
+  affiliateRefCode: string | null;
 }
 
 export interface CreateCheckoutSessionResult {
@@ -253,6 +266,29 @@ export async function createCheckoutSession(
   const hasUtm = input.utmSource !== null || input.utmMedium !== null || input.utmCampaign !== null;
   const attributionConfidence = computeAttributionConfidence(hasUtm, input.fbc);
 
+  // Affiliate Programme: resolved and locked onto the session now,
+  // same "never re-derived later" discipline as coupon_id/
+  // discountPesewas above. A commission is only ever actually WRITTEN
+  // at payment verification (completeVerifiedPurchase() below), never
+  // here; see affiliateCommissionService.ts's recordCommission() for
+  // why (a checkout session can be abandoned and never paid).
+  let affiliateId: number | null = null;
+  let affiliateCommissionPercent: number | null = null;
+  if (input.affiliateRefCode) {
+    // resolveAffiliateForCheckout() needs the numeric products.id (the
+    // affiliate_commissions/affiliate_product_rates FK target), distinct
+    // from CatalogProduct.id above, which is the string product_id
+    // (e.g. "prod-xxx") locked into Paystack metadata.
+    const productRow = await env.DB.prepare(`SELECT id FROM products WHERE slug = ?`).bind(product.slug).first<{ id: number }>();
+    if (productRow) {
+      const affiliateResolution = await resolveAffiliateForCheckout(env, input.affiliateRefCode, productRow.id, customerEmail);
+      if (affiliateResolution.attributed) {
+        affiliateId = affiliateResolution.affiliateId;
+        affiliateCommissionPercent = affiliateResolution.commissionPercent;
+      }
+    }
+  }
+
   const session = await insertPurchaseSession(env, {
     productSlug: product.slug,
     productId: product.id,
@@ -273,6 +309,8 @@ export async function createCheckoutSession(
     utmCampaign: input.utmCampaign,
     utmContent: input.utmContent,
     attributionConfidence,
+    affiliateId,
+    affiliateCommissionPercent,
   });
 
   const provider = getPaymentProvider(env);
@@ -343,6 +381,9 @@ interface InsertPurchaseSessionInput {
   /** Reliable Sales Funnel Measurement pass (migration 0046) — see CreateCheckoutSessionInput's own doc comment. */
   utmContent: string | null;
   attributionConfidence: AttributionConfidence;
+  /** Affiliate Programme: both null together, or both set together; see createCheckoutSession()'s own affiliateResolution block above. */
+  affiliateId: number | null;
+  affiliateCommissionPercent: number | null;
 }
 
 /**
@@ -370,8 +411,9 @@ async function insertPurchaseSession(env: Env, input: InsertPurchaseSessionInput
     `INSERT INTO purchase_sessions
        (purchase_reference, product_slug, product_id, product_version, product_title, amount_pesewas, currency, status, provider, expires_at,
         terms_accepted_at, terms_version, license_accepted_at, license_version, marketing_opt_in, coupon_id, discount_pesewas, customer_email,
-        client_ip_address, client_user_agent, fbc, fbp, utm_source, utm_medium, utm_campaign, utm_content, attribution_confidence, data_classification)
-     VALUES (NULL, ?, ?, ?, ?, ?, ?, 'pending', ?, ?, datetime('now'), ?, datetime('now'), ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`
+        client_ip_address, client_user_agent, fbc, fbp, utm_source, utm_medium, utm_campaign, utm_content, attribution_confidence,
+        affiliate_id, affiliate_commission_percent, data_classification)
+     VALUES (NULL, ?, ?, ?, ?, ?, ?, 'pending', ?, ?, datetime('now'), ?, datetime('now'), ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`
   )
     .bind(
       input.productSlug,
@@ -397,6 +439,8 @@ async function insertPurchaseSession(env: Env, input: InsertPurchaseSessionInput
       input.utmCampaign,
       input.utmContent,
       input.attributionConfidence,
+      input.affiliateId,
+      input.affiliateCommissionPercent,
       // Forensic-audit fix (2026-08-28) — see utils/paystackEnvironment.ts.
       // Classified from the configured Paystack key mode at insert time,
       // instead of defaulting to migration 0028's 'UNKNOWN' forever.
@@ -465,6 +509,9 @@ interface PurchaseSessionRow {
   clientUserAgent: string | null;
   fbc: string | null;
   fbp: string | null;
+  /** Affiliate Programme: both locked at checkout-session creation time; see CreateCheckoutSessionInput's own doc comment. */
+  affiliateId: number | null;
+  affiliateCommissionPercent: number | null;
 }
 
 /**
@@ -711,6 +758,32 @@ async function completeVerifiedPurchase(
     }
   }
 
+  // Affiliate Programme: commission is written here, only now that a
+  // real payment has been confirmed, mirroring coupon redemption
+  // immediately above exactly (never at checkout-session creation,
+  // where a visitor could abandon the checkout and never pay).
+  // recordCommission() never throws, same "never block or undo a
+  // real payment" discipline as every other step in this function; a
+  // commission-tracking failure must never affect fulfilment or the
+  // verification outcome already recorded above. See
+  // affiliateCommissionService.ts's own header comment for the full
+  // idempotency/self-referral reasoning.
+  if (session.affiliateId && session.affiliateCommissionPercent !== null) {
+    const productRow = await env.DB.prepare(`SELECT id FROM products WHERE slug = ?`).bind(session.productSlug).first<{ id: number }>();
+    if (productRow) {
+      await recordCommission(env, logger, {
+        purchaseSessionId: session.id,
+        affiliateId: session.affiliateId,
+        commissionPercent: session.affiliateCommissionPercent,
+        grossPesewas: session.amountPesewas,
+        productId: productRow.id,
+        purchasingCustomerId: customerId,
+      });
+    } else {
+      logger.error('affiliate.commission_skipped_product_missing', { purchaseReference: providerReference, productSlug: session.productSlug });
+    }
+  }
+
   // Milestone M2 (Orders, Receipts & Customer Library) — order_items /
   // licenses / receipts creation, immediately after customer
   // provisioning and before fulfilment, per the ratified Blueprint's
@@ -916,7 +989,8 @@ async function getPurchaseSessionByReference(env: Env, reference: string): Promi
     `SELECT id, product_slug AS productSlug, product_id AS productId, product_version AS productVersion,
             amount_pesewas AS amountPesewas, currency, status, expires_at AS expiresAt, marketing_opt_in AS marketingOptIn,
             license_version AS licenseVersion, coupon_id AS couponId, discount_pesewas AS discountPesewas,
-            client_ip_address AS clientIpAddress, client_user_agent AS clientUserAgent, fbc, fbp
+            client_ip_address AS clientIpAddress, client_user_agent AS clientUserAgent, fbc, fbp,
+            affiliate_id AS affiliateId, affiliate_commission_percent AS affiliateCommissionPercent
      FROM purchase_sessions WHERE purchase_reference = ?`
   )
     .bind(reference)

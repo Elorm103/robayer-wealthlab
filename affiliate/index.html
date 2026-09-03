@@ -1,0 +1,143 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+
+  <title>Affiliate Dashboard | Robayer WealthLab</title>
+  <meta name="description" content="Your Robayer WealthLab affiliate overview.">
+  <link rel="canonical" href="https://robayerwealthlab.com/affiliate/">
+  <meta name="robots" content="noindex, nofollow">
+
+  <link rel="icon" type="image/svg+xml" href="/assets/icons/favicon.svg">
+  <link rel="icon" type="image/png" sizes="32x32" href="/assets/icons/favicon-32.png">
+  <link rel="apple-touch-icon" href="/assets/icons/apple-touch-icon.png">
+
+  <link rel="stylesheet" href="/css/tokens.css?v=2706187f0b">
+  <link rel="stylesheet" href="/css/base.css?v=57a963bc6f">
+  <link rel="stylesheet" href="/css/layout.css?v=a6fb0c7359">
+  <link rel="stylesheet" href="/css/components.css?v=cc2d1cb931">
+  <link rel="stylesheet" href="/css/utilities.css?v=406dfe7300">
+  <link rel="stylesheet" href="/css/affiliate-typography.css?v=1">
+</head>
+<body class="affiliate-experience">
+  <a href="#main-content" class="skip-link">Skip to main content</a>
+
+  <div data-include="/partials/header.html"></div>
+  <div data-include="/partials/affiliate-nav.html"></div>
+
+  <main id="main-content">
+    <section class="section--tight">
+      <div class="container content-column">
+        <span class="eyebrow">Affiliate Programme</span>
+        <h1 class="mt-2 mb-2">Your affiliate overview</h1>
+        <p class="text-secondary mb-5">Clicks, conversions, and what you've earned: all in one place.</p>
+
+        <p data-affiliate-loading class="text-secondary">Loading&hellip;</p>
+        <p data-affiliate-error class="alert alert--error" role="alert" hidden></p>
+
+        <div data-affiliate-root hidden>
+          <!-- No application yet -->
+          <div data-affiliate-state="apply" class="card" hidden>
+            <h2 class="mt-0 mb-2">Become a Robayer WealthLab affiliate</h2>
+            <p class="text-secondary mb-3">
+              Help more people discover practical, Ghana-focused financial education,
+              and earn a commission on eligible purchases you generate. Read the full
+              <a href="/affiliate-programme/">programme details</a> before applying.
+            </p>
+            <form data-affiliate-apply-form>
+              <div class="field field--checkbox mb-3">
+                <label>
+                  <input type="checkbox" data-affiliate-terms-checkbox>
+                  I accept the <a href="/affiliate-programme/#terms" target="_blank" rel="noopener">Affiliate Programme Terms</a>.
+                </label>
+              </div>
+              <p data-affiliate-apply-error class="alert alert--error" role="alert" hidden></p>
+              <button type="submit" class="btn btn--accent">Apply now</button>
+            </form>
+          </div>
+
+          <!-- Pending review -->
+          <div data-affiliate-state="pending" class="alert alert--info" hidden>
+            <p class="mb-0"><strong>Your application is under review.</strong> We'll email you once a decision is made. This usually doesn't take long.</p>
+          </div>
+
+          <!-- Rejected -->
+          <div data-affiliate-state="rejected" class="alert alert--warning" hidden>
+            <p class="mb-2"><strong>Your application wasn't approved this time.</strong></p>
+            <p data-affiliate-rejection-reason class="mb-0 text-secondary"></p>
+          </div>
+
+          <!-- Suspended -->
+          <div data-affiliate-state="suspended" class="alert alert--error" hidden>
+            <p class="mb-2"><strong>Your affiliate account is currently suspended.</strong></p>
+            <p data-affiliate-suspended-reason class="mb-0"></p>
+          </div>
+
+          <!-- Approved: KPI overview -->
+          <div data-affiliate-state="approved" hidden>
+            <p class="text-small text-muted mb-4">Your affiliate code: <code data-affiliate-code-display class="text-mono"></code> &middot; Your commission rate: <strong data-affiliate-rate-display></strong></p>
+
+            <div class="grid grid--4 mb-5">
+              <div class="stat-card">
+                <span class="stat-card__label">Clicks</span>
+                <span class="stat-card__value" data-affiliate-stat-clicks>-</span>
+              </div>
+              <div class="stat-card">
+                <span class="stat-card__label">Conversions</span>
+                <span class="stat-card__value" data-affiliate-stat-conversions>-</span>
+              </div>
+              <div class="stat-card">
+                <span class="stat-card__label">Conversion rate</span>
+                <span class="stat-card__value" data-affiliate-stat-conversion-rate>-</span>
+              </div>
+              <div class="stat-card">
+                <span class="stat-card__label">Revenue generated</span>
+                <span class="stat-card__value" data-affiliate-stat-revenue>-</span>
+              </div>
+            </div>
+
+            <h2 class="mb-3">Earnings</h2>
+            <div class="grid grid--4 mb-5">
+              <div class="stat-card">
+                <span class="stat-card__label">Total earned</span>
+                <span class="stat-card__value" data-affiliate-stat-earned>-</span>
+              </div>
+              <div class="stat-card">
+                <span class="stat-card__label">Pending</span>
+                <span class="stat-card__value" data-affiliate-stat-pending>-</span>
+              </div>
+              <div class="stat-card">
+                <span class="stat-card__label">Payable</span>
+                <span class="stat-card__value" data-affiliate-stat-payable>-</span>
+              </div>
+              <div class="stat-card">
+                <span class="stat-card__label">Paid</span>
+                <span class="stat-card__value" data-affiliate-stat-paid>-</span>
+              </div>
+            </div>
+
+            <p class="cluster gap-3">
+              <a href="/affiliate/links/" class="btn btn--accent">Get your referral link</a>
+              <a href="/affiliate/earnings/" class="btn btn--secondary">View earnings history</a>
+              <a href="/affiliate/resources/" class="btn btn--secondary">Marketing resources</a>
+            </p>
+          </div>
+        </div>
+      </div>
+    </section>
+  </main>
+
+  <div data-include="/partials/footer.html"></div>
+
+  <script src="/js/includes.js?v=cba95d9aa1"></script>
+  <script src="/js/components/nav.js?v=0a04ccf371"></script>
+  <script src="/js/components/theme-toggle.js?v=eebe98960c"></script>
+  <script src="/js/components/branding.js?v=483b048741"></script>
+  <script src="/js/content-inject.js?v=10a4d215c2"></script>
+  <script src="/js/components/dashboard-auth.js?v=bd0b352315"></script>
+  <script src="/js/components/dashboard-shell.js?v=f9f75e4692"></script>
+  <script src="/js/components/affiliate-overview.js?v=1"></script>
+  <script src="/js/main.js?v=1043f4fc00"></script>
+</body>
+</html>

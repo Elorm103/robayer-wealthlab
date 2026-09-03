@@ -117,6 +117,13 @@ export async function handleCreateCheckoutSession(request: Request, env: Env, lo
   const fbc = cookies['_fbc'] ?? null;
   const fbp = cookies['_fbp'] ?? null;
 
+  // Affiliate Programme: the rwl_ref attribution cookie, set by
+  // POST /api/affiliates/click. Re-validated in full by
+  // services/affiliateAttributionService.ts's resolveAffiliateForCheckout()
+  // (real code? currently approved? not a self-referral?); never
+  // trusted just because it's present.
+  const affiliateRefCode = cookies['rwl_ref'] ?? null;
+
   // P0-C (Attribution Continuity) — the UTM values buy-button.js
   // forwards from the sessionStorage js/components/analytics.js
   // already captured on the landing page. Untrusted client input:
@@ -153,6 +160,7 @@ export async function handleCreateCheckoutSession(request: Request, env: Env, lo
       utmMedium: utmMediumValue,
       utmCampaign: utmCampaignValue,
       utmContent: utmContentValue,
+      affiliateRefCode,
     });
     return jsonSuccess({ purchaseReference: result.purchaseReference, checkoutUrl: result.checkoutUrl });
   } catch (err) {

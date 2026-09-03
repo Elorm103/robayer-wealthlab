@@ -113,4 +113,47 @@
   }
 
   document.addEventListener('DOMContentLoaded', loadSiteAnnouncement);
+
+  /**
+   * Affiliate Programme: referral-click detection. Same "one script
+   * every real customer-facing page already includes, no build step
+   * needed to add it anywhere else" reasoning as
+   * loadCloudflareWebAnalytics()/loadMetaPixel()/loadSiteAnnouncement()
+   * above. A genuine no-op on every page load that doesn't carry a
+   * `?ref=` parameter (the overwhelming majority); this never blocks
+   * rendering and never throws if the request fails (a network hiccup
+   * here must never affect the page the visitor actually came for).
+   *
+   * The actual code validation, eligibility check, and cookie-setting
+   * all happen server-side (POST /api/affiliates/click, see
+   * backend/routes/affiliates.ts); this function only detects the
+   * parameter and reports the visit; it never trusts or echoes
+   * anything back from the response into the page.
+   */
+  function trackAffiliateReferral() {
+    const params = new URLSearchParams(window.location.search);
+    const ref = params.get('ref');
+    if (!ref) return;
+
+    // /books/{slug}/... -> product-specific attribution; every other
+    // path (homepage, blog, etc.) is a general referral (productSlug: null).
+    const bookMatch = window.location.pathname.match(/^\/books\/([a-z0-9-]+)\/?/);
+    const productSlug = bookMatch ? bookMatch[1] : null;
+
+    fetch('/api/affiliates/click', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        code: ref,
+        productSlug,
+        landingPath: window.location.pathname,
+      }),
+      credentials: 'same-origin',
+      keepalive: true,
+    }).catch(() => {
+      // Silent, deliberate: see this function's own doc comment.
+    });
+  }
+
+  trackAffiliateReferral();
 })();

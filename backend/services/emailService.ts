@@ -30,6 +30,10 @@ import secureDownloadTemplate from '../emails/templates/secure-download.html';
 import passwordResetTemplate from '../emails/templates/password-reset.html';
 import adminInviteTemplate from '../emails/templates/admin-invite.html';
 import newsletterCampaignTemplate from '../emails/templates/newsletter-campaign.html';
+// Affiliate Programme: see affiliateService.ts's moderateApplication() and affiliatePayoutService.ts's processPayout().
+import affiliateApplicationApprovedTemplate from '../emails/templates/affiliate-application-approved.html';
+import affiliateApplicationRejectedTemplate from '../emails/templates/affiliate-application-rejected.html';
+import affiliatePayoutPaidTemplate from '../emails/templates/affiliate-payout-paid.html';
 // Version 3.0.2 Milestone M1 (Customer Identity & Guest Checkout) — see
 // docs/v3.0.2-commerce-architecture-blueprint.md's Email Architecture
 // (Deliverable 7). Distinct from the admin 'password-reset' template
@@ -90,7 +94,10 @@ export type EmailTemplateName =
   | 'customer-password-reset'
   | 'customer-purchase-reconciliation'
   | 'customer-review-reminder'
-  | 'customer-purchase-followup';
+  | 'customer-purchase-followup'
+  | 'affiliate-application-approved'
+  | 'affiliate-application-rejected'
+  | 'affiliate-payout-paid';
 
 const TEMPLATES: Record<EmailTemplateName, string> = {
   'newsletter-welcome': newsletterWelcomeTemplate,
@@ -107,6 +114,9 @@ const TEMPLATES: Record<EmailTemplateName, string> = {
   'customer-purchase-reconciliation': customerPurchaseReconciliationTemplate,
   'customer-review-reminder': customerReviewReminderTemplate,
   'customer-purchase-followup': customerPurchaseFollowupTemplate,
+  'affiliate-application-approved': affiliateApplicationApprovedTemplate,
+  'affiliate-application-rejected': affiliateApplicationRejectedTemplate,
+  'affiliate-payout-paid': affiliatePayoutPaidTemplate,
 };
 
 export interface SendEmailOptions {

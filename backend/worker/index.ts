@@ -283,6 +283,40 @@ import { handleAdminReviewsList, handleAdminReviewModerate } from '../routes/adm
 // M4B Required Amendment 1 (docs/v3.2-m4c-amendment-1-resolution.md).
 import { handleValidateCoupon } from '../routes/coupons';
 import { handleAdminCouponsList, handleAdminCouponCreate, handleAdminCouponUpdate } from '../routes/admin/coupons';
+
+// Affiliate Programme
+import { handleAffiliateClick } from '../routes/affiliates';
+import {
+  handleGetMyAffiliateProfile,
+  handleApplyForAffiliate,
+  handleGetAffiliateOverview,
+  handleListMyCommissions,
+  handleListMyPayouts,
+  handleSetPayoutDetails,
+  handleRequestPayout,
+  handleListAffiliateResources,
+} from '../routes/customer/affiliates';
+import {
+  handleAdminAffiliatesList,
+  handleAdminAffiliateDetail,
+  handleAdminAffiliateModerate,
+  handleAdminAffiliateSuspend,
+  handleAdminAffiliateReactivate,
+  handleAdminAffiliateSetDefaultRate,
+  handleAdminAffiliateSetProductRate,
+  handleAdminCommissionsList,
+  handleAdminCommissionApprove,
+  handleAdminCommissionMarkPayable,
+  handleAdminCommissionAdjust,
+  handleAdminPayoutsList,
+  handleAdminPayoutApprove,
+  handleAdminPayoutProcess,
+  handleAdminPayoutFail,
+  handleAdminPayoutCancel,
+  handleAdminResourcesList,
+  handleAdminResourceCreate,
+  handleAdminResourceUpdateStatus,
+} from '../routes/admin/affiliates';
 // P0-B (Business Intelligence backbone, first component) — advertising
 // spend ledger. Read-only for now: no attribution, no CPA/ROAS. See
 // routes/admin/adSpend.ts's own header comment.
@@ -732,6 +766,43 @@ const ROUTES: Route[] = [
   // P0-D — read-only, open to all authenticated admin roles (see routes/admin/profitability.ts's own header comment).
   { pattern: new URLPattern({ pathname: '/api/admin/profitability/summary' }), method: 'GET', handler: handleProfitabilitySummary },
   { pattern: new URLPattern({ pathname: '/api/admin/profitability/campaigns' }), method: 'GET', handler: handleProfitabilityCampaigns },
+
+  // Affiliate Programme: public click-tracking (unauthenticated).
+  { pattern: new URLPattern({ pathname: '/api/affiliates/click' }), method: 'POST', handler: handleAffiliateClick },
+
+  // Affiliate Programme: customer-facing (requireCustomerAuth/requireApprovedAffiliate inside each handler).
+  { pattern: new URLPattern({ pathname: '/api/customer/affiliates/me' }), method: 'GET', handler: handleGetMyAffiliateProfile },
+  { pattern: new URLPattern({ pathname: '/api/customer/affiliates/apply' }), method: 'POST', handler: handleApplyForAffiliate },
+  { pattern: new URLPattern({ pathname: '/api/customer/affiliates/overview' }), method: 'GET', handler: handleGetAffiliateOverview },
+  { pattern: new URLPattern({ pathname: '/api/customer/affiliates/commissions' }), method: 'GET', handler: handleListMyCommissions },
+  { pattern: new URLPattern({ pathname: '/api/customer/affiliates/payouts' }), method: 'GET', handler: handleListMyPayouts },
+  { pattern: new URLPattern({ pathname: '/api/customer/affiliates/payouts/request' }), method: 'POST', handler: handleRequestPayout },
+  { pattern: new URLPattern({ pathname: '/api/customer/affiliates/payout-details' }), method: 'POST', handler: handleSetPayoutDetails },
+  { pattern: new URLPattern({ pathname: '/api/customer/affiliates/resources' }), method: 'GET', handler: handleListAffiliateResources },
+
+  // Affiliate Programme: admin (requireAuth + requireRole inside each handler). Static sub-paths registered before the :id-wildcard entries for the same prefix, matching this file's own established ordering discipline.
+  { pattern: new URLPattern({ pathname: '/api/admin/affiliates' }), method: 'GET', handler: handleAdminAffiliatesList },
+  { pattern: new URLPattern({ pathname: '/api/admin/affiliates/:id' }), method: 'GET', handler: handleAdminAffiliateDetail },
+  { pattern: new URLPattern({ pathname: '/api/admin/affiliates/:id/moderate' }), method: 'POST', handler: handleAdminAffiliateModerate },
+  { pattern: new URLPattern({ pathname: '/api/admin/affiliates/:id/suspend' }), method: 'POST', handler: handleAdminAffiliateSuspend },
+  { pattern: new URLPattern({ pathname: '/api/admin/affiliates/:id/reactivate' }), method: 'POST', handler: handleAdminAffiliateReactivate },
+  { pattern: new URLPattern({ pathname: '/api/admin/affiliates/:id/default-rate' }), method: 'POST', handler: handleAdminAffiliateSetDefaultRate },
+  { pattern: new URLPattern({ pathname: '/api/admin/affiliates/:id/product-rate' }), method: 'POST', handler: handleAdminAffiliateSetProductRate },
+
+  { pattern: new URLPattern({ pathname: '/api/admin/affiliate-commissions' }), method: 'GET', handler: handleAdminCommissionsList },
+  { pattern: new URLPattern({ pathname: '/api/admin/affiliate-commissions/:id/approve' }), method: 'POST', handler: handleAdminCommissionApprove },
+  { pattern: new URLPattern({ pathname: '/api/admin/affiliate-commissions/:id/payable' }), method: 'POST', handler: handleAdminCommissionMarkPayable },
+  { pattern: new URLPattern({ pathname: '/api/admin/affiliate-commissions/:id/adjust' }), method: 'POST', handler: handleAdminCommissionAdjust },
+
+  { pattern: new URLPattern({ pathname: '/api/admin/affiliate-payouts' }), method: 'GET', handler: handleAdminPayoutsList },
+  { pattern: new URLPattern({ pathname: '/api/admin/affiliate-payouts/:id/approve' }), method: 'POST', handler: handleAdminPayoutApprove },
+  { pattern: new URLPattern({ pathname: '/api/admin/affiliate-payouts/:id/process' }), method: 'POST', handler: handleAdminPayoutProcess },
+  { pattern: new URLPattern({ pathname: '/api/admin/affiliate-payouts/:id/fail' }), method: 'POST', handler: handleAdminPayoutFail },
+  { pattern: new URLPattern({ pathname: '/api/admin/affiliate-payouts/:id/cancel' }), method: 'POST', handler: handleAdminPayoutCancel },
+
+  { pattern: new URLPattern({ pathname: '/api/admin/affiliate-resources' }), method: 'GET', handler: handleAdminResourcesList },
+  { pattern: new URLPattern({ pathname: '/api/admin/affiliate-resources' }), method: 'POST', handler: handleAdminResourceCreate },
+  { pattern: new URLPattern({ pathname: '/api/admin/affiliate-resources/:id/status' }), method: 'POST', handler: handleAdminResourceUpdateStatus },
 ];
 
 export default {

@@ -1,0 +1,86 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+
+  <title>Earnings | Robayer WealthLab</title>
+  <meta name="description" content="Your Robayer WealthLab affiliate commission and payout history.">
+  <link rel="canonical" href="https://robayerwealthlab.com/affiliate/earnings/">
+  <meta name="robots" content="noindex, nofollow">
+
+  <link rel="icon" type="image/svg+xml" href="/assets/icons/favicon.svg">
+  <link rel="icon" type="image/png" sizes="32x32" href="/assets/icons/favicon-32.png">
+  <link rel="apple-touch-icon" href="/assets/icons/apple-touch-icon.png">
+
+  <link rel="stylesheet" href="/css/tokens.css?v=2706187f0b">
+  <link rel="stylesheet" href="/css/base.css?v=57a963bc6f">
+  <link rel="stylesheet" href="/css/layout.css?v=a6fb0c7359">
+  <link rel="stylesheet" href="/css/components.css?v=cc2d1cb931">
+  <link rel="stylesheet" href="/css/utilities.css?v=406dfe7300">
+  <link rel="stylesheet" href="/css/affiliate-typography.css?v=1">
+</head>
+<body class="affiliate-experience">
+  <a href="#main-content" class="skip-link">Skip to main content</a>
+
+  <div data-include="/partials/header.html"></div>
+  <div data-include="/partials/affiliate-nav.html"></div>
+
+  <main id="main-content">
+    <section class="section--tight">
+      <div class="container content-column">
+        <span class="eyebrow">Affiliate Programme</span>
+        <h1 class="mt-2 mb-2">Earnings</h1>
+        <p class="text-secondary mb-5">Every commission, with a plain-language reason for its current status.</p>
+
+        <p data-affiliate-earnings-loading class="text-secondary">Loading&hellip;</p>
+        <p data-affiliate-earnings-error class="alert alert--error" role="alert" hidden></p>
+
+        <div data-affiliate-earnings-root hidden>
+          <h2 class="mb-3">Commission history</h2>
+          <div class="admin-table-wrap mb-3" data-affiliate-commissions-list hidden></div>
+          <div data-affiliate-commissions-empty class="library-empty-state mb-5" hidden>
+            <p class="mb-0">No commissions yet. Share your referral link to get started.</p>
+          </div>
+
+          <h2 class="mb-3">Payouts</h2>
+          <div class="card mb-4">
+            <p class="text-secondary mb-3">Minimum payout amount: <strong data-affiliate-payout-threshold>-</strong></p>
+            <form data-affiliate-payout-details-form class="mb-3">
+              <div class="field mb-3">
+                <label class="field__label" for="affiliate-payout-method">Payout method</label>
+                <select id="affiliate-payout-method" name="method" class="field__select">
+                  <option value="mobile_money">Mobile Money</option>
+                  <option value="bank_transfer">Bank Transfer</option>
+                </select>
+              </div>
+              <div class="field mb-3">
+                <label class="field__label" for="affiliate-payout-details">Details (phone number or account reference)</label>
+                <input id="affiliate-payout-details" name="details" class="field__input" maxlength="200" required>
+              </div>
+              <button type="submit" class="btn btn--secondary">Save payout details</button>
+              <span data-affiliate-payout-details-saved class="text-small text-secondary ml-2" hidden>Saved.</span>
+            </form>
+            <p data-affiliate-payout-error class="alert alert--error" role="alert" hidden></p>
+            <button type="button" class="btn btn--accent" data-affiliate-request-payout-btn>Request payout</button>
+          </div>
+
+          <div class="admin-table-wrap" data-affiliate-payouts-list></div>
+        </div>
+      </div>
+    </section>
+  </main>
+
+  <div data-include="/partials/footer.html"></div>
+
+  <script src="/js/includes.js?v=cba95d9aa1"></script>
+  <script src="/js/components/nav.js?v=0a04ccf371"></script>
+  <script src="/js/components/theme-toggle.js?v=eebe98960c"></script>
+  <script src="/js/components/branding.js?v=483b048741"></script>
+  <script src="/js/content-inject.js?v=10a4d215c2"></script>
+  <script src="/js/components/dashboard-auth.js?v=bd0b352315"></script>
+  <script src="/js/components/dashboard-shell.js?v=f9f75e4692"></script>
+  <script src="/js/components/affiliate-earnings.js?v=1"></script>
+  <script src="/js/main.js?v=1043f4fc00"></script>
+</body>
+</html>

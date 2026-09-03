@@ -150,4 +150,14 @@ export type ApiErrorCode =
   // AiBudgetExceededError / AiPolicyViolationError). No provider was
   // ever contacted, no real spend occurred.
   | 'AI_GATEWAY_BUDGET_EXCEEDED'
-  | 'AI_GATEWAY_POLICY_VIOLATION';
+  | 'AI_GATEWAY_POLICY_VIOLATION'
+  // /api/customer/affiliates/*, /api/admin/affiliates/*: added for the
+  // Affiliate Programme. See services/affiliateService.ts.
+  | 'AFFILIATE_NOT_FOUND'
+  | 'ALREADY_AFFILIATE'
+  | 'AFFILIATE_NOT_APPROVED'
+  | 'AFFILIATE_SUSPENDED'
+  | 'INVALID_STATE_TRANSITION'
+  | 'PAYOUT_BELOW_THRESHOLD'
+  | 'PAYOUT_NOT_FOUND'
+  | 'INSUFFICIENT_PAYABLE_BALANCE';

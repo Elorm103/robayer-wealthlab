@@ -22,6 +22,7 @@
 
 import type { Env } from '../../worker/env';
 import type { Logger } from '../../utils/logger';
+import { reverseCommission } from '../affiliateCommissionService';
 
 export type RevocationReason = 'refund' | 'chargeback';
 
@@ -104,6 +105,17 @@ export async function revokePurchase(env: Env, logger: Logger, purchaseReference
     licenseCount: licenseIds.length,
     deliveryCount: deliveryIds.length,
   });
+
+  // Affiliate Programme: this is the SAME, single, existing
+  // revocation path every refund/chargeback already goes through
+  // (this function's own header comment: "the only function anywhere
+  // in this codebase that ever sets licenses.revoked_at"); no
+  // parallel refund mechanism was introduced. reverseCommission() is
+  // itself idempotent (a no-op if no commission was ever attributed
+  // to this purchase, or if it was already reversed) and never
+  // reverses a commission that has already been paid, see its own
+  // header comment in affiliateCommissionService.ts.
+  await reverseCommission(env, logger, session.id, reason === 'refund' ? 'Order refunded' : 'Chargeback');
 
   return { ok: true, purchaseSessionId: session.id, licenseIds, deliveryIds };
 }

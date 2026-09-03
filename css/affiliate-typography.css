@@ -1,0 +1,17 @@
+/*
+ * Affiliate Programme typography override. Times New Roman as the
+ * primary typeface for the affiliate experience only, scoped to
+ * body.affiliate-experience so no other page on the site is affected.
+ * Layered directly onto the existing --font-display/--font-heading/
+ * --font-body design tokens (css/tokens.css) so every existing shared
+ * component (cards, badges, tables, nav, buttons) picks it up
+ * automatically with no per-component changes. --font-mono is
+ * deliberately left alone: affiliate codes and referral links use it
+ * for readability, a distinct use case from primary body/heading text.
+ * A system font: no Google Fonts request, no external font CDN.
+ */
+body.affiliate-experience {
+  --font-display: 'Times New Roman', Times, Georgia, serif;
+  --font-heading: 'Times New Roman', Times, Georgia, serif;
+  --font-body: 'Times New Roman', Times, Georgia, serif;
+}

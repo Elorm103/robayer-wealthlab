@@ -1,0 +1,160 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+
+  <title>Affiliates | Robayer WealthLab Admin</title>
+  <meta name="description" content="Manage the Robayer WealthLab affiliate programme.">
+  <link rel="canonical" href="https://robayerwealthlab.com/admin/affiliates/">
+  <meta name="robots" content="noindex, nofollow">
+
+  <link rel="icon" type="image/svg+xml" href="/assets/icons/favicon.svg">
+  <link rel="icon" type="image/png" sizes="32x32" href="/assets/icons/favicon-32.png">
+  <link rel="apple-touch-icon" href="/assets/icons/apple-touch-icon.png">
+
+  <link rel="stylesheet" href="/css/tokens.css?v=2706187f0b">
+  <link rel="stylesheet" href="/css/base.css?v=57a963bc6f">
+  <link rel="stylesheet" href="/css/layout.css?v=a6fb0c7359">
+  <link rel="stylesheet" href="/css/components.css?v=cc2d1cb931">
+  <link rel="stylesheet" href="/css/utilities.css?v=406dfe7300">
+  <link rel="stylesheet" href="/css/admin.css?v=2314b5b33d">
+  <link rel="stylesheet" href="/css/affiliate-typography.css?v=1">
+</head>
+<body class="affiliate-experience">
+  <a href="#main-content" class="skip-link">Skip to main content</a>
+
+  <div class="admin-shell" data-sidebar-collapsed="false">
+    <div class="admin-include" data-include="/partials/admin-sidebar.html"></div>
+
+    <div class="admin-main">
+      <div class="admin-include" data-include="/partials/admin-topbar.html"></div>
+
+      <main class="admin-content" id="main-content" data-affiliates-root>
+        <h1 class="mb-4">Affiliates</h1>
+        <p class="alert alert--error" role="alert" data-affiliates-error hidden></p>
+        <p class="alert alert--success" role="status" data-affiliates-success hidden></p>
+
+        <div class="grid grid--4 mb-4">
+          <div class="stat-card"><span class="stat-card__label">Pending applications</span><span class="stat-card__value" data-affiliates-kpi-pending>-</span></div>
+          <div class="stat-card"><span class="stat-card__label">Approved affiliates</span><span class="stat-card__value" data-affiliates-kpi-approved>-</span></div>
+          <div class="stat-card"><span class="stat-card__label">Payable commissions</span><span class="stat-card__value" data-affiliates-kpi-payable>-</span></div>
+          <div class="stat-card"><span class="stat-card__label">Payout requests</span><span class="stat-card__value" data-affiliates-kpi-payouts>-</span></div>
+        </div>
+
+        <div class="toolbar mb-3">
+          <div class="toolbar__group">
+            <button type="button" class="btn btn--secondary" data-affiliates-tab="affiliates" aria-pressed="true">Affiliates</button>
+            <button type="button" class="btn btn--secondary" data-affiliates-tab="commissions" aria-pressed="false">Commissions</button>
+            <button type="button" class="btn btn--secondary" data-affiliates-tab="payouts" aria-pressed="false">Payouts</button>
+            <button type="button" class="btn btn--secondary" data-affiliates-tab="resources" aria-pressed="false">Resources</button>
+          </div>
+        </div>
+
+        <!-- ==== AFFILIATES TAB ==== -->
+        <section data-affiliates-panel="affiliates">
+          <div class="toolbar mb-3">
+            <div class="toolbar__group">
+              <select data-affiliates-status-filter class="field__select">
+                <option value="">All statuses</option>
+                <option value="pending">Pending</option>
+                <option value="approved">Approved</option>
+                <option value="rejected">Rejected</option>
+                <option value="suspended">Suspended</option>
+              </select>
+              <input type="search" data-affiliates-search class="field__input" placeholder="Search by email or code">
+            </div>
+          </div>
+          <div class="admin-table-wrap">
+            <table class="table">
+              <thead><tr><th>Code</th><th>Email</th><th>Status</th><th class="numeric">Default rate</th><th>Applied</th><th>Actions</th></tr></thead>
+              <tbody data-affiliates-list></tbody>
+            </table>
+          </div>
+
+          <div data-affiliate-detail-panel class="card mt-4" hidden>
+            <button type="button" class="btn btn--secondary mb-3" data-affiliate-detail-close>&larr; Back to list</button>
+            <div data-affiliate-detail-body></div>
+          </div>
+        </section>
+
+        <!-- ==== COMMISSIONS TAB ==== -->
+        <section data-affiliates-panel="commissions" hidden>
+          <div class="toolbar mb-3">
+            <select data-commissions-status-filter class="field__select">
+              <option value="">All statuses</option>
+              <option value="pending">Pending</option>
+              <option value="approved">Approved</option>
+              <option value="payable">Payable</option>
+              <option value="paid">Paid</option>
+              <option value="reversed">Reversed</option>
+            </select>
+          </div>
+          <div class="admin-table-wrap">
+            <table class="table">
+              <thead><tr><th>Affiliate</th><th>Product</th><th class="numeric">Sale</th><th class="numeric">Commission</th><th>Status</th><th>Actions</th></tr></thead>
+              <tbody data-commissions-list></tbody>
+            </table>
+          </div>
+        </section>
+
+        <!-- ==== PAYOUTS TAB ==== -->
+        <section data-affiliates-panel="payouts" hidden>
+          <div class="toolbar mb-3">
+            <select data-payouts-status-filter class="field__select">
+              <option value="">All statuses</option>
+              <option value="requested">Requested</option>
+              <option value="approved">Approved</option>
+              <option value="processing">Processing</option>
+              <option value="paid">Paid</option>
+              <option value="failed">Failed</option>
+              <option value="cancelled">Cancelled</option>
+            </select>
+          </div>
+          <div class="admin-table-wrap">
+            <table class="table">
+              <thead><tr><th>Affiliate</th><th>Email</th><th class="numeric">Amount</th><th>Method</th><th>Status</th><th>Actions</th></tr></thead>
+              <tbody data-payouts-list></tbody>
+            </table>
+          </div>
+        </section>
+
+        <!-- ==== RESOURCES TAB ==== -->
+        <section data-affiliates-panel="resources" hidden>
+          <button type="button" class="btn btn--primary mb-3" data-resource-new-toggle>New resource</button>
+          <div class="card mb-4" data-resource-form-panel hidden>
+            <form data-resource-form>
+              <div class="field mb-2"><label class="field__label">Title</label><input class="field__input" name="title" required></div>
+              <div class="field mb-2">
+                <label class="field__label">Category</label>
+                <select class="field__select" name="category">
+                  <option value="social_caption">Social Caption</option>
+                  <option value="script">Script</option>
+                  <option value="message_template">Message Template</option>
+                  <option value="product_copy">Product Copy</option>
+                  <option value="guidance">Guidance</option>
+                </select>
+              </div>
+              <div class="field mb-2"><label class="field__label">Body text</label><textarea class="field__textarea" name="body" rows="4"></textarea></div>
+              <button type="submit" class="btn btn--accent">Save resource</button>
+            </form>
+          </div>
+          <div class="admin-table-wrap">
+            <table class="table">
+              <thead><tr><th>Title</th><th>Category</th><th>Status</th><th>Actions</th></tr></thead>
+              <tbody data-resources-list></tbody>
+            </table>
+          </div>
+        </section>
+      </main>
+    </div>
+  </div>
+
+  <script src="/js/includes.js?v=cba95d9aa1"></script>
+  <script src="/js/components/theme-toggle.js?v=eebe98960c"></script>
+  <script src="/js/components/branding.js?v=483b048741"></script>
+  <script src="/js/components/admin/admin-auth.js?v=bb1cec7934"></script>
+  <script src="/js/components/admin/admin-shell.js?v=7233204897"></script>
+  <script src="/js/components/admin/admin-affiliates.js?v=1"></script>
+</body>
+</html>
