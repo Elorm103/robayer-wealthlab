@@ -212,7 +212,7 @@ export async function generateDownloadPermission(
 export type RedeemDenialReason = 'token_not_found' | 'token_expired' | 'token_already_used' | 'download_limit_reached' | 'asset_unavailable';
 
 export type RedeemResult =
-  | { ok: true; asset: DigitalAsset; productTitle: string; purpose: EntitlementPurpose }
+  | { ok: true; asset: DigitalAsset; productTitle: string; purpose: EntitlementPurpose; deliveryId: number }
   | { ok: false; reason: RedeemDenialReason };
 
 interface ConsumeTokenResult {
@@ -283,7 +283,7 @@ export async function redeemDownloadToken(env: Env, logger: Logger, tokenInput: 
   }
 
   logger.info('download.redeemed', { deliveryId: consumed.deliveryId, assetId: asset.assetId, purpose: consumed.purpose });
-  return { ok: true, asset, productTitle: product!.title, purpose: consumed.purpose };
+  return { ok: true, asset, productTitle: product!.title, purpose: consumed.purpose, deliveryId: consumed.deliveryId };
 }
 
 /**

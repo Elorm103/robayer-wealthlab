@@ -196,6 +196,14 @@ const DEFAULTS = {
   // full mode/period semantics.
   ai_gateway_retention_storage_mode: DEFAULT_RETENTION_CONFIG.storageMode as AiRetentionStorageMode,
   ai_gateway_retention_days: DEFAULT_RETENTION_CONFIG.retentionDays as number | null,
+  // Secure Digital Library - kill switch for the protected reader
+  // session/page/chapter pathway (routes/reader.ts). Defaults enabled;
+  // flipping this off makes readerSessionService.createReaderSession()
+  // refuse new sessions, so the existing, unmodified whole-file
+  // read-access flow (library-reader.js's pre-secure-reader code path)
+  // becomes the only one reachable again - the documented rollback if
+  // a production issue is found, with no deploy/migration needed.
+  secure_reader_enabled: true as boolean,
 };
 
 type SettingsKey = keyof typeof DEFAULTS;
@@ -318,6 +326,28 @@ export async function getMaintenanceMode(env: Env): Promise<MaintenanceModeValue
 }
 
 /**
+ * Resolves just `secure_reader_enabled` - read by
+ * readerSessionService.createReaderSession() on every reader-session
+ * mint (never cached), the same single-row-lookup shape as
+ * getMaintenanceMode() above. Not yet surfaced in
+ * getEditableSettings()/the admin Settings page UI (a deliberate,
+ * disclosed minimal-scope decision for this phase) - toggle it today
+ * via the existing generic `PATCH /api/admin/settings` endpoint
+ * (`{ "secureReaderEnabled": false }`) or a direct D1 write to
+ * `site_settings`, both real, working mechanisms already, not a gap
+ * that blocks a fast rollback.
+ */
+export async function isSecureReaderEnabled(env: Env): Promise<boolean> {
+  const row = await env.DB.prepare(`SELECT value FROM site_settings WHERE key = 'secure_reader_enabled'`).first<{ value: string }>();
+  if (!row) return DEFAULTS.secure_reader_enabled;
+  try {
+    return JSON.parse(row.value) as boolean;
+  } catch {
+    return DEFAULTS.secure_reader_enabled;
+  }
+}
+
+/**
  * Resolves just `hero_content` for the public, unauthenticated
  * GET /api/hero endpoint the homepage's client-side JS fetches on
  * every load - same single-row-lookup shape as getMaintenanceMode()
@@ -371,6 +401,14 @@ export interface SettingsValidationError {
 const MAX_MESSAGE_LENGTH = 500;
 const MAX_SENDER_NAME_LENGTH = 100;
 const EMAIL_PATTERN = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+
+function validateSecureReaderEnabled(value: unknown, errors: SettingsValidationError[]): boolean | undefined {
+  if (typeof value !== 'boolean') {
+    errors.push({ field: 'secureReaderEnabled', message: 'secureReaderEnabled must be true or false.' });
+    return undefined;
+  }
+  return value;
+}
 
 function validateMaintenanceMode(value: unknown, errors: SettingsValidationError[]): MaintenanceModeValue | undefined {
   if (typeof value !== 'object' || value === null) {
@@ -648,6 +686,7 @@ const PATCH_KEY_MAP: Record<string, SettingsKey> = {
   aiGatewayPlatformBudgetUsdMicros: 'ai_gateway_platform_budget_usd_micros',
   aiGatewayRetentionStorageMode: 'ai_gateway_retention_storage_mode',
   aiGatewayRetentionDays: 'ai_gateway_retention_days',
+  secureReaderEnabled: 'secure_reader_enabled',
 };
 
 export async function updateSettings(env: Env, logger: Logger, actorId: number, patch: Record<string, unknown>, context: ActionContext): Promise<UpdateSettingsResult> {
@@ -707,6 +746,9 @@ export async function updateSettings(env: Env, logger: Logger, actorId: number, 
         break;
       case 'ai_gateway_retention_days':
         value = validateAiGatewayRetentionDays(rawValue, errors);
+        break;
+      case 'secure_reader_enabled':
+        value = validateSecureReaderEnabled(rawValue, errors);
         break;
     }
 

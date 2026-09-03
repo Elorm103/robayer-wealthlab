@@ -160,4 +160,11 @@ export type ApiErrorCode =
   | 'INVALID_STATE_TRANSITION'
   | 'PAYOUT_BELOW_THRESHOLD'
   | 'PAYOUT_NOT_FOUND'
-  | 'INSUFFICIENT_PAYABLE_BALANCE';
+  | 'INSUFFICIENT_PAYABLE_BALANCE'
+  // Secure Digital Library - POST /api/customer/purchases/:reference/reader-session,
+  // GET /api/reader/:sessionToken/page/:pageNumber, GET /api/reader/:sessionToken/chapter/:chapterReference
+  | 'SECURE_READER_DISABLED'
+  | 'READER_ACCESS_DENIED'
+  | 'READER_SESSION_INVALID'
+  | 'INVALID_PAGE'
+  | 'INVALID_CHAPTER';

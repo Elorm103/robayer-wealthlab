@@ -257,6 +257,15 @@ function initLibraryReader() {
 
   document.addEventListener('dashboard:ready', load, { once: true });
 
+  /** See load()'s own comment on why this is a top-level function rather than nested inside load() - every EPUB entry point (legacy and secure) needs to call this once, after its own secure-vs-legacy decision is known, not before. */
+  function dispatchReaderReady(reference, assetId, productSlug, bookTitle, supportsAi) {
+    document.dispatchEvent(
+      new CustomEvent('library-reader:ready', {
+        detail: { purchaseReference: reference, assetId, productSlug, bookTitle, supportsAi },
+      })
+    );
+  }
+
   function getQueryParams() {
     const params = new URLSearchParams(window.location.search);
     // Digital Library Phase F — an optional deep-link target for a
@@ -310,33 +319,55 @@ function initLibraryReader() {
     currentAssetId = assetId;
     currentProductSlug = purchase.productSlug;
 
-    // Digital Library Phase 7C (AI Reading Assistant) — the one
-    // integration point between the reader and the AI panel
-    // (js/components/library-ai-panel.js), a deliberately separate
-    // component per this codebase's one-script-per-concern convention.
-    // Event-based, not a shared module or global mutable state: the
-    // panel only ever learns the resource/book title and whether it's
-    // a supported format from this one dispatch, and the current page
-    // from the page-changed event fired on every render below.
-    document.dispatchEvent(
-      new CustomEvent('library-reader:ready', {
-        detail: { purchaseReference: reference, assetId, productSlug: purchase.productSlug, bookTitle: purchase.productTitle, supportsAi: asset.fileType === 'PDF' || asset.fileType === 'EPUB' },
-      })
-    );
-
     // Phase 8 (Digital Library Observability) — fires once the reader
     // has a confirmed, owned book to show, mirroring how the site's own
     // trackProductView() fires once a book-detail page confirms its
     // slug (js/components/analytics.js). Fires for every format,
-    // including the honest-unsupported EPUB path below - "opened the
+    // including the honest-unsupported EPUB path below — "opened the
     // reader for this book" is true either way.
     if (window.RobayerAnalytics) window.RobayerAnalytics.trackLibraryEvent('library-reader-opened', purchase.productSlug);
+
+    // Digital Library Phase 7C (AI Reading Assistant) — the one
+    // integration point between the reader and the AI panel
+    // (js/components/library-ai-panel.js). Event-based, not a shared
+    // module or global mutable state: the panel only ever learns the
+    // resource/book title and whether it's a supported format from
+    // this one dispatch, and the current page from the page-changed
+    // event fired on every render below.
+    //
+    // Secure Digital Library - dispatched with the correct supportsAi
+    // per actual reading path, not just per file format: PDF's AI
+    // support is unaffected by secure vs. legacy (both report real
+    // page numbers), so it dispatches immediately here. EPUB's AI
+    // citation-jump relies on real epub.js CFIs the secure,
+    // chapter-scoped reader deliberately does not produce (see
+    // openEpubReadSessionSecure()'s own header comment on this
+    // disclosed scope reduction) - so for EPUB, dispatchReaderReady()
+    // (a top-level function, not nested in load(), so every EPUB entry
+    // point below can reach it) is instead called once the
+    // secure-vs-legacy decision is known.
+    if (asset.fileType === 'PDF') dispatchReaderReady(reference, assetId, purchase.productSlug, purchase.productTitle, true);
 
     if (asset.fileType === 'EPUB') {
       // Phase 9C.4 — minimal, CSP-hardened EPUB initialization; see
       // openEpubReadSession()'s own header comment for exactly what
       // this does and, just as importantly, does not do yet.
       shellEl.hidden = false;
+      // Secure Digital Library - tries the protected, chapter-scoped
+      // reader session first; falls back to the existing, unmodified
+      // whole-file epub.js flow only when the backend explicitly
+      // reports the secure reader is disabled (the documented
+      // secure_reader_enabled rollback path), never on a genuine
+      // access denial, which both paths must refuse identically.
+      const secureSession = await mintSecureReaderSession(reference, asset.assetId);
+      if (secureSession.ok) {
+        await openEpubReadSessionSecure(reference, asset, secureSession, jumpCfi);
+        return;
+      }
+      if (!secureSession.fallback) {
+        showError(secureSession.message);
+        return;
+      }
       await openEpubReadSession(reference, asset, jumpCfi);
       return;
     }
@@ -365,7 +396,317 @@ function initLibraryReader() {
       savedProgress = null;
     }
 
+    const secureSession = await mintSecureReaderSession(reference, asset.assetId);
+    if (secureSession.ok) {
+      await openReadSessionSecure(reference, asset, savedProgress, jumpPage, secureSession);
+      return;
+    }
+    if (!secureSession.fallback) {
+      showError(secureSession.message);
+      return;
+    }
     await openReadSession(reference, asset, savedProgress, jumpPage);
+  }
+
+  /**
+   * Secure Digital Library - mints a protected reader session
+   * (POST /api/customer/purchases/:reference/reader-session), the one
+   * customer-cookie-authenticated step in the whole secure-reader flow;
+   * every subsequent page/chapter fetch is scoped to the returned
+   * session token alone (matching the existing GET /api/download/:token
+   * bearer-token pattern). `fallback: true` means specifically "the
+   * backend reports secure_reader_enabled is off" - the ONE case that
+   * silently reverts to the pre-existing whole-file flow; any other
+   * failure (denied entitlement, revoked delivery, etc.) is a real
+   * denial both paths must refuse identically, so it is surfaced as an
+   * error, never silently retried against the legacy path.
+   */
+  async function mintSecureReaderSession(reference, assetId) {
+    let deviceFingerprint = null;
+    try {
+      // Best-effort, non-cryptographic deterrence/concurrency signal
+      // only - see readerSessionService.ts's own header comment. Never
+      // treated as a security boundary by this file or the backend.
+      deviceFingerprint = `${navigator.userAgent}|${screen.width}x${screen.height}|${Intl.DateTimeFormat().resolvedOptions().timeZone || ''}`;
+    } catch {
+      deviceFingerprint = null;
+    }
+
+    try {
+      const result = await window.CustomerDashboard.customerFetch(`/api/customer/purchases/${encodeURIComponent(reference)}/reader-session`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ assetId, deviceFingerprint }),
+      });
+      return { ok: true, token: result.token, fileType: result.fileType, totalPages: result.totalPages, spine: result.spine };
+    } catch (error) {
+      if (error.code === 'SECURE_READER_DISABLED') {
+        return { ok: false, fallback: true };
+      }
+      return { ok: false, fallback: false, message: error.message || 'This resource could not be opened right now. Please try again.' };
+    }
+  }
+
+  /**
+   * A pdf.js "document"-shaped object satisfying exactly the two
+   * members this file's existing, unmodified rendering/navigation code
+   * already calls (`.numPages`, `.getPage(n)` - see renderPage(),
+   * goToPage(), the resume-banner logic above, flushProgressOnUnload())
+   * - but backed by a fresh, single-page, watermarked PDF fetched fresh
+   * for EVERY page turn, never the whole book loaded once. This is the
+   * actual security boundary: every other function in this file that
+   * reads from `pdfDoc` is completely unaware anything changed, by
+   * design - "do not unnecessarily rewrite the reader."
+   */
+  function createSecurePdfDocShim(sessionToken, totalPages) {
+    return {
+      numPages: totalPages,
+      async getPage(pageNumber) {
+        const response = await fetch(`/api/reader/${encodeURIComponent(sessionToken)}/page/${pageNumber}`);
+        if (!response.ok) {
+          const body = await response.json().catch(() => null);
+          throw new Error((body && body.error && body.error.message) || 'This page could not be loaded.');
+        }
+        const bytes = await response.arrayBuffer();
+        const singlePageDoc = await pdfjsLib.getDocument({ data: bytes }).promise;
+        return singlePageDoc.getPage(1);
+      },
+    };
+  }
+
+  /** Secure counterpart to openReadSession() - identical resume/navigation/progress behavior, the only difference is pdfDoc being the per-page shim above instead of the whole file loaded once. */
+  async function openReadSessionSecure(reference, asset, savedProgress, jumpPage, secureSession) {
+    pdfDoc = createSecurePdfDocShim(secureSession.token, secureSession.totalPages);
+
+    const jumpPageNum = jumpPage ? parseInt(jumpPage, 10) : NaN;
+    const validJump = Number.isInteger(jumpPageNum) && jumpPageNum >= 1 && jumpPageNum <= pdfDoc.numPages;
+    const canResume =
+      !validJump &&
+      savedProgress &&
+      savedProgress.status !== 'completed' &&
+      typeof savedProgress.currentPage === 'number' &&
+      savedProgress.currentPage > 1 &&
+      savedProgress.currentPage <= pdfDoc.numPages;
+
+    currentPage = validJump ? jumpPageNum : canResume ? savedProgress.currentPage : 1;
+    if (canResume && savedProgress.currentPage >= pdfDoc.numPages) completionAlreadyReported = true;
+    wireControls();
+    window.addEventListener('pagehide', flushProgressOnUnload);
+
+    try {
+      await renderPage(currentPage);
+    } catch (error) {
+      showError(error.message || 'This resource could not be opened right now. Please try again.');
+      return;
+    }
+
+    if (validJump) {
+      resumeBannerTextEl.textContent = `Jumped to your bookmark - page ${jumpPageNum}.`;
+      resumeBannerEl.hidden = false;
+      resumeRestartBtn.addEventListener('click', () => {
+        resumeBannerEl.hidden = true;
+        goToPage(1);
+      });
+    } else if (canResume) {
+      resumeBannerTextEl.textContent = `Resumed - page ${savedProgress.currentPage} of ${pdfDoc.numPages}.`;
+      resumeBannerEl.hidden = false;
+      if (window.RobayerAnalytics) window.RobayerAnalytics.trackLibraryEvent('library-resume-shown', currentProductSlug);
+      resumeRestartBtn.addEventListener('click', () => {
+        resumeBannerEl.hidden = true;
+        if (window.RobayerAnalytics) window.RobayerAnalytics.trackLibraryEvent('library-resume-restarted', currentProductSlug);
+        goToPage(1);
+      });
+    }
+  }
+
+  // ============================================================
+  // Secure Digital Library - EPUB chapter-scoped reader. A
+  // deliberately separate, smaller implementation from
+  // openEpubReadSession()/epub.js above, not a shim over it: epub.js's
+  // own API fundamentally expects the whole book archive up front,
+  // which is exactly what this path must never fetch. Scope,
+  // disclosed rather than silently reduced: chapter-level navigation
+  // (not epub.js's free-scroll/CFI position), a plain spine-order TOC
+  // labeled by manifest id (not nav.xhtml/NCX titles), no in-book
+  // search. Progress/bookmarks reuse the EXISTING endpoints unchanged,
+  // storing a `spine:{href}` marker in the existing `cfi` field as the
+  // chapter-granularity position - the legacy epub.js reader (used
+  // whenever secure_reader_enabled is off) is completely unaffected
+  // and keeps its full CFI-precise behavior.
+  // ============================================================
+
+  let secureEpubSpine = [];
+  let secureEpubChapterIndex = 0;
+  let secureEpubSessionToken = null;
+
+  function secureEpubIframe() {
+    return canvasWrap.querySelector('[data-secure-epub-frame]');
+  }
+
+  function applySecureEpubTheme(iframeEl) {
+    const doc = iframeEl.contentDocument;
+    if (!doc || !doc.documentElement) return;
+    const dark = isSiteDarkTheme();
+    doc.documentElement.style.setProperty('background-color', dark ? '#1B222D' : '#FAF6EF', 'important');
+    doc.documentElement.style.setProperty('color', dark ? '#E4E1D8' : '#22252B', 'important');
+    if (doc.body) {
+      doc.body.style.setProperty('background-color', dark ? '#1B222D' : '#FAF6EF', 'important');
+      doc.body.style.setProperty('color', dark ? '#E4E1D8' : '#22252B', 'important');
+    }
+  }
+
+  async function renderSecureEpubChapter(index, options) {
+    options = options || {};
+    if (index < 0 || index >= secureEpubSpine.length) return;
+    secureEpubChapterIndex = index;
+    const href = secureEpubSpine[index].href;
+
+    canvasWrap.innerHTML = '';
+    const iframe = document.createElement('iframe');
+    iframe.setAttribute('data-secure-epub-frame', '');
+    iframe.style.width = '100%';
+    iframe.style.height = '100%';
+    iframe.style.border = 'none';
+    canvasWrap.appendChild(iframe);
+
+    let response;
+    try {
+      response = await fetch(`/api/reader/${encodeURIComponent(secureEpubSessionToken)}/chapter/${encodeURIComponent(href)}`);
+    } catch {
+      showError('This resource could not be opened right now. Please try again, or use My Library.');
+      return;
+    }
+    if (!response.ok) {
+      const body = await response.json().catch(() => null);
+      showError((body && body.error && body.error.message) || 'This chapter could not be loaded.');
+      return;
+    }
+    const html = await response.text();
+    iframe.srcdoc = html;
+    await new Promise((resolve) => {
+      iframe.addEventListener('load', resolve, { once: true });
+    });
+    applySecureEpubTheme(iframe);
+
+    pageIndicatorEl.textContent = `Chapter ${index + 1} of ${secureEpubSpine.length}`;
+    progressFillEl.style.width = `${Math.round(((index + 1) / secureEpubSpine.length) * 100)}%`;
+    prevBtn.disabled = index <= 0;
+    nextBtn.disabled = index >= secureEpubSpine.length - 1;
+    highlightActiveTocEntry(href);
+
+    if (!options.skipProgressSave) scheduleEpubProgressSave(`spine:${href}`);
+
+    document.dispatchEvent(
+      new CustomEvent('library-reader:page-changed', { detail: { currentPage: index + 1, totalPages: secureEpubSpine.length } })
+    );
+  }
+
+  /** Secure-path counterpart to flushEpubProgressOnUnload() (which is epub.js/epubRendition-specific and cannot be reused here): best-effort, synchronous-only local cache write on pagehide, matching the existing "a failed/incomplete save must never interrupt reading" discipline. */
+  function flushSecureEpubProgressOnUnload() {
+    if (secureEpubSpine.length === 0) return;
+    const href = secureEpubSpine[secureEpubChapterIndex] && secureEpubSpine[secureEpubChapterIndex].href;
+    if (!href) return;
+    try {
+      localStorage.setItem(epubProgressKey(currentAssetId), JSON.stringify({ cfi: `spine:${href}`, updatedAt: Date.now() }));
+    } catch {
+      // non-fatal
+    }
+  }
+
+  function wireSecureEpubControls() {
+    window.addEventListener('pagehide', flushSecureEpubProgressOnUnload);
+    prevBtn.addEventListener('click', () => renderSecureEpubChapter(secureEpubChapterIndex - 1));
+    nextBtn.addEventListener('click', () => renderSecureEpubChapter(secureEpubChapterIndex + 1));
+    // In-book search and font-size stepping are epub.js-specific
+    // features not reimplemented for this deliberately smaller secure
+    // path. Search stays hidden (its default state). The zoom buttons
+    // default to VISIBLE (PDF reuses them for real zoom, so the markup
+    // doesn't hide them by default) - explicitly hidden here rather
+    // than left visible with no handler attached, which would be a
+    // dead, non-functional control.
+    zoomInBtn.hidden = true;
+    zoomOutBtn.hidden = true;
+    const themeObserver = new MutationObserver(() => {
+      const iframe = secureEpubIframe();
+      if (iframe) applySecureEpubTheme(iframe);
+    });
+    themeObserver.observe(document.documentElement, { attributes: true, attributeFilter: ['data-theme'] });
+    window.addEventListener('pagehide', () => themeObserver.disconnect());
+
+    if (bookmarkAddBtn) {
+      bookmarkAddBtn.hidden = false;
+      wireBookmarkControls(
+        () => ({ cfi: `spine:${secureEpubSpine[secureEpubChapterIndex].href}` }),
+        (position) => {
+          if (typeof position.cfi === 'string' && position.cfi.startsWith('spine:')) {
+            const href = position.cfi.slice('spine:'.length);
+            const idx = secureEpubSpine.findIndex((item) => item.href === href);
+            if (idx !== -1) renderSecureEpubChapter(idx);
+          }
+        }
+      );
+    }
+    // wireEpubDrawers() wires both TOC and Search open/close, but only
+    // the TOC trigger is ever unhidden above - the search button stays
+    // hidden (its default state), so its own listener here is simply
+    // unreachable, not a functional gap. Neither depends on
+    // epubRendition, so this is safe to reuse as-is in the secure path.
+    if (tocTriggerBtn) tocTriggerBtn.hidden = false;
+    wireEpubDrawers();
+  }
+
+  async function openEpubReadSessionSecure(reference, asset, secureSession, jumpCfi) {
+    secureEpubSessionToken = secureSession.token;
+    secureEpubSpine = secureSession.spine || [];
+    if (secureEpubSpine.length === 0) {
+      showError('This resource could not be opened right now. Please try again, or download it instead from My Library.');
+      return;
+    }
+
+    canvasWrap.classList.add('reader-canvas-wrap--epub');
+    tocListEl.innerHTML = '';
+    renderTocItems(
+      secureEpubSpine.map((item, i) => ({ label: `Chapter ${i + 1}`, href: item.href })),
+      tocListEl,
+      (href) => {
+        const idx = secureEpubSpine.findIndex((item) => item.href === href);
+        if (idx !== -1) renderSecureEpubChapter(idx);
+      }
+    );
+
+    wireSecureEpubControls();
+
+    let startIndex = 0;
+    let resumeNotice = null;
+    if (jumpCfi && jumpCfi.startsWith('spine:')) {
+      const idx = secureEpubSpine.findIndex((item) => item.href === jumpCfi.slice('spine:'.length));
+      if (idx !== -1) {
+        startIndex = idx;
+        resumeNotice = 'Jumped to your bookmark.';
+      }
+    } else {
+      const savedCfi = await loadEpubProgress(reference, asset.assetId);
+      if (savedCfi && savedCfi.startsWith('spine:')) {
+        const idx = secureEpubSpine.findIndex((item) => item.href === savedCfi.slice('spine:'.length));
+        if (idx !== -1) {
+          startIndex = idx;
+          resumeNotice = 'Resumed from where you left off.';
+        }
+      }
+    }
+
+    await renderSecureEpubChapter(startIndex, { skipProgressSave: true });
+
+    if (resumeNotice) {
+      resumeBannerTextEl.textContent = resumeNotice;
+      resumeBannerEl.hidden = false;
+      resumeRestartBtn.addEventListener('click', () => {
+        resumeBannerEl.hidden = true;
+        renderSecureEpubChapter(0);
+      });
+    }
+
+    dispatchReaderReady(reference, asset.assetId, currentProductSlug, titleEl.textContent, false);
   }
 
   function wireFallbackDownload(reference, asset) {
@@ -735,6 +1076,7 @@ function initLibraryReader() {
    * part of this phase.
    */
   async function openEpubReadSession(reference, asset, jumpCfi) {
+    dispatchReaderReady(reference, asset.assetId, currentProductSlug, titleEl.textContent, true);
     let readUrl;
     try {
       const permission = await window.CustomerDashboard.customerFetch(`/api/purchases/${encodeURIComponent(reference)}/read-access`, {
@@ -1446,7 +1788,17 @@ function initLibraryReader() {
    * navigation actually resolved a real href for become clickable, so
    * `rendition.display()` is never called with a fabricated target.
    */
-  function renderTocItems(items, container) {
+  /**
+   * `onSelect`, added for the secure EPUB reader (Secure Digital
+   * Library): defaults to the pre-existing epub.js navigation
+   * (`epubRendition.display()`) when omitted, so every existing legacy
+   * caller is completely unaffected. The secure path passes its own
+   * chapter-index navigation instead - epubRendition does not exist in
+   * that path at all, so reusing the old default there would either
+   * throw or silently fail.
+   */
+  function renderTocItems(items, container, onSelect) {
+    const select = onSelect || ((href) => queueEpubOperation(() => epubRendition.display(href)));
     const list = document.createElement('ul');
     list.className = container === tocListEl ? 'reader-toc__list' : 'reader-toc__sublist';
     items.forEach((item) => {
@@ -1459,7 +1811,7 @@ function initLibraryReader() {
         link.textContent = item.label.trim();
         link.addEventListener('click', () => {
           closeReaderDrawers();
-          queueEpubOperation(() => epubRendition.display(item.href));
+          select(item.href);
         });
         li.appendChild(link);
       } else {
@@ -1468,7 +1820,7 @@ function initLibraryReader() {
         heading.textContent = item.label.trim();
         li.appendChild(heading);
       }
-      if (item.subitems && item.subitems.length) renderTocItems(item.subitems, li);
+      if (item.subitems && item.subitems.length) renderTocItems(item.subitems, li, onSelect);
       list.appendChild(li);
     });
     container.appendChild(list);
@@ -1771,10 +2123,14 @@ function initLibraryReader() {
     );
   }
 
-  function goToPage(page) {
+  async function goToPage(page) {
     if (!pdfDoc || page < 1 || page > pdfDoc.numPages || rendering) return;
     currentPage = page;
-    renderPage(currentPage);
+    try {
+      await renderPage(currentPage);
+    } catch (error) {
+      showError(error.message || 'This page could not be loaded. Please try again, or reopen from My Library.');
+    }
   }
 
   /**
@@ -1788,10 +2144,15 @@ function initLibraryReader() {
    * button does everywhere else. The floor now always admits at least
    * the current fit scale, so zoom-out never moves the wrong direction.
    */
-  function setScale(next) {
+  async function setScale(next) {
     const floor = lastFitScale === null ? MIN_SCALE : Math.min(MIN_SCALE, lastFitScale);
     scale = Math.min(MAX_SCALE, Math.max(floor, next));
-    if (pdfDoc) renderPage(currentPage);
+    if (!pdfDoc) return;
+    try {
+      await renderPage(currentPage);
+    } catch (error) {
+      showError(error.message || 'This page could not be loaded. Please try again, or reopen from My Library.');
+    }
   }
 
   /** Phase 9A — the CSS-pixel width actually available for the page to fill: clientWidth already includes padding, so it's subtracted back out. computeFitScale() divides this into the page's own unscaled width. */
@@ -1901,9 +2262,13 @@ function initLibraryReader() {
   /** Phase 9A — resize/orientation-change handler: recomputes the fit-to-width scale for the new available width and re-renders at it, same calculation as the initial load. */
   async function refitAndRerender() {
     if (!pdfDoc || rendering) return;
-    const page = await pdfDoc.getPage(currentPage);
-    scale = await computeFitScale(page, page.getViewport({ scale: 1 }).width);
-    renderPage(currentPage);
+    try {
+      const page = await pdfDoc.getPage(currentPage);
+      scale = await computeFitScale(page, page.getViewport({ scale: 1 }).width);
+      await renderPage(currentPage);
+    } catch (error) {
+      showError(error.message || 'This page could not be loaded. Please try again, or reopen from My Library.');
+    }
   }
 
   async function renderPage(pageNumber) {
@@ -1911,36 +2276,50 @@ function initLibraryReader() {
     prevBtn.disabled = pageNumber <= 1;
     nextBtn.disabled = pageNumber >= pdfDoc.numPages;
 
-    const page = await pdfDoc.getPage(pageNumber);
-    if (scale === null) scale = await computeFitScale(page, page.getViewport({ scale: 1 }).width);
+    // The `rendering` guard above must always clear, even when
+    // pdfDoc.getPage() or the render call itself throws (e.g. the
+    // secure shim's per-page fetch failing on an expired/revoked
+    // session or a disabled secure reader - see createSecurePdfDocShim()).
+    // Previously this was a bare assignment on the success path only,
+    // so a mid-session failure left `rendering` stuck true forever -
+    // goToPage()/setScale()/refitAndRerender() all early-return while
+    // it's true, so the reader silently stopped responding to every
+    // further page-turn/zoom/resize with no visible error. The `finally`
+    // guarantees the guard clears either way; callers now catch the
+    // rethrown error and show it.
+    try {
+      const page = await pdfDoc.getPage(pageNumber);
+      if (scale === null) scale = await computeFitScale(page, page.getViewport({ scale: 1 }).width);
 
-    // Phase 9A — two viewports, deliberately: `viewport` is the
-    // logical, CSS-pixel size the canvas is DISPLAYED at
-    // (canvas.style.width/height) - a real change here is what makes
-    // zoom in/out and the fit-to-width default actually change the
-    // visible size, now that components.css's canvas rule no longer
-    // overrides it with `max-width:100%`. `renderViewport`, scaled
-    // additionally by devicePixelRatio, is the higher INTRINSIC pixel
-    // resolution (canvas.width/height) PDF.js actually draws into -
-    // this is what keeps text crisp on Retina/high-DPI screens instead
-    // of the canvas's own pixels being upscaled/blurred by the browser.
-    const dpr = window.devicePixelRatio || 1;
-    const viewport = page.getViewport({ scale });
-    const renderViewport = page.getViewport({ scale: scale * dpr });
-    const context = canvas.getContext('2d');
-    canvas.width = renderViewport.width;
-    canvas.height = renderViewport.height;
-    canvas.style.width = `${viewport.width}px`;
-    canvas.style.height = `${viewport.height}px`;
+      // Phase 9A - two viewports, deliberately: `viewport` is the
+      // logical, CSS-pixel size the canvas is DISPLAYED at
+      // (canvas.style.width/height) - a real change here is what makes
+      // zoom in/out and the fit-to-width default actually change the
+      // visible size, now that components.css's canvas rule no longer
+      // overrides it with `max-width:100%`. `renderViewport`, scaled
+      // additionally by devicePixelRatio, is the higher INTRINSIC pixel
+      // resolution (canvas.width/height) PDF.js actually draws into -
+      // this is what keeps text crisp on Retina/high-DPI screens instead
+      // of the canvas's own pixels being upscaled/blurred by the browser.
+      const dpr = window.devicePixelRatio || 1;
+      const viewport = page.getViewport({ scale });
+      const renderViewport = page.getViewport({ scale: scale * dpr });
+      const context = canvas.getContext('2d');
+      canvas.width = renderViewport.width;
+      canvas.height = renderViewport.height;
+      canvas.style.width = `${viewport.width}px`;
+      canvas.style.height = `${viewport.height}px`;
 
-    await page.render({ canvasContext: context, viewport: renderViewport }).promise;
+      await page.render({ canvasContext: context, viewport: renderViewport }).promise;
 
-    pageIndicatorEl.textContent = `Page ${pageNumber} of ${pdfDoc.numPages}`;
-    progressFillEl.style.width = `${Math.round((pageNumber / pdfDoc.numPages) * 100)}%`;
-    rendering = false;
+      pageIndicatorEl.textContent = `Page ${pageNumber} of ${pdfDoc.numPages}`;
+      progressFillEl.style.width = `${Math.round((pageNumber / pdfDoc.numPages) * 100)}%`;
 
-    scheduleProgressWrite(pageNumber, pdfDoc.numPages);
-    document.dispatchEvent(new CustomEvent('library-reader:page-changed', { detail: { currentPage: pageNumber, totalPages: pdfDoc.numPages } }));
+      scheduleProgressWrite(pageNumber, pdfDoc.numPages);
+      document.dispatchEvent(new CustomEvent('library-reader:page-changed', { detail: { currentPage: pageNumber, totalPages: pdfDoc.numPages } }));
+    } finally {
+      rendering = false;
+    }
   }
 
   /**
