@@ -31,13 +31,18 @@
       <div class="container content-column">
         <span class="eyebrow">Affiliate Programme</span>
         <h1 class="mt-2 mb-2">Marketing resources</h1>
-        <p class="text-secondary mb-5">Approved copy and assets, ready to share, no guesswork required.</p>
+        <p class="text-secondary mb-3">Product kits and ready-to-use copy, personalized with your own referral link. No guesswork required.</p>
+
+        <p class="alert alert--info text-small mb-5" data-affiliate-disclosure hidden>
+          <strong>Affiliate disclosure:</strong> when you share these links, let your audience know that you may earn a commission if they purchase through your referral link.
+        </p>
 
         <p data-affiliate-resources-loading class="text-secondary">Loading&hellip;</p>
         <p data-affiliate-resources-error class="alert alert--error" role="alert" hidden></p>
 
         <div data-affiliate-resources-root hidden>
-          <div data-affiliate-resources-list></div>
+          <div class="filter-bar mb-4" role="group" aria-label="Filter by product" data-filter-controls data-affiliate-resources-filters></div>
+          <div data-affiliate-resources-list data-filter-grid></div>
           <div data-affiliate-resources-empty class="library-empty-state" hidden>
             <p class="mb-0">No resources have been published yet. Check back soon.</p>
           </div>
@@ -55,7 +60,10 @@
   <script src="/js/content-inject.js?v=10a4d215c2"></script>
   <script src="/js/components/dashboard-auth.js?v=bd0b352315"></script>
   <script src="/js/components/dashboard-shell.js?v=f9f75e4692"></script>
-  <script src="/js/components/affiliate-resources.js?v=1"></script>
+  <script src="/js/components/product-loader.js?v=1"></script>
+  <script src="/js/components/affiliate-shared.js?v=1"></script>
+  <script src="/js/components/content-filters.js?v=2"></script>
+  <script src="/js/components/affiliate-resources.js?v=2"></script>
   <script src="/js/main.js?v=1043f4fc00"></script>
 </body>
 </html>

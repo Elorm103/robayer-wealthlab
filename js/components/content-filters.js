@@ -13,6 +13,13 @@
  *   [data-filter-search]   a text/search <input>
  *   [data-filter-empty]    toggled via .hidden when nothing matches
  * Cards read [data-category] (for pills) and [data-title] (for search).
+ *
+ * Pill clicks are handled via delegation on [data-filter-controls]
+ * itself, not per-button listeners bound at init time, so a page whose
+ * pills are generated dynamically after an async fetch (e.g.
+ * affiliate-resources.js's per-product pills, built once the resource
+ * list is known) still works with zero extra wiring, exactly like a
+ * page whose pills are static HTML from the start.
  */
 
 function initContentFilters() {
@@ -48,13 +55,12 @@ function initContentFilters() {
   }
 
   if (bar) {
-    const pills = Array.from(bar.querySelectorAll('.filter-pill'));
-    pills.forEach((pill) => {
-      pill.addEventListener('click', () => {
-        pills.forEach((p) => p.setAttribute('aria-pressed', String(p === pill)));
-        activeCategory = pill.getAttribute('data-filter');
-        applyFilters();
-      });
+    bar.addEventListener('click', (event) => {
+      const pill = event.target.closest('.filter-pill');
+      if (!pill || !bar.contains(pill)) return;
+      Array.from(bar.querySelectorAll('.filter-pill')).forEach((p) => p.setAttribute('aria-pressed', String(p === pill)));
+      activeCategory = pill.getAttribute('data-filter');
+      applyFilters();
     });
   }
 

@@ -3,43 +3,12 @@
  * affiliate/links/index.html. Pure client-side URL construction (no
  * dedicated "generate link" backend endpoint needed: the code is
  * fetched once, product options come from the existing
- * window.RobayerProducts loader already used by the homepage). Reuses
- * the same copy-to-clipboard micro-interaction already established in
- * js/components/licenses-list.js.
+ * window.RobayerProducts loader already used by the homepage).
+ * buildUrl() and the copy-to-clipboard micro-interaction now live in
+ * js/components/affiliate-shared.js (window.RobayerAffiliate), the one
+ * canonical referral-link mechanism, also used by
+ * affiliate-resources.js. This file must load after that script.
  */
-
-function copyToClipboard(text, button) {
-  const defaultLabel = button.textContent;
-  const done = () => {
-    button.textContent = 'Copied!';
-    window.setTimeout(() => {
-      button.textContent = defaultLabel;
-    }, 2000);
-  };
-  if (navigator.clipboard && navigator.clipboard.writeText) {
-    navigator.clipboard.writeText(text).then(done).catch(done);
-  } else {
-    const textarea = document.createElement('textarea');
-    textarea.value = text;
-    textarea.style.position = 'fixed';
-    textarea.style.opacity = '0';
-    document.body.appendChild(textarea);
-    textarea.select();
-    try {
-      document.execCommand('copy');
-    } catch {
-      // no-op: nothing else reasonable to do without Clipboard API support
-    }
-    document.body.removeChild(textarea);
-    done();
-  }
-}
-
-function buildUrl(code, destination) {
-  const origin = window.location.origin;
-  const path = destination === 'homepage' ? '/' : `/books/${destination}/`;
-  return `${origin}${path}?ref=${encodeURIComponent(code)}`;
-}
 
 async function initAffiliateLinks() {
   const root = document.querySelector('[data-affiliate-links-root]');
@@ -83,7 +52,7 @@ async function initAffiliateLinks() {
   }
 
   function updateUrl() {
-    urlOutput.textContent = buildUrl(affiliateCode, select.value);
+    urlOutput.textContent = window.RobayerAffiliate.buildUrl(affiliateCode, select.value);
   }
 
   select.addEventListener('change', updateUrl);
@@ -92,7 +61,7 @@ async function initAffiliateLinks() {
   loadingEl.hidden = true;
   root.hidden = false;
 
-  copyBtn.addEventListener('click', () => copyToClipboard(urlOutput.textContent, copyBtn));
+  copyBtn.addEventListener('click', () => window.RobayerAffiliate.copyToClipboard(urlOutput.textContent, copyBtn));
 }
 
 document.addEventListener('dashboard:ready', initAffiliateLinks);
