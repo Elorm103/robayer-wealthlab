@@ -13,14 +13,28 @@
  * as usable until `requireSession()` resolves — a missing/expired
  * session redirects to sign-in before this function does anything else.
  *
- * Exception: a `.dashboard-nav[data-optional-auth]` (currently only
- * partials/affiliate-nav.html, for the public /affiliate/ landing page)
- * uses the non-redirecting `getSessionOrNull()` instead, and fires
- * `dashboard:ready` only when a real session exists — otherwise it fires
- * `dashboard:guest` and returns, so the page itself decides what a
- * logged-out visitor sees instead of being bounced to sign-in. Every
- * `.dashboard-nav` without that attribute (every other /dashboard/* and
- * /admin/ page) behaves exactly as before, unchanged.
+ * Exception: a page whose own `<body>` carries `data-optional-auth`
+ * (currently only affiliate/index.html, the public /affiliate/ landing
+ * page) uses the non-redirecting `getSessionOrNull()` instead, and
+ * fires `dashboard:ready` only when a real session exists, otherwise it
+ * fires `dashboard:guest` and returns, so the page itself decides what
+ * a logged-out visitor sees instead of being bounced to sign-in.
+ *
+ * Deliberately read from `document.body`, a given page's own static
+ * markup, never from `.dashboard-nav` itself: the nav is a single
+ * shared partial (partials/affiliate-nav.html) included identically by
+ * every /affiliate/* page, so an attribute placed there would apply to
+ * all of them at once. A production regression shipped exactly that
+ * way once (the nav partial carried the attribute directly), which
+ * silently switched affiliate/links/, affiliate/resources/, and
+ * affiliate/earnings/ over to the non-redirecting path too: those pages
+ * never dispatch or listen for `dashboard:guest`, so a logged-out
+ * visitor to any of them saw a permanently stuck "Loading..." screen
+ * instead of the intended sign-in redirect. Keying off `document.body`
+ * instead scopes the exception to the one page that actually opts in,
+ * with no risk of a shared include silently widening it again. Every
+ * other /dashboard/* and /admin/ page, and every other /affiliate/*
+ * page, behaves exactly as before: hard redirect via `requireSession()`.
  */
 
 async function initDashboardShell() {
@@ -28,7 +42,7 @@ async function initDashboardShell() {
   if (!nav || nav.hasAttribute('data-bound')) return;
   nav.setAttribute('data-bound', 'true');
 
-  const optionalAuth = nav.hasAttribute('data-optional-auth');
+  const optionalAuth = document.body.hasAttribute('data-optional-auth');
   const session = optionalAuth ? await window.CustomerDashboard.getSessionOrNull() : await window.CustomerDashboard.requireSession();
   // requireSession() never resolves after issuing a redirect, so
   // reaching this line in the non-optional path means we have a real,
