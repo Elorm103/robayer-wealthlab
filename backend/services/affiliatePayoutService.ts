@@ -281,6 +281,9 @@ export async function listPayoutsForAffiliate(env: Env, affiliateId: number): Pr
 export interface AdminPayoutListItem extends PayoutListItem {
   affiliateCode: string;
   customerEmail: string;
+  /** The affiliate's own free-text MoMo number / bank account reference (affiliates.payout_details), needed so the admin knows where to actually send the manual payment. Admin-only: never included in listPayoutsForAffiliate() or any customer-facing response. */
+  payoutDetails: string | null;
+  approvedAt: string | null;
 }
 interface AdminPayoutRow extends Omit<AdminPayoutListItem, 'status'> {
   status: string;
@@ -293,8 +296,9 @@ export async function listAllPayouts(env: Env, filter: { status?: AffiliatePayou
 
   const [rows, countRow] = await Promise.all([
     env.DB.prepare(
-      `SELECT p.id, a.affiliate_code AS affiliateCode, c.email AS customerEmail, p.amount_pesewas AS amountPesewas, p.status, p.method,
-              p.reference, p.requested_at AS requestedAt, p.processed_at AS processedAt
+      `SELECT p.id, a.affiliate_code AS affiliateCode, c.email AS customerEmail, a.payout_details AS payoutDetails,
+              p.amount_pesewas AS amountPesewas, p.status, p.method, p.reference,
+              p.requested_at AS requestedAt, p.approved_at AS approvedAt, p.processed_at AS processedAt
        FROM affiliate_payouts p JOIN affiliates a ON a.id = p.affiliate_id JOIN customers c ON c.id = a.customer_id
        ${where} ORDER BY p.id DESC LIMIT ? OFFSET ?`
     )

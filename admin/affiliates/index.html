@@ -100,6 +100,9 @@
 
         <!-- ==== PAYOUTS TAB ==== -->
         <section data-affiliates-panel="payouts" hidden>
+          <p class="alert alert--info mb-3">
+            <strong>Payments are made manually outside Robayer WealthLab.</strong> After sending the payment yourself via Mobile Money or bank transfer, enter the external transaction reference below and mark the payout as paid.
+          </p>
           <div class="toolbar mb-3">
             <select data-payouts-status-filter class="field__select">
               <option value="">All statuses</option>
@@ -113,7 +116,7 @@
           </div>
           <div class="admin-table-wrap">
             <table class="table">
-              <thead><tr><th>Affiliate</th><th>Email</th><th class="numeric">Amount</th><th>Method</th><th>Status</th><th>Actions</th></tr></thead>
+              <thead><tr><th>Affiliate</th><th>Email</th><th class="numeric">Amount</th><th>Method</th><th>Payout details</th><th>Requested</th><th>Approved</th><th>Reference</th><th>Status</th><th>Actions</th></tr></thead>
               <tbody data-payouts-list></tbody>
             </table>
           </div>
@@ -155,6 +158,6 @@
   <script src="/js/components/branding.js?v=483b048741"></script>
   <script src="/js/components/admin/admin-auth.js?v=bb1cec7934"></script>
   <script src="/js/components/admin/admin-shell.js?v=7233204897"></script>
-  <script src="/js/components/admin/admin-affiliates.js?v=1"></script>
+  <script src="/js/components/admin/admin-affiliates.js?v=2"></script>
 </body>
 </html>

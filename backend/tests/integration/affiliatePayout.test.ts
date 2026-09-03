@@ -14,7 +14,7 @@
 import { describe, it, expect, beforeEach } from 'vitest';
 import { env } from 'cloudflare:test';
 import { findOrCreateCustomer } from '../../services/customer/identityService';
-import { requestPayout, approvePayout, processPayout, failPayout, cancelPayout, MIN_PAYOUT_PESEWAS } from '../../services/affiliatePayoutService';
+import { requestPayout, approvePayout, processPayout, failPayout, cancelPayout, listAllPayouts, listPayoutsForAffiliate, MIN_PAYOUT_PESEWAS } from '../../services/affiliatePayoutService';
 import { reverseCommission } from '../../services/affiliateCommissionService';
 import { createLogger } from '../../utils/logger';
 
@@ -533,5 +533,63 @@ describe('Payout finalization vs. commission reversal interaction', () => {
     expect(paidAudit).toBeTruthy();
     const paidMetadata = JSON.parse(paidAudit.metadata);
     expect(paidMetadata.amountPesewas).toBe(MIN_PAYOUT_PESEWAS);
+  });
+});
+
+/**
+ * Manual-payout workflow usability: the admin Payouts tab needs the
+ * affiliate's own payout_details (their MoMo number / bank account
+ * text) to know where to actually send the money, plus the approval
+ * timestamp. This must be admin-only: the affiliate's own payout list
+ * (listPayoutsForAffiliate(), used by GET /api/customer/affiliates/payouts)
+ * must never expose it, since an affiliate viewing their own payout
+ * history has no legitimate need to see it echoed back, and the route
+ * is a customer-facing endpoint an affiliate hits directly.
+ */
+describe('Admin payout list: manual-payout operability fields', () => {
+  it('listAllPayouts() includes the affiliate\'s payout_details and the approval timestamp, so an admin knows where to send the money', async () => {
+    const affiliateId = await seedAffiliate('admin-list-details@example.com', 'RWLADMINLIST', 'mobile_money');
+    await env.DB.prepare(`UPDATE affiliates SET payout_details = ? WHERE id = ?`).bind('024 555 1234, Jane Doe', affiliateId).run();
+    await seedPayableCommission(affiliateId, MIN_PAYOUT_PESEWAS);
+    const adminId = await seedAdmin();
+
+    const requested = await requestPayout(env as any, logger, affiliateId);
+    if (!requested.ok) throw new Error('setup failed');
+    await approvePayout(env as any, logger, adminId, requested.payoutId);
+
+    const { items } = await listAllPayouts(env as any, {}, 1, 20);
+    const row = items.find((i) => i.id === requested.payoutId);
+    expect(row).toBeTruthy();
+    expect(row!.payoutDetails).toBe('024 555 1234, Jane Doe');
+    expect(row!.approvedAt).toBeTruthy();
+  });
+
+  it('a payout with no payout_details set (should not normally happen, since requestPayout() requires one) reports it as null rather than throwing', async () => {
+    const affiliateId = await seedAffiliate('admin-list-no-details@example.com', 'RWLADMINNODETAILS', 'mobile_money');
+    await seedPayableCommission(affiliateId, MIN_PAYOUT_PESEWAS);
+    const requested = await requestPayout(env as any, logger, affiliateId);
+    if (!requested.ok) throw new Error('setup failed');
+
+    // payout_details was never actually set (only payout_method), simulating
+    // a data gap rather than the normal flow.
+    await env.DB.prepare(`UPDATE affiliates SET payout_details = NULL WHERE id = ?`).bind(affiliateId).run();
+
+    const { items } = await listAllPayouts(env as any, {}, 1, 20);
+    const row = items.find((i) => i.id === requested.payoutId);
+    expect(row!.payoutDetails).toBeNull();
+  });
+
+  it('the affiliate-facing listPayoutsForAffiliate() never exposes payout_details: it is admin-only data', async () => {
+    const affiliateId = await seedAffiliate('affiliate-list-no-leak@example.com', 'RWLNOLEAK', 'mobile_money');
+    await env.DB.prepare(`UPDATE affiliates SET payout_details = ? WHERE id = ?`).bind('SENSITIVE-ACCOUNT-INFO', affiliateId).run();
+    await seedPayableCommission(affiliateId, MIN_PAYOUT_PESEWAS);
+    const requested = await requestPayout(env as any, logger, affiliateId);
+    if (!requested.ok) throw new Error('setup failed');
+
+    const items = await listPayoutsForAffiliate(env as any, affiliateId);
+    const row = items.find((i) => i.id === requested.payoutId) as any;
+    expect(row).toBeTruthy();
+    expect(row.payoutDetails).toBeUndefined();
+    expect(JSON.stringify(row)).not.toContain('SENSITIVE-ACCOUNT-INFO');
   });
 });

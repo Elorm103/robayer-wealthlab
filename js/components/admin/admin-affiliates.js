@@ -15,6 +15,11 @@ function formatPesewas(pesewas) {
   return `GH₵${(pesewas / 100).toFixed(2)}`;
 }
 
+/** Matches affiliate-earnings.js's own formatDate() exactly, so the affiliate and admin views of the same payout render identically. */
+function formatDate(iso) {
+  return iso ? new Date(iso.replace(' ', 'T') + 'Z').toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric' }) : '-';
+}
+
 function escapeHtml(value) {
   const div = document.createElement('div');
   div.textContent = value == null ? '' : String(value);
@@ -294,12 +299,16 @@ function initAdminAffiliates() {
         const row = document.createElement('tr');
         const actions = [];
         if (item.status === 'requested') actions.push(`<button type="button" class="btn btn--secondary" data-payout-approve="${item.id}">Approve</button>`, `<button type="button" class="btn btn--secondary" data-payout-cancel="${item.id}">Cancel</button>`);
-        if (item.status === 'approved' || item.status === 'processing') actions.push(`<button type="button" class="btn btn--accent" data-payout-process="${item.id}">Mark paid</button>`, `<button type="button" class="btn btn--secondary" data-payout-fail="${item.id}">Mark failed</button>`);
+        if (item.status === 'approved' || item.status === 'processing') actions.push(`<button type="button" class="btn btn--accent" data-payout-process="${item.id}">Mark as Paid</button>`, `<button type="button" class="btn btn--secondary" data-payout-fail="${item.id}">Mark failed</button>`);
         row.innerHTML = `
           <td><code>${escapeHtml(item.affiliateCode)}</code></td>
           <td>${escapeHtml(item.customerEmail)}</td>
           <td class="numeric">${formatPesewas(item.amountPesewas)}</td>
           <td>${item.method === 'mobile_money' ? 'Mobile Money' : 'Bank Transfer'}</td>
+          <td>${item.payoutDetails ? escapeHtml(item.payoutDetails) : '<span class="text-secondary">Not set</span>'}</td>
+          <td>${formatDate(item.requestedAt)}</td>
+          <td>${formatDate(item.approvedAt)}</td>
+          <td>${item.reference ? escapeHtml(item.reference) : '-'}</td>
           <td><span class="badge ${badgeClass(item.status)}">${escapeHtml(item.status)}</span></td>
           <td>${actions.join(' ')}</td>
         `;
@@ -315,7 +324,7 @@ function initAdminAffiliates() {
         if (reason) transitionPayout(btn.getAttribute('data-payout-fail'), 'fail', { reason });
       }));
       payoutsList.querySelectorAll('[data-payout-process]').forEach((btn) => btn.addEventListener('click', () => {
-        const reference = window.prompt('Real payment reference (this confirms you have ALREADY sent the money externally):');
+        const reference = window.prompt('Enter the external transaction reference. This only RECORDS that you have ALREADY sent the payment manually via Mobile Money or bank transfer; it does not send any money itself:');
         if (reference) transitionPayout(btn.getAttribute('data-payout-process'), 'process', { reference });
       }));
     } catch (error) {
