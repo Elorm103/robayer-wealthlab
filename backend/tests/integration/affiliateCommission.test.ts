@@ -15,16 +15,36 @@ import { adjustCommission } from '../../services/affiliateCommissionService';
 import { createLogger } from '../../utils/logger';
 
 beforeEach(async () => {
+  // purchase_sessions.affiliate_id REFERENCES affiliates(id) (migration
+  // 0055): purchase_sessions must be cleared before affiliates, or a
+  // session still pointing at a test affiliate fails this delete with a
+  // foreign key violation.
   await env.DB.exec('DELETE FROM affiliate_commissions');
   await env.DB.exec('DELETE FROM affiliate_clicks');
-  await env.DB.exec('DELETE FROM affiliates');
   await env.DB.exec('DELETE FROM receipt_download_tokens');
   await env.DB.exec('DELETE FROM receipts');
   await env.DB.exec('DELETE FROM licenses');
   await env.DB.exec('DELETE FROM order_items');
   await env.DB.exec('DELETE FROM deliveries');
   await env.DB.exec('DELETE FROM payment_transactions');
+  // review_reminder_attempts / purchase_followup also reference
+  // purchase_sessions(id) and get a row inserted as a normal fulfilment
+  // side effect of a real checkout -> webhook flow (which most tests in
+  // this file exercise), so both must be cleared before purchase_sessions too.
+  await env.DB.exec('DELETE FROM review_reminder_attempts');
+  await env.DB.exec('DELETE FROM purchase_followup_attempts');
+  // coupon_redemptions.purchase_session_id also references
+  // purchase_sessions(id); this file's own coupon test (seedCoupon()) leaves
+  // a row here that must be cleared before the next test's purchase_sessions delete.
+  // purchase_sessions.coupon_id REFERENCES coupons(id) in the other direction,
+  // so coupons itself must be deleted AFTER purchase_sessions, not before.
+  await env.DB.exec('DELETE FROM coupon_redemptions');
   await env.DB.exec('DELETE FROM purchase_sessions');
+  await env.DB.exec('DELETE FROM coupons');
+  // affiliate_product_rates.affiliate_id also references affiliates(id);
+  // the product-rate-override test leaves a row here.
+  await env.DB.exec('DELETE FROM affiliate_product_rates');
+  await env.DB.exec('DELETE FROM affiliates');
   await env.DB.exec('DELETE FROM email_log');
   await env.DB.exec('DELETE FROM audit_logs');
   await env.DB.exec('DELETE FROM customer_password_tokens');

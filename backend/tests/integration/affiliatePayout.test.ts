@@ -15,11 +15,15 @@ import { describe, it, expect, beforeEach } from 'vitest';
 import { env } from 'cloudflare:test';
 import { findOrCreateCustomer } from '../../services/customer/identityService';
 import { requestPayout, approvePayout, processPayout, failPayout, cancelPayout, MIN_PAYOUT_PESEWAS } from '../../services/affiliatePayoutService';
+import { reverseCommission } from '../../services/affiliateCommissionService';
 import { createLogger } from '../../utils/logger';
 
 beforeEach(async () => {
-  await env.DB.exec('DELETE FROM affiliate_payouts');
+  // affiliate_commissions.payout_id REFERENCES affiliate_payouts(id): must
+  // be cleared first, or a payout with a still-claimed commission fails
+  // this DELETE with a foreign key violation.
   await env.DB.exec('DELETE FROM affiliate_commissions');
+  await env.DB.exec('DELETE FROM affiliate_payouts');
   await env.DB.exec('DELETE FROM affiliates');
   await env.DB.exec('DELETE FROM audit_logs');
   await env.DB.exec('DELETE FROM email_log');
@@ -28,7 +32,13 @@ beforeEach(async () => {
   await env.DB.exec('DELETE FROM customer_profiles');
   await env.DB.exec('DELETE FROM customers');
   await env.DB.exec('DELETE FROM admin_users');
-  await env.DB.exec('DELETE FROM products');
+  // Scoped to this file's own seeded products (see seedPayableCommission()/
+  // seedPayableCommissionWithSession()'s slug pattern), not a blanket
+  // DELETE FROM products: several other tables (reviews, coupons,
+  // product_bundle_items, product_relations) reference products(id) and
+  // are outside this file's own cleanup list, so an unscoped delete can
+  // hit a foreign key violation on data this file never created.
+  await env.DB.prepare(`DELETE FROM products WHERE slug LIKE 'payout-test-%'`).run();
 });
 
 const logger = createLogger('test-request-id', 'test.payout');
@@ -73,6 +83,33 @@ async function seedPayableCommission(affiliateId: number, commissionPesewas: num
     .bind(affiliateId, Number(sessionInsert.meta.last_row_id), productId, commissionPesewas * 5, commissionPesewas)
     .run();
   return Number(commissionInsert.meta.last_row_id);
+}
+
+/** Same as seedPayableCommission(), but also returns purchase_session_id: reverseCommission() takes a purchase session id, not a commission id. */
+async function seedPayableCommissionWithSession(affiliateId: number, commissionPesewas: number): Promise<{ commissionId: number; purchaseSessionId: number }> {
+  const productInsert = await env.DB.prepare(
+    `INSERT INTO products (product_id, slug, title, topic, product_type, status, price_pesewas, currency, pricing_model, tax_behavior, language)
+     VALUES (?, ?, 'Test Product', 'investing', 'ebook', 'active', 3900, 'GHS', 'one-time', 'inclusive', 'en')`
+  )
+    .bind(`prod-payout-${Math.random().toString(36).slice(2)}`, `payout-test-${Math.random().toString(36).slice(2)}`)
+    .run();
+  const productId = Number(productInsert.meta.last_row_id);
+
+  const sessionInsert = await env.DB.prepare(
+    `INSERT INTO purchase_sessions (purchase_reference, product_slug, product_id, product_title, amount_pesewas, currency, status, expires_at)
+     VALUES (?, 'payout-test', ?, 'Test Product', ?, 'GHS', 'verified', datetime('now', '+1 hour'))`
+  )
+    .bind(`RWL-PAYOUT-TEST-${Math.random().toString(36).slice(2)}`, productId, commissionPesewas * 5)
+    .run();
+  const purchaseSessionId = Number(sessionInsert.meta.last_row_id);
+
+  const commissionInsert = await env.DB.prepare(
+    `INSERT INTO affiliate_commissions (affiliate_id, purchase_session_id, product_id, gross_pesewas, commission_percent, commission_pesewas, status, payable_at, data_classification)
+     VALUES (?, ?, ?, ?, 20, ?, 'payable', datetime('now'), 'PRODUCTION')`
+  )
+    .bind(affiliateId, purchaseSessionId, productId, commissionPesewas * 5, commissionPesewas)
+    .run();
+  return { commissionId: Number(commissionInsert.meta.last_row_id), purchaseSessionId };
 }
 
 describe('requestPayout(): threshold and eligibility', () => {
@@ -288,5 +325,213 @@ describe('Payout state machine', () => {
 
     const payoutRow = await env.DB.prepare(`SELECT status FROM affiliate_payouts WHERE id = ?`).bind(requested.payoutId).first<any>();
     expect(payoutRow.status).toBe('paid'); // unchanged
+  });
+});
+
+/**
+ * Post-commit audit finding: a commission reversed after being claimed
+ * into an unpaid payout could previously still end up marked 'paid'
+ * (processPayout()'s finalize step had no status filter), paying the
+ * affiliate for a refunded sale and silently overwriting the
+ * commission's 'reversed' status back to 'paid'. Fixed in both
+ * reverseCommission() (atomic status-gated transition, plus an
+ * immediate, atomically-gated shrink of any outstanding payout it was
+ * claimed into) and processPayout() (finalizes only genuinely
+ * 'payable' commissions, then recomputes its own recorded amount from
+ * what was ACTUALLY just marked paid rather than trusting the
+ * pre-existing amount_pesewas). These tests cover the full interleaving
+ * matrix, including a real concurrency test (Promise.all, not
+ * sequential awaits), not just the sequential case.
+ */
+describe('Payout finalization vs. commission reversal interaction', () => {
+  it('payable -> claimed -> reversed -> payout paid: with only one commission claimed, a full reversal leaves nothing legitimately owed, so the payout fails rather than being recorded paid for zero pesewas', async () => {
+    const affiliateId = await seedAffiliate('reversed-then-paid@example.com', 'RWLREVTHENPAID');
+    const { purchaseSessionId } = await seedPayableCommissionWithSession(affiliateId, MIN_PAYOUT_PESEWAS);
+    const adminId = await seedAdmin();
+
+    const requested = await requestPayout(env as any, logger, affiliateId);
+    if (!requested.ok) throw new Error('setup failed');
+    await approvePayout(env as any, logger, adminId, requested.payoutId);
+
+    const reversal = await reverseCommission(env as any, logger, purchaseSessionId, 'Order refunded');
+    expect(reversal.reversed).toBe(true);
+
+    // With only one commission ever claimed, reversing it would bring the payout's
+    // amount to zero, which the amount_pesewas > 0 CHECK constraint forbids writing.
+    // The reversal itself fails the payout immediately instead (amount_pesewas is left
+    // as whatever it already was, never overwritten with an invalid value; the real
+    // signal that nothing is owed is the status transition, not the stored amount).
+    const afterReversal = await env.DB.prepare(`SELECT status FROM affiliate_payouts WHERE id = ?`).bind(requested.payoutId).first<any>();
+    expect(afterReversal.status).toBe('failed');
+
+    const processed = await processPayout(env as any, logger, adminId, requested.payoutId, 'REF-SHOULD-NOT-APPLY');
+    expect(processed.ok).toBe(false); // nothing legitimately owed: this must never succeed as a "paid" record
+    if (!processed.ok) expect(processed.reason).toBe('invalid_state');
+
+    const payoutRow = await env.DB.prepare(`SELECT status, failure_reason AS failureReason FROM affiliate_payouts WHERE id = ?`).bind(requested.payoutId).first<any>();
+    expect(payoutRow.status).toBe('failed'); // never left as 'paid' for a zero-pesewas payout
+    expect(payoutRow.failureReason).toBeTruthy();
+
+    const commissionRow = await env.DB.prepare(`SELECT status FROM affiliate_commissions WHERE purchase_session_id = ?`).bind(purchaseSessionId).first<any>();
+    expect(commissionRow.status).toBe('reversed'); // never flipped to 'paid'
+  });
+
+  it('payable -> claimed -> reversed -> payout approved: reversing AFTER approval but BEFORE processing still shrinks the approved payout in real time', async () => {
+    const affiliateId = await seedAffiliate('reversed-after-approval@example.com', 'RWLREVAFTERAPPROVE');
+    const kept = await seedPayableCommissionWithSession(affiliateId, MIN_PAYOUT_PESEWAS);
+    const reversed = await seedPayableCommissionWithSession(affiliateId, 2000);
+    const adminId = await seedAdmin();
+
+    const requested = await requestPayout(env as any, logger, affiliateId);
+    if (!requested.ok) throw new Error('setup failed');
+    expect(requested.amountPesewas).toBe(MIN_PAYOUT_PESEWAS + 2000);
+
+    const approved = await approvePayout(env as any, logger, adminId, requested.payoutId);
+    expect(approved.ok).toBe(true);
+
+    await reverseCommission(env as any, logger, reversed.purchaseSessionId, 'Order cancelled');
+
+    // The payout is still merely 'approved', not yet paid, but its recorded amount already reflects the reversal.
+    const afterReversal = await env.DB.prepare(`SELECT status, amount_pesewas AS amount FROM affiliate_payouts WHERE id = ?`).bind(requested.payoutId).first<any>();
+    expect(afterReversal.status).toBe('approved');
+    expect(afterReversal.amount).toBe(MIN_PAYOUT_PESEWAS);
+  });
+
+  it('a payout with multiple claimed commissions where only one is reversed pays out exactly the remaining valid total, never the reversed share', async () => {
+    const affiliateId = await seedAffiliate('partial-reversal@example.com', 'RWLPARTIALREV');
+    const kept = await seedPayableCommissionWithSession(affiliateId, MIN_PAYOUT_PESEWAS);
+    const reversed = await seedPayableCommissionWithSession(affiliateId, 3000);
+    const adminId = await seedAdmin();
+
+    const requested = await requestPayout(env as any, logger, affiliateId);
+    if (!requested.ok) throw new Error('setup failed');
+    await approvePayout(env as any, logger, adminId, requested.payoutId);
+    await reverseCommission(env as any, logger, reversed.purchaseSessionId, 'Chargeback');
+
+    const processed = await processPayout(env as any, logger, adminId, requested.payoutId, 'REF-PARTIAL-OK');
+    expect(processed.ok).toBe(true);
+
+    const payoutRow = await env.DB.prepare(`SELECT amount_pesewas AS amount FROM affiliate_payouts WHERE id = ?`).bind(requested.payoutId).first<any>();
+    expect(payoutRow.amount).toBe(MIN_PAYOUT_PESEWAS); // exactly the kept commission's share, never including the reversed 3000
+
+    const keptRow = await env.DB.prepare(`SELECT status FROM affiliate_commissions WHERE purchase_session_id = ?`).bind(kept.purchaseSessionId).first<any>();
+    expect(keptRow.status).toBe('paid');
+    const reversedRow = await env.DB.prepare(`SELECT status, reversed_reason AS reason FROM affiliate_commissions WHERE purchase_session_id = ?`).bind(reversed.purchaseSessionId).first<any>();
+    expect(reversedRow.status).toBe('reversed'); // never overwritten to 'paid'
+    expect(reversedRow.reason).toBe('Chargeback'); // audit trail preserved through the payout finalization
+  });
+
+  it('a genuinely CONCURRENT reversal and payout processing (Promise.all, not sequential awaits) can never result in the reversed commission being marked paid or counted in the paid amount', async () => {
+    // The same true-concurrency technique used elsewhere in this suite
+    // (see the "GENUINELY CONCURRENT requestPayout()" test above and
+    // tests/integration/couponRaceConditions.test.ts); both operations
+    // fired together so their individual awaited D1 statements genuinely
+    // interleave, not simulated by sequential calls.
+    const affiliateId = await seedAffiliate('true-race-reversal@example.com', 'RWLTRUERACEREV');
+    const kept = await seedPayableCommissionWithSession(affiliateId, MIN_PAYOUT_PESEWAS);
+    const contested = await seedPayableCommissionWithSession(affiliateId, 1500);
+    const adminId = await seedAdmin();
+
+    const requested = await requestPayout(env as any, logger, affiliateId);
+    if (!requested.ok) throw new Error('setup failed');
+    await approvePayout(env as any, logger, adminId, requested.payoutId);
+
+    const [reversalResult, payoutResult] = await Promise.all([
+      reverseCommission(env as any, logger, contested.purchaseSessionId, 'Order refunded mid-payout'),
+      processPayout(env as any, logger, adminId, requested.payoutId, 'REF-TRUE-RACE'),
+    ]);
+
+    // Whichever order the two actually resolved in, the invariant must hold regardless:
+    const contestedRow = await env.DB.prepare(`SELECT status FROM affiliate_commissions WHERE purchase_session_id = ?`).bind(contested.purchaseSessionId).first<any>();
+    expect(contestedRow.status).not.toBe('paid'); // the core guarantee: reversed can never become paid, no matter the interleaving
+
+    const payoutRow = await env.DB.prepare(`SELECT amount_pesewas AS amount, status FROM affiliate_payouts WHERE id = ?`).bind(requested.payoutId).first<any>();
+    if (payoutRow.status === 'paid') {
+      // The contested commission's 1500 pesewas must never be part of a 'paid' total.
+      expect(payoutRow.amount).toBe(MIN_PAYOUT_PESEWAS);
+    }
+
+    // Sum of every commission actually marked 'paid' anywhere for this affiliate must never include the reversed one's amount.
+    const paidSum = await env.DB.prepare(`SELECT COALESCE(SUM(commission_pesewas), 0) AS total FROM affiliate_commissions WHERE affiliate_id = ? AND status = 'paid'`).bind(affiliateId).first<any>();
+    expect(paidSum.total).toBeLessThanOrEqual(MIN_PAYOUT_PESEWAS);
+  });
+
+  it('an already-paid commission still cannot be reversed, even when reached through the full real payout flow (not just a directly-seeded paid row)', async () => {
+    const affiliateId = await seedAffiliate('paid-via-payout-flow@example.com', 'RWLPAIDVIAFLOW');
+    const { purchaseSessionId } = await seedPayableCommissionWithSession(affiliateId, MIN_PAYOUT_PESEWAS);
+    const adminId = await seedAdmin();
+
+    const requested = await requestPayout(env as any, logger, affiliateId);
+    if (!requested.ok) throw new Error('setup failed');
+    await approvePayout(env as any, logger, adminId, requested.payoutId);
+    const processed = await processPayout(env as any, logger, adminId, requested.payoutId, 'REF-ALREADY-PAID-FLOW');
+    expect(processed.ok).toBe(true);
+
+    const reversal = await reverseCommission(env as any, logger, purchaseSessionId, 'attempted refund after payout');
+    expect(reversal.reversed).toBe(false); // blocked: already paid
+
+    const commissionRow = await env.DB.prepare(`SELECT status FROM affiliate_commissions WHERE purchase_session_id = ?`).bind(purchaseSessionId).first<any>();
+    expect(commissionRow.status).toBe('paid'); // unchanged
+  });
+
+  it('reverseCommission() is idempotent under retry even when it has already shrunk an outstanding payout: a second call never double-decrements the payout amount', async () => {
+    const affiliateId = await seedAffiliate('retry-reversal@example.com', 'RWLRETRYREV');
+    const kept = await seedPayableCommissionWithSession(affiliateId, MIN_PAYOUT_PESEWAS);
+    const reversed = await seedPayableCommissionWithSession(affiliateId, 2500);
+    const adminId = await seedAdmin();
+
+    const requested = await requestPayout(env as any, logger, affiliateId);
+    if (!requested.ok) throw new Error('setup failed');
+    await approvePayout(env as any, logger, adminId, requested.payoutId);
+
+    const first = await reverseCommission(env as any, logger, reversed.purchaseSessionId, 'Refund webhook delivery 1');
+    expect(first.reversed).toBe(true);
+    const second = await reverseCommission(env as any, logger, reversed.purchaseSessionId, 'Refund webhook delivery 2 (redelivered)');
+    expect(second.reversed).toBe(false); // idempotent no-op, not a second reversal
+
+    const payoutRow = await env.DB.prepare(`SELECT amount_pesewas AS amount FROM affiliate_payouts WHERE id = ?`).bind(requested.payoutId).first<any>();
+    expect(payoutRow.amount).toBe(MIN_PAYOUT_PESEWAS); // decremented exactly once, not twice
+  });
+
+  it('retrying processPayout() after it already failed due to a full reversal does not throw and does not resurrect the payout as paid', async () => {
+    const affiliateId = await seedAffiliate('retry-all-reversed@example.com', 'RWLRETRYALLREV');
+    const { purchaseSessionId } = await seedPayableCommissionWithSession(affiliateId, MIN_PAYOUT_PESEWAS);
+    const adminId = await seedAdmin();
+
+    const requested = await requestPayout(env as any, logger, affiliateId);
+    if (!requested.ok) throw new Error('setup failed');
+    await approvePayout(env as any, logger, adminId, requested.payoutId);
+    await reverseCommission(env as any, logger, purchaseSessionId, 'Order refunded');
+
+    const firstAttempt = await processPayout(env as any, logger, adminId, requested.payoutId, 'REF-FIRST-ATTEMPT');
+    expect(firstAttempt.ok).toBe(false);
+
+    // The payout is now 'failed', not 'approved'/'processing' any more, so a retry is cleanly rejected, not a crash or a silent success.
+    const retryAttempt = await processPayout(env as any, logger, adminId, requested.payoutId, 'REF-RETRY-ATTEMPT');
+    expect(retryAttempt.ok).toBe(false);
+    if (!retryAttempt.ok) expect(retryAttempt.reason).toBe('invalid_state');
+  });
+
+  it('the audit trail records the payout amount reduction and the final payout_paid entry reflects the corrected amount', async () => {
+    const affiliateId = await seedAffiliate('audit-trail-check@example.com', 'RWLAUDITTRAIL');
+    const kept = await seedPayableCommissionWithSession(affiliateId, MIN_PAYOUT_PESEWAS);
+    const reversed = await seedPayableCommissionWithSession(affiliateId, 1000);
+    const adminId = await seedAdmin();
+
+    const requested = await requestPayout(env as any, logger, affiliateId);
+    if (!requested.ok) throw new Error('setup failed');
+    await approvePayout(env as any, logger, adminId, requested.payoutId);
+    await reverseCommission(env as any, logger, reversed.purchaseSessionId, 'Order refunded');
+    await processPayout(env as any, logger, adminId, requested.payoutId, 'REF-AUDIT-CHECK');
+
+    const shrinkAudit = await env.DB.prepare(`SELECT metadata FROM audit_logs WHERE action = 'affiliate.payout_amount_reduced_by_reversal' AND entity_id = ?`).bind(requested.payoutId).first<any>();
+    expect(shrinkAudit).toBeTruthy();
+    const shrinkMetadata = JSON.parse(shrinkAudit.metadata);
+    expect(shrinkMetadata.reducedByPesewas).toBe(1000);
+
+    const paidAudit = await env.DB.prepare(`SELECT metadata FROM audit_logs WHERE action = 'affiliate.payout_paid' AND entity_id = ?`).bind(requested.payoutId).first<any>();
+    expect(paidAudit).toBeTruthy();
+    const paidMetadata = JSON.parse(paidAudit.metadata);
+    expect(paidMetadata.amountPesewas).toBe(MIN_PAYOUT_PESEWAS);
   });
 });

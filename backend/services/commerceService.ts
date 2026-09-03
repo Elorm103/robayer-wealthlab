@@ -413,7 +413,7 @@ async function insertPurchaseSession(env: Env, input: InsertPurchaseSessionInput
         terms_accepted_at, terms_version, license_accepted_at, license_version, marketing_opt_in, coupon_id, discount_pesewas, customer_email,
         client_ip_address, client_user_agent, fbc, fbp, utm_source, utm_medium, utm_campaign, utm_content, attribution_confidence,
         affiliate_id, affiliate_commission_percent, data_classification)
-     VALUES (NULL, ?, ?, ?, ?, ?, ?, 'pending', ?, ?, datetime('now'), ?, datetime('now'), ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`
+     VALUES (NULL, ?, ?, ?, ?, ?, ?, 'pending', ?, ?, datetime('now'), ?, datetime('now'), ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`
   )
     .bind(
       input.productSlug,

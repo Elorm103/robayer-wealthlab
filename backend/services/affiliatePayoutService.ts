@@ -107,9 +107,40 @@ export async function approvePayout(env: Env, logger: Logger, adminId: number, p
  * fabricated/placeholder reference is a misuse of this endpoint, not
  * something this service can detect; the admin UI makes clear this
  * marks a real, already-completed external payment.
+ *
+ * This is the final, authoritative point that decides which
+ * commissions actually get credited as paid and what amount the
+ * payout is recorded as. It never trusts the payout's own
+ * amount_pesewas blindly: that field is a denormalized total,
+ * corrected in real time whenever reverseCommission() shrinks an
+ * outstanding payout, but a genuinely concurrent reversal can still
+ * land in the narrow window between this function's own two
+ * statements below (the payout-status transition and the commission
+ * finalize). So both steps here are self-healing:
+ *   1. Finalizing commissions is filtered to `status = 'payable'`
+ *      only; a commission that reverseCommission() has already flipped
+ *      to 'reversed' (whether long before this call or a heartbeat
+ *      before it) is never touched here, so it can never become 'paid'
+ *      no matter how tightly the two calls interleave.
+ *   2. The payout's amount_pesewas is then RECOMPUTED from the actual
+ *      sum of commissions this call just marked paid, not read from
+ *      the pre-existing (possibly stale) column; every real-world
+ *      admin payment recorded here is therefore always for exactly the
+ *      set of commissions genuinely still valid at this exact moment,
+ *      never for one that was reversed underneath it.
+ * A commission already 'paid' is structurally unreachable a second
+ * time: retrying processPayout() on an already-'paid' payout fails the
+ * first statement's own status guard and returns early before either
+ * step below runs. If every commission this payout ever claimed turns
+ * out to have been reversed (the recomputed total is zero, which the
+ * `amount_pesewas > 0` CHECK constraint would otherwise reject), the
+ * status flip above is reverted to 'failed' instead of leaving a
+ * zero-amount 'paid' record; see that branch's own comment.
  */
 export async function processPayout(env: Env, logger: Logger, adminId: number, payoutId: number, reference: string): Promise<PayoutTransitionResult> {
   if (!reference || reference.trim().length < 3) return { ok: false, reason: 'invalid_input' };
+
+  const approvedAmount = await env.DB.prepare(`SELECT amount_pesewas AS amountPesewas FROM affiliate_payouts WHERE id = ?`).bind(payoutId).first<{ amountPesewas: number }>();
 
   const result = await env.DB.prepare(
     `UPDATE affiliate_payouts SET status = 'paid', reference = ?, processed_at = datetime('now'), processed_by = ?, updated_at = datetime('now') WHERE id = ? AND status IN ('approved', 'processing')`
@@ -118,23 +149,70 @@ export async function processPayout(env: Env, logger: Logger, adminId: number, p
     .run();
   if (result.meta.changes !== 1) return await notFoundOrInvalidState(env, payoutId);
 
-  await env.DB.prepare(`UPDATE affiliate_commissions SET status = 'paid', paid_at = datetime('now'), updated_at = datetime('now') WHERE payout_id = ?`).bind(payoutId).run();
+  // Only commissions still genuinely 'payable' at this exact moment are
+  // finalized; a reversed one (whichever side of this call it happened
+  // on) is never matched, and so can never become 'paid'.
+  await env.DB.prepare(`UPDATE affiliate_commissions SET status = 'paid', paid_at = datetime('now'), updated_at = datetime('now') WHERE payout_id = ? AND status = 'payable'`).bind(payoutId).run();
 
-  await auditService.record(env, logger, { actorType: 'admin', actorId: adminId, action: 'affiliate.payout_paid', entityType: 'affiliate_payout', entityId: payoutId, metadata: { reference: reference.trim() } });
-  logger.info('affiliate.payout_paid', { payoutId, reference: reference.trim() });
+  // Recompute the payout's own recorded amount from what was ACTUALLY
+  // just marked paid, never from the pre-existing amount_pesewas.
+  const paidTotal = await env.DB.prepare(`SELECT COALESCE(SUM(commission_pesewas), 0) AS total FROM affiliate_commissions WHERE payout_id = ? AND status = 'paid'`).bind(payoutId).first<{ total: number }>();
+  const amountPesewas = paidTotal?.total ?? 0;
+
+  if (amountPesewas <= 0) {
+    // Every commission this payout ever claimed had already been
+    // reversed by the time this ran (affiliate_payouts.amount_pesewas
+    // has a > 0 CHECK constraint, so it can never legitimately be
+    // recorded as a zero-amount "paid" payout). There is genuinely
+    // nothing left to honor: revert the status flip above rather than
+    // leave a payout marked 'paid' for money that was never actually
+    // owed. This is a rare, exceptional state (every underlying sale
+    // was refunded before the payout could be finalized) that needs a
+    // human to reconcile whatever external transfer may have already
+    // been attempted, which is exactly why it surfaces as a distinct,
+    // loud failure rather than a silently "successful" zero-amount payout.
+    await env.DB.prepare(`UPDATE affiliate_payouts SET status = 'failed', failure_reason = ?, reference = NULL, processed_at = NULL, processed_by = NULL, updated_at = datetime('now') WHERE id = ?`)
+      .bind('All claimed commissions were reversed before this payout could be finalized; nothing was actually owed.', payoutId)
+      .run();
+    await auditService.record(env, logger, {
+      actorType: 'system',
+      actorId: null,
+      action: 'affiliate.payout_failed_all_commissions_reversed',
+      entityType: 'affiliate_payout',
+      entityId: payoutId,
+      metadata: { attemptedByAdminId: adminId, attemptedReference: reference.trim() },
+    });
+    logger.error('affiliate.payout_failed_all_commissions_reversed', { payoutId, adminId });
+    return { ok: false, reason: 'invalid_state' };
+  }
+
+  await env.DB.prepare(`UPDATE affiliate_payouts SET amount_pesewas = ? WHERE id = ?`).bind(amountPesewas, payoutId).run();
+
+  const amountCorrected = approvedAmount != null && approvedAmount.amountPesewas !== amountPesewas;
+  await auditService.record(env, logger, {
+    actorType: 'admin',
+    actorId: adminId,
+    action: 'affiliate.payout_paid',
+    entityType: 'affiliate_payout',
+    entityId: payoutId,
+    metadata: amountCorrected
+      ? { reference: reference.trim(), amountPesewas, approvedAmountPesewas: approvedAmount!.amountPesewas, note: 'amount reduced from the approved total: one or more claimed commissions were reversed before this payout was finalized' }
+      : { reference: reference.trim(), amountPesewas },
+  });
+  logger.info('affiliate.payout_paid', { payoutId, reference: reference.trim(), amountPesewas, amountCorrected });
 
   const row = await env.DB.prepare(
-    `SELECT c.email AS email, p.amount_pesewas AS amountPesewas, p.method FROM affiliate_payouts p
+    `SELECT c.email AS email, p.method FROM affiliate_payouts p
      JOIN affiliates a ON a.id = p.affiliate_id JOIN customers c ON c.id = a.customer_id WHERE p.id = ?`
   )
     .bind(payoutId)
-    .first<{ email: string; amountPesewas: number; method: string }>();
+    .first<{ email: string; method: string }>();
   if (row) {
     await sendEmail(env, logger, {
       template: 'affiliate-payout-paid',
       to: row.email,
       data: {
-        amount: `GH₵${(row.amountPesewas / 100).toFixed(2)}`,
+        amount: `GH₵${(amountPesewas / 100).toFixed(2)}`,
         method: row.method === 'mobile_money' ? 'Mobile Money' : 'Bank Transfer',
         reference: reference.trim(),
         dashboardUrl: `${env.SITE_BASE_URL}/affiliate/earnings/`,

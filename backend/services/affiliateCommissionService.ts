@@ -137,26 +137,122 @@ async function transition(
  * Reverses a commission that has NOT yet been paid: the correct
  * response to a refund/cancellation/chargeback discovered before
  * payout. A `paid` commission is deliberately NOT reversible through
- * this path (see this function's own guard: fromStatus is never
- * 'paid'); a post-payout correction is an explicit, audited manual
+ * this path; a post-payout correction is an explicit, audited manual
  * adjustment instead (adjustCommission() below), never an automatic
  * clawback. Idempotent: reversing an already-reversed commission is a
  * no-op success, not an error, so a refund webhook firing twice can
  * never create two reversal audit rows with different reasons.
+ *
+ * The commission-status transition itself is a single, atomically
+ * gated UPDATE (`WHERE status NOT IN ('paid', 'reversed')`), not a
+ * SELECT-then-branch: this is what actually decides the race against a
+ * concurrent processPayout() finalizing the SAME commission, the exact
+ * "genuine correctness defect" a post-commit audit found in the
+ * previous, read-then-write version. Whichever statement's WHERE
+ * clause matches first (D1/SQLite serializes individual writes to the
+ * same row) wins; the loser's own gated UPDATE simply matches zero
+ * rows and no-ops, the same status-gated-conditional-UPDATE pattern
+ * this codebase already relies on elsewhere (verifySessionAtomic(),
+ * revokePurchase(), affiliatePayoutService.ts's own claim step).
+ *
+ * If this commission had already been claimed into a payout that has
+ * not yet been finalized ('requested'/'approved'/'processing'), that
+ * payout's own recorded amount_pesewas is shrunk by this commission's
+ * share in the SAME call, atomically gated on the PAYOUT's own status
+ * so a payout that has ALREADY been marked 'paid' is never touched
+ * here (see processPayout()'s own comment for why it, not this
+ * decrement, is the final authority on what actually got paid).
+ * payout_id is deliberately left in place, not nulled: status =
+ * 'reversed' is what excludes this commission from every payable/paid
+ * aggregate (getAffiliateOverview, requestPayout()'s claim query,
+ * processPayout()'s finalize query) and from ever being reclaimed;
+ * keeping payout_id preserves which payout it was originally part of
+ * for audit/support purposes instead of severing that history.
  */
 export async function reverseCommission(env: Env, logger: Logger, purchaseSessionId: number, reason: string): Promise<{ ok: true; reversed: boolean }> {
-  const existing = await env.DB.prepare(`SELECT id, status FROM affiliate_commissions WHERE purchase_session_id = ?`).bind(purchaseSessionId).first<{ id: number; status: string }>();
+  const existing = await env.DB.prepare(`SELECT id, payout_id AS payoutId, commission_pesewas AS commissionPesewas, status FROM affiliate_commissions WHERE purchase_session_id = ?`)
+    .bind(purchaseSessionId)
+    .first<{ id: number; payoutId: number | null; commissionPesewas: number; status: string }>();
   if (!existing) return { ok: true, reversed: false }; // no commission was ever attributed to this purchase: nothing to reverse
-  if (existing.status === 'reversed') return { ok: true, reversed: false }; // already reversed: idempotent no-op
-  if (existing.status === 'paid') {
-    logger.error('affiliate.commission_reversal_blocked_already_paid', { commissionId: existing.id, purchaseSessionId, reason });
+
+  const transitioned = await env.DB.prepare(
+    `UPDATE affiliate_commissions SET status = 'reversed', reversed_at = datetime('now'), reversed_reason = ?, updated_at = datetime('now')
+     WHERE id = ? AND status NOT IN ('paid', 'reversed')`
+  )
+    .bind(reason, existing.id)
+    .run();
+
+  if (transitioned.meta.changes === 0) {
+    // Lost the race (or arrived after the fact) to either an
+    // already-completed reversal (idempotent no-op) or a payout that
+    // finished paying this exact commission first (blocked, by
+    // design: a paid commission is never reversed automatically).
+    if (existing.status === 'paid') {
+      logger.error('affiliate.commission_reversal_blocked_already_paid', { commissionId: existing.id, purchaseSessionId, reason });
+    }
     return { ok: true, reversed: false };
   }
 
-  await env.DB.prepare(`UPDATE affiliate_commissions SET status = 'reversed', reversed_at = datetime('now'), reversed_reason = ?, updated_at = datetime('now') WHERE id = ?`)
-    .bind(reason, existing.id)
-    .run();
-  await auditService.record(env, logger, { actorType: 'system', actorId: null, action: 'affiliate.commission_reversed', entityType: 'affiliate_commission', entityId: existing.id, metadata: { reason, purchaseSessionId } });
+  if (existing.payoutId !== null) {
+    // A plain `amount_pesewas = amount_pesewas - ?` can violate the
+    // `amount_pesewas > 0` CHECK constraint outright if this was the
+    // payout's only (or last remaining) claimed commission, which would
+    // throw straight out of a real refund's revokePurchase() call. The
+    // CASE expression keeps this a single atomic statement while never
+    // writing a non-positive amount: if the decrement would land at or
+    // below zero, the payout is failed instead (nothing legitimately
+    // left to honor), and amount_pesewas is left as whatever it already
+    // was rather than an invalid value.
+    const shrunk = await env.DB.prepare(
+      `UPDATE affiliate_payouts SET
+         amount_pesewas = CASE WHEN amount_pesewas - ? > 0 THEN amount_pesewas - ? ELSE amount_pesewas END,
+         status = CASE WHEN amount_pesewas - ? > 0 THEN status ELSE 'failed' END,
+         failure_reason = CASE WHEN amount_pesewas - ? > 0 THEN failure_reason ELSE ? END,
+         updated_at = datetime('now')
+       WHERE id = ? AND status IN ('requested', 'approved', 'processing')`
+    )
+      .bind(
+        existing.commissionPesewas,
+        existing.commissionPesewas,
+        existing.commissionPesewas,
+        existing.commissionPesewas,
+        'All claimed commissions were reversed before this payout could be finalized; nothing was actually owed.',
+        existing.payoutId
+      )
+      .run();
+
+    if (shrunk.meta.changes === 1) {
+      const payoutNow = await env.DB.prepare(`SELECT status, amount_pesewas AS amountPesewas FROM affiliate_payouts WHERE id = ?`).bind(existing.payoutId).first<{ status: string; amountPesewas: number }>();
+      if (payoutNow?.status === 'failed') {
+        await auditService.record(env, logger, {
+          actorType: 'system',
+          actorId: null,
+          action: 'affiliate.payout_failed_all_commissions_reversed',
+          entityType: 'affiliate_payout',
+          entityId: existing.payoutId,
+          metadata: { commissionId: existing.id, purchaseSessionId, reason },
+        });
+        logger.error('affiliate.payout_failed_all_commissions_reversed', { payoutId: existing.payoutId, commissionId: existing.id });
+      } else {
+        await auditService.record(env, logger, {
+          actorType: 'system',
+          actorId: null,
+          action: 'affiliate.payout_amount_reduced_by_reversal',
+          entityType: 'affiliate_payout',
+          entityId: existing.payoutId,
+          metadata: { commissionId: existing.id, purchaseSessionId, reducedByPesewas: existing.commissionPesewas, reason },
+        });
+        logger.info('affiliate.payout_amount_reduced_by_reversal', { payoutId: existing.payoutId, commissionId: existing.id, reducedByPesewas: existing.commissionPesewas });
+      }
+    }
+    // shrunk.meta.changes === 0 means the payout had already reached
+    // 'paid' (or a terminal 'failed'/'cancelled' state) by the time this
+    // ran: processPayout()'s own recomputation step (see its own
+    // comment) is what guarantees correctness in that exact window, not
+    // this decrement.
+  }
+
+  await auditService.record(env, logger, { actorType: 'system', actorId: null, action: 'affiliate.commission_reversed', entityType: 'affiliate_commission', entityId: existing.id, metadata: { reason, purchaseSessionId, wasClaimedIntoPayoutId: existing.payoutId } });
   logger.info('affiliate.commission_reversed', { commissionId: existing.id, purchaseSessionId, reason });
   return { ok: true, reversed: true };
 }

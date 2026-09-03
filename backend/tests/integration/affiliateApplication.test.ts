@@ -135,7 +135,10 @@ describe('Admin affiliate moderation', () => {
     expect(meBody.data.status).toBe('approved');
     expect(meBody.data.affiliateCode).toBeTruthy();
 
-    const audit = await env.DB.prepare(`SELECT action FROM audit_logs WHERE entity_type = 'affiliate' AND entity_id = ?`).bind(affiliateId).first<any>();
+    // This affiliate also has an earlier 'affiliate.applied' audit row from
+    // applyAsCustomer() above; order by id descending to get the most
+    // recent entry (the approval), not an unspecified one of the two.
+    const audit = await env.DB.prepare(`SELECT action FROM audit_logs WHERE entity_type = 'affiliate' AND entity_id = ? ORDER BY id DESC LIMIT 1`).bind(affiliateId).first<any>();
     expect(audit.action).toBe('affiliate.approved');
   });
 

@@ -9,10 +9,14 @@ import { createSession as createCustomerSession } from '../../services/customer/
 import { seedTestProduct, cleanupTestProduct, TEST_PRODUCT_SLUG } from '../helpers';
 
 beforeEach(async () => {
+  // purchase_sessions.affiliate_id REFERENCES affiliates(id) (migration
+  // 0055): purchase_sessions must be cleared before affiliates, or a
+  // session still pointing at a test affiliate fails this delete with a
+  // foreign key violation.
   await env.DB.exec('DELETE FROM affiliate_commissions');
   await env.DB.exec('DELETE FROM affiliate_clicks');
-  await env.DB.exec('DELETE FROM affiliates');
   await env.DB.exec('DELETE FROM purchase_sessions');
+  await env.DB.exec('DELETE FROM affiliates');
   await env.DB.exec('DELETE FROM customer_sessions');
   await env.DB.exec('DELETE FROM customer_profiles');
   await env.DB.exec('DELETE FROM customers');
@@ -215,6 +219,6 @@ describe('Checkout-time affiliate attribution', () => {
       body: JSON.stringify({ code: 'RWLSECOND', productSlug: null, landingPath: '/' }),
     });
     const finalCookie = extractCookie(secondClick, 'rwl_ref');
-    expect(finalCookie).toBe('RWLSECOND');
+    expect(finalCookie).toMatch(/^RWLSECOND\.\d+$/); // CODE.ISSUED_AT_SECONDS, not the bare code
   });
 });
