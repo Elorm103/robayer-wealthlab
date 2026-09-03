@@ -123,4 +123,23 @@ function setText(selector, value) {
   if (el) el.textContent = value;
 }
 
+/**
+ * Fired by dashboard-shell.js instead of `dashboard:ready` when
+ * .dashboard-nav[data-optional-auth] finds no session (see
+ * partials/affiliate-nav.html) — a logged-out visitor to /affiliate/,
+ * who never gets the hard sign-in redirect every other dashboard page
+ * still uses. Shows the guest landing state in place of the
+ * loading/apply/pending/etc. states, which never start loading in
+ * this case.
+ */
+function showGuestLanding() {
+  const loadingEl = document.querySelector('[data-affiliate-loading]');
+  if (loadingEl) loadingEl.hidden = true;
+  const authedEl = document.querySelector('[data-affiliate-authed]');
+  if (authedEl) authedEl.hidden = true;
+  const guestEl = document.querySelector('[data-affiliate-guest]');
+  if (guestEl) guestEl.hidden = false;
+}
+
 document.addEventListener('dashboard:ready', initAffiliateOverview);
+document.addEventListener('dashboard:guest', showGuestLanding);

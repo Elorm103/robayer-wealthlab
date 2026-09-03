@@ -58,6 +58,20 @@ describe('POST /api/customer/affiliates/apply', () => {
     expect(row.code).toMatch(/^RWL/);
   });
 
+  it('sends an application-received confirmation email', async () => {
+    const { cookieHeader, csrfSecret } = await seedCustomer('confirmation@example.com');
+
+    await SELF.fetch('https://example.com/api/customer/affiliates/apply', {
+      method: 'POST',
+      headers: { Cookie: cookieHeader, 'X-Customer-CSRF-Token': csrfSecret, 'Content-Type': 'application/json' },
+      body: JSON.stringify({ termsAccepted: true }),
+    });
+
+    const row = await env.DB.prepare(`SELECT template, recipient FROM email_log WHERE recipient = 'confirmation@example.com' ORDER BY id DESC LIMIT 1`).first<any>();
+    expect(row).toBeTruthy();
+    expect(row.template).toBe('affiliate-application-received');
+  });
+
   it('rejects an application without terms acceptance', async () => {
     const { cookieHeader, csrfSecret } = await seedCustomer('noterms@example.com');
     const res = await SELF.fetch('https://example.com/api/customer/affiliates/apply', {

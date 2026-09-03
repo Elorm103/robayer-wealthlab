@@ -31,6 +31,7 @@ import passwordResetTemplate from '../emails/templates/password-reset.html';
 import adminInviteTemplate from '../emails/templates/admin-invite.html';
 import newsletterCampaignTemplate from '../emails/templates/newsletter-campaign.html';
 // Affiliate Programme: see affiliateService.ts's moderateApplication() and affiliatePayoutService.ts's processPayout().
+import affiliateApplicationReceivedTemplate from '../emails/templates/affiliate-application-received.html';
 import affiliateApplicationApprovedTemplate from '../emails/templates/affiliate-application-approved.html';
 import affiliateApplicationRejectedTemplate from '../emails/templates/affiliate-application-rejected.html';
 import affiliatePayoutPaidTemplate from '../emails/templates/affiliate-payout-paid.html';
@@ -95,6 +96,7 @@ export type EmailTemplateName =
   | 'customer-purchase-reconciliation'
   | 'customer-review-reminder'
   | 'customer-purchase-followup'
+  | 'affiliate-application-received'
   | 'affiliate-application-approved'
   | 'affiliate-application-rejected'
   | 'affiliate-payout-paid';
@@ -114,6 +116,7 @@ const TEMPLATES: Record<EmailTemplateName, string> = {
   'customer-purchase-reconciliation': customerPurchaseReconciliationTemplate,
   'customer-review-reminder': customerReviewReminderTemplate,
   'customer-purchase-followup': customerPurchaseFollowupTemplate,
+  'affiliate-application-received': affiliateApplicationReceivedTemplate,
   'affiliate-application-approved': affiliateApplicationApprovedTemplate,
   'affiliate-application-rejected': affiliateApplicationRejectedTemplate,
   'affiliate-payout-paid': affiliatePayoutPaidTemplate,

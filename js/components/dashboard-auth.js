@@ -91,6 +91,24 @@ window.CustomerDashboard = (function () {
     return session;
   }
 
+  /**
+   * Non-redirecting counterpart to requireSession(): resolves to the
+   * session on success, or `null` on any failure (no session, expired,
+   * network error) instead of navigating away. For pages that must
+   * render a real, useful screen to a logged-out visitor rather than
+   * bouncing them straight to sign-in — see dashboard-shell.js's
+   * `data-optional-auth` handling, used by the /affiliate/ landing page.
+   * Every other caller of requireSession() is unaffected: this is a new,
+   * separate function, never a change to requireSession() itself.
+   */
+  async function getSessionOrNull() {
+    try {
+      return await customerFetch('/api/customer/auth/session');
+    } catch {
+      return null;
+    }
+  }
+
   async function logout() {
     try {
       await customerFetch('/api/customer/auth/logout', { method: 'POST' });
@@ -107,5 +125,5 @@ window.CustomerDashboard = (function () {
     window.location.href = '/';
   }
 
-  return { customerFetch, requireSession, logout, getCsrfToken };
+  return { customerFetch, requireSession, getSessionOrNull, logout, getCsrfToken };
 })();

@@ -171,6 +171,7 @@ export async function applyForAffiliate(env: Env, logger: Logger, customerId: nu
       .bind(code, CURRENT_AFFILIATE_TERMS_VERSION, existing.id)
       .run();
     await auditService.record(env, logger, { actorType: 'customer', actorId: customerId, action: 'affiliate.reapplied', entityType: 'affiliate', entityId: existing.id, metadata: null });
+    await sendApplicationReceivedEmail(env, logger, customerEmail, existing.id);
     return { ok: true, affiliateCode: code, status: 'pending' };
   }
 
@@ -195,7 +196,26 @@ export async function applyForAffiliate(env: Env, logger: Logger, customerId: nu
 
   const id = Number(insert.meta.last_row_id);
   await auditService.record(env, logger, { actorType: 'customer', actorId: customerId, action: 'affiliate.applied', entityType: 'affiliate', entityId: id, metadata: null });
+  await sendApplicationReceivedEmail(env, logger, customerEmail, id);
   return { ok: true, affiliateCode: code, status: 'pending' };
+}
+
+/**
+ * Application-received confirmation: fires on both a fresh application
+ * and a reapplication after rejection (same event from the applicant's
+ * point of view — "we got it, here's when to expect a decision").
+ * Never blocks or fails the application itself if the send fails, same
+ * "log, don't throw" discipline moderateApplication() below already
+ * relies on for its own approved/rejected emails.
+ */
+async function sendApplicationReceivedEmail(env: Env, logger: Logger, customerEmail: string, affiliateId: number): Promise<void> {
+  await sendEmail(env, logger, {
+    template: 'affiliate-application-received',
+    to: customerEmail,
+    data: { dashboardUrl: `${env.SITE_BASE_URL}/affiliate/` },
+    entityType: 'affiliate',
+    entityId: affiliateId,
+  });
 }
 
 // ============================================================
