@@ -32,6 +32,11 @@ import { getOrCreateReceiptPdf } from '../../services/orders/receiptPdfService';
 import { getLibraryRecommendations } from '../../services/customer/libraryRecommendationsService';
 import { upsertLibraryProgress, getLibraryProgress, listLibraryProgress } from '../../services/customer/libraryProgressService';
 import { createBookmark, listBookmarksForAsset, listAllBookmarks, deleteBookmark } from '../../services/customer/libraryBookmarkService';
+import { createReaderSession, reverifyEntitlementForDelivery } from '../../services/readerSessionService';
+import { getPdfPageCount } from '../../services/pdfPageService';
+import { getEpubManifest } from '../../services/epubChapterService';
+import { fetchCatalogProduct, findPublishedAsset } from '../../services/productCatalogService';
+import { isControlledReaderEnabled } from '../../services/admin/settingsService';
 
 const REFERENCE_PATTERN = /^RWL-\d{4}-\d{6,}$/;
 const RECEIPT_NUMBER_PATTERN = /^RWL-RCT-\d{4}-\d{6,}$/;
@@ -411,4 +416,106 @@ export async function handleDeleteBookmark(request: Request, env: Env, logger: L
   if (!result.ok) return withNoStore(jsonError('NOT_FOUND', 'This bookmark could not be found.'));
 
   return withNoStore(jsonSuccess({ deleted: true }));
+}
+
+// ============================================================
+// Controlled Library Reader, Phase 2 - Reader Session. Customer-auth-
+// gated, same discipline as progress/bookmarks above: entitlement is
+// re-verified inside readerSessionService.createReaderSession() via
+// checkEntitlement(..., customerId), never trusted from the URL/body
+// alone. The actual page/chapter content endpoints (routes/reader.ts)
+// are session-token-scoped, not cookie-scoped - this is the one place
+// a customer cookie is required in the whole controlled-reader flow.
+// ============================================================
+
+const READER_SESSION_RATE_LIMIT = { endpoint: 'customer-reader-session', limit: 20, windowSeconds: 60 };
+
+interface RequestReaderSessionBody {
+  assetId?: unknown;
+  deviceFingerprint?: unknown;
+}
+
+export async function handleRequestReaderSession(request: Request, env: Env, logger: Logger, params: RouteParams): Promise<Response> {
+  const auth = await requireCustomerAuth(request, env, logger);
+  if (!auth.ok) return withNoStore(auth.response);
+
+  if (await isRateLimited(request, env, READER_SESSION_RATE_LIMIT)) {
+    return withNoStore(jsonError('RATE_LIMITED', 'Too many requests. Please try again shortly.'));
+  }
+
+  const reference = params.reference;
+  if (!isPlausibleReference(reference)) {
+    return withNoStore(jsonError('NOT_FOUND', 'This purchase could not be found.'));
+  }
+
+  let body: RequestReaderSessionBody;
+  try {
+    body = await request.json();
+  } catch {
+    return withNoStore(jsonError('VALIDATION_ERROR', 'Request body must be valid JSON.'));
+  }
+  if (typeof body.assetId !== 'string' || body.assetId.length === 0) {
+    return withNoStore(jsonError('VALIDATION_ERROR', 'A valid assetId is required.'));
+  }
+  const deviceFingerprint = typeof body.deviceFingerprint === 'string' && body.deviceFingerprint.length > 0 ? body.deviceFingerprint : null;
+
+  // The documented rollback path: when disabled (the default), this
+  // endpoint simply stops minting new sessions, and library-reader.js
+  // falls back to its existing, unmodified whole-file read-access
+  // flow - no deploy or migration needed to recover from a production
+  // issue, and no customer is ever moved onto the new path until this
+  // is explicitly turned on.
+  if (!(await isControlledReaderEnabled(env))) {
+    return withNoStore(jsonError('CONTROLLED_READER_DISABLED', 'The controlled reader is not currently available.'));
+  }
+
+  const session = await createReaderSession(env, logger, auth.auth.customerId, reference, body.assetId, {
+    ip: request.headers.get('CF-Connecting-IP'),
+    userAgent: request.headers.get('User-Agent'),
+    deviceFingerprint,
+  });
+  if (!session.granted) {
+    return withNoStore(jsonError('READER_ACCESS_DENIED', "This resource isn't available to read right now."));
+  }
+
+  // One extra, cheap re-verification purely to recover productSlug/
+  // assetId for the format-specific metadata lookup below - session
+  // creation above already ran the real, authoritative entitlement
+  // check; this never re-decides granted/denied, only reads back
+  // context this route needs to answer "how many pages" / "what
+  // chapters" in the SAME response, sparing the reader a second
+  // round-trip before it can render anything.
+  const context = await reverifyEntitlementForDelivery(env, session.deliveryId, auth.auth.customerId);
+  if (!context.ok) {
+    return withNoStore(jsonError('READER_ACCESS_DENIED', "This resource isn't available to read right now."));
+  }
+
+  const product = await fetchCatalogProduct(env, context.context.productSlug);
+  const asset = product ? findPublishedAsset(product, context.context.assetId) : null;
+  if (!asset || (asset.fileType !== 'PDF' && asset.fileType !== 'EPUB')) {
+    return withNoStore(jsonError('READER_ACCESS_DENIED', 'This resource is not available in the controlled reader.'));
+  }
+
+  const object = await env.STORAGE.get(asset.storageKey);
+  if (!object) {
+    logger.error('reader_session.object_not_found_in_storage', { storageKey: asset.storageKey });
+    return withNoStore(jsonError('ASSET_UNAVAILABLE', 'This resource is temporarily unavailable. Please try again later.'));
+  }
+  const masterBytes = await object.arrayBuffer();
+
+  if (asset.fileType === 'PDF') {
+    const pageCount = await getPdfPageCount(masterBytes);
+    if (!pageCount.ok) {
+      return withNoStore(jsonError('ASSET_UNAVAILABLE', 'This resource is temporarily unavailable. Please try again later.'));
+    }
+    return withNoStore(
+      jsonSuccess({ token: session.token, expiresAt: session.expiresAt, fileType: 'PDF', totalPages: pageCount.totalPages })
+    );
+  }
+
+  const manifest = await getEpubManifest(masterBytes);
+  if (!manifest.ok) {
+    return withNoStore(jsonError('ASSET_UNAVAILABLE', 'This resource is temporarily unavailable. Please try again later.'));
+  }
+  return withNoStore(jsonSuccess({ token: session.token, expiresAt: session.expiresAt, fileType: 'EPUB', spine: manifest.spine }));
 }

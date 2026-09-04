@@ -196,6 +196,17 @@ const DEFAULTS = {
   // full mode/period semantics.
   ai_gateway_retention_storage_mode: DEFAULT_RETENTION_CONFIG.storageMode as AiRetentionStorageMode,
   ai_gateway_retention_days: DEFAULT_RETENTION_CONFIG.retentionDays as number | null,
+  // Controlled Library Reader, Phase 2 - kill switch for the new
+  // page/chapter-scoped reader (routes/reader.ts). Defaults DISABLED,
+  // deliberately unlike the earlier secure-reader attempt's
+  // enabled-by-default flag: this reader is meant to be proven with
+  // internal/admin testing before any real customer traffic reaches
+  // it, not switched on for every customer the moment this deploys.
+  // Flipping it off (or leaving it off) makes the existing,
+  // unmodified whole-file read-access flow (library-reader.js's
+  // pre-existing code path) the only one reachable - no deploy or
+  // migration needed either way.
+  controlled_reader_enabled: false as boolean,
 };
 
 type SettingsKey = keyof typeof DEFAULTS;
@@ -318,6 +329,27 @@ export async function getMaintenanceMode(env: Env): Promise<MaintenanceModeValue
 }
 
 /**
+ * Resolves just `controlled_reader_enabled` - read by
+ * readerSessionService.createReaderSession()'s caller and by every
+ * page/chapter request in routes/reader.ts (never cached), the same
+ * single-row-lookup shape as getMaintenanceMode() above. Not yet
+ * surfaced in getEditableSettings()/the admin Settings page UI (a
+ * deliberate, disclosed minimal-scope decision for Phase 2) - toggle
+ * it via the existing generic `PATCH /api/admin/settings` endpoint
+ * (`{ "controlledReaderEnabled": true }`) or a direct D1 write to
+ * `site_settings`, both real, working mechanisms already.
+ */
+export async function isControlledReaderEnabled(env: Env): Promise<boolean> {
+  const row = await env.DB.prepare(`SELECT value FROM site_settings WHERE key = 'controlled_reader_enabled'`).first<{ value: string }>();
+  if (!row) return DEFAULTS.controlled_reader_enabled;
+  try {
+    return JSON.parse(row.value) as boolean;
+  } catch {
+    return DEFAULTS.controlled_reader_enabled;
+  }
+}
+
+/**
  * Resolves just `hero_content` for the public, unauthenticated
  * GET /api/hero endpoint the homepage's client-side JS fetches on
  * every load - same single-row-lookup shape as getMaintenanceMode()
@@ -371,6 +403,14 @@ export interface SettingsValidationError {
 const MAX_MESSAGE_LENGTH = 500;
 const MAX_SENDER_NAME_LENGTH = 100;
 const EMAIL_PATTERN = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+
+function validateControlledReaderEnabled(value: unknown, errors: SettingsValidationError[]): boolean | undefined {
+  if (typeof value !== 'boolean') {
+    errors.push({ field: 'controlledReaderEnabled', message: 'controlledReaderEnabled must be true or false.' });
+    return undefined;
+  }
+  return value;
+}
 
 function validateMaintenanceMode(value: unknown, errors: SettingsValidationError[]): MaintenanceModeValue | undefined {
   if (typeof value !== 'object' || value === null) {
@@ -648,6 +688,7 @@ const PATCH_KEY_MAP: Record<string, SettingsKey> = {
   aiGatewayPlatformBudgetUsdMicros: 'ai_gateway_platform_budget_usd_micros',
   aiGatewayRetentionStorageMode: 'ai_gateway_retention_storage_mode',
   aiGatewayRetentionDays: 'ai_gateway_retention_days',
+  controlledReaderEnabled: 'controlled_reader_enabled',
 };
 
 export async function updateSettings(env: Env, logger: Logger, actorId: number, patch: Record<string, unknown>, context: ActionContext): Promise<UpdateSettingsResult> {
@@ -707,6 +748,9 @@ export async function updateSettings(env: Env, logger: Logger, actorId: number, 
         break;
       case 'ai_gateway_retention_days':
         value = validateAiGatewayRetentionDays(rawValue, errors);
+        break;
+      case 'controlled_reader_enabled':
+        value = validateControlledReaderEnabled(rawValue, errors);
         break;
     }
 
