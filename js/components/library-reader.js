@@ -156,11 +156,15 @@ function initLibraryReader() {
   const errorEl = document.querySelector('[data-reader-error]');
   const titleEl = document.querySelector('[data-reader-title]');
   const topicEl = document.querySelector('[data-reader-topic]');
+  const formatSwitchEl = document.querySelector('[data-reader-format-switch]');
+  const reviewLinkEl = document.querySelector('[data-reader-review-link]');
   const shellEl = document.querySelector('[data-reader-shell]');
   const unsupportedEl = document.querySelector('[data-reader-unsupported]');
   const canvasWrap = document.querySelector('[data-reader-canvas-wrap]');
   const canvas = document.querySelector('[data-reader-canvas]');
   const pageIndicatorEl = document.querySelector('[data-reader-page-indicator]');
+  const pageJumpFormEl = document.querySelector('[data-reader-page-jump]');
+  const pageJumpInputEl = document.querySelector('[data-reader-page-jump-input]');
   const progressFillEl = document.querySelector('[data-reader-progress-fill]');
   const prevBtn = document.querySelector('[data-reader-prev-page]');
   const nextBtn = document.querySelector('[data-reader-next-page]');
@@ -278,6 +282,53 @@ function initLibraryReader() {
     return { reference: params.get('ref'), assetId: params.get('assetId'), jumpPage: params.get('page'), jumpCfi: params.get('cfi') };
   }
 
+  /**
+   * Phase 4 (production-readiness pass, Section C) — closes two real
+   * gaps found while reviewing the reader's own controls: (1) a
+   * customer who owns both PDF and EPUB for this book had to leave the
+   * reader entirely to switch formats (the only "Read PDF"/"Read EPUB"
+   * links lived on the My Library card, each pointing at a different
+   * reader URL); (2) finishing a book here had no path to reviewing it
+   * without navigating away to the book's own public page. Both are
+   * pure navigation/presentation - no entitlement, download, purchase,
+   * or review-writing logic is touched; every link here still goes
+   * through this same reader's own existing load()/read-access flow, or
+   * to the site's own existing, unmodified review UI.
+   */
+  async function renderReaderMeta(purchase, asset) {
+    const ownedAssets = (purchase.assets || []).filter((a) => !a.revoked);
+    if (formatSwitchEl && ownedAssets.length > 1) {
+      formatSwitchEl.innerHTML = '';
+      ownedAssets.forEach((a) => {
+        const label = a.fileType === 'PDF' ? 'Read PDF' : a.fileType === 'EPUB' ? 'Read EPUB' : `Read ${a.displayName || a.fileType}`;
+        const isCurrent = a.assetId === asset.assetId;
+        const link = document.createElement('a');
+        link.className = `btn ${isCurrent ? 'btn--accent' : 'btn--secondary'} reader-header__format-btn`;
+        link.textContent = label;
+        if (isCurrent) {
+          link.setAttribute('aria-current', 'true');
+        } else {
+          link.href = `/dashboard/read/?ref=${encodeURIComponent(purchase.purchaseReference)}&assetId=${encodeURIComponent(a.assetId)}`;
+        }
+        formatSwitchEl.appendChild(link);
+      });
+      formatSwitchEl.hidden = false;
+    }
+
+    if (reviewLinkEl) {
+      reviewLinkEl.href = `/books/${encodeURIComponent(purchase.productSlug)}/#reviews`;
+      reviewLinkEl.hidden = false;
+      try {
+        const result = await window.CustomerDashboard.customerFetch('/api/customer/reviews');
+        const reviewedSlugs = new Set((result.reviews || []).map((r) => r.productSlug));
+        reviewLinkEl.textContent = reviewedSlugs.has(purchase.productSlug) ? 'Edit Review' : 'Write a Review';
+      } catch {
+        // Non-fatal, same as library-list.js's own reviewedSlugs fetch —
+        // the link still works, just defaults to the "Write" wording.
+      }
+    }
+  }
+
   async function load() {
     const { reference, assetId, jumpPage, jumpCfi } = getQueryParams();
     if (!reference || !assetId) {
@@ -318,6 +369,8 @@ function initLibraryReader() {
     currentReference = reference;
     currentAssetId = assetId;
     currentProductSlug = purchase.productSlug;
+
+    renderReaderMeta(purchase, asset);
 
     // Phase 8 (Digital Library Observability) — fires once the reader
     // has a confirmed, owned book to show, mirroring how the site's own
@@ -588,29 +641,63 @@ function initLibraryReader() {
     });
     applyControlledEpubTheme(iframe);
 
+    const chapterPercent = Math.round(((index + 1) / controlledEpubSpine.length) * 100);
     pageIndicatorEl.textContent = `Chapter ${index + 1} of ${controlledEpubSpine.length}`;
-    progressFillEl.style.width = `${Math.round(((index + 1) / controlledEpubSpine.length) * 100)}%`;
+    progressFillEl.style.width = `${chapterPercent}%`;
     prevBtn.disabled = index <= 0;
     nextBtn.disabled = index >= controlledEpubSpine.length - 1;
     highlightActiveTocEntry(href);
 
-    if (!options.skipProgressSave) scheduleEpubProgressSave(`spine:${href}`);
+    // Phase 5 fix — real chapter-index percentage, not the always-0
+    // computeEpubPercent() fallback (see scheduleEpubProgressSave()'s
+    // own comment); reuses the exact value just computed for the
+    // visible progress bar above, so the two can never disagree.
+    if (!options.skipProgressSave) scheduleEpubProgressSave(`spine:${href}`, chapterPercent);
 
     document.dispatchEvent(
       new CustomEvent('library-reader:page-changed', { detail: { currentPage: index + 1, totalPages: controlledEpubSpine.length } })
     );
+    // Phase 4 (Robayer AI chapter-context architecture) — same event the
+    // legacy epub.js path already dispatches (see handleEpubRelocated()'s
+    // own comment on 'library-reader:section-changed'), so
+    // library-ai-panel.js has one uniform way to learn the reader's
+    // current chapter href regardless of which EPUB path is active.
+    document.dispatchEvent(new CustomEvent('library-reader:section-changed', { detail: { href } }));
   }
 
   /** Controlled-path counterpart to flushEpubProgressOnUnload() (which is epub.js/epubRendition-specific and cannot be reused here): best-effort, synchronous-only local cache write on pagehide, matching the existing "a failed/incomplete save must never interrupt reading" discipline. */
+  /**
+   * Phase 5 fix (Priority D audit finding): this previously wrote only
+   * to localStorage, unlike flushEpubProgressOnUnload() (the legacy
+   * path's equivalent, which also fires a `keepalive` request) - a
+   * customer who changed chapter and closed the tab within the same
+   * PROGRESS_WRITE_DEBOUNCE_MS window as that change would have that
+   * final chapter never reach the server at all, only this device's
+   * local cache. Mirrors flushEpubProgressOnUnload()'s own reasoning for
+   * why a manual keepalive fetch is used here instead of the async
+   * customerFetch() saveEpubProgress() normally goes through.
+   */
   function flushControlledEpubProgressOnUnload() {
     if (controlledEpubSpine.length === 0) return;
     const href = controlledEpubSpine[controlledEpubChapterIndex] && controlledEpubSpine[controlledEpubChapterIndex].href;
     if (!href) return;
+    if (epubCfiSaveTimer) clearTimeout(epubCfiSaveTimer);
+    const cfi = `spine:${href}`;
     try {
-      localStorage.setItem(epubProgressKey(currentAssetId), JSON.stringify({ cfi: `spine:${href}`, updatedAt: Date.now() }));
+      localStorage.setItem(epubProgressKey(currentAssetId), JSON.stringify({ cfi, updatedAt: Date.now() }));
     } catch {
       // non-fatal
     }
+    const percentComplete = Math.round(((controlledEpubChapterIndex + 1) / controlledEpubSpine.length) * 100);
+    const csrf = window.CustomerDashboard.getCsrfToken();
+    const headers = { 'Content-Type': 'application/json' };
+    if (csrf) headers['X-Customer-CSRF-Token'] = csrf;
+    fetch(`/api/customer/purchases/${encodeURIComponent(currentReference)}/progress`, {
+      method: 'POST',
+      headers,
+      body: JSON.stringify({ assetId: currentAssetId, cfi, percentComplete }),
+      keepalive: true,
+    }).catch(() => {});
   }
 
   function wireControlledEpubControls() {
@@ -1966,12 +2053,29 @@ function initLibraryReader() {
     const pct = epubBook.locations.percentageFromCfi(cfi);
     return typeof pct === 'number' && !Number.isNaN(pct) ? Math.round(pct * 100) : 0;
   }
-  function scheduleEpubProgressSave(cfi) {
+  /**
+   * `explicitPercent` — Phase 5 fix (Priority D audit finding): the
+   * controlled, chapter-scoped EPUB path (renderControlledEpubChapter())
+   * never loads a real epub.js `Book`, so `computeEpubPercent()`'s own
+   * `epubBook.locations.percentageFromCfi()` call was silently
+   * unreachable for it (`epubLocationsGenerated`/`epubBook` are only
+   * ever set by the LEGACY epub.js init path) - every controlled-reader
+   * EPUB progress write was landing as a hardcoded 0%, which
+   * deriveStatus() (libraryProgressService.ts) then reported as
+   * `not_started` regardless of how much of the book had actually been
+   * read. Passing the real, already-computed chapter-index percentage
+   * (see renderControlledEpubChapter()'s own progressFillEl update) lets
+   * the controlled path report a genuine percentage without needing
+   * epub.js's locations index at all; omitting it (the legacy path)
+   * preserves the exact previous computeEpubPercent(cfi) behavior.
+   */
+  function scheduleEpubProgressSave(cfi, explicitPercent) {
     if (epubCfiSaveTimer) clearTimeout(epubCfiSaveTimer);
-    epubCfiSaveTimer = setTimeout(() => saveEpubProgress(cfi), PROGRESS_WRITE_DEBOUNCE_MS);
+    epubCfiSaveTimer = setTimeout(() => saveEpubProgress(cfi, explicitPercent), PROGRESS_WRITE_DEBOUNCE_MS);
   }
   /** A failed write (local or server) is swallowed on purpose - see writeProgress()'s own header comment; reading must never stop, error, or hesitate because a progress save didn't go through. */
-  async function saveEpubProgress(cfi) {
+  async function saveEpubProgress(cfi, explicitPercent) {
+    const percentComplete = typeof explicitPercent === 'number' ? explicitPercent : computeEpubPercent(cfi);
     try {
       localStorage.setItem(epubProgressKey(currentAssetId), JSON.stringify({ cfi, updatedAt: Date.now() }));
     } catch {
@@ -1981,7 +2085,7 @@ function initLibraryReader() {
       await window.CustomerDashboard.customerFetch(`/api/customer/purchases/${encodeURIComponent(currentReference)}/progress`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ assetId: currentAssetId, cfi, percentComplete: computeEpubPercent(cfi) }),
+        body: JSON.stringify({ assetId: currentAssetId, cfi, percentComplete }),
       });
     } catch {
       // non-fatal
@@ -2086,7 +2190,41 @@ function initLibraryReader() {
     });
   }
 
+  /** Phase 5 (Priority A: Direct page navigation) — click the page indicator to reveal a small inline "go to page" form; PDF-only (see this call site's own comment in wireControls()). */
+  function wirePageJump() {
+    if (!pageIndicatorEl || !pageJumpFormEl || !pageJumpInputEl) return;
+    pageIndicatorEl.addEventListener('click', () => {
+      const opening = pageJumpFormEl.hidden;
+      pageJumpFormEl.hidden = !opening;
+      pageIndicatorEl.setAttribute('aria-expanded', String(opening));
+      if (opening) {
+        pageJumpInputEl.value = String(currentPage);
+        pageJumpInputEl.focus();
+        pageJumpInputEl.select();
+      }
+    });
+    pageJumpFormEl.addEventListener('submit', (event) => {
+      event.preventDefault();
+      const target = parseInt(pageJumpInputEl.value, 10);
+      if (Number.isInteger(target) && pdfDoc && target >= 1 && target <= pdfDoc.numPages) {
+        goToPage(target);
+      }
+      pageJumpFormEl.hidden = true;
+      pageIndicatorEl.setAttribute('aria-expanded', 'false');
+    });
+    // A click/tap anywhere else closes the form without navigating -
+    // matches the existing drawer-close-on-outside-click convention
+    // this file already uses for the TOC/search/bookmarks panels.
+    document.addEventListener('click', (event) => {
+      if (pageJumpFormEl.hidden) return;
+      if (event.target === pageIndicatorEl || pageJumpFormEl.contains(event.target)) return;
+      pageJumpFormEl.hidden = true;
+      pageIndicatorEl.setAttribute('aria-expanded', 'false');
+    });
+  }
+
   function wireControls() {
+    wirePageJump();
     prevBtn.addEventListener('click', () => goToPage(currentPage - 1));
     nextBtn.addEventListener('click', () => goToPage(currentPage + 1));
     // Phase 9A — guarded on `scale !== null`: wireControls() runs

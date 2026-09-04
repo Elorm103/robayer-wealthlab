@@ -114,7 +114,7 @@ const HEAD_ASSETS = `
   <link rel="stylesheet" href="/css/tokens.css?v=2706187f0b">
   <link rel="stylesheet" href="/css/base.css?v=57a963bc6f">
   <link rel="stylesheet" href="/css/layout.css?v=a6fb0c7359">
-  <link rel="stylesheet" href="/css/components.css?v=cc2d1cb931">
+  <link rel="stylesheet" href="/css/components.css?v=3163163cb2">
   <link rel="stylesheet" href="/css/utilities.css?v=406dfe7300">
 `;
 
@@ -473,7 +473,7 @@ ${NEWSLETTER_BAND}`;
     // does load it) worked correctly. Same script, no new/duplicate
     // countdown logic — just wiring this page into the one that already
     // exists.
-    scripts: ['/js/components/content-filters.js?v=bff036747e', '/js/components/countdown.js?v=b2f79caeca', '/js/main.js?v=1043f4fc00'],
+    scripts: ['/js/components/content-filters.js?v=f985281225', '/js/components/countdown.js?v=b2f79caeca', '/js/main.js?v=e37faf0861'],
   });
 
   return htmlResponse(html, 200);
@@ -571,7 +571,7 @@ function render404(env: Env, slug: string): Response {
         <a href="/books/" class="btn btn--primary">Browse all guides</a>
       </div>
     </section>`,
-    scripts: ['/js/main.js?v=1043f4fc00'],
+    scripts: ['/js/main.js?v=e37faf0861'],
   });
   return htmlResponse(html, 404);
 }
@@ -1354,7 +1354,7 @@ ${NEWSLETTER_BAND}`;
       '/js/components/countdown.js?v=b2f79caeca',
       '/js/components/ownership-helpers.js?v=e4bfbeb89f',
       '/js/components/book-purchase-state.js?v=25f3d3e770',
-      '/js/main.js?v=1043f4fc00',
+      '/js/main.js?v=e37faf0861',
     ],
   });
 

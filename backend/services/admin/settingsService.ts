@@ -207,6 +207,29 @@ const DEFAULTS = {
   // pre-existing code path) the only one reachable - no deploy or
   // migration needed either way.
   controlled_reader_enabled: false as boolean,
+  // Controlled Library Reader, Phase 6A - a narrow, additive pilot
+  // mechanism that does NOT touch controlled_reader_enabled at all.
+  // A real customer_id in this list gets the controlled reader for
+  // every purchase THEY own, regardless of the global flag above;
+  // everyone else's behavior is completely unaffected by this key's
+  // existence. Defaults to an empty array - "no allowlist" means "no
+  // customer is on it," never "everyone is," so leaving this key
+  // entirely unset (the state of every environment before this phase)
+  // is provably identical to today's production behavior. See
+  // isControlledReaderEnabledForCustomer() below for exactly how this
+  // combines with the global flag, and routes/customer/purchases.ts /
+  // routes/reader.ts for the two call sites.
+  controlled_reader_pilot_customer_ids: [] as number[],
+  // Controlled Library Reader, Phase 6B - a SECOND, even narrower pilot
+  // dimension: a real purchase_sessions.purchase_reference in this list
+  // grants the controlled reader for exactly that one purchase, without
+  // widening to every other purchase the same customer might separately
+  // own the way controlled_reader_pilot_customer_ids does. The two
+  // arrays are independent and additive (either one matching is
+  // enough) - use this one when the pilot must be scoped to one
+  // specific, already-audited purchase and nothing else on that
+  // customer's account. Same "empty means nobody" default posture.
+  controlled_reader_pilot_purchase_references: [] as string[],
 };
 
 type SettingsKey = keyof typeof DEFAULTS;
@@ -350,6 +373,41 @@ export async function isControlledReaderEnabled(env: Env): Promise<boolean> {
 }
 
 /**
+ * Controlled Library Reader, Phase 6A/6B pilot mechanism. `true` when
+ * ANY of the following hold:
+ *   1. The global controlled_reader_enabled flag is on (unchanged
+ *      meaning - every customer).
+ *   2. This real, authenticated customerId appears in
+ *      controlled_reader_pilot_customer_ids (Phase 6A - this one
+ *      customer, for every purchase they own).
+ *   3. `purchaseReference` is given and appears in
+ *      controlled_reader_pilot_purchase_references (Phase 6B - this
+ *      ONE purchase specifically, regardless of what else the same
+ *      customer owns - the narrowest of the three, for a pilot that
+ *      must not touch any other purchase on the same account).
+ * `purchaseReference` is optional because routes/customer/purchases.ts's
+ * mint endpoint already has it for free (the URL param) while
+ * routes/reader.ts's page/chapter routes only resolve it after
+ * reverifyEntitlementForDelivery() - both call sites pass it when they
+ * have it, so either pilot dimension works from either endpoint.
+ * Never widens access any other way: with the flag off, a customerId
+ * AND purchaseReference that both miss every list get exactly today's
+ * behavior - CONTROLLED_READER_DISABLED, falling back to the existing
+ * whole-file read-access flow.
+ */
+export async function isControlledReaderEnabledForCustomer(env: Env, customerId: number, purchaseReference?: string): Promise<boolean> {
+  const raw = await readRawSettings(env);
+  if (resolve(raw, 'controlled_reader_enabled')) return true;
+  const pilotIds = resolve(raw, 'controlled_reader_pilot_customer_ids');
+  if (Array.isArray(pilotIds) && pilotIds.includes(customerId)) return true;
+  if (purchaseReference) {
+    const pilotRefs = resolve(raw, 'controlled_reader_pilot_purchase_references');
+    if (Array.isArray(pilotRefs) && pilotRefs.includes(purchaseReference)) return true;
+  }
+  return false;
+}
+
+/**
  * Resolves just `hero_content` for the public, unauthenticated
  * GET /api/hero endpoint the homepage's client-side JS fetches on
  * every load - same single-row-lookup shape as getMaintenanceMode()
@@ -410,6 +468,52 @@ function validateControlledReaderEnabled(value: unknown, errors: SettingsValidat
     return undefined;
   }
   return value;
+}
+
+/** A "narrow pilot" by definition never needs many entries — this caps the list at a small, deliberately conservative size so a fat-fingered edit can never silently turn into a de facto global rollout. */
+const MAX_PILOT_CUSTOMER_IDS = 25;
+
+function validatePilotCustomerIds(value: unknown, errors: SettingsValidationError[]): number[] | undefined {
+  if (!Array.isArray(value)) {
+    errors.push({ field: 'controlledReaderPilotCustomerIds', message: 'controlledReaderPilotCustomerIds must be an array of customer ids.' });
+    return undefined;
+  }
+  if (value.length > MAX_PILOT_CUSTOMER_IDS) {
+    errors.push({ field: 'controlledReaderPilotCustomerIds', message: `controlledReaderPilotCustomerIds must have at most ${MAX_PILOT_CUSTOMER_IDS} entries — this is a narrow pilot allowlist, not a rollout mechanism.` });
+    return undefined;
+  }
+  const ids: number[] = [];
+  for (const entry of value) {
+    if (!Number.isInteger(entry) || (entry as number) <= 0) {
+      errors.push({ field: 'controlledReaderPilotCustomerIds', message: 'Every entry must be a real, positive customer id.' });
+      return undefined;
+    }
+    ids.push(entry as number);
+  }
+  return [...new Set(ids)];
+}
+
+const MAX_PILOT_PURCHASE_REFERENCES = 25;
+const PURCHASE_REFERENCE_PATTERN = /^RWL-\d{4}-\d{6,}$/;
+
+function validatePilotPurchaseReferences(value: unknown, errors: SettingsValidationError[]): string[] | undefined {
+  if (!Array.isArray(value)) {
+    errors.push({ field: 'controlledReaderPilotPurchaseReferences', message: 'controlledReaderPilotPurchaseReferences must be an array of purchase references.' });
+    return undefined;
+  }
+  if (value.length > MAX_PILOT_PURCHASE_REFERENCES) {
+    errors.push({ field: 'controlledReaderPilotPurchaseReferences', message: `controlledReaderPilotPurchaseReferences must have at most ${MAX_PILOT_PURCHASE_REFERENCES} entries — this is a narrow pilot allowlist, not a rollout mechanism.` });
+    return undefined;
+  }
+  const refs: string[] = [];
+  for (const entry of value) {
+    if (typeof entry !== 'string' || !PURCHASE_REFERENCE_PATTERN.test(entry)) {
+      errors.push({ field: 'controlledReaderPilotPurchaseReferences', message: 'Every entry must be a real purchase reference in the RWL-YYYY-NNNNNN shape.' });
+      return undefined;
+    }
+    refs.push(entry);
+  }
+  return [...new Set(refs)];
 }
 
 function validateMaintenanceMode(value: unknown, errors: SettingsValidationError[]): MaintenanceModeValue | undefined {
@@ -689,6 +793,8 @@ const PATCH_KEY_MAP: Record<string, SettingsKey> = {
   aiGatewayRetentionStorageMode: 'ai_gateway_retention_storage_mode',
   aiGatewayRetentionDays: 'ai_gateway_retention_days',
   controlledReaderEnabled: 'controlled_reader_enabled',
+  controlledReaderPilotCustomerIds: 'controlled_reader_pilot_customer_ids',
+  controlledReaderPilotPurchaseReferences: 'controlled_reader_pilot_purchase_references',
 };
 
 export async function updateSettings(env: Env, logger: Logger, actorId: number, patch: Record<string, unknown>, context: ActionContext): Promise<UpdateSettingsResult> {
@@ -751,6 +857,12 @@ export async function updateSettings(env: Env, logger: Logger, actorId: number, 
         break;
       case 'controlled_reader_enabled':
         value = validateControlledReaderEnabled(rawValue, errors);
+        break;
+      case 'controlled_reader_pilot_customer_ids':
+        value = validatePilotCustomerIds(rawValue, errors);
+        break;
+      case 'controlled_reader_pilot_purchase_references':
+        value = validatePilotPurchaseReferences(rawValue, errors);
         break;
     }
 

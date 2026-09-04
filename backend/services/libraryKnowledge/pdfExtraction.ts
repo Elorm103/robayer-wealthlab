@@ -51,6 +51,20 @@
  *
  * Extracts PER-PAGE text so citation page numbers are real and
  * substantiated, never inferred.
+ *
+ * Phase 4 (Robayer AI chapter-context architecture) addition: also
+ * resolves the PDF's own outline/bookmarks (doc.getOutline()) to real
+ * page numbers and assigns each page the chapter it actually falls
+ * under. This is the exact `chapter_title` field
+ * library_knowledge_chunks (migration 0051) already reserved for this
+ * ("populated only from a real PDF outline entry covering this page")
+ * but nothing before this phase ever wrote — confirmed empirically
+ * against the real production book that its 29 outline entries resolve
+ * cleanly to real pages via getPageIndex(), and that the resulting
+ * chapter titles are textually IDENTICAL to the corresponding EPUB's
+ * own chapter `<title>` tags, which is what makes a single
+ * (documentId, chapterTitle) key work as a chapter-scoped retrieval
+ * filter across BOTH formats of the same book.
  */
 import DOMMatrixPolyfill from 'dommatrix';
 const globalWithDOMMatrix = globalThis as unknown as { DOMMatrix?: unknown };
@@ -61,11 +75,90 @@ if (typeof globalWithDOMMatrix.DOMMatrix === 'undefined') {
 export interface ExtractedPdfPage {
   pageNumber: number;
   text: string;
+  /** The real outline/bookmark entry whose page range covers this page; null when the PDF has no outline, or this page precedes its first entry (e.g. a cover page). Never guessed from heading text — PDF text runs carry no heading semantics HTML does. */
+  chapterTitle: string | null;
 }
 
 export interface ExtractedPdf {
   totalPages: number;
   pages: ExtractedPdfPage[];
+}
+
+interface ResolvedOutlineEntry {
+  title: string;
+  pageNumber: number;
+}
+
+/**
+ * Flattens pdf.js's own recursive outline tree (each item can carry
+ * nested `.items`) into resolved (title, pageNumber) pairs. A `.dest`
+ * is either an explicit destination array already, or a named
+ * destination string that must first be resolved via
+ * `doc.getDestination()` — both real pdf.js shapes, confirmed directly
+ * against the production book's own outline. Any single entry that
+ * fails to resolve (a malformed/unusual destination) is skipped, not
+ * fabricated — the remaining real entries still produce a usable,
+ * partial map rather than losing the whole outline over one bad entry.
+ */
+interface OutlineCapableDocument {
+  getOutline(): Promise<unknown>;
+  getDestination(namedDestination: string): Promise<unknown>;
+  getPageIndex(ref: unknown): Promise<number>;
+}
+
+async function resolveOutline(doc: OutlineCapableDocument): Promise<ResolvedOutlineEntry[]> {
+  let outline: unknown;
+  try {
+    outline = await doc.getOutline();
+  } catch {
+    return [];
+  }
+  if (!Array.isArray(outline) || outline.length === 0) return [];
+
+  const flat: { title: string; dest: unknown }[] = [];
+  const walk = (items: unknown[]) => {
+    for (const item of items as { title?: string; dest?: unknown; items?: unknown[] }[]) {
+      if (item.title) flat.push({ title: item.title, dest: item.dest });
+      if (Array.isArray(item.items) && item.items.length > 0) walk(item.items);
+    }
+  };
+  walk(outline as unknown[]);
+
+  const resolved: ResolvedOutlineEntry[] = [];
+  for (const entry of flat) {
+    try {
+      let dest = entry.dest;
+      if (typeof dest === 'string') dest = await doc.getDestination(dest);
+      if (!Array.isArray(dest) || dest.length === 0) continue;
+      const pageIndex: number = await doc.getPageIndex(dest[0]);
+      resolved.push({ title: entry.title.trim(), pageNumber: pageIndex + 1 });
+    } catch {
+      continue;
+    }
+  }
+  return resolved;
+}
+
+/**
+ * A chapter "owns" every page from its own start page up to (but not
+ * including) the next entry's start page — real pagination, not a
+ * guess. Pages before the first real entry (front-cover-only PDFs,
+ * commonly) correctly get `null` rather than being attributed to a
+ * chapter they precede.
+ */
+function buildPageChapterMap(entries: ResolvedOutlineEntry[], totalPages: number): Map<number, string> {
+  const sorted = [...entries].sort((a, b) => a.pageNumber - b.pageNumber);
+  const map = new Map<number, string>();
+  let cursor = 0;
+  let current: string | null = null;
+  for (let page = 1; page <= totalPages; page++) {
+    while (cursor < sorted.length && sorted[cursor].pageNumber <= page) {
+      current = sorted[cursor].title;
+      cursor++;
+    }
+    if (current) map.set(page, current);
+  }
+  return map;
 }
 
 /**
@@ -98,6 +191,9 @@ export async function extractPdfText(bytes: ArrayBuffer): Promise<ExtractedPdf> 
 
   const doc = await getDocument({ data: new Uint8Array(bytes), useWorkerFetch: false, isEvalSupported: false }).promise;
   try {
+    const outlineEntries = await resolveOutline(doc);
+    const pageChapterMap = buildPageChapterMap(outlineEntries, doc.numPages);
+
     const pages: ExtractedPdfPage[] = [];
     for (let pageNumber = 1; pageNumber <= doc.numPages; pageNumber++) {
       const page = await doc.getPage(pageNumber);
@@ -111,7 +207,7 @@ export async function extractPdfText(bytes: ArrayBuffer): Promise<ExtractedPdf> 
         .join(' ')
         .replace(/\s+/g, ' ')
         .trim();
-      pages.push({ pageNumber, text });
+      pages.push({ pageNumber, text, chapterTitle: pageChapterMap.get(pageNumber) ?? null });
       page.cleanup();
     }
     return { totalPages: doc.numPages, pages };

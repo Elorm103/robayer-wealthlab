@@ -21,6 +21,27 @@
  * controlled_reader_enabled is off, or for a book/product not yet
  * using this path) is completely unaffected and keeps its full TOC
  * fidelity.
+ *
+ * Phase 4 (production readiness) fix — inlineChapterResources() below.
+ * Confirmed by direct inspection of the real production EPUB (see
+ * docs/v6.1-phase3-pilot-and-ai-audit.html): every chapter links its
+ * ONE real stylesheet (EPUB/style/main.css) via
+ * `<link rel="stylesheet">`, which this endpoint was serving only the
+ * bare chapter HTML for — the link 404'd client-side (no route ever
+ * served it), so the chapter rendered entirely unstyled. The fix
+ * inlines the chapter's own actually-referenced CSS (and, for
+ * generality beyond this specific book, any `<img>`/`@font-face`
+ * dependency that CSS or the chapter markup references) directly into
+ * the single HTML document this endpoint already returns — NOT a new
+ * route: every resource this pulls in is looked up from the SAME
+ * in-memory `entries` this function already unzipped for the one
+ * requested chapter, so nothing beyond what that one chapter's own real
+ * dependency graph references is ever read from the archive, and
+ * nothing is ever exposed at a URL of its own. This is exactly what the
+ * EPUB reader's own CSP (EPUB_READER_CSP below) already anticipated —
+ * `img-src ... data:` and `font-src ... data:` were already present
+ * before this phase, the natural policy for inlined data: URIs, not a
+ * new relaxation added to accommodate this fix.
  */
 
 import { unzipSync, strToU8, strFromU8 } from 'fflate';
@@ -58,6 +79,95 @@ function resolveRelativePath(baseDir: string, relativePath: string): string {
 function dirname(path: string): string {
   const idx = path.lastIndexOf('/');
   return idx === -1 ? '' : path.slice(0, idx);
+}
+
+const MIME_BY_EXTENSION: Record<string, string> = {
+  css: 'text/css',
+  png: 'image/png',
+  jpg: 'image/jpeg',
+  jpeg: 'image/jpeg',
+  gif: 'image/gif',
+  svg: 'image/svg+xml',
+  webp: 'image/webp',
+  woff: 'font/woff',
+  woff2: 'font/woff2',
+  ttf: 'font/ttf',
+  otf: 'font/otf',
+};
+
+function inferMimeType(path: string): string {
+  const ext = path.slice(path.lastIndexOf('.') + 1).toLowerCase();
+  return MIME_BY_EXTENSION[ext] || 'application/octet-stream';
+}
+
+/** Web-standard `btoa()` operates on a JS string of code units, not raw bytes, and chokes on/mangles anything above 0x7F unless fed one code unit per byte — chunked to avoid `String.fromCharCode(...bytes)`'s call-stack blowup on a real image-sized Uint8Array. */
+function bytesToBase64(bytes: Uint8Array): string {
+  const CHUNK_SIZE = 8192;
+  let binary = '';
+  for (let i = 0; i < bytes.length; i += CHUNK_SIZE) {
+    binary += String.fromCharCode(...bytes.subarray(i, i + CHUNK_SIZE));
+  }
+  return btoa(binary);
+}
+
+function toDataUri(bytes: Uint8Array, path: string): string {
+  return `data:${inferMimeType(path)};base64,${bytesToBase64(bytes)}`;
+}
+
+/**
+ * Replaces every `url(...)` reference inside a chapter's own CSS
+ * (fonts, background images — an `@font-face src` or a `background:`
+ * declaration) with an inlined data: URI, when that path resolves to a
+ * real entry in THIS chapter's already-unzipped archive. A reference
+ * that doesn't resolve (already a data:/http(s): URL, or a path this
+ * archive genuinely doesn't contain) is left exactly as-is — a book
+ * with no such dependency (confirmed true of the real production book's
+ * own style/main.css, which uses only web-safe font names and zero
+ * url() references) is completely unaffected by this function; it
+ * exists for the books that DO reference one, not as a no-op.
+ */
+function inlineCssUrls(cssText: string, cssDir: string, entries: Record<string, Uint8Array>): string {
+  return cssText.replace(/url\(\s*(['"]?)([^'")]+)\1\s*\)/gi, (match, _quote: string, ref: string) => {
+    if (/^(data:|https?:|\/\/)/i.test(ref)) return match; // already inline or external — never fetched, never rewritten
+    const resolved = resolveRelativePath(cssDir, ref);
+    const bytes = entries[resolved];
+    if (!bytes) return match; // genuinely missing from this archive — left as a dead reference rather than fabricated, matching this file's "skipped, not fabricated" convention elsewhere
+    return `url("${toDataUri(bytes, resolved)}")`;
+  });
+}
+
+/**
+ * Inlines exactly the resources THIS chapter's own HTML/CSS actually
+ * reference — never anything else in the archive. `<link
+ * rel="stylesheet">` is replaced with an inline `<style>` block (its own
+ * url() references resolved the same way, via inlineCssUrls above);
+ * `<img src="...">` gets its src rewritten to a data: URI. Any
+ * reference that doesn't resolve to a real archive entry degrades
+ * gracefully — a missing stylesheet's `<link>` tag is simply dropped
+ * (never left pointing at a route that would 404) and a missing image's
+ * `src` is left as-is (a broken-image icon, not a crash) — this must
+ * never throw regardless of how a chapter's markup is shaped.
+ */
+function inlineChapterResources(html: string, entries: Record<string, Uint8Array>, chapterDir: string): string {
+  let out = html.replace(/<link\b[^>]*rel=["']stylesheet["'][^>]*>/gi, (tag) => {
+    const hrefMatch = tag.match(/\bhref=["']([^"']+)["']/i);
+    if (!hrefMatch) return '';
+    const resolved = resolveRelativePath(chapterDir, hrefMatch[1]);
+    const cssBytes = entries[resolved];
+    if (!cssBytes) return ''; // never leave a <link> pointing at a resource this endpoint doesn't serve
+    const cssText = inlineCssUrls(strFromU8(cssBytes), dirname(resolved), entries);
+    return `<style>${cssText}</style>`;
+  });
+
+  out = out.replace(/(<img\b[^>]*\bsrc=["'])([^"']+)(["'][^>]*>)/gi, (match, prefix: string, src: string, suffix: string) => {
+    if (/^(data:|https?:|\/\/)/i.test(src)) return match;
+    const resolved = resolveRelativePath(chapterDir, src);
+    const bytes = entries[resolved];
+    if (!bytes) return match; // left as-is — a broken image icon, never a crash, never a route the client could probe for other archive contents
+    return `${prefix}${toDataUri(bytes, resolved)}${suffix}`;
+  });
+
+  return out;
 }
 
 export async function getEpubManifest(masterBytes: ArrayBuffer): Promise<GetEpubManifestResult> {
@@ -139,6 +249,7 @@ export async function renderProtectedEpubChapter(masterBytes: ArrayBuffer, chapt
   if (!chapterBytes) return { ok: false, reason: 'chapter_not_found' };
 
   let html = strFromU8(chapterBytes);
+  html = inlineChapterResources(html, entries, dirname(spineItem.href));
   html = injectReaderCsp(html);
   html = injectWatermark(html, watermark);
 

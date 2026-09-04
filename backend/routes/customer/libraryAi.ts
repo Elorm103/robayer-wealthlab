@@ -52,6 +52,8 @@ interface AskBody {
   mode?: unknown;
   question?: unknown;
   currentPage?: unknown;
+  /** EPUB only — the reader's current chapter section href; see answerService.ts's own header comment on the 5-level context hierarchy this feeds LEVEL 1 (current chapter) from. */
+  currentHref?: unknown;
 }
 
 export async function handleAskLibraryAi(request: Request, env: Env, logger: Logger): Promise<Response> {
@@ -93,6 +95,12 @@ export async function handleAskLibraryAi(request: Request, env: Env, logger: Log
     return withNoStore(jsonError('VALIDATION_ERROR', `question, if provided, must be a non-empty string up to ${MAX_QUESTION_LENGTH} characters.`));
   }
   const currentPage = typeof body.currentPage === 'number' && Number.isInteger(body.currentPage) && body.currentPage > 0 ? body.currentPage : null;
+  // Length-capped the same way an EPUB spine href realistically is
+  // (see epubChapterService.ts's own manifest hrefs) — not a security
+  // boundary (answerService.ts's resolveCurrentChapter() only ever
+  // matches it against this SAME authorized document's own chunks), just
+  // rejecting an obviously-malformed value before it reaches a DB bind.
+  const currentHref = typeof body.currentHref === 'string' && body.currentHref.length > 0 && body.currentHref.length <= 500 ? body.currentHref : null;
 
   try {
     const result = await answerLibraryQuestion(env, logger, {
@@ -102,6 +110,7 @@ export async function handleAskLibraryAi(request: Request, env: Env, logger: Log
       mode,
       question: typeof body.question === 'string' ? body.question : '',
       currentPage,
+      currentHref,
     });
 
     if (!result.ok) {

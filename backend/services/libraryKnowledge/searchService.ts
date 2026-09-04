@@ -19,6 +19,20 @@
  * is what actually enforces "chunks from THIS book only," the same
  * "Vectorize answers nearest, D1 answers who may see it" split the
  * public Knowledge Base already established.
+ *
+ * Phase 4 (Robayer AI chapter-context architecture) addition:
+ * resolveCurrentChapter() / getChapterChunks() below give LEVEL 1
+ * (current chapter) of answerService.ts's 5-level hierarchy a real,
+ * exact identity instead of leaving "which chapter is this?" to
+ * whatever vector similarity happens to surface. Both are scoped by
+ * document_id exactly like searchLibraryResource() above — a caller
+ * cannot widen the query to another book by supplying a different page
+ * number or chapter href; a wrong value only ever selects a different,
+ * still-authorized chapter of the SAME entitled document, never
+ * escapes it (see answerService.ts's own header comment on the
+ * authorization chain, and Section F of this phase's brief on why that
+ * bound is exactly what's required — not that the client's reading-
+ * position fields be trusted for anything beyond that selection).
  */
 
 import type { Env } from '../../worker/env';
@@ -127,4 +141,81 @@ export async function searchLibraryResource(env: Env, logger: Logger, request: L
   }
 
   return { results, latencyMs: Date.now() - startedAt };
+}
+
+export interface ChapterIdentity {
+  chapterTitle: string | null;
+  /** EPUB only — the section href the caller reports it is currently reading; PDF has none. */
+  cfi: string | null;
+}
+
+/**
+ * Resolves "which chapter is the reader currently in" from whichever
+ * position signal this format actually has — PDF: the current page
+ * number, looked up against the real per-page chapter_title
+ * pdfExtraction.ts's outline-walk already assigned at indexing time.
+ * EPUB: the section href IS the chapter identity directly (cfi column
+ * stores it exactly, see indexingService.ts), so this only needs to
+ * confirm that href genuinely belongs to this document and fetch its
+ * title for display — it never trusts an href the client supplies
+ * beyond that same document_id-scoped lookup.
+ */
+export async function resolveCurrentChapter(env: Env, documentId: number, position: { currentPage?: number | null; currentHref?: string | null }): Promise<ChapterIdentity | null> {
+  if (position.currentHref) {
+    const row = await env.DB.prepare(`SELECT chapter_title, cfi FROM library_knowledge_chunks WHERE document_id = ? AND cfi = ? LIMIT 1`)
+      .bind(documentId, position.currentHref)
+      .first<{ chapter_title: string | null; cfi: string | null }>();
+    if (row) return { chapterTitle: row.chapter_title, cfi: row.cfi };
+    return null;
+  }
+  if (position.currentPage != null) {
+    const row = await env.DB.prepare(`SELECT chapter_title FROM library_knowledge_chunks WHERE document_id = ? AND page_number = ? LIMIT 1`)
+      .bind(documentId, position.currentPage)
+      .first<{ chapter_title: string | null }>();
+    if (row && row.chapter_title) return { chapterTitle: row.chapter_title, cfi: null };
+    return null;
+  }
+  return null;
+}
+
+export interface ChapterChunk {
+  chunkId: number;
+  chunkIndex: number;
+  chunkText: string;
+  pageNumber: number | null;
+  cfi: string | null;
+}
+
+/** Keeps a whole-chapter prompt section within a sane size regardless of chapter length — real chapters in the production book run well under this; this is a bound for the rare long chapter, not a normal-path truncation. */
+const CHAPTER_CONTEXT_CHAR_BUDGET = 12000;
+
+/**
+ * Returns EVERY chunk belonging to one real, resolved chapter (by
+ * chapter_title for PDF, by cfi for EPUB — never a similarity top-K),
+ * in reading order (chunk_index), up to a character budget. This is
+ * what makes "summarize this chapter" retrieve the actual chapter
+ * instead of whatever few passages happen to vector-match the literal
+ * word "summarize" — the failure mode this phase's brief specifically
+ * calls out.
+ */
+export async function getChapterChunks(env: Env, documentId: number, chapter: ChapterIdentity): Promise<ChapterChunk[]> {
+  const rows = chapter.cfi
+    ? await env.DB.prepare(`SELECT id AS chunk_id, chunk_index, chunk_text, page_number, cfi FROM library_knowledge_chunks WHERE document_id = ? AND cfi = ? ORDER BY chunk_index ASC`)
+        .bind(documentId, chapter.cfi)
+        .all<{ chunk_id: number; chunk_index: number; chunk_text: string; page_number: number | null; cfi: string | null }>()
+    : chapter.chapterTitle
+      ? await env.DB.prepare(`SELECT id AS chunk_id, chunk_index, chunk_text, page_number, cfi FROM library_knowledge_chunks WHERE document_id = ? AND chapter_title = ? ORDER BY chunk_index ASC`)
+          .bind(documentId, chapter.chapterTitle)
+          .all<{ chunk_id: number; chunk_index: number; chunk_text: string; page_number: number | null; cfi: string | null }>()
+      : null;
+  if (!rows) return [];
+
+  const chunks: ChapterChunk[] = [];
+  let totalChars = 0;
+  for (const r of rows.results) {
+    if (totalChars >= CHAPTER_CONTEXT_CHAR_BUDGET) break;
+    chunks.push({ chunkId: r.chunk_id, chunkIndex: r.chunk_index, chunkText: r.chunk_text, pageNumber: r.page_number, cfi: r.cfi });
+    totalChars += r.chunk_text.length;
+  }
+  return chunks;
 }

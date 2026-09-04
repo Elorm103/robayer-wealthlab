@@ -69,7 +69,7 @@ const HEAD_ASSETS = `
   <link rel="stylesheet" href="/css/tokens.css?v=2706187f0b">
   <link rel="stylesheet" href="/css/base.css?v=57a963bc6f">
   <link rel="stylesheet" href="/css/layout.css?v=a6fb0c7359">
-  <link rel="stylesheet" href="/css/components.css?v=cc2d1cb931">
+  <link rel="stylesheet" href="/css/components.css?v=3163163cb2">
   <link rel="stylesheet" href="/css/utilities.css?v=406dfe7300">
 `;
 
@@ -388,7 +388,7 @@ ${NEWSLETTER_BAND}`;
     ogImage: `${SITE_ORIGIN}/assets/branding/social/og-image.jpg`,
     extraHead: faqJsonLd() + pageContentScript,
     bodyContent: body,
-    scripts: ['/js/components/content-filters.js?v=bff036747e', '/js/main.js?v=1043f4fc00'],
+    scripts: ['/js/components/content-filters.js?v=f985281225', '/js/main.js?v=e37faf0861'],
   });
 
   return htmlResponse(html, 200);

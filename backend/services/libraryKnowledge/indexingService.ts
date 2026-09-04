@@ -75,10 +75,15 @@ export async function ensureResourceIndexed(env: Env, logger: Logger, productSlu
   // Build every chunk BEFORE writing anything, so a failure partway
   // through extraction/embedding never leaves a half-updated document.
   // pageNumber is real per-page for PDF (never for EPUB, which has no
-  // fixed page count); chapterTitle/cfi are real per-section for EPUB
-  // (chapterTitle only from a real PDF outline entry, never from EPUB
-  // today — see searchService.ts/answerService.ts for how each format's
-  // fields are used downstream).
+  // fixed page count); cfi is real per-section for EPUB only (the
+  // section's own href). chapterTitle is now real and populated for
+  // BOTH formats (Phase 4): from the PDF's own outline/bookmark entry
+  // covering that page, or from the EPUB section's own <title> tag
+  // (falling back to its first heading) — see pdfExtraction.ts's and
+  // epubExtraction.ts's own header comments on why the two formats'
+  // chapter titles are expected to read identically for the same real
+  // book, which is what lets searchService.ts's chapter-scoped lookup
+  // use one (documentId, chapterTitle) key across either format.
   const pending: { pageNumber: number | null; chapterTitle: string | null; cfi: string | null; text: string; tokens: number }[] = [];
   let totalPages: number | null = null;
   let fullText: string;
@@ -98,7 +103,7 @@ export async function ensureResourceIndexed(env: Env, logger: Logger, productSlu
     for (const page of extracted.pages) {
       if (!page.text) continue; // a genuinely blank page (cover, divider) contributes nothing to index — not an error
       for (const chunk of chunkText(page.text)) {
-        pending.push({ pageNumber: page.pageNumber, chapterTitle: null, cfi: null, text: chunk.text, tokens: chunk.tokens });
+        pending.push({ pageNumber: page.pageNumber, chapterTitle: page.chapterTitle, cfi: null, text: chunk.text, tokens: chunk.tokens });
       }
     }
   } else {

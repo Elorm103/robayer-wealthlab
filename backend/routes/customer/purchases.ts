@@ -36,7 +36,7 @@ import { createReaderSession, reverifyEntitlementForDelivery } from '../../servi
 import { getPdfPageCount } from '../../services/pdfPageService';
 import { getEpubManifest } from '../../services/epubChapterService';
 import { fetchCatalogProduct, findPublishedAsset } from '../../services/productCatalogService';
-import { isControlledReaderEnabled } from '../../services/admin/settingsService';
+import { isControlledReaderEnabledForCustomer } from '../../services/admin/settingsService';
 
 const REFERENCE_PATTERN = /^RWL-\d{4}-\d{6,}$/;
 const RECEIPT_NUMBER_PATTERN = /^RWL-RCT-\d{4}-\d{6,}$/;
@@ -464,8 +464,12 @@ export async function handleRequestReaderSession(request: Request, env: Env, log
   // falls back to its existing, unmodified whole-file read-access
   // flow - no deploy or migration needed to recover from a production
   // issue, and no customer is ever moved onto the new path until this
-  // is explicitly turned on.
-  if (!(await isControlledReaderEnabled(env))) {
+  // is explicitly turned on. Phase 6A/6B — also true for this one
+  // authenticated customer, or this one specific purchase reference, if
+  // either is on the narrow pilot allowlist, even with the global flag
+  // still off; see isControlledReaderEnabledForCustomer()'s own header
+  // comment.
+  if (!(await isControlledReaderEnabledForCustomer(env, auth.auth.customerId, reference))) {
     return withNoStore(jsonError('CONTROLLED_READER_DISABLED', 'The controlled reader is not currently available.'));
   }
 

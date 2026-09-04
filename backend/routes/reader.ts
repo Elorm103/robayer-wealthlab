@@ -17,12 +17,30 @@
  * HTTP layer only: all real logic lives in pdfPageService.ts /
  * epubChapterService.ts / readerSessionService.ts.
  *
- * The controlled_reader_enabled check runs before session validation
- * on BOTH endpoints, deliberately - a kill switch that only stopped
- * new session mints would leave an already-open reading session
- * working until it naturally expired. Checking it here too makes
- * disabling the flag an immediate, total stop, not "new sessions
- * only".
+ * The controlled-reader-enabled check still runs before this endpoint
+ * does anything else that matters (rendering, storage reads,
+ * watermarking) - disabling access must still be an immediate, total
+ * stop for an already-open session, never "new sessions only". Phase
+ * 6A/6B changed WHICH check function runs and WHEN, not that
+ * principle:
+ *   - Phase 6A moved it to right after session validation (instead of
+ *     before it), because the pilot allowlist is scoped by customerId -
+ *     isControlledReaderEnabledForCustomer() needs the session's own
+ *     customerId, which only validateReaderSession() can produce.
+ *   - Phase 6B moved it once more, to right after
+ *     reverifyEntitlementForDelivery() (still well before any real
+ *     content is ever touched), because a pilot can now ALSO be scoped
+ *     to one specific purchase reference
+ *     (controlled_reader_pilot_purchase_references) - that reference is
+ *     only known once reverifyEntitlementForDelivery() resolves it,
+ *     which this endpoint already calls next anyway for its own
+ *     product/asset lookup.
+ * A session that fails validation, or an entitlement that fails
+ * reverification, is rejected before the enabled-for-this-request check
+ * even runs, exactly as before either reordering - across both changes,
+ * this only ever affects which of several "you can't have this page"
+ * reasons a REJECTED request reports first, never who is actually let
+ * through.
  */
 
 import type { Env } from '../worker/env';
@@ -35,7 +53,7 @@ import { renderProtectedPdfPage, type PdfPageDenialReason } from '../services/pd
 import { renderProtectedEpubChapter, type RenderEpubChapterDenialReason } from '../services/epubChapterService';
 import { fetchCatalogProduct, findPublishedAsset } from '../services/productCatalogService';
 import { logContentAccess } from '../services/contentAccessLogService';
-import { isControlledReaderEnabled } from '../services/admin/settingsService';
+import { isControlledReaderEnabledForCustomer } from '../services/admin/settingsService';
 import type { ApiErrorCode } from '../types/api-contracts';
 
 // Deliberately tighter than the reader-session mint rate limit
@@ -73,10 +91,6 @@ export async function handleGetReaderPage(request: Request, env: Env, logger: Lo
     return jsonError('RATE_LIMITED', 'Too many requests. Please slow down and try again shortly.');
   }
 
-  if (!(await isControlledReaderEnabled(env))) {
-    return jsonError('CONTROLLED_READER_DISABLED', 'The controlled reader is not currently available. Please try again later.');
-  }
-
   const session = await validateReaderSession(env, params.sessionToken);
   if (!session.ok) {
     return jsonError('READER_SESSION_INVALID', SESSION_REASON_TO_MESSAGE[session.reason]);
@@ -87,9 +101,18 @@ export async function handleGetReaderPage(request: Request, env: Env, logger: Lo
     return jsonError('INVALID_PAGE', 'A valid page number is required.');
   }
 
+  // Phase 6B — resolved BEFORE the enabled-for-this-request check
+  // (reordered from Phase 6A) so that check can see the real
+  // purchaseReference too, not just customerId: a pilot scoped to one
+  // specific purchase reference (controlled_reader_pilot_purchase_references)
+  // needs it to know whether THIS delivery, specifically, is pilot-
+  // eligible, regardless of what else this customer owns.
   const entitlement = await reverifyEntitlementForDelivery(env, session.deliveryId, session.customerId);
   if (!entitlement.ok) {
     return jsonError('READER_ACCESS_DENIED', 'This resource is no longer available to read. Please check My Library or contact support.');
+  }
+  if (!(await isControlledReaderEnabledForCustomer(env, session.customerId, entitlement.context.purchaseReference))) {
+    return jsonError('CONTROLLED_READER_DISABLED', 'The controlled reader is not currently available. Please try again later.');
   }
 
   const product = await fetchCatalogProduct(env, entitlement.context.productSlug);
@@ -154,10 +177,6 @@ export async function handleGetReaderChapter(request: Request, env: Env, logger:
     return jsonError('RATE_LIMITED', 'Too many requests. Please slow down and try again shortly.');
   }
 
-  if (!(await isControlledReaderEnabled(env))) {
-    return jsonError('CONTROLLED_READER_DISABLED', 'The controlled reader is not currently available. Please try again later.');
-  }
-
   const session = await validateReaderSession(env, params.sessionToken);
   if (!session.ok) {
     return jsonError('READER_SESSION_INVALID', SESSION_REASON_TO_MESSAGE[session.reason]);
@@ -168,9 +187,16 @@ export async function handleGetReaderChapter(request: Request, env: Env, logger:
     return jsonError('INVALID_CHAPTER', 'A valid chapter reference is required.');
   }
 
+  // Phase 6B — same reordering as handleGetReaderPage() above, and for
+  // the same reason: the enabled-for-this-request check needs the real
+  // purchaseReference reverifyEntitlementForDelivery() resolves, to
+  // support a pilot scoped to one specific purchase reference.
   const entitlement = await reverifyEntitlementForDelivery(env, session.deliveryId, session.customerId);
   if (!entitlement.ok) {
     return jsonError('READER_ACCESS_DENIED', 'This resource is no longer available to read. Please check My Library or contact support.');
+  }
+  if (!(await isControlledReaderEnabledForCustomer(env, session.customerId, entitlement.context.purchaseReference))) {
+    return jsonError('CONTROLLED_READER_DISABLED', 'The controlled reader is not currently available. Please try again later.');
   }
 
   const product = await fetchCatalogProduct(env, entitlement.context.productSlug);

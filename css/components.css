@@ -2986,6 +2986,57 @@ button.resource-card {
   font-weight: var(--weight-semibold);
 }
 
+/* Phase 6A (Library card UX polish) — the secondary "also own this as"
+   format link and the tertiary downloads line both live inside
+   .library-card__actions (a flex row whose only other child is the
+   primary Read button) but must read as their OWN line under it, not
+   crowd in beside it — flex-basis:100% forces each onto its own row
+   without needing a separate wrapper element. */
+.library-card__format-alt,
+.library-card__downloads {
+  flex-basis: 100%;
+}
+.library-card__format-alt a {
+  color: var(--color-text-secondary);
+  text-decoration: underline;
+}
+.library-card__format-alt a[aria-disabled='true'] {
+  pointer-events: none;
+  text-decoration: none;
+  opacity: 0.6;
+}
+
+/* Downloads demoted to plain inline text controls — still real,
+   fully-functional buttons (same requestDownload() click handler as
+   before), just no longer styled as .btn so they never visually
+   compete with the primary Read action for the customer's attention. */
+.library-card__download-link {
+  background: none;
+  border: none;
+  padding: 0;
+  margin: 0;
+  color: var(--color-text-secondary);
+  text-decoration: underline;
+  font-size: inherit;
+  font-family: inherit;
+  cursor: pointer;
+  /* Still a real, individually tappable control on mobile despite its
+     quiet styling — not a click target regression, only a visual one. */
+  min-height: 32px;
+  display: inline-flex;
+  align-items: center;
+}
+.library-card__download-link:hover,
+.library-card__download-link:focus-visible {
+  color: var(--color-text-primary);
+}
+.library-card__download-link--disabled,
+.library-card__download-link:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+  text-decoration: none;
+}
+
 @media (max-width: 767px) {
   .library-card__actions {
     flex-direction: column;
@@ -3351,6 +3402,20 @@ button.resource-card {
   font-family: var(--font-display);
   margin: var(--space-1) 0 0;
 }
+/* Phase 4 (production-readiness pass, Section C) — format switch + review link, both hidden by default and only revealed once library-reader.js's renderReaderMeta() has real data for them (never a dead control). */
+.reader-header__format-switch {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-2);
+  margin-top: var(--space-3);
+}
+.reader-header__format-btn[aria-current='true'] {
+  cursor: default;
+}
+.reader-header__review-link {
+  display: inline-flex;
+  margin-top: var(--space-3);
+}
 
 .reader-shell {
   border: 1px solid var(--color-border);
@@ -3412,6 +3477,7 @@ button.resource-card {
   display: flex;
   align-items: center;
   gap: var(--space-2);
+  position: relative; /* anchors .reader-toolbar__page-jump below the page indicator */
   /* Mobile reader fix — a flex item's default min-width is `auto`, so
      without this, `.reader-toolbar__zoom` (up to 7 buttons: font
      controls, TOC, search, bookmark, bookmarks list, Ask Robayer AI)
@@ -3435,6 +3501,48 @@ button.resource-card {
   font-size: var(--text-small);
   color: var(--color-text-secondary);
   white-space: nowrap;
+  /* Phase 5 (Priority A) — now a <button> (opens the direct-page-jump
+     form), so browser default button chrome is reset to keep it
+     looking exactly like the plain text it always was. */
+  background: none;
+  border: 1px dashed transparent;
+  border-radius: var(--radius-sm);
+  padding: var(--space-1) var(--space-2);
+  cursor: pointer;
+  min-height: 44px; /* touch target, matches .reader-toolbar__btn */
+}
+.reader-toolbar__page-indicator:hover,
+.reader-toolbar__page-indicator:focus-visible {
+  border-color: var(--color-border);
+}
+
+.reader-toolbar__page-jump {
+  position: absolute;
+  top: 100%;
+  left: 0;
+  margin-top: var(--space-1);
+  display: flex;
+  gap: var(--space-1);
+  padding: var(--space-2);
+  background-color: var(--color-surface);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-md);
+  box-shadow: var(--shadow-2);
+  z-index: var(--z-sticky);
+}
+.reader-toolbar__page-jump-input {
+  width: 5em;
+  min-height: 44px;
+  padding: var(--space-1) var(--space-2);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-sm);
+  background-color: var(--color-bg);
+  color: var(--color-text-primary);
+  font-family: var(--font-mono);
+}
+.reader-toolbar__page-jump-submit {
+  min-height: 44px;
+  padding: var(--space-1) var(--space-3);
 }
 
 .reader-progress-track {

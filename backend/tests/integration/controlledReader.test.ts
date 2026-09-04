@@ -71,6 +71,8 @@ beforeEach(async () => {
   await env.DB.exec('DELETE FROM customer_profiles');
   await env.DB.exec('DELETE FROM customers');
   await env.DB.exec(`DELETE FROM site_settings WHERE key = 'controlled_reader_enabled'`);
+  await env.DB.exec(`DELETE FROM site_settings WHERE key = 'controlled_reader_pilot_customer_ids'`);
+  await env.DB.exec(`DELETE FROM site_settings WHERE key = 'controlled_reader_pilot_purchase_references'`);
   // The flag now defaults OFF in production (Phase 2's deliberate
   // change from the earlier default-on attempt) - this suite enables
   // it for every test up front so the normal/enabled path is what's
@@ -252,6 +254,15 @@ describe('GET /api/reader/:sessionToken/page/:pageNumber - the core PDF security
     expect(Buffer.from(page1).equals(Buffer.from(page2))).toBe(false);
   });
 
+  // 15s, not the 5s default — this test's own independent verification
+  // step loads pdfjs-dist (services/libraryKnowledge/pdfExtraction.ts)
+  // for the first time in this file's run, and that module's own
+  // real, legitimate one-time bundling/init cost can exceed 5s under
+  // load (the same reasoning tests/unit/libraryKnowledge/answerService.test.ts
+  // already documents for its own real-PDF-extraction tests). Found
+  // flaky-timing-out at the default 5s during Phase 5's baseline
+  // re-check; confirmed via a 30s run that all assertions pass
+  // correctly once given real time to complete — not a logic issue.
   it('property 3: the page response contains the expected watermark (customer email), independently verifiable by extracting its text', async () => {
     const purchase = await seedCustomerWithPurchase('watermark-check@example.com', { assetId: PDF_ASSET_ID, productSlug: PDF_SLUG, reference: 'RWL-2026-900012' });
     const session = await mintReaderSession(purchase.cookieHeader, 'RWL-2026-900012', PDF_ASSET_ID);
@@ -262,7 +273,7 @@ describe('GET /api/reader/:sessionToken/page/:pageNumber - the core PDF security
     const extracted = await extractPdfText(bytes);
     expect(extracted.pages[0].text).toContain('watermark-check@example.com');
     expect(extracted.pages[0].text).toContain('Robayer WealthLab');
-  });
+  }, 15_000);
 
   it('rejects page 0 and a page beyond the real total', async () => {
     const purchase = await seedCustomerWithPurchase('badpage@example.com', { assetId: PDF_ASSET_ID, productSlug: PDF_SLUG, reference: 'RWL-2026-900013' });
@@ -427,16 +438,19 @@ describe('Immediate kill switch: controlled_reader_enabled stops an already-acti
     expect(afterBody.error.code).toBe('CONTROLLED_READER_DISABLED');
   });
 
-  it('the flag check runs before session validation, so it blocks equally whether the session is otherwise valid, expired, revoked, or simply nonexistent', async () => {
+  it('a nonexistent session token is rejected as READER_SESSION_INVALID regardless of the flag - session validity is checked first (Phase 6A reordering, required for the customerId-scoped pilot allowlist below)', async () => {
     await env.DB.prepare(`UPDATE site_settings SET value = 'false' WHERE key = 'controlled_reader_enabled'`).run();
 
     const res = await SELF.fetch('https://example.com/api/reader/0000000000000000000000000000000000000000000000000000000000000000/page/1');
     const body = await res.json<any>();
     expect(body.success).toBe(false);
-    // Not READER_SESSION_INVALID: the flag is the reason this request
-    // was refused, and that must be what the client is told, even for
-    // a token that was never valid in the first place.
-    expect(body.error.code).toBe('CONTROLLED_READER_DISABLED');
+    // A token that was never valid in the first place is rejected on
+    // that basis - session validation now runs before the
+    // enabled-for-this-customer check (Phase 6A), since that check
+    // needs the session's own resolved customerId. This never widens
+    // who is let through: a request that fails validation is refused
+    // before either check even runs.
+    expect(body.error.code).toBe('READER_SESSION_INVALID');
   });
 
   it('re-enabling the flag restores access to a still-unexpired, unrevoked session with no new mint needed', async () => {
@@ -450,6 +464,184 @@ describe('Immediate kill switch: controlled_reader_enabled stops an already-acti
     await env.DB.prepare(`UPDATE site_settings SET value = 'true' WHERE key = 'controlled_reader_enabled'`).run();
     const restored = await SELF.fetch(`https://example.com/api/reader/${session.data.token}/page/1`);
     expect(restored.ok).toBe(true);
+  });
+});
+
+/**
+ * Phase 6A — the narrow-pilot allowlist mechanism
+ * (controlled_reader_pilot_customer_ids in site_settings,
+ * isControlledReaderEnabledForCustomer() in settingsService.ts). Every
+ * test here runs with the GLOBAL controlled_reader_enabled flag
+ * explicitly forced OFF first, proving the pilot path works
+ * independently of it - the whole point of this mechanism is letting
+ * one real, already-purchasing customer in without touching the global
+ * flag at all.
+ */
+describe('Phase 6A pilot allowlist: controlled_reader_pilot_customer_ids', () => {
+  async function setPilotAllowlist(customerIds: number[]): Promise<void> {
+    await env.DB.prepare(`UPDATE site_settings SET value = 'false' WHERE key = 'controlled_reader_enabled'`).run();
+    await env.DB.prepare(
+      `INSERT INTO site_settings (key, value) VALUES ('controlled_reader_pilot_customer_ids', ?)
+       ON CONFLICT(key) DO UPDATE SET value = excluded.value`
+    )
+      .bind(JSON.stringify(customerIds))
+      .run();
+  }
+
+  it('defaults to empty: with the global flag off and no allowlist row at all, a real customer with a real purchase is still refused, exactly like today', async () => {
+    await env.DB.prepare(`UPDATE site_settings SET value = 'false' WHERE key = 'controlled_reader_enabled'`).run();
+    await env.DB.exec(`DELETE FROM site_settings WHERE key = 'controlled_reader_pilot_customer_ids'`);
+
+    const purchase = await seedCustomerWithPurchase('not-on-pilot@example.com', { assetId: PDF_ASSET_ID, productSlug: PDF_SLUG, reference: 'RWL-2026-900070' });
+    const body = await mintReaderSession(purchase.cookieHeader, 'RWL-2026-900070', PDF_ASSET_ID);
+    expect(body.success).toBe(false);
+    expect(body.error.code).toBe('CONTROLLED_READER_DISABLED');
+  });
+
+  it('a customer on the allowlist can mint a session and read pages/chapters with the global flag OFF', async () => {
+    const purchase = await seedCustomerWithPurchase('pilot-pdf@example.com', { assetId: PDF_ASSET_ID, productSlug: PDF_SLUG, reference: 'RWL-2026-900071' });
+    await setPilotAllowlist([purchase.customerId]);
+
+    const session = await mintReaderSession(purchase.cookieHeader, 'RWL-2026-900071', PDF_ASSET_ID);
+    expect(session.success).toBe(true);
+
+    const page = await SELF.fetch(`https://example.com/api/reader/${session.data.token}/page/1`);
+    expect(page.ok).toBe(true);
+  });
+
+  it('a DIFFERENT customer with their own real purchase, not on the allowlist, is refused with the global flag OFF — the allowlist never widens access beyond the exact customer ids listed', async () => {
+    const onPilot = await seedCustomerWithPurchase('pilot-member@example.com', { assetId: PDF_ASSET_ID, productSlug: PDF_SLUG, reference: 'RWL-2026-900072' });
+    const notOnPilot = await seedCustomerWithPurchase('not-pilot-member@example.com', { assetId: PDF_ASSET_ID, productSlug: PDF_SLUG, reference: 'RWL-2026-900073' });
+    await setPilotAllowlist([onPilot.customerId]);
+
+    const deniedBody = await mintReaderSession(notOnPilot.cookieHeader, 'RWL-2026-900073', PDF_ASSET_ID);
+    expect(deniedBody.success).toBe(false);
+    expect(deniedBody.error.code).toBe('CONTROLLED_READER_DISABLED');
+
+    const grantedBody = await mintReaderSession(onPilot.cookieHeader, 'RWL-2026-900072', PDF_ASSET_ID);
+    expect(grantedBody.success).toBe(true);
+  });
+
+  it('a pilot customer\'s EPUB session also works end to end (chapter serving, not just PDF pages) with the global flag OFF', async () => {
+    const purchase = await seedCustomerWithPurchase('pilot-epub@example.com', { assetId: EPUB_ASSET_ID, productSlug: EPUB_SLUG, reference: 'RWL-2026-900074' });
+    await setPilotAllowlist([purchase.customerId]);
+
+    const session = await mintReaderSession(purchase.cookieHeader, 'RWL-2026-900074', EPUB_ASSET_ID);
+    expect(session.success).toBe(true);
+    const chapterHref = session.data.spine[0].href;
+    const chapter = await SELF.fetch(`https://example.com/api/reader/${session.data.token}/chapter/${encodeURIComponent(chapterHref)}`);
+    expect(chapter.ok).toBe(true);
+  });
+
+  it('removing a customer from the allowlist blocks their ALREADY-OPEN session immediately, not just new mints — the same immediate-kill-switch property the global flag has, preserved for the narrower pilot path', async () => {
+    const purchase = await seedCustomerWithPurchase('pilot-revoke@example.com', { assetId: PDF_ASSET_ID, productSlug: PDF_SLUG, reference: 'RWL-2026-900075' });
+    await setPilotAllowlist([purchase.customerId]);
+    const session = await mintReaderSession(purchase.cookieHeader, 'RWL-2026-900075', PDF_ASSET_ID);
+    expect(session.success).toBe(true);
+
+    const before = await SELF.fetch(`https://example.com/api/reader/${session.data.token}/page/1`);
+    expect(before.ok).toBe(true);
+
+    await setPilotAllowlist([]); // pilot customer removed, global flag still off
+
+    const after = await SELF.fetch(`https://example.com/api/reader/${session.data.token}/page/2`);
+    const afterBody = await after.json<any>();
+    expect(after.ok).toBe(false);
+    expect(afterBody.error.code).toBe('CONTROLLED_READER_DISABLED');
+  });
+
+  it('the global flag, when on, still grants access to every customer regardless of the allowlist — the pilot mechanism only ever ADDS narrow access, never restricts the existing global behavior', async () => {
+    await env.DB.prepare(`UPDATE site_settings SET value = 'true' WHERE key = 'controlled_reader_enabled'`).run();
+    await env.DB.exec(`DELETE FROM site_settings WHERE key = 'controlled_reader_pilot_customer_ids'`);
+
+    const purchase = await seedCustomerWithPurchase('global-flag-customer@example.com', { assetId: PDF_ASSET_ID, productSlug: PDF_SLUG, reference: 'RWL-2026-900076' });
+    const body = await mintReaderSession(purchase.cookieHeader, 'RWL-2026-900076', PDF_ASSET_ID);
+    expect(body.success).toBe(true);
+  });
+});
+
+/**
+ * Phase 6B — the SECOND, even narrower pilot dimension:
+ * controlled_reader_pilot_purchase_references. Scoped to exactly one
+ * real purchase reference, regardless of what else the same customer
+ * might separately own — the mechanism this phase's brief specifically
+ * asked for when a pilot must target "that specific purchase," not
+ * just "that customer."
+ */
+describe('Phase 6B pilot allowlist: controlled_reader_pilot_purchase_references', () => {
+  async function setPilotReferences(references: string[]): Promise<void> {
+    await env.DB.prepare(`UPDATE site_settings SET value = 'false' WHERE key = 'controlled_reader_enabled'`).run();
+    await env.DB.prepare(
+      `INSERT INTO site_settings (key, value) VALUES ('controlled_reader_pilot_purchase_references', ?)
+       ON CONFLICT(key) DO UPDATE SET value = excluded.value`
+    )
+      .bind(JSON.stringify(references))
+      .run();
+  }
+
+  it('a specific purchase reference on the allowlist can mint a session and read pages with the global flag OFF', async () => {
+    const purchase = await seedCustomerWithPurchase('pilot-ref-pdf@example.com', { assetId: PDF_ASSET_ID, productSlug: PDF_SLUG, reference: 'RWL-2026-900080' });
+    await setPilotReferences(['RWL-2026-900080']);
+
+    const session = await mintReaderSession(purchase.cookieHeader, 'RWL-2026-900080', PDF_ASSET_ID);
+    expect(session.success).toBe(true);
+    const page = await SELF.fetch(`https://example.com/api/reader/${session.data.token}/page/1`);
+    expect(page.ok).toBe(true);
+  });
+
+  it("the SAME customer's OTHER purchase, not itself on the reference allowlist, is refused — reference-scoping never widens to the whole customer the way customer-scoping does", async () => {
+    const { customerId } = await findOrCreateCustomer(env as any, 'pilot-ref-two-books@example.com', false);
+    const session1 = await createCustomerSession(env as any, customerId, { ip: null, userAgent: null });
+    const cookieHeader = `customer_session=${session1.sessionToken}`;
+
+    // Same customer, two separate real purchases.
+    await env.DB.prepare(
+      `INSERT INTO purchase_sessions (purchase_reference, product_slug, product_id, product_title, amount_pesewas, currency, status, customer_id, expires_at)
+       VALUES ('RWL-2026-900081', ?, 'prod-controlled-reader-x', 'Controlled Reader Test', 3900, 'GHS', 'verified', ?, datetime('now', '+30 minutes'))`
+    )
+      .bind(PDF_SLUG, customerId)
+      .run();
+    const delivery1 = await env.DB.prepare(`INSERT INTO deliveries (purchase_session_id, asset_id, product_slug, status) VALUES ((SELECT id FROM purchase_sessions WHERE purchase_reference = 'RWL-2026-900081'), ?, ?, 'delivered')`)
+      .bind(PDF_ASSET_ID, PDF_SLUG)
+      .run();
+    void delivery1;
+
+    await env.DB.prepare(
+      `INSERT INTO purchase_sessions (purchase_reference, product_slug, product_id, product_title, amount_pesewas, currency, status, customer_id, expires_at)
+       VALUES ('RWL-2026-900082', ?, 'prod-controlled-reader-x', 'Controlled Reader Test', 3900, 'GHS', 'verified', ?, datetime('now', '+30 minutes'))`
+    )
+      .bind(EPUB_SLUG, customerId)
+      .run();
+    await env.DB.prepare(`INSERT INTO deliveries (purchase_session_id, asset_id, product_slug, status) VALUES ((SELECT id FROM purchase_sessions WHERE purchase_reference = 'RWL-2026-900082'), ?, ?, 'delivered')`)
+      .bind(EPUB_ASSET_ID, EPUB_SLUG)
+      .run();
+
+    // Only the FIRST reference is on the pilot allowlist.
+    await setPilotReferences(['RWL-2026-900081']);
+
+    const allowed = await mintReaderSession(cookieHeader, 'RWL-2026-900081', PDF_ASSET_ID);
+    expect(allowed.success).toBe(true);
+
+    const denied = await mintReaderSession(cookieHeader, 'RWL-2026-900082', EPUB_ASSET_ID);
+    expect(denied.success).toBe(false);
+    expect(denied.error.code).toBe('CONTROLLED_READER_DISABLED');
+  });
+
+  it('removing a purchase reference from the allowlist blocks its already-open session immediately, matching the same kill-switch property as the customer-scoped and global mechanisms', async () => {
+    const purchase = await seedCustomerWithPurchase('pilot-ref-revoke@example.com', { assetId: PDF_ASSET_ID, productSlug: PDF_SLUG, reference: 'RWL-2026-900083' });
+    await setPilotReferences(['RWL-2026-900083']);
+    const session = await mintReaderSession(purchase.cookieHeader, 'RWL-2026-900083', PDF_ASSET_ID);
+    expect(session.success).toBe(true);
+
+    const before = await SELF.fetch(`https://example.com/api/reader/${session.data.token}/page/1`);
+    expect(before.ok).toBe(true);
+
+    await setPilotReferences([]);
+
+    const after = await SELF.fetch(`https://example.com/api/reader/${session.data.token}/page/2`);
+    const afterBody = await after.json<any>();
+    expect(after.ok).toBe(false);
+    expect(afterBody.error.code).toBe('CONTROLLED_READER_DISABLED');
   });
 });
 

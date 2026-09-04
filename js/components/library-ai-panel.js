@@ -14,6 +14,17 @@
  * single request regardless of what this file already knows; nothing
  * here is a security boundary, only a UI for one that lives entirely
  * server-side — see backend/services/libraryKnowledge/answerService.ts.
+ *
+ * Phase 4 (Robayer AI chapter-context architecture) addition: also
+ * listens for `library-reader:section-changed` (EPUB — dispatched by
+ * both the legacy epub.js reader and the controlled chapter-scoped
+ * reader's own chapter renders) to track the reader's current chapter
+ * href, sent as `currentHref` alongside the existing `currentPage`
+ * (PDF) so the server can resolve LEVEL 1 (current chapter) context —
+ * see answerService.ts's own header comment on the 5-level hierarchy.
+ * Sending a stale/wrong href is not a security concern: the server only
+ * ever matches it against this SAME already-authorized book's own
+ * chapters (searchService.ts's resolveCurrentChapter()).
  */
 
 const MODE_LABELS = {
@@ -77,16 +88,32 @@ function initLibraryAiPanel() {
   let purchaseReference = null;
   let assetId = null;
   let productSlug = null;
+  let bookTitle = null;
   let currentPage = null;
+  let currentHref = null;
   let requestInFlight = false;
+  /**
+   * Phase 5 (Priority I: AI context bar) — the real, server-resolved
+   * chapter title, learned only from an actual answered response's own
+   * citations (answerService.ts's resolveCurrentChapter() result) —
+   * never guessed or fabricated client-side from currentPage/currentHref
+   * alone, which the client cannot itself resolve to a title. Cleared
+   * on every position change so a stale chapter name is never shown
+   * once the reader has moved on to a fresh position the AI hasn't
+   * confirmed yet.
+   */
+  let knownChapterTitle = null;
 
   document.addEventListener('library-reader:ready', (event) => {
     purchaseReference = event.detail.purchaseReference;
     assetId = event.detail.assetId;
     productSlug = event.detail.productSlug;
+    bookTitle = event.detail.bookTitle;
+    currentPage = null;
+    currentHref = null;
     if (event.detail.supportsAi) {
       trigger.hidden = false;
-      subtitleEl.textContent = `Ask about "${event.detail.bookTitle}" — grounded in this book only.`;
+      updateSubtitle();
       // Digital Library Phase F — the Library home's "Ask Robayer AI"
       // entry point deep-links here with `?ai=1` so the real, existing
       // panel opens immediately with the book already in context,
@@ -99,7 +126,44 @@ function initLibraryAiPanel() {
 
   document.addEventListener('library-reader:page-changed', (event) => {
     currentPage = event.detail.currentPage;
+    knownChapterTitle = null; // a new page may be a new chapter - the old title is no longer confirmed
+    updateSubtitle();
   });
+
+  // Phase 4 (Robayer AI chapter-context architecture) — EPUB only; see
+  // this file's own header comment. PDF's position signal is already
+  // covered by 'library-reader:page-changed' above.
+  document.addEventListener('library-reader:section-changed', (event) => {
+    currentHref = event.detail.href;
+    knownChapterTitle = null;
+    updateSubtitle();
+  });
+
+  /**
+   * Reader-aware context display (Section F, refined Phase 5 Priority
+   * I). Eliminates the ambiguity Priority I calls out — "what is the AI
+   * currently reading?" — with the most honest answer available at each
+   * moment: before any question has been asked this position, a plain
+   * page number (PDF) or nothing (EPUB, which has no client-known
+   * chapter TITLE, only an internal href); once a real answer has come
+   * back and confirmed a chapter (see askQuestion()'s own citations
+   * handling below), the actual chapter title, since that is now a real
+   * server-confirmed fact, not a guess. Updates live as the reader turns
+   * pages/chapters — knownChapterTitle is reset on every position change
+   * above, so a stale chapter name is never shown for a position the AI
+   * hasn't actually confirmed yet.
+   */
+  function updateSubtitle() {
+    let context;
+    if (knownChapterTitle) {
+      context = ` — AI context: ${knownChapterTitle}`;
+    } else if (currentPage != null) {
+      context = ` — page ${currentPage}`;
+    } else {
+      context = '';
+    }
+    subtitleEl.textContent = `Ask about "${bookTitle}" — grounded in this book only${context}.`;
+  }
 
   trigger.addEventListener('click', openPanel);
   closeBtn.addEventListener('click', closePanel);
@@ -174,7 +238,7 @@ function initLibraryAiPanel() {
       const result = await window.CustomerDashboard.customerFetch('/api/customer/library/ai/ask', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ purchaseReference, assetId, mode, question, currentPage }),
+        body: JSON.stringify({ purchaseReference, assetId, mode, question, currentPage, currentHref }),
       });
 
       thinkingBubble.remove();
@@ -183,6 +247,16 @@ function initLibraryAiPanel() {
         appendBubble('answer', "I couldn't find enough information about that in this book. Try rephrasing, or ask about a different part of what you're reading.");
       } else {
         appendAnswerBubble(result.answer, result.citations || []);
+        // Phase 5 (Priority I) — a 'high' confidence answer with a
+        // citation carrying a chapterTitle means answerService.ts's
+        // resolveCurrentChapter() genuinely resolved LEVEL 1 for this
+        // exact request; that real title now confirms what the context
+        // line shows, in place of the plain page number.
+        const resolvedTitle = result.confidenceTier === 'high' ? (result.citations || []).find((c) => c.chapterTitle)?.chapterTitle : null;
+        if (resolvedTitle && resolvedTitle !== knownChapterTitle) {
+          knownChapterTitle = resolvedTitle;
+          updateSubtitle();
+        }
       }
     } catch (error) {
       thinkingBubble.remove();

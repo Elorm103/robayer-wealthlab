@@ -531,6 +531,34 @@ function initLibraryList() {
     return asset.displayName || type || 'File';
   }
 
+  /**
+   * Phase 6A — which owned format the single primary "Read" button
+   * should open. Prefers whichever format the customer has REAL,
+   * server-persisted progress in (most recently read, if more than
+   * one) — resuming where they actually left off is a better default
+   * than an arbitrary format order. Falls back to PDF (this catalog's
+   * long-standing default format) when neither has been started yet,
+   * then to the first owned asset for a hypothetical non-PDF/EPUB
+   * format pair. Never changes which assets are OWNED — purely which
+   * one the primary button's href points at; the alternate format(s)
+   * are still one plain click away via the secondary link.
+   */
+  function choosePrimaryReadAsset(purchase, ownedAssets) {
+    let best = null;
+    let bestReadAt = null;
+    for (const asset of ownedAssets) {
+      const progress = progressByKey.get(`${purchase.purchaseReference}:${asset.assetId}`);
+      if (progress && progress.status !== 'not_started' && progress.lastReadAt) {
+        if (!bestReadAt || progress.lastReadAt > bestReadAt) {
+          best = asset;
+          bestReadAt = progress.lastReadAt;
+        }
+      }
+    }
+    if (best) return best;
+    return ownedAssets.find((a) => (a.fileType || '').toUpperCase() === 'PDF') || ownedAssets[0];
+  }
+
   function renderActions(purchase, reviewedSlugs, statusEl) {
     const wrap = document.createElement('div');
     // Phase 6.1 fix: the existing `.library-card__actions { grid-column: 1 / -1; }`
@@ -560,55 +588,100 @@ function initLibraryList() {
       const ebookAsset = ownedAssets[0] || null;
 
       if (ownedAssets.length > 1) {
-        // Digital Library Phase 7A's Read link (real navigation to
-        // dashboard/read/, never a download-count-consuming action) and
-        // Download button behavior are unchanged per-asset - only the
-        // rendering loops over every owned format now, grouped as
-        // "every Read button, then every Download button" per this
-        // phase's UX requirement, so a customer immediately sees they
-        // own both formats rather than reading it off a dropdown.
+        // Phase 6A (Library card UX polish) — replaces the old "every
+        // Read button, then every Download button" grid (up to 5
+        // equally-weighted controls: Read PDF, Read EPUB, Download PDF,
+        // Download EPUB, Review) with the approved hierarchy: ONE
+        // primary Read action (real navigation to dashboard/read/, same
+        // non-download-consuming 'view' token as always - completely
+        // unchanged), a single quiet secondary link for the other owned
+        // format (format selection "only where necessary" - i.e. only
+        // ever shown when a second format genuinely exists), downloads
+        // demoted to small inline text-style controls that stay fully
+        // functional but no longer visually compete with Read, and
+        // Review kept as its own clearly tertiary action. No entitlement/
+        // download-token/click-handler logic changed anywhere below -
+        // only how these same real actions are grouped and styled.
+        const primaryAsset = choosePrimaryReadAsset(purchase, ownedAssets);
+        const altAssets = ownedAssets.filter((a) => a !== primaryAsset);
         const usageLines = [];
         const progressEls = [];
 
-        ownedAssets.forEach((asset) => {
+        const primaryState = window.RobayerOwnership.describeDownloadState(primaryAsset);
+        const primaryLabel = assetFormatLabel(primaryAsset);
+        const readButton = document.createElement('a');
+        readButton.className = 'btn btn--accent library-card__action-primary';
+        readButton.textContent = ownedAssets.length > 2 ? `Read ${primaryLabel}` : 'Read';
+        readButton.setAttribute('data-library-read-action', '');
+        readButton.href = `/dashboard/read/?ref=${encodeURIComponent(purchase.purchaseReference)}&assetId=${encodeURIComponent(primaryAsset.assetId)}`;
+        if (primaryState.revoked) {
+          readButton.setAttribute('aria-disabled', 'true');
+          readButton.tabIndex = -1;
+          readButton.removeAttribute('href');
+          readButton.classList.add('btn--disabled');
+        }
+        actions.appendChild(readButton);
+
+        // Secondary: format selection, only where necessary — a plain,
+        // quiet link per alternate format, never a second equally-
+        // weighted button. Format switching also remains available
+        // inside the reader itself (library-reader.js's own
+        // renderReaderMeta(), Phase 4/5) once a customer is already
+        // reading; this is only the Library-card entry point.
+        if (altAssets.length > 0) {
+          const formatAlt = document.createElement('p');
+          formatAlt.className = 'library-card__format-alt text-small text-muted mt-2 mb-0';
+          const prefix = document.createTextNode('Also own this as ');
+          formatAlt.appendChild(prefix);
+          altAssets.forEach((asset, i) => {
+            const altState = window.RobayerOwnership.describeDownloadState(asset);
+            const altLabel = assetFormatLabel(asset);
+            if (i > 0) formatAlt.appendChild(document.createTextNode(', '));
+            const altLink = document.createElement('a');
+            altLink.textContent = `${altLabel} edition`;
+            altLink.setAttribute('data-library-read-action', '');
+            altLink.href = `/dashboard/read/?ref=${encodeURIComponent(purchase.purchaseReference)}&assetId=${encodeURIComponent(asset.assetId)}`;
+            if (altState.revoked) {
+              altLink.setAttribute('aria-disabled', 'true');
+              altLink.removeAttribute('href');
+            }
+            formatAlt.appendChild(altLink);
+          });
+          formatAlt.appendChild(document.createTextNode('.'));
+          actions.appendChild(formatAlt);
+        }
+
+        // Tertiary: downloads. Still the exact same requestDownload()
+        // mechanism/click handler for every owned asset — only styled
+        // as small inline text controls (library-card__download-link,
+        // css/components.css) instead of full-weight .btn--secondary
+        // buttons, so they read as "also available" rather than
+        // competing with the primary Read action for attention.
+        const downloadsLine = document.createElement('p');
+        downloadsLine.className = 'library-card__downloads text-small mt-2 mb-0';
+        downloadsLine.appendChild(document.createTextNode('Download: '));
+        ownedAssets.forEach((asset, i) => {
           const state = window.RobayerOwnership.describeDownloadState(asset);
           const label = assetFormatLabel(asset);
 
-          const readButton = document.createElement('a');
-          readButton.className = 'btn btn--accent library-card__action-primary';
-          readButton.textContent = `Read ${label}`;
-          readButton.setAttribute('data-library-read-action', '');
-          readButton.href = `/dashboard/read/?ref=${encodeURIComponent(purchase.purchaseReference)}&assetId=${encodeURIComponent(asset.assetId)}`;
-          if (state.revoked) {
-            readButton.setAttribute('aria-disabled', 'true');
-            readButton.tabIndex = -1;
-            readButton.removeAttribute('href');
-            readButton.classList.add('btn--disabled');
-          }
-          actions.appendChild(readButton);
-        });
-
-        ownedAssets.forEach((asset) => {
-          const state = window.RobayerOwnership.describeDownloadState(asset);
-          const label = assetFormatLabel(asset);
-
+          if (i > 0) downloadsLine.appendChild(document.createTextNode(' · '));
           const downloadButton = document.createElement('button');
           downloadButton.type = 'button';
-          downloadButton.className = 'btn btn--secondary';
-          downloadButton.textContent = `Download ${label}`;
+          downloadButton.className = 'library-card__download-link';
+          downloadButton.textContent = label;
           downloadButton.setAttribute('data-library-download-action', '');
 
           let assetUsageLine = null;
           if (state.limitReached) {
             downloadButton.disabled = true;
-            downloadButton.classList.add('btn--disabled');
+            downloadButton.classList.add('library-card__download-link--disabled');
             showStatus(statusEl, state.message, 'notice');
           } else {
             downloadButton.addEventListener('click', () =>
               requestDownload(purchase.purchaseReference, asset, downloadButton, statusEl, assetUsageLine)
             );
           }
-          actions.appendChild(downloadButton);
+          downloadsLine.appendChild(downloadButton);
 
           const usageText = computeDownloadUsageText(asset);
           if (usageText) {
@@ -622,6 +695,7 @@ function initLibraryList() {
           const progressEl = renderProgressLine(progress);
           if (progressEl) progressEls.push(progressEl);
         });
+        actions.appendChild(downloadsLine);
 
         const reviewLink = document.createElement('a');
         reviewLink.className = 'btn btn--secondary';

@@ -19,11 +19,39 @@
  * pdfExtraction.ts's own `dommatrix` shim and htmlExtraction.ts's own
  * `HTMLRewriter` use.
  *
- * Chapter/heading titles are the real `<h1>`-`<h6>` text HTMLRewriter
- * finds in each chapter's own XHTML — never inferred from a filename,
- * never fabricated when a chapter genuinely has none (front/back
- * matter without a heading correctly gets `chapterTitle: null`).
+ * Chapter/heading titles: PREFER the chapter's own `<title>` tag (in
+ * `<head>`) when it is meaningfully populated; fall back to the first
+ * real `<h1>`-`<h6>` text in `<body>` otherwise. Phase 4 (Robayer AI
+ * chapter-context architecture) change — confirmed empirically against
+ * the real production book that its EPUB `<title>` tags are textually
+ * IDENTICAL to the corresponding PDF's own outline/bookmark titles for
+ * the same chapter (e.g. both read exactly "Chapter 5: Understanding
+ * Listed Companies"), which is what makes a single (documentId,
+ * chapterTitle) key work as a chapter-scoped retrieval filter across
+ * BOTH formats of the same book — a first-heading text can legitimately
+ * differ in punctuation/casing from the PDF outline's own label, which
+ * would silently break that cross-format match. Never inferred from a
+ * filename, never fabricated when a chapter genuinely has neither
+ * (front/back matter without a title or heading correctly gets
+ * `chapterTitle: null`).
  */
+
+/**
+ * A generic, unhelpful `<title>` — an empty tag, a bare authoring-tool
+ * default, or a navigation document's own boilerplate title (a real
+ * EPUB nav.xhtml commonly titles itself "Nav"/"Table of Contents",
+ * confirmed directly against this codebase's own
+ * epubExtraction.test.ts fixture — that is a document label, never a
+ * chapter title) — is worse than a real first-heading. This is the one
+ * deliberate case where the fallback is preferred over a "populated"
+ * title.
+ */
+function isMeaningfulEpubTitle(title: string): boolean {
+  const trimmed = title.trim();
+  if (!trimmed) return false;
+  if (/^(untitled|document|chapter|nav|navigation|toc|table of contents|contents|cover|title page)$/i.test(trimmed)) return false;
+  return true;
+}
 
 // ----------------------------------------------------------------------
 // Minimal ZIP reader — Central Directory + Local File Header only, the
@@ -205,15 +233,25 @@ export async function extractEpubText(bytes: ArrayBuffer): Promise<ExtractedEpub
     if (!item) continue; // a spine idref with no matching manifest item is a malformed EPUB, not this extractor's problem to fabricate around — skipped, not guessed
     const entryPath = resolveOpfRelativePath(opfPath, item.href);
 
-    let chapterTitle: string | null = null;
+    let headTitle: string | null = null;
+    let sawTitleClose = false;
+    let headingTitle: string | null = null;
     const textParts: string[] = [];
     let sawHeading = false;
     const rewriter = new HTMLRewriter()
+      .on('title', {
+        text(chunk) {
+          if (sawTitleClose) return; // only the document's own single <title> tag — never a later, unrelated element some malformed EPUB happens to also name "title"
+          if (headTitle === null) headTitle = '';
+          headTitle += chunk.text;
+          if (chunk.lastInTextNode) sawTitleClose = true;
+        },
+      })
       .on('h1, h2, h3, h4, h5, h6', {
         text(chunk) {
-          if (sawHeading) return; // only the FIRST real heading in this chapter file becomes its title — never the last, never a guess
-          if (chapterTitle === null) chapterTitle = '';
-          chapterTitle += chunk.text;
+          if (sawHeading) return; // only the FIRST real heading in this chapter file becomes the fallback title — never the last, never a guess
+          if (headingTitle === null) headingTitle = '';
+          headingTitle += chunk.text;
           if (chunk.lastInTextNode) sawHeading = true;
         },
       })
@@ -232,7 +270,24 @@ export async function extractEpubText(bytes: ArrayBuffer): Promise<ExtractedEpub
     await rewriter.transform(new Response(xhtml)).text();
 
     const text = textParts.join(' ').replace(/\s+/g, ' ').trim();
-    const trimmedTitle = chapterTitle === null ? null : (chapterTitle as string).trim() || null;
+    const trimmedHeadTitle = headTitle === null ? null : (headTitle as string).trim();
+    const trimmedHeadingTitle = headingTitle === null ? null : (headingTitle as string).trim() || null;
+    // Prefer whichever real signal is more COMPLETE, not just "prefer
+    // <title> unconditionally" — confirmed empirically that real books
+    // vary here: the production Ghana Stock Exchange book's <title> is
+    // the fuller, more identifying one ("Chapter 5: Understanding Listed
+    // Companies", matching its PDF outline exactly), while a bare
+    // "Chapter 1" <title> next to a richer "Chapter 1: Treasury Bills
+    // Explained" <h1> is an equally realistic authoring pattern (see
+    // this file's own test fixture). A longer, meaningful string is the
+    // one more likely to actually match a PDF outline's own full label,
+    // which is the entire point of getting this right — so length,
+    // not tag identity, decides; <title> only wins outright ties.
+    const meaningfulHeadTitle = trimmedHeadTitle && isMeaningfulEpubTitle(trimmedHeadTitle) ? trimmedHeadTitle : null;
+    const trimmedTitle =
+      meaningfulHeadTitle && trimmedHeadingTitle
+        ? (trimmedHeadingTitle.length > meaningfulHeadTitle.length ? trimmedHeadingTitle : meaningfulHeadTitle)
+        : meaningfulHeadTitle || trimmedHeadingTitle;
     if (!text) continue; // a genuinely empty section (e.g. a blank divider page) contributes nothing to index — not an error, matching extractPdfText()'s own per-page skip
 
     sections.push({ sectionIndex: sections.length, href: item.href, chapterTitle: trimmedTitle, text });
