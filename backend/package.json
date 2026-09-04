@@ -16,7 +16,6 @@
   },
   "dependencies": {
     "dommatrix": "^1.0.3",
-    "fflate": "^0.8.3",
     "pdf-lib": "^1.17.1",
     "pdfjs-dist": "^5.4.296"
   },

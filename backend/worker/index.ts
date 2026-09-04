@@ -269,11 +269,7 @@ import {
   handleListBookmarksForAsset,
   handleListAllBookmarks,
   handleDeleteBookmark,
-  handleRequestReaderSession,
 } from '../routes/customer/purchases';
-// Secure Digital Library, Phases 3-5 - the protected reader's content
-// delivery endpoints. See routes/reader.ts's own header comment.
-import { handleGetReaderPage, handleGetReaderChapter } from '../routes/reader';
 // Version 3.1 Milestone M3 (Checkout Auto-Provisioning & Dashboard
 // MVP) — Account Security's own-sessions list/revoke. See
 // docs/v3.1-m3-api-gap-analysis.md's Gap 3.
@@ -717,13 +713,6 @@ const ROUTES: Route[] = [
   { pattern: new URLPattern({ pathname: '/api/customer/bookmarks/:id' }), method: 'DELETE', handler: handleDeleteBookmark },
   { pattern: new URLPattern({ pathname: '/api/customer/purchases/:reference/bookmarks' }), method: 'GET', handler: handleListBookmarksForAsset },
   { pattern: new URLPattern({ pathname: '/api/customer/purchases/:reference/bookmarks' }), method: 'POST', handler: handleCreateBookmark },
-
-  // Secure Digital Library - reader session mint (customer-auth-gated)
-  // and the token-scoped page/chapter content endpoints (matching the
-  // existing GET /api/download/:token bearer-token-in-URL pattern).
-  { pattern: new URLPattern({ pathname: '/api/customer/purchases/:reference/reader-session' }), method: 'POST', handler: handleRequestReaderSession },
-  { pattern: new URLPattern({ pathname: '/api/reader/:sessionToken/page/:pageNumber' }), method: 'GET', handler: handleGetReaderPage },
-  { pattern: new URLPattern({ pathname: '/api/reader/:sessionToken/chapter/:chapterReference' }), method: 'GET', handler: handleGetReaderChapter },
   // Version 3.1 Milestone M3 — Account Security's own-sessions list/revoke.
   { pattern: new URLPattern({ pathname: '/api/customer/sessions' }), method: 'GET', handler: handleListCustomerSessions },
   { pattern: new URLPattern({ pathname: '/api/customer/sessions/:sessionId/revoke' }), method: 'POST', handler: handleRevokeCustomerSession },

@@ -21,7 +21,6 @@ import { isRateLimited } from '../middleware/rateLimit';
 import { redeemDownloadToken, type RedeemDenialReason } from '../services/entitlementService';
 import { redeemReceiptDownloadToken } from '../services/orders/receiptEntitlementService';
 import { buildDownloadFilename } from '../utils/downloadFilename';
-import { logContentAccess } from '../services/contentAccessLogService';
 import type { ApiErrorCode } from '../types/api-contracts';
 
 // Slows automated token-guessing attempts — defense in depth alongside
@@ -82,28 +81,6 @@ export async function handleDownload(request: Request, env: Env, logger: Logger,
     logger.error('download.object_not_found_in_storage', { storageKey: result.asset.storageKey });
     return jsonError('ASSET_UNAVAILABLE', REASON_TO_MESSAGE.asset_unavailable);
   }
-
-  // Secure Digital Library, Phase 8 - every real redemption through
-  // this whole-file endpoint is logged, regardless of which purpose
-  // minted the token: "the complete file left the server here" is the
-  // meaningfully distinct audit fact, kept as one 'download' action
-  // (per the explicit, narrow allowed-action list) with the real
-  // purpose preserved in metadata rather than a fifth action value.
-  // Never blocks or delays the response below - a logging failure is
-  // swallowed inside logContentAccess() itself.
-  const owningCustomer = await env.DB.prepare(
-    `SELECT ps.customer_id AS customerId FROM deliveries d JOIN purchase_sessions ps ON ps.id = d.purchase_session_id WHERE d.id = ?`
-  )
-    .bind(result.deliveryId)
-    .first<{ customerId: number | null }>();
-  await logContentAccess(env, logger, {
-    deliveryId: result.deliveryId,
-    customerId: owningCustomer?.customerId ?? null,
-    action: 'download',
-    ip: request.headers.get('CF-Connecting-IP'),
-    userAgent: request.headers.get('User-Agent'),
-    metadata: { purpose: result.purpose, assetId: result.asset.assetId },
-  });
 
   return new Response(object.body, {
     status: 200,
