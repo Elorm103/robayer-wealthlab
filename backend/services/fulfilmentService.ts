@@ -384,6 +384,8 @@ export interface FulfilmentStatus {
 }
 
 interface PurchaseSessionSummaryRow {
+  /** Read only to look up this purchase's own deliveries below — never included in the returned FulfilmentStatus itself, matching this file's existing "no internal identifiers exposed" convention. */
+  id: number;
   status: string;
   productSlug: string;
   productTitle: string;
@@ -492,7 +494,7 @@ async function computeBundleUpsell(env: Env, session: PurchaseSessionSummaryRow)
  */
 export async function getFulfilmentStatus(env: Env, purchaseReference: string): Promise<FulfilmentStatus | null> {
   const session = await env.DB.prepare(
-    `SELECT status, product_slug AS productSlug, product_title AS productTitle,
+    `SELECT id, status, product_slug AS productSlug, product_title AS productTitle,
             amount_pesewas AS amountPesewas, currency, purchase_reference AS purchaseReference,
             customer_email AS customerEmail
      FROM purchase_sessions WHERE purchase_reference = ?`
@@ -522,9 +524,28 @@ export async function getFulfilmentStatus(env: Env, purchaseReference: string): 
     // Listing it anyway would be confusing at best.
     const product = await fetchCatalogProduct(env, session.productSlug);
     if (product) {
-      assets = product.digitalAssets
-        .filter(isAssetPublished)
-        .map((asset) => ({ assetId: asset.assetId, displayName: asset.displayName, fileType: asset.fileType }));
+      const publishedAssets = product.digitalAssets.filter(isAssetPublished);
+      if (publishedAssets.length > 0) {
+        // Same gap resolveAssetsWithDeliveryInfo() (the Customer
+        // Library) already closes: a published asset with no
+        // `deliveries` row for THIS purchase (e.g. one added to the
+        // product after this purchase was fulfilled) or a revoked one
+        // must not be listed here either — this is a second, guest-
+        // facing surface that shows the exact same "Download" button,
+        // and it would otherwise send a visitor straight into
+        // entitlementService.ts's delivery_not_found/delivery_revoked
+        // denial. FulfilmentStatusAsset's shape stays untouched
+        // (assetId/displayName/fileType only) — only which assets
+        // appear changes, not what each one looks like.
+        const { results: deliveryRows } = await env.DB.prepare(`SELECT asset_id AS assetId, status FROM deliveries WHERE purchase_session_id = ?`)
+          .bind(session.id)
+          .all<{ assetId: string; status: string }>();
+        const usableAssetIds = new Set(deliveryRows.filter((row) => row.status !== 'revoked').map((row) => row.assetId));
+
+        assets = publishedAssets
+          .filter((asset) => usableAssetIds.has(asset.assetId))
+          .map((asset) => ({ assetId: asset.assetId, displayName: asset.displayName, fileType: asset.fileType }));
+      }
     }
     bundleUpsell = await computeBundleUpsell(env, session);
   }
