@@ -609,18 +609,36 @@ export async function resolveAssetsWithDeliveryInfo(env: Env, purchaseSessionId:
 
   const deliveryByAsset = new Map(results.map((row) => [row.assetId, row]));
 
-  return publishedAssets.map((asset) => {
-    const delivery = deliveryByAsset.get(asset.assetId);
-    return {
-      assetId: asset.assetId,
-      displayName: asset.displayName,
-      fileType: asset.fileType,
-      revoked: delivery?.status === 'revoked',
-      downloadsUsed: delivery?.downloadsUsed ?? 0,
-      maxDownloads: delivery?.maxDownloads ?? null,
-      downloadsRemaining:
-        delivery?.maxDownloads == null ? null : Math.max(0, delivery.maxDownloads - (delivery?.downloadsUsed ?? 0)),
-      lastDownloadAt: delivery?.lastDownloadAt ?? null,
-    };
-  });
+  // A published catalog asset with no `deliveries` row at all is not
+  // the same thing as a delivered-then-revoked one (deliveries.status
+  // only ever becomes 'revoked' via revocationService.ts flipping an
+  // EXISTING row - see that file's own header comment - it never
+  // represents "never delivered"). This gap is real and expected: a
+  // file can be published on a product well after some customers
+  // already purchased it (e.g. a new PDF variant), and this codebase
+  // has no automatic mechanism that backfills deliveries.
+  // fulfilmentService.ts's own ensureEntitlementsGranted()/
+  // backfillEntitlementsForProduct() exist specifically to grant that
+  // gap when the product owner decides to - that is a deliberate,
+  // separate action, never implied by an asset merely being published.
+  // Until that happens, the customer was never actually entitled to
+  // this specific file, so it must not appear as available to them -
+  // filtering it out here (not just marking it revoked) keeps
+  // `deliveries.status = 'revoked'` meaning exactly one thing.
+  return publishedAssets
+    .filter((asset) => deliveryByAsset.has(asset.assetId))
+    .map((asset) => {
+      const delivery = deliveryByAsset.get(asset.assetId);
+      return {
+        assetId: asset.assetId,
+        displayName: asset.displayName,
+        fileType: asset.fileType,
+        revoked: delivery?.status === 'revoked',
+        downloadsUsed: delivery?.downloadsUsed ?? 0,
+        maxDownloads: delivery?.maxDownloads ?? null,
+        downloadsRemaining:
+          delivery?.maxDownloads == null ? null : Math.max(0, delivery.maxDownloads - (delivery?.downloadsUsed ?? 0)),
+        lastDownloadAt: delivery?.lastDownloadAt ?? null,
+      };
+    });
 }
