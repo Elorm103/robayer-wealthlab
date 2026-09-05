@@ -163,8 +163,6 @@ function initLibraryReader() {
   const canvasWrap = document.querySelector('[data-reader-canvas-wrap]');
   const canvas = document.querySelector('[data-reader-canvas]');
   const pageIndicatorEl = document.querySelector('[data-reader-page-indicator]');
-  const pageJumpFormEl = document.querySelector('[data-reader-page-jump]');
-  const pageJumpInputEl = document.querySelector('[data-reader-page-jump-input]');
   const progressFillEl = document.querySelector('[data-reader-progress-fill]');
   const prevBtn = document.querySelector('[data-reader-prev-page]');
   const nextBtn = document.querySelector('[data-reader-next-page]');
@@ -2190,41 +2188,7 @@ function initLibraryReader() {
     });
   }
 
-  /** Phase 5 (Priority A: Direct page navigation) — click the page indicator to reveal a small inline "go to page" form; PDF-only (see this call site's own comment in wireControls()). */
-  function wirePageJump() {
-    if (!pageIndicatorEl || !pageJumpFormEl || !pageJumpInputEl) return;
-    pageIndicatorEl.addEventListener('click', () => {
-      const opening = pageJumpFormEl.hidden;
-      pageJumpFormEl.hidden = !opening;
-      pageIndicatorEl.setAttribute('aria-expanded', String(opening));
-      if (opening) {
-        pageJumpInputEl.value = String(currentPage);
-        pageJumpInputEl.focus();
-        pageJumpInputEl.select();
-      }
-    });
-    pageJumpFormEl.addEventListener('submit', (event) => {
-      event.preventDefault();
-      const target = parseInt(pageJumpInputEl.value, 10);
-      if (Number.isInteger(target) && pdfDoc && target >= 1 && target <= pdfDoc.numPages) {
-        goToPage(target);
-      }
-      pageJumpFormEl.hidden = true;
-      pageIndicatorEl.setAttribute('aria-expanded', 'false');
-    });
-    // A click/tap anywhere else closes the form without navigating -
-    // matches the existing drawer-close-on-outside-click convention
-    // this file already uses for the TOC/search/bookmarks panels.
-    document.addEventListener('click', (event) => {
-      if (pageJumpFormEl.hidden) return;
-      if (event.target === pageIndicatorEl || pageJumpFormEl.contains(event.target)) return;
-      pageJumpFormEl.hidden = true;
-      pageIndicatorEl.setAttribute('aria-expanded', 'false');
-    });
-  }
-
   function wireControls() {
-    wirePageJump();
     prevBtn.addEventListener('click', () => goToPage(currentPage - 1));
     nextBtn.addEventListener('click', () => goToPage(currentPage + 1));
     // Phase 9A — guarded on `scale !== null`: wireControls() runs

@@ -3477,7 +3477,7 @@ button.resource-card {
   display: flex;
   align-items: center;
   gap: var(--space-2);
-  position: relative; /* anchors .reader-toolbar__page-jump below the page indicator */
+  position: relative;
   /* Mobile reader fix — a flex item's default min-width is `auto`, so
      without this, `.reader-toolbar__zoom` (up to 7 buttons: font
      controls, TOC, search, bookmark, bookmarks list, Ask Robayer AI)
@@ -3514,35 +3514,6 @@ button.resource-card {
 .reader-toolbar__page-indicator:hover,
 .reader-toolbar__page-indicator:focus-visible {
   border-color: var(--color-border);
-}
-
-.reader-toolbar__page-jump {
-  position: absolute;
-  top: 100%;
-  left: 0;
-  margin-top: var(--space-1);
-  display: flex;
-  gap: var(--space-1);
-  padding: var(--space-2);
-  background-color: var(--color-surface);
-  border: 1px solid var(--color-border);
-  border-radius: var(--radius-md);
-  box-shadow: var(--shadow-2);
-  z-index: var(--z-sticky);
-}
-.reader-toolbar__page-jump-input {
-  width: 5em;
-  min-height: 44px;
-  padding: var(--space-1) var(--space-2);
-  border: 1px solid var(--color-border);
-  border-radius: var(--radius-sm);
-  background-color: var(--color-bg);
-  color: var(--color-text-primary);
-  font-family: var(--font-mono);
-}
-.reader-toolbar__page-jump-submit {
-  min-height: 44px;
-  padding: var(--space-1) var(--space-3);
 }
 
 .reader-progress-track {
