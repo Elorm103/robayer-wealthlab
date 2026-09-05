@@ -1961,13 +1961,27 @@ function initLibraryReader() {
     // succeeded and genuinely relocated - trust this actual lifecycle
     // signal over that bookkeeping).
     canvasWrap.classList.remove('reader-canvas-wrap--busy');
+    let roundedPct = null;
     if (epubLocationsGenerated) {
       const pct = epubBook.locations.percentageFromCfi(cfi);
       if (typeof pct === 'number' && !Number.isNaN(pct)) {
-        const roundedPct = Math.round(pct * 100);
-        pageIndicatorEl.textContent = `${roundedPct}%`;
-        progressFillEl.style.width = `${roundedPct}%`;
+        roundedPct = Math.round(pct * 100);
       }
+    }
+    // epub.js's own authoritative "there is no more content past this
+    // point" signal, from the SAME relocated event — takes precedence
+    // over percentageFromCfi()'s location-bucket math, which divides
+    // the book into a fixed number of roughly-equal chunks (as few as
+    // a few dozen for a short book) and can therefore report just
+    // under 100% at the genuine end, never satisfying
+    // libraryProgressService.ts's deriveStatus() `percentComplete >=
+    // 100` threshold no matter how many times the reader re-confirms
+    // the same position - the exact cause of a finished EPUB getting
+    // stuck at 99% and never reaching the library's Completed status.
+    if (location.atEnd) roundedPct = 100;
+    if (roundedPct !== null) {
+      pageIndicatorEl.textContent = `${roundedPct}%`;
+      progressFillEl.style.width = `${roundedPct}%`;
     } else {
       pageIndicatorEl.textContent = 'Reading…';
     }
@@ -1986,7 +2000,7 @@ function initLibraryReader() {
         document.dispatchEvent(new CustomEvent('library-reader:section-changed', { detail: { href: location.start.href } }));
       }
     }
-    scheduleEpubProgressSave(cfi);
+    scheduleEpubProgressSave(cfi, location.atEnd ? 100 : undefined);
   }
 
   /** Phase 9C.5 — generated once per session, not on every relocation (a full-book scan is real work); re-derives the percentage for the current position once it's ready, since the first few relocations before this resolves can only show "Reading…". */
@@ -2112,10 +2126,14 @@ function initLibraryReader() {
     const csrf = window.CustomerDashboard.getCsrfToken();
     const headers = { 'Content-Type': 'application/json' };
     if (csrf) headers['X-Customer-CSRF-Token'] = csrf;
+    // Same atEnd override as handleEpubRelocated() - a customer who
+    // reaches the genuine end of the book and immediately closes the
+    // tab must not have that completion lost to computeEpubPercent()'s
+    // own location-bucket rounding.
     fetch(`/api/customer/purchases/${encodeURIComponent(currentReference)}/progress`, {
       method: 'POST',
       headers,
-      body: JSON.stringify({ assetId: currentAssetId, cfi, percentComplete: computeEpubPercent(cfi) }),
+      body: JSON.stringify({ assetId: currentAssetId, cfi, percentComplete: loc.atEnd ? 100 : computeEpubPercent(cfi) }),
       keepalive: true,
     }).catch(() => {});
   }
