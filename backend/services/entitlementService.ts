@@ -75,6 +75,27 @@ interface DeliveryRow {
 }
 
 /**
+ * The two checks below are the canonical "is this delivery currently
+ * usable" predicate — extracted so every surface that decides whether
+ * to advertise an asset to a customer (fulfilmentService.ts's
+ * resolveAssetsWithDeliveryInfo() for the Library, getFulfilmentStatus()
+ * for the guest checkout/callback page) applies the EXACT SAME rule
+ * checkEntitlement() itself enforces below, by construction — never a
+ * hand-copied second version that could quietly drift. Deliberately
+ * excludes the download-limit check: that one is purpose-specific
+ * (skipped for 'view') and about download BUDGET, not about whether the
+ * delivery itself still grants access — see checkEntitlement()'s own
+ * comment on why a customer who has exhausted downloads can still read.
+ */
+export function isDeliveryRevoked(delivery: { status: string }): boolean {
+  return delivery.status === 'revoked';
+}
+
+export function isDeliveryAccessExpired(delivery: { accessExpiresAt: string | null }): boolean {
+  return delivery.accessExpiresAt !== null && Date.now() > new Date(delivery.accessExpiresAt).getTime();
+}
+
+/**
  * The core question. Re-derives the answer from scratch every call:
  *   1. Is the purchase actually verified (never trusts anything but
  *      `purchase_sessions.status`, written only by
@@ -133,7 +154,7 @@ export async function checkEntitlement(
     // docs/digital-fulfilment.md's "Entitlement model."
     return { granted: false, reason: 'delivery_not_found' };
   }
-  if (delivery.status === 'revoked') {
+  if (isDeliveryRevoked(delivery)) {
     return { granted: false, reason: 'delivery_revoked' };
   }
   // Advisory pre-check only — avoids minting a token that could never
@@ -150,7 +171,7 @@ export async function checkEntitlement(
   if (purpose === 'download' && delivery.maxDownloads !== null && delivery.downloadsUsed >= delivery.maxDownloads) {
     return { granted: false, reason: 'download_limit_reached' };
   }
-  if (delivery.accessExpiresAt !== null && Date.now() > new Date(delivery.accessExpiresAt).getTime()) {
+  if (isDeliveryAccessExpired(delivery)) {
     return { granted: false, reason: 'access_expired' };
   }
 

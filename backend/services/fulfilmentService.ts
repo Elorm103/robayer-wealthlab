@@ -24,6 +24,7 @@
 import type { Env } from '../worker/env';
 import type { Logger } from '../utils/logger';
 import { fetchCatalogProduct, isAssetPublished, type DigitalAsset, type DownloadPolicy } from './productCatalogService';
+import { isDeliveryRevoked, isDeliveryAccessExpired } from './entitlementService';
 import { sendEmail } from './emailService';
 import { issuePasswordToken } from './customer/authService';
 import { computeSaleState } from './productService';
@@ -529,18 +530,26 @@ export async function getFulfilmentStatus(env: Env, purchaseReference: string): 
         // Same gap resolveAssetsWithDeliveryInfo() (the Customer
         // Library) already closes: a published asset with no
         // `deliveries` row for THIS purchase (e.g. one added to the
-        // product after this purchase was fulfilled) or a revoked one
-        // must not be listed here either — this is a second, guest-
-        // facing surface that shows the exact same "Download" button,
-        // and it would otherwise send a visitor straight into
-        // entitlementService.ts's delivery_not_found/delivery_revoked
-        // denial. FulfilmentStatusAsset's shape stays untouched
-        // (assetId/displayName/fileType only) — only which assets
-        // appear changes, not what each one looks like.
-        const { results: deliveryRows } = await env.DB.prepare(`SELECT asset_id AS assetId, status FROM deliveries WHERE purchase_session_id = ?`)
+        // product after this purchase was fulfilled), a revoked one, or
+        // one past its own access_expires_at window must not be listed
+        // here either — this is a second, guest-facing surface that
+        // shows the exact same "Download" button, and it would
+        // otherwise send a visitor straight into entitlementService.ts's
+        // delivery_not_found/delivery_revoked/access_expired denial.
+        // isDeliveryRevoked()/isDeliveryAccessExpired() are the SAME
+        // predicates checkEntitlement() itself evaluates — reused here,
+        // not re-implemented, so this can never quietly drift from what
+        // the actual access check enforces. FulfilmentStatusAsset's
+        // shape stays untouched (assetId/displayName/fileType only) —
+        // only which assets appear changes, not what each one looks like.
+        const { results: deliveryRows } = await env.DB.prepare(
+          `SELECT asset_id AS assetId, status, access_expires_at AS accessExpiresAt FROM deliveries WHERE purchase_session_id = ?`
+        )
           .bind(session.id)
-          .all<{ assetId: string; status: string }>();
-        const usableAssetIds = new Set(deliveryRows.filter((row) => row.status !== 'revoked').map((row) => row.assetId));
+          .all<{ assetId: string; status: string; accessExpiresAt: string | null }>();
+        const usableAssetIds = new Set(
+          deliveryRows.filter((row) => !isDeliveryRevoked(row) && !isDeliveryAccessExpired(row)).map((row) => row.assetId)
+        );
 
         assets = publishedAssets
           .filter((asset) => usableAssetIds.has(asset.assetId))
@@ -600,6 +609,7 @@ interface DeliveryUsageRow {
   downloadsUsed: number;
   maxDownloads: number | null;
   lastDownloadAt: string | null;
+  accessExpiresAt: string | null;
 }
 
 /**
@@ -622,7 +632,7 @@ export async function resolveAssetsWithDeliveryInfo(env: Env, purchaseSessionId:
   if (publishedAssets.length === 0) return [];
 
   const { results } = await env.DB.prepare(
-    `SELECT asset_id AS assetId, status, downloads_used AS downloadsUsed, max_downloads AS maxDownloads, last_download_at AS lastDownloadAt
+    `SELECT asset_id AS assetId, status, downloads_used AS downloadsUsed, max_downloads AS maxDownloads, last_download_at AS lastDownloadAt, access_expires_at AS accessExpiresAt
      FROM deliveries WHERE purchase_session_id = ?`
   )
     .bind(purchaseSessionId)
@@ -646,15 +656,28 @@ export async function resolveAssetsWithDeliveryInfo(env: Env, purchaseSessionId:
   // this specific file, so it must not appear as available to them -
   // filtering it out here (not just marking it revoked) keeps
   // `deliveries.status = 'revoked'` meaning exactly one thing.
+  //
+  // A delivery whose own access_expires_at has passed gets the same
+  // treatment as a missing one - omitted entirely, not merely marked -
+  // since there is no existing "expired" display state for the Library
+  // to render (unlike `revoked`, which IS shown, deliberately, so a
+  // customer can see why something they used to read disappeared).
+  // isDeliveryAccessExpired() is the exact predicate checkEntitlement()
+  // itself evaluates - reused, not re-implemented, so a customer can
+  // never be shown a Read/Download action for an asset the entitlement
+  // layer would reject as access_expired.
   return publishedAssets
-    .filter((asset) => deliveryByAsset.has(asset.assetId))
+    .filter((asset) => {
+      const delivery = deliveryByAsset.get(asset.assetId);
+      return delivery !== undefined && !isDeliveryAccessExpired(delivery);
+    })
     .map((asset) => {
       const delivery = deliveryByAsset.get(asset.assetId);
       return {
         assetId: asset.assetId,
         displayName: asset.displayName,
         fileType: asset.fileType,
-        revoked: delivery?.status === 'revoked',
+        revoked: delivery !== undefined && isDeliveryRevoked(delivery),
         downloadsUsed: delivery?.downloadsUsed ?? 0,
         maxDownloads: delivery?.maxDownloads ?? null,
         downloadsRemaining:
