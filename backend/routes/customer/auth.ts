@@ -20,15 +20,17 @@
  * identical either way; only the email that delivered the link
  * differs. See services/customer/authService.ts's setPassword().
  *
- * No public registration endpoint exists here or anywhere in this
- * scope — per ADR-006, a `customers` row is only ever created by the
- * purchase-triggered find-or-create in
- * services/customer/identityService.ts, reached either from
- * services/commerceService.ts's webhook handler (a fresh, contemporaneous
- * purchase) or, as of Version 3.3 Milestone M5C, from
- * routes/customer/reconciliation.ts (a historical, already-verified
- * purchase with no customer row yet) — never from a free-form email
- * with no purchase behind it.
+ * ADR-006 ("no public registration endpoint") governed this file until
+ * Affiliate Programme 2.0 added handleCustomerRegister()/handleVerifyEmail()
+ * below as a deliberate, additive EXCEPTION — not a reversal. The
+ * purchase-triggered find-or-create in services/customer/identityService.ts
+ * (reached from services/commerceService.ts's webhook handler, or from
+ * routes/customer/reconciliation.ts for a historical purchase) remains
+ * completely untouched and is still the only path that can attach a
+ * `customers` row to a real purchase. The new registration path creates
+ * a `customers` row with no purchase behind it at all, by design — see
+ * services/customer/authService.ts's registerCustomer() header comment
+ * for the full reasoning.
  */
 
 import type { Env } from '../../worker/env';
@@ -40,7 +42,6 @@ import { requireCustomerAuth, CUSTOMER_SESSION_COOKIE_NAME, CUSTOMER_CSRF_COOKIE
 import { requireCustomerCsrf } from '../../middleware/customerCsrf';
 import * as authService from '../../services/customer/authService';
 import * as sessionService from '../../services/customer/sessionService';
-import type { PasswordValidationError } from '../../utils/passwordPolicy';
 
 // Same 5/15min/IP calibration as admin login (routes/admin/auth.ts) —
 // the credential-stuffing-relevant endpoint.
@@ -52,8 +53,11 @@ const FORGOT_PASSWORD_RATE_LIMIT = { endpoint: 'customer-forgot-password', limit
 const SET_PASSWORD_RATE_LIMIT = { endpoint: 'customer-set-password', limit: 10, windowSeconds: 15 * 60 };
 // Version 3.1 Milestone M3 — same calibration as SET_PASSWORD_RATE_LIMIT, this is the equally-sensitive already-logged-in equivalent.
 const CHANGE_PASSWORD_RATE_LIMIT = { endpoint: 'customer-change-password', limit: 10, windowSeconds: 15 * 60 };
+// Affiliate Programme 2.0 — a public endpoint that creates a real account and sends real email; same order-of-magnitude calibration as FORGOT_PASSWORD_RATE_LIMIT for the identical abuse shape.
+const REGISTER_RATE_LIMIT = { endpoint: 'customer-register', limit: 5, windowSeconds: 15 * 60 };
+const VERIFY_EMAIL_RATE_LIMIT = { endpoint: 'customer-verify-email', limit: 10, windowSeconds: 15 * 60 };
 
-function validationErrorResponse(errors: PasswordValidationError[]): Response {
+function validationErrorResponse(errors: Array<{ field: string; message: string }>): Response {
   const body = {
     success: false,
     error: { code: 'VALIDATION_ERROR', message: errors[0]?.message ?? 'Validation failed.' },
@@ -246,4 +250,87 @@ export async function handleCustomerChangePassword(request: Request, env: Env, l
   }
 
   return withNoStore(jsonSuccess({ passwordChanged: true }));
+}
+
+// ============================================================
+// Free account registration — Affiliate Programme 2.0. See
+// services/customer/authService.ts's registerCustomer() header comment
+// for why this is a deliberate, additive exception to ADR-006 rather
+// than a reversal of it — the purchase-triggered path is untouched.
+// ============================================================
+
+export async function handleCustomerRegister(request: Request, env: Env, logger: Logger): Promise<Response> {
+  if (await isRateLimited(request, env, REGISTER_RATE_LIMIT)) {
+    return withNoStore(jsonError('RATE_LIMITED', 'Too many attempts. Please try again in a few minutes.'));
+  }
+
+  const body = await readJsonBody(request);
+  if (!body) return withNoStore(jsonError('VALIDATION_ERROR', 'Invalid request body.'));
+
+  const result = await authService.registerCustomer(
+    env,
+    logger,
+    {
+      name: body.name,
+      email: body.email,
+      password: body.password,
+      passwordConfirmation: body.passwordConfirmation,
+      termsAccepted: body.termsAccepted,
+    },
+    env.SITE_BASE_URL,
+    { ip: request.headers.get('CF-Connecting-IP'), userAgent: request.headers.get('User-Agent') }
+  );
+
+  if (!result.ok) {
+    if (result.reason === 'duplicate_email') {
+      // Deliberately NOT the enumeration-safe generic response
+      // forgotPassword() uses above: registration is a "does this
+      // email already have an account" question the visitor is
+      // actively trying to answer for themselves anyway (they typed
+      // it), and the field-level fix (sign in instead) is genuinely
+      // different from any other validation error, so this codebase's
+      // established discretion (weighed against the low real-world
+      // enumeration value of an address the visitor already possesses)
+      // favors clarity here, same tradeoff most registration forms make.
+      return withNoStore(jsonError('DUPLICATE_EMAIL', 'An account with this email already exists. Try signing in instead.'));
+    }
+    return withNoStore(validationErrorResponse(result.errors));
+  }
+
+  const response = jsonSuccess({ customerId: result.customerId, email: result.email, expiresAt: result.expiresAt });
+
+  return withNoStore(
+    withCookies(response, [
+      serializeCookie(CUSTOMER_SESSION_COOKIE_NAME, result.sessionToken, {
+        httpOnly: true,
+        secure: true,
+        sameSite: 'Lax',
+        path: '/',
+        maxAgeSeconds: SESSION_COOKIE_MAX_AGE_SECONDS,
+      }),
+      serializeCookie(CUSTOMER_CSRF_COOKIE_NAME, result.csrfSecret, {
+        httpOnly: false,
+        secure: true,
+        sameSite: 'Lax',
+        path: '/',
+        maxAgeSeconds: SESSION_COOKIE_MAX_AGE_SECONDS,
+      }),
+    ])
+  );
+}
+
+/** GET /api/customer/auth/verify-email?token=...: redeems the emailed verification link. Never requires a session — the same "a token is its own bearer credential" pattern set-password already uses. */
+export async function handleVerifyEmail(request: Request, env: Env, logger: Logger): Promise<Response> {
+  if (await isRateLimited(request, env, VERIFY_EMAIL_RATE_LIMIT)) {
+    return withNoStore(jsonError('RATE_LIMITED', 'Too many attempts. Please try again shortly.'));
+  }
+
+  const token = new URL(request.url).searchParams.get('token');
+  const result = await authService.verifyEmail(env, token);
+
+  if (!result.ok) {
+    return withNoStore(jsonError('INVALID_TOKEN', 'This link is invalid or has expired.'));
+  }
+  logger.info('customer.email_verified');
+  return withNoStore(jsonSuccess({ verified: true }));
 }

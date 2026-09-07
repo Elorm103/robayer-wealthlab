@@ -36,6 +36,7 @@ async function initAffiliateOverview() {
 
     if (profile.status === 'pending') {
       showState('pending');
+      renderAcademyPrompt(profile.academyStatus);
     } else if (profile.status === 'rejected') {
       showState('rejected');
       const reasonEl = document.querySelector('[data-affiliate-rejection-reason]');
@@ -59,6 +60,19 @@ async function initAffiliateOverview() {
     loadingEl.hidden = true;
     errorEl.hidden = false;
     errorEl.textContent = error.message || 'Something went wrong. Please try again.';
+  }
+}
+
+/** Affiliate Programme 2.0 — the pending-review state's Academy nudge; wording reflects actual progress rather than always saying "complete the Academy" regardless of status. Never implies completion guarantees approval — see affiliateService.ts's completeAcademy() header comment for why. */
+function renderAcademyPrompt(academyStatus) {
+  const el = document.querySelector('[data-affiliate-academy-prompt]');
+  if (!el) return;
+  if (academyStatus === 'completed') {
+    el.innerHTML = 'You\'ve completed the <a href="/affiliate/academy/">Affiliate Academy</a>. This may be considered during your application review.';
+  } else if (academyStatus === 'in_progress') {
+    el.innerHTML = 'While you wait: <a href="/affiliate/academy/">finish the Affiliate Academy</a> &mdash; you\'re partway through.';
+  } else {
+    el.innerHTML = 'While you wait: <a href="/affiliate/academy/">complete the Affiliate Academy</a> &mdash; it\'s not required, but it\'s considered during review.';
   }
 }
 
@@ -86,6 +100,7 @@ function wireApplyForm() {
         body: JSON.stringify({ termsAccepted: true }),
       });
       showState('pending');
+      renderAcademyPrompt('not_started');
     } catch (error) {
       errorEl.hidden = false;
       errorEl.textContent = error.message || 'Something went wrong. Please try again.';

@@ -157,6 +157,9 @@ export type ApiErrorCode =
   | 'ALREADY_AFFILIATE'
   | 'AFFILIATE_NOT_APPROVED'
   | 'AFFILIATE_SUSPENDED'
+  // Affiliate Programme 2.0: free registration + Affiliate Academy.
+  | 'DUPLICATE_EMAIL'
+  | 'NOT_APPLIED'
   | 'INVALID_STATE_TRANSITION'
   | 'PAYOUT_BELOW_THRESHOLD'
   | 'PAYOUT_NOT_FOUND'

@@ -155,6 +155,17 @@ export interface CreateCheckoutSessionInput {
    * for the full last-click, 30-day attribution model.
    */
   affiliateRefCode: string | null;
+  /**
+   * Affiliate Programme 2.0 (Revenue Attribution) — the first-touch
+   * `document.referrer` captured by js/components/analytics.js
+   * alongside the UTM values above, forwarded the same way. Raw
+   * evidence only (sanitized by utils/validation.ts's
+   * sanitizeUtmValue() before reaching here); classifyAcquisitionSource()
+   * below is the only place it's turned into a classification. `null`
+   * covers both "no referrer" (a genuine direct-visit signal) and
+   * "not yet captured this session" — see analytics.js.
+   */
+  referrer: string | null;
 }
 
 export interface CreateCheckoutSessionResult {
@@ -170,21 +181,91 @@ export type AttributionConfidence = 'utm' | 'meta_click' | 'direct' | 'unknown';
  * raw UTM values, so this is the one place attribution_confidence is
  * decided.
  *
- * Deliberately conservative: this project's checkout request carries
- * UTM values and fbc, but no referrer, so there is currently no
- * evidence anywhere in this codebase that can positively confirm
- * "direct" traffic (a visitor who typed the URL or used a bookmark)
- * versus simply "untracked" (arrived via a channel this project
- * doesn't instrument). 'direct' is therefore never returned today —
- * this function returns 'unknown' whenever neither UTM nor fbc is
- * present, rather than inventing a distinction the current data can't
- * support. See the P0-C investigation report's Section F/N for the
- * full reasoning; if a future capture point adds referrer evidence to
- * this decision, 'direct' can be reintroduced honestly then.
+ * Deliberately conservative: at the time this was written, the
+ * checkout request carried UTM values and fbc but no referrer, so
+ * there was no evidence anywhere in this codebase that could
+ * positively confirm "direct" traffic (a visitor who typed the URL or
+ * used a bookmark) versus simply "untracked" (arrived via a channel
+ * this project doesn't instrument) — so this function returned
+ * 'unknown' whenever neither UTM nor fbc was present, rather than
+ * inventing a distinction the data couldn't support. See the P0-C
+ * investigation report's Section F/N for that original reasoning.
+ *
+ * Affiliate Programme 2.0 (Revenue Attribution) has since added real
+ * referrer capture (see classifyAcquisitionSource() below, which now
+ * makes a genuine 'direct' determination) — but this narrower
+ * attribution_confidence signal is left as-is deliberately, since
+ * nothing in that work depends on changing it and the task's own
+ * instruction was to preserve existing attribution behavior absent a
+ * compelling reason to change it.
  */
 function computeAttributionConfidence(hasUtm: boolean, fbc: string | null): AttributionConfidence {
   if (hasUtm) return 'utm';
   if (fbc) return 'meta_click';
+  return 'unknown';
+}
+
+// ============================================================
+// Affiliate Programme 2.0 (Revenue Attribution) — the unified 5-way
+// acquisition-source classification (organic/paid/affiliate/direct/
+// unknown), distinct from attribution_confidence above (a narrower
+// "how sure are we" signal that predates this and is left untouched).
+// Computed once, here, at the exact same point attribution_confidence
+// already is, and locked onto purchase_sessions.acquisition_source —
+// same "snapshot at checkout, never re-derived later" discipline as
+// every other attribution field on this table.
+//
+// Documented model — last-eligible-touch, in this precedence order:
+//   1. affiliate  — an explicit, currently-approved rwl_ref referral
+//      (already re-validated by resolveAffiliateForCheckout() before
+//      this function ever sees it as a resolved affiliateId, not a
+//      raw code). Wins outright per the task's own stated model
+//      ("Explicit affiliate referral takes precedence").
+//   2. paid       — utm_medium matches a known paid-media value.
+//   3. organic    — utm_medium='organic', OR the captured first-touch
+//      referrer's host matches a known search engine or social
+//      platform with no paid tagging present.
+//   4. direct     — no UTM at all AND an empty referrer: the visitor's
+//      first page view of this session had no referring page (typed
+//      URL, bookmark, app link) — a genuine, observable fact once
+//      referrer is actually captured (see analytics.js's getUtm()),
+//      not the "never returned" placeholder attribution_confidence
+//      was stuck with before referrer capture existed.
+//   5. unknown    — anything else: a referrer or utm_medium exists but
+//      doesn't match a recognized pattern. Deliberately never guessed
+//      into organic/paid/direct — "do not fabricate attribution" per
+//      this feature's own design brief.
+// ============================================================
+
+export type AcquisitionSource = 'organic' | 'paid' | 'affiliate' | 'direct' | 'unknown';
+
+const PAID_UTM_MEDIUMS = new Set(['cpc', 'ppc', 'paid', 'paid_social', 'paidsocial', 'display', 'cpm']);
+const ORGANIC_REFERRER_HOSTS = [
+  'google.', 'bing.', 'yahoo.', 'duckduckgo.', 'baidu.', 'yandex.', // search engines
+  'facebook.com', 'instagram.com', 'tiktok.com', 'youtube.com', 'twitter.com', 'x.com', 'linkedin.com', 'pinterest.com', // social, when not explicitly paid-tagged
+];
+
+function classifyReferrerHost(referrer: string | null): 'organic' | 'unknown' | 'none' {
+  if (!referrer) return 'none';
+  let host: string;
+  try {
+    host = new URL(referrer).hostname.replace(/^www\./, '').toLowerCase();
+  } catch {
+    return 'unknown'; // not a parseable absolute URL - real evidence exists, just not usable evidence
+  }
+  return ORGANIC_REFERRER_HOSTS.some((known) => host === known || host.endsWith(`.${known}`) || host.startsWith(known)) ? 'organic' : 'unknown';
+}
+
+export function classifyAcquisitionSource(input: { affiliateId: number | null; utmMedium: string | null; referrer: string | null }): AcquisitionSource {
+  if (input.affiliateId !== null) return 'affiliate';
+
+  const medium = input.utmMedium?.toLowerCase().trim() ?? null;
+  if (medium && PAID_UTM_MEDIUMS.has(medium)) return 'paid';
+  if (medium === 'organic') return 'organic';
+
+  const referrerClass = classifyReferrerHost(input.referrer);
+  if (referrerClass === 'organic') return 'organic';
+  if (referrerClass === 'none' && !medium) return 'direct';
   return 'unknown';
 }
 
@@ -289,6 +370,18 @@ export async function createCheckoutSession(
     }
   }
 
+  // Affiliate Programme 2.0 (Revenue Attribution) — computed from the
+  // SAME resolved affiliateId locked above (never the raw, unvalidated
+  // affiliateRefCode), so a self-referral or a stale/unapproved code
+  // that failed resolveAffiliateForCheckout() never gets 'affiliate'
+  // credit here either. See classifyAcquisitionSource()'s own doc
+  // comment for the full precedence model.
+  const acquisitionSource = classifyAcquisitionSource({
+    affiliateId,
+    utmMedium: input.utmMedium,
+    referrer: input.referrer,
+  });
+
   const session = await insertPurchaseSession(env, {
     productSlug: product.slug,
     productId: product.id,
@@ -309,6 +402,7 @@ export async function createCheckoutSession(
     utmCampaign: input.utmCampaign,
     utmContent: input.utmContent,
     attributionConfidence,
+    acquisitionSource,
     affiliateId,
     affiliateCommissionPercent,
   });
@@ -343,7 +437,7 @@ export async function createCheckoutSession(
 
   await attachCheckoutResult(env, session.id, checkout);
 
-  logger.info('checkout.session_created', { purchaseReference: session.purchaseReference, productSlug: product.slug, amountPesewas, couponId, discountPesewas, attributionConfidence });
+  logger.info('checkout.session_created', { purchaseReference: session.purchaseReference, productSlug: product.slug, amountPesewas, couponId, discountPesewas, attributionConfidence, acquisitionSource });
 
   return { purchaseReference: session.purchaseReference, checkoutUrl: checkout.checkoutUrl };
 }
@@ -381,6 +475,8 @@ interface InsertPurchaseSessionInput {
   /** Reliable Sales Funnel Measurement pass (migration 0046) — see CreateCheckoutSessionInput's own doc comment. */
   utmContent: string | null;
   attributionConfidence: AttributionConfidence;
+  /** Affiliate Programme 2.0 (Revenue Attribution) — see classifyAcquisitionSource()'s own doc comment. Migration 0060 defaults the column to 'unknown', but this is always passed explicitly, computed fresh at the same point attributionConfidence is. */
+  acquisitionSource: AcquisitionSource;
   /** Affiliate Programme: both null together, or both set together; see createCheckoutSession()'s own affiliateResolution block above. */
   affiliateId: number | null;
   affiliateCommissionPercent: number | null;
@@ -412,8 +508,8 @@ async function insertPurchaseSession(env: Env, input: InsertPurchaseSessionInput
        (purchase_reference, product_slug, product_id, product_version, product_title, amount_pesewas, currency, status, provider, expires_at,
         terms_accepted_at, terms_version, license_accepted_at, license_version, marketing_opt_in, coupon_id, discount_pesewas, customer_email,
         client_ip_address, client_user_agent, fbc, fbp, utm_source, utm_medium, utm_campaign, utm_content, attribution_confidence,
-        affiliate_id, affiliate_commission_percent, data_classification)
-     VALUES (NULL, ?, ?, ?, ?, ?, ?, 'pending', ?, ?, datetime('now'), ?, datetime('now'), ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`
+        acquisition_source, affiliate_id, affiliate_commission_percent, data_classification)
+     VALUES (NULL, ?, ?, ?, ?, ?, ?, 'pending', ?, ?, datetime('now'), ?, datetime('now'), ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`
   )
     .bind(
       input.productSlug,
@@ -439,6 +535,7 @@ async function insertPurchaseSession(env: Env, input: InsertPurchaseSessionInput
       input.utmCampaign,
       input.utmContent,
       input.attributionConfidence,
+      input.acquisitionSource,
       input.affiliateId,
       input.affiliateCommissionPercent,
       // Forensic-audit fix (2026-08-28) — see utils/paystackEnvironment.ts.

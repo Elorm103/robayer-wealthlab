@@ -73,24 +73,39 @@
       utmContent: params.get('utm_content'),
     };
     if (fromUrl.utmSource || fromUrl.utmMedium || fromUrl.utmCampaign || fromUrl.utmContent) {
-      sessionStorage.setItem(UTM_KEY, JSON.stringify(fromUrl));
-      return fromUrl;
+      // Affiliate Programme 2.0 (Revenue Attribution) — referrer is
+      // captured alongside UTM, at the exact same first-touch moment,
+      // into the SAME sessionStorage entry P0-C already established
+      // (rather than a second capture mechanism) so organic/direct can
+      // be distinguished server-side even when no UTM is present. Same
+      // session-scoped continuity window this project already
+      // deliberately chose for UTM; not extended to a longer-lived
+      // store here.
+      const withReferrer = { ...fromUrl, referrer: document.referrer || null };
+      sessionStorage.setItem(UTM_KEY, JSON.stringify(withReferrer));
+      return withReferrer;
     }
     try {
       const stored = sessionStorage.getItem(UTM_KEY);
       if (stored) {
         const parsed = JSON.parse(stored);
-        // Sessions started before utm_content existed have a stored
-        // value missing the key entirely — an explicit fallback here
-        // (rather than `parsed.utmContent`, which is already
+        // Sessions started before utm_content/referrer existed have a
+        // stored value missing the key entirely — an explicit fallback
+        // here (rather than `parsed.utmContent`, which is already
         // `undefined` and would serialize the same way) keeps the
         // returned shape identical regardless of when the session began.
-        return { ...parsed, utmContent: parsed.utmContent || null };
+        return { ...parsed, utmContent: parsed.utmContent || null, referrer: parsed.referrer || null };
       }
     } catch {
       // Malformed stored value - fall through to "no UTM data" rather than throw.
     }
-    return { utmSource: null, utmMedium: null, utmCampaign: null, utmContent: null };
+    // First page view of this session, no UTM in the URL — still worth
+    // capturing document.referrer once (e.g. an organic search-engine
+    // or social referral with no campaign tags) and persisting it, same
+    // first-touch/session-scoped rule as the UTM-present branch above.
+    const referrerOnly = { utmSource: null, utmMedium: null, utmCampaign: null, utmContent: null, referrer: document.referrer || null };
+    sessionStorage.setItem(UTM_KEY, JSON.stringify(referrerOnly));
+    return referrerOnly;
   }
 
   function send(payload, endpoint) {

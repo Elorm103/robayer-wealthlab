@@ -31,6 +31,12 @@ export const DEFAULT_COMMISSION_PERCENT = 20;
 
 export const CURRENT_AFFILIATE_TERMS_VERSION = '2026-09-01';
 
+/** Bumped whenever the Academy's substantive content changes — affiliates.academy_version records which edition an affiliate actually completed, so a future content rewrite can be distinguished from "never did it." */
+export const CURRENT_AFFILIATE_ACADEMY_VERSION = '2026-09-07';
+
+export const ACADEMY_STATUSES = ['not_started', 'in_progress', 'completed'] as const;
+export type AcademyStatus = (typeof ACADEMY_STATUSES)[number];
+
 export const AFFILIATE_STATUSES = ['pending', 'approved', 'rejected', 'suspended'] as const;
 export type AffiliateStatus = (typeof AFFILIATE_STATUSES)[number];
 
@@ -50,6 +56,9 @@ export interface AffiliateProfile {
   decidedAt: string | null;
   rejectionReason: string | null;
   suspendedReason: string | null;
+  academyStatus: AcademyStatus;
+  academyStartedAt: string | null;
+  academyCompletedAt: string | null;
 }
 
 interface AffiliateProfileRow {
@@ -64,12 +73,16 @@ interface AffiliateProfileRow {
   decidedAt: string | null;
   rejectionReason: string | null;
   suspendedReason: string | null;
+  academyStatus: string;
+  academyStartedAt: string | null;
+  academyCompletedAt: string | null;
 }
 
 const PROFILE_SELECT = `SELECT id, customer_id AS customerId, affiliate_code AS affiliateCode, status,
          default_commission_percent AS defaultCommissionPercent, payout_method AS payoutMethod,
          payout_details AS payoutDetails, applied_at AS appliedAt, decided_at AS decidedAt,
-         rejection_reason AS rejectionReason, suspended_reason AS suspendedReason
+         rejection_reason AS rejectionReason, suspended_reason AS suspendedReason,
+         academy_status AS academyStatus, academy_started_at AS academyStartedAt, academy_completed_at AS academyCompletedAt
   FROM affiliates`;
 
 function mapProfile(row: AffiliateProfileRow): AffiliateProfile {
@@ -85,6 +98,9 @@ function mapProfile(row: AffiliateProfileRow): AffiliateProfile {
     decidedAt: row.decidedAt,
     rejectionReason: row.rejectionReason,
     suspendedReason: row.suspendedReason,
+    academyStatus: row.academyStatus as AcademyStatus,
+    academyStartedAt: row.academyStartedAt,
+    academyCompletedAt: row.academyCompletedAt,
   };
 }
 
@@ -171,7 +187,7 @@ export async function applyForAffiliate(env: Env, logger: Logger, customerId: nu
       .bind(code, CURRENT_AFFILIATE_TERMS_VERSION, existing.id)
       .run();
     await auditService.record(env, logger, { actorType: 'customer', actorId: customerId, action: 'affiliate.reapplied', entityType: 'affiliate', entityId: existing.id, metadata: null });
-    await sendApplicationReceivedEmail(env, logger, customerEmail, existing.id);
+    await notifyOfApplication(env, logger, customerId, customerEmail, existing.id);
     return { ok: true, affiliateCode: code, status: 'pending' };
   }
 
@@ -196,26 +212,142 @@ export async function applyForAffiliate(env: Env, logger: Logger, customerId: nu
 
   const id = Number(insert.meta.last_row_id);
   await auditService.record(env, logger, { actorType: 'customer', actorId: customerId, action: 'affiliate.applied', entityType: 'affiliate', entityId: id, metadata: null });
-  await sendApplicationReceivedEmail(env, logger, customerEmail, id);
+  await notifyOfApplication(env, logger, customerId, customerEmail, id);
   return { ok: true, affiliateCode: code, status: 'pending' };
 }
 
 /**
- * Application-received confirmation: fires on both a fresh application
- * and a reapplication after rejection (same event from the applicant's
- * point of view — "we got it, here's when to expect a decision").
- * Never blocks or fails the application itself if the send fails, same
- * "log, don't throw" discipline moderateApplication() below already
- * relies on for its own approved/rejected emails.
+ * Both required notifications for a new (or re-)application, fired
+ * together: the applicant confirmation (existing) and the admin
+ * notification (new — the one gap the prior affiliate-system
+ * production audit found: applications were being correctly stored,
+ * but nobody was ever told one had arrived). Each call is independently
+ * best-effort — emailService.ts's sendEmail() never throws, so one
+ * failing never prevents the other, and neither ever blocks or reverses
+ * the application itself, same "log, don't throw" discipline
+ * moderateApplication() below already relies on.
  */
-async function sendApplicationReceivedEmail(env: Env, logger: Logger, customerEmail: string, affiliateId: number): Promise<void> {
-  await sendEmail(env, logger, {
+async function notifyOfApplication(env: Env, logger: Logger, customerId: number, customerEmail: string, affiliateId: number): Promise<void> {
+  const [profile, academy] = await Promise.all([
+    env.DB.prepare(`SELECT display_name AS displayName FROM customer_profiles WHERE customer_id = ?`).bind(customerId).first<{ displayName: string | null }>(),
+    env.DB.prepare(`SELECT academy_status AS academyStatus, applied_at AS appliedAt FROM affiliates WHERE id = ?`).bind(affiliateId).first<{ academyStatus: string; appliedAt: string }>(),
+  ]);
+  const applicantName = profile?.displayName?.trim() || customerEmail;
+  const academyStatus = academy?.academyStatus ?? 'not_started';
+  const appliedAt = academy?.appliedAt ?? new Date().toISOString();
+
+  const receivedResult = await sendEmail(env, logger, {
     template: 'affiliate-application-received',
     to: customerEmail,
-    data: { dashboardUrl: `${env.SITE_BASE_URL}/affiliate/` },
+    data: { dashboardUrl: `${env.SITE_BASE_URL}/affiliate/`, academyUrl: `${env.SITE_BASE_URL}/affiliate/academy/` },
     entityType: 'affiliate',
     entityId: affiliateId,
   });
+  // Observability fix from the prior production audit: the send result
+  // was previously discarded entirely, so a real failure (or a
+  // template-disabled skip) was invisible to anyone. Still never
+  // blocks/fails the application — only logged, at a severity an admin
+  // dashboard/log search can actually find.
+  if (!receivedResult.sent) {
+    logger.warn('affiliate.application_received_email_not_sent', { affiliateId, status: receivedResult.status, errorMessage: receivedResult.errorMessage });
+  }
+
+  await sendAdminNotificationEmail(env, logger, { affiliateId, applicantName, applicantEmail: customerEmail, appliedAt, academyStatus });
+}
+
+/** New: notifies every admin who can actually act on an application (the same EDITOR_ROLES gate routes/admin/affiliates.ts's moderate/suspend/reactivate/rate endpoints already require) that one has arrived. */
+async function sendAdminNotificationEmail(
+  env: Env,
+  logger: Logger,
+  input: { affiliateId: number; applicantName: string; applicantEmail: string; appliedAt: string; academyStatus: string }
+): Promise<void> {
+  const { results: admins } = await env.DB.prepare(
+    `SELECT email FROM admin_users WHERE role IN ('super_admin', 'editor') AND is_active = 1 AND deleted_at IS NULL`
+  ).all<{ email: string }>();
+
+  const academyLabel: Record<string, string> = { not_started: 'Not started', in_progress: 'In progress', completed: 'Completed' };
+  const reviewUrl = `${env.SITE_BASE_URL}/admin/affiliates/?id=${input.affiliateId}`;
+
+  for (const admin of admins) {
+    const result = await sendEmail(env, logger, {
+      template: 'affiliate-application-admin-notification',
+      to: admin.email,
+      data: {
+        applicantName: input.applicantName,
+        applicantEmail: input.applicantEmail,
+        appliedAt: input.appliedAt,
+        academyStatus: academyLabel[input.academyStatus] ?? 'Not started',
+        reviewUrl,
+      },
+      entityType: 'affiliate',
+      entityId: input.affiliateId,
+    });
+    if (!result.sent) {
+      logger.warn('affiliate.admin_notification_email_not_sent', { affiliateId: input.affiliateId, adminEmail: admin.email, status: result.status });
+    }
+  }
+}
+
+// ============================================================
+// Affiliate Academy — whole-programme completion tracking (not
+// per-module; see the Academy route/page's own header comment for why
+// module-level granularity was deliberately left out of this pass).
+// Gated on customerId, not a raw affiliateId, matching every other
+// customer-facing affiliate endpoint's authorization shape
+// (requireCustomerAuth first, then look up this customer's own row —
+// never accept an affiliateId from the request body).
+// ============================================================
+
+export type AcademyActionResult = { ok: true; status: AcademyStatus } | { ok: false; reason: 'not_applied' };
+
+/**
+ * Idempotent: called once per page load of the Academy. Only transitions
+ * 'not_started' -> 'in_progress'; calling it again once already
+ * 'in_progress' or 'completed' is a harmless no-op (WHERE guard below),
+ * matching this codebase's established "safe to call any number of
+ * times" convention for state-transition functions.
+ */
+export async function startAcademy(env: Env, customerId: number): Promise<AcademyActionResult> {
+  const affiliate = await env.DB.prepare(`SELECT id, academy_status AS academyStatus FROM affiliates WHERE customer_id = ?`)
+    .bind(customerId)
+    .first<{ id: number; academyStatus: string }>();
+  if (!affiliate) return { ok: false, reason: 'not_applied' };
+
+  if (affiliate.academyStatus === 'not_started') {
+    await env.DB.prepare(`UPDATE affiliates SET academy_status = 'in_progress', academy_started_at = datetime('now'), updated_at = datetime('now') WHERE id = ? AND academy_status = 'not_started'`)
+      .bind(affiliate.id)
+      .run();
+    return { ok: true, status: 'in_progress' };
+  }
+  return { ok: true, status: affiliate.academyStatus as AcademyStatus };
+}
+
+/**
+ * Records the applicant's own "I've completed the Affiliate Academy"
+ * confirmation. Deliberately does NOT change `affiliates.status` in any
+ * way — per the task's own explicit "do not automatically approve"
+ * requirement, completion is signal an admin sees, never a grant of
+ * anything. academy_version stamps CURRENT_AFFILIATE_ACADEMY_VERSION at
+ * the moment of completion, the same "snapshot what was true then"
+ * discipline every other versioned field in this schema already uses
+ * (terms_version, product_title, etc.) — a later content rewrite never
+ * retroactively changes what a past affiliate is recorded as having read.
+ */
+export async function completeAcademy(env: Env, logger: Logger, customerId: number): Promise<AcademyActionResult> {
+  const affiliate = await env.DB.prepare(`SELECT id, academy_status AS academyStatus FROM affiliates WHERE customer_id = ?`)
+    .bind(customerId)
+    .first<{ id: number; academyStatus: string }>();
+  if (!affiliate) return { ok: false, reason: 'not_applied' };
+
+  if (affiliate.academyStatus !== 'completed') {
+    await env.DB.prepare(
+      `UPDATE affiliates SET academy_status = 'completed', academy_completed_at = datetime('now'), academy_version = ?, updated_at = datetime('now') WHERE id = ?`
+    )
+      .bind(CURRENT_AFFILIATE_ACADEMY_VERSION, affiliate.id)
+      .run();
+    await auditService.record(env, logger, { actorType: 'customer', actorId: customerId, action: 'affiliate.academy_completed', entityType: 'affiliate', entityId: affiliate.id, metadata: { version: CURRENT_AFFILIATE_ACADEMY_VERSION } });
+  }
+  return { ok: true, status: 'completed' };
 }
 
 // ============================================================
@@ -365,9 +497,12 @@ export interface AdminAffiliateListItem {
   affiliateCode: string;
   status: AffiliateStatus;
   customerEmail: string;
+  customerName: string | null;
   defaultCommissionPercent: number;
   appliedAt: string;
   decidedAt: string | null;
+  academyStatus: AcademyStatus;
+  academyCompletedAt: string | null;
 }
 
 interface AdminAffiliateListRow extends Omit<AdminAffiliateListItem, 'status'> {
@@ -396,9 +531,10 @@ export async function listAffiliates(
 
   const [rows, countRow] = await Promise.all([
     env.DB.prepare(
-      `SELECT a.id, a.affiliate_code AS affiliateCode, a.status, c.email AS customerEmail,
-              a.default_commission_percent AS defaultCommissionPercent, a.applied_at AS appliedAt, a.decided_at AS decidedAt
-       FROM affiliates a JOIN customers c ON c.id = a.customer_id
+      `SELECT a.id, a.affiliate_code AS affiliateCode, a.status, c.email AS customerEmail, cp.display_name AS customerName,
+              a.default_commission_percent AS defaultCommissionPercent, a.applied_at AS appliedAt, a.decided_at AS decidedAt,
+              a.academy_status AS academyStatus, a.academy_completed_at AS academyCompletedAt
+       FROM affiliates a JOIN customers c ON c.id = a.customer_id LEFT JOIN customer_profiles cp ON cp.customer_id = a.customer_id
        ${where}
        ORDER BY a.id DESC LIMIT ? OFFSET ?`
     )
@@ -410,7 +546,7 @@ export async function listAffiliates(
   ]);
 
   return {
-    items: rows.results.map((r) => ({ ...r, status: r.status as AffiliateStatus })),
+    items: rows.results.map((r) => ({ ...r, status: r.status as AffiliateStatus, academyStatus: r.academyStatus as AcademyStatus })),
     total: countRow?.total ?? 0,
     page,
     pageSize,
@@ -425,10 +561,11 @@ export interface AdminAffiliateDetail extends AdminAffiliateListItem {
 
 export async function getAffiliateDetail(env: Env, affiliateId: number): Promise<AdminAffiliateDetail | null> {
   const base = await env.DB.prepare(
-    `SELECT a.id, a.affiliate_code AS affiliateCode, a.status, c.email AS customerEmail,
+    `SELECT a.id, a.affiliate_code AS affiliateCode, a.status, c.email AS customerEmail, cp.display_name AS customerName,
             a.default_commission_percent AS defaultCommissionPercent, a.payout_method AS payoutMethod,
-            a.applied_at AS appliedAt, a.decided_at AS decidedAt
-     FROM affiliates a JOIN customers c ON c.id = a.customer_id WHERE a.id = ?`
+            a.applied_at AS appliedAt, a.decided_at AS decidedAt,
+            a.academy_status AS academyStatus, a.academy_completed_at AS academyCompletedAt
+     FROM affiliates a JOIN customers c ON c.id = a.customer_id LEFT JOIN customer_profiles cp ON cp.customer_id = a.customer_id WHERE a.id = ?`
   )
     .bind(affiliateId)
     .first<AdminAffiliateListRow & { payoutMethod: string | null }>();
@@ -455,6 +592,7 @@ export async function getAffiliateDetail(env: Env, affiliateId: number): Promise
   return {
     ...base,
     status: base.status as AffiliateStatus,
+    academyStatus: base.academyStatus as AcademyStatus,
     productRates: rates.results,
     totals: {
       clicks: clicksRow?.clicks ?? 0,

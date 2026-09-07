@@ -241,9 +241,13 @@ import {
 } from '../routes/admin/blog';
 import { handleBlogIndex, handleBlogDetail, handleBlogRedirect } from '../routes/blog';
 // Added Version 3.0.2 Milestone M1 (Customer Identity & Guest Checkout)
-// — see docs/v3.0.2-commerce-architecture-blueprint.md. The only
-// customer-facing auth routes in this milestone; no public
-// registration endpoint exists (ADR-006).
+// — see docs/v3.0.2-commerce-architecture-blueprint.md. ADR-006's
+// "purchase-triggered provisioning only" governed every route here
+// until Affiliate Programme 2.0 added handleCustomerRegister/
+// handleVerifyEmail as a deliberate, additive exception — see
+// services/customer/authService.ts's registerCustomer() header comment
+// for the full reasoning; the purchase-triggered path itself is
+// unchanged.
 import {
   handleCustomerLogin,
   handleCustomerLogout,
@@ -251,6 +255,8 @@ import {
   handleCustomerForgotPassword,
   handleCustomerSetPassword,
   handleCustomerChangePassword,
+  handleCustomerRegister,
+  handleVerifyEmail,
 } from '../routes/customer/auth';
 // Version 3.0.2 Milestone M2 (Orders, Receipts & Customer Library) —
 // the Customer Library's data layer. See
@@ -293,6 +299,9 @@ import { handleAffiliateClick } from '../routes/affiliates';
 import {
   handleGetMyAffiliateProfile,
   handleApplyForAffiliate,
+  handleGetAcademyStatus,
+  handleStartAcademy,
+  handleCompleteAcademy,
   handleGetAffiliateOverview,
   handleListMyCommissions,
   handleListMyPayouts,
@@ -672,12 +681,16 @@ const ROUTES: Route[] = [
   { pattern: new URLPattern({ pathname: '/blog/:slug' }), method: 'GET', handler: handleBlogRedirect },
   // Added Version 3.0.2 Milestone M1 (Customer Identity & Guest
   // Checkout) — see docs/v3.0.2-commerce-architecture-blueprint.md.
-  // No registration/sign-up route exists here or anywhere in this
-  // scope (ADR-006) — every /api/customer/auth/* route below is
-  // either unauthenticated-by-design (login, forgot-password,
-  // set-password — mirroring admin auth's equivalent public flows) or
-  // requires an existing session (logout, session).
+  // Every /api/customer/auth/* route below is either
+  // unauthenticated-by-design (login, forgot-password, set-password,
+  // register, verify-email — mirroring admin auth's equivalent public
+  // flows) or requires an existing session (logout, session,
+  // change-password).
   { pattern: new URLPattern({ pathname: '/api/customer/auth/login' }), method: 'POST', handler: handleCustomerLogin },
+  // Affiliate Programme 2.0 — see routes/customer/auth.ts's own header
+  // comment on this being a deliberate, additive exception to ADR-006.
+  { pattern: new URLPattern({ pathname: '/api/customer/auth/register' }), method: 'POST', handler: handleCustomerRegister },
+  { pattern: new URLPattern({ pathname: '/api/customer/auth/verify-email' }), method: 'GET', handler: handleVerifyEmail },
   { pattern: new URLPattern({ pathname: '/api/customer/auth/logout' }), method: 'POST', handler: handleCustomerLogout },
   { pattern: new URLPattern({ pathname: '/api/customer/auth/session' }), method: 'GET', handler: handleCustomerSession },
   { pattern: new URLPattern({ pathname: '/api/customer/auth/forgot-password' }), method: 'POST', handler: handleCustomerForgotPassword },
@@ -785,6 +798,9 @@ const ROUTES: Route[] = [
   // Affiliate Programme: customer-facing (requireCustomerAuth/requireApprovedAffiliate inside each handler).
   { pattern: new URLPattern({ pathname: '/api/customer/affiliates/me' }), method: 'GET', handler: handleGetMyAffiliateProfile },
   { pattern: new URLPattern({ pathname: '/api/customer/affiliates/apply' }), method: 'POST', handler: handleApplyForAffiliate },
+  { pattern: new URLPattern({ pathname: '/api/customer/affiliates/academy' }), method: 'GET', handler: handleGetAcademyStatus },
+  { pattern: new URLPattern({ pathname: '/api/customer/affiliates/academy/start' }), method: 'POST', handler: handleStartAcademy },
+  { pattern: new URLPattern({ pathname: '/api/customer/affiliates/academy/complete' }), method: 'POST', handler: handleCompleteAcademy },
   { pattern: new URLPattern({ pathname: '/api/customer/affiliates/overview' }), method: 'GET', handler: handleGetAffiliateOverview },
   { pattern: new URLPattern({ pathname: '/api/customer/affiliates/commissions' }), method: 'GET', handler: handleListMyCommissions },
   { pattern: new URLPattern({ pathname: '/api/customer/affiliates/payouts' }), method: 'GET', handler: handleListMyPayouts },

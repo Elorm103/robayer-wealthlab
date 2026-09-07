@@ -53,6 +53,22 @@ import customerReviewReminderTemplate from '../emails/templates/customer-review-
 // per-purchase, cron-driven pattern as customer-review-reminder above,
 // sent earlier in the lifecycle (a check-in, not a review request).
 import customerPurchaseFollowupTemplate from '../emails/templates/customer-purchase-followup.html';
+// Order Follow-up & Customer Review Email Automation, Pending-Order
+// Follow-up journey — see services/customer/pendingOrderFollowupService.ts.
+// Same delayed, per-purchase, cron-driven pattern as
+// customer-purchase-followup above, but for a PENDING (not yet
+// verified) purchase — sent to an email address with no customer
+// account behind it yet.
+import customerPendingOrderFollowupTemplate from '../emails/templates/customer-pending-order-followup.html';
+// Affiliate Programme 2.0 — free-registration email verification (see
+// services/customer/authService.ts's registerCustomer()) and the
+// admin-side "a new application arrived" notification (see
+// services/affiliateService.ts's applyForAffiliate()) — the one gap
+// the prior affiliate-system production audit found: an applicant
+// confirmation email already existed, but nothing told an admin a new
+// application was waiting.
+import customerEmailVerificationTemplate from '../emails/templates/customer-email-verification.html';
+import affiliateApplicationAdminNotificationTemplate from '../emails/templates/affiliate-application-admin-notification.html';
 import type { Env } from '../worker/env';
 import type { Logger } from '../utils/logger';
 import { getEmailSendSettings } from './admin/settingsService';
@@ -96,10 +112,13 @@ export type EmailTemplateName =
   | 'customer-purchase-reconciliation'
   | 'customer-review-reminder'
   | 'customer-purchase-followup'
+  | 'customer-pending-order-followup'
   | 'affiliate-application-received'
   | 'affiliate-application-approved'
   | 'affiliate-application-rejected'
-  | 'affiliate-payout-paid';
+  | 'affiliate-payout-paid'
+  | 'customer-email-verification'
+  | 'affiliate-application-admin-notification';
 
 const TEMPLATES: Record<EmailTemplateName, string> = {
   'newsletter-welcome': newsletterWelcomeTemplate,
@@ -116,10 +135,13 @@ const TEMPLATES: Record<EmailTemplateName, string> = {
   'customer-purchase-reconciliation': customerPurchaseReconciliationTemplate,
   'customer-review-reminder': customerReviewReminderTemplate,
   'customer-purchase-followup': customerPurchaseFollowupTemplate,
+  'customer-pending-order-followup': customerPendingOrderFollowupTemplate,
   'affiliate-application-received': affiliateApplicationReceivedTemplate,
   'affiliate-application-approved': affiliateApplicationApprovedTemplate,
   'affiliate-application-rejected': affiliateApplicationRejectedTemplate,
   'affiliate-payout-paid': affiliatePayoutPaidTemplate,
+  'customer-email-verification': customerEmailVerificationTemplate,
+  'affiliate-application-admin-notification': affiliateApplicationAdminNotificationTemplate,
 };
 
 export interface SendEmailOptions {

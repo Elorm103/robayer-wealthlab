@@ -14,7 +14,7 @@ import { isRateLimited } from '../../middleware/rateLimit';
 import { requireCustomerAuth } from '../../middleware/requireCustomerAuth';
 import { requireCustomerCsrf } from '../../middleware/customerCsrf';
 import { requireAffiliateAuth, requireApprovedAffiliate } from '../../middleware/requireAffiliateAuth';
-import { applyForAffiliate, CURRENT_AFFILIATE_TERMS_VERSION } from '../../services/affiliateService';
+import { applyForAffiliate, startAcademy, completeAcademy, CURRENT_AFFILIATE_TERMS_VERSION, CURRENT_AFFILIATE_ACADEMY_VERSION } from '../../services/affiliateService';
 import { getAffiliateOverview, listCommissionsForAffiliate } from '../../services/affiliateCommissionService';
 import { requestPayout, listPayoutsForAffiliate, MIN_PAYOUT_PESEWAS } from '../../services/affiliatePayoutService';
 import { listPublishedResources } from '../../services/affiliateResourceService';
@@ -44,6 +44,7 @@ export async function handleGetMyAffiliateProfile(request: Request, env: Env, lo
       rejectionReason: affiliate.rejectionReason,
       suspendedReason: affiliate.suspendedReason,
       payoutMethod: affiliate.payoutMethod,
+      academyStatus: affiliate.academyStatus,
     })
   );
 }
@@ -78,6 +79,49 @@ export async function handleApplyForAffiliate(request: Request, env: Env, logger
   }
 
   return withNoStore(jsonSuccess({ status: result.status, termsVersion: CURRENT_AFFILIATE_TERMS_VERSION }));
+}
+
+/** GET /api/customer/affiliates/academy: current Academy status, for the Academy page to resume/show progress on load. Requires having applied (any status) — same gate as handleGetMyAffiliateProfile, deliberately not requireApprovedAffiliate, since Academy is meant to be worked through WHILE an application is still pending. */
+export async function handleGetAcademyStatus(request: Request, env: Env, logger: Logger): Promise<Response> {
+  const auth = await requireAffiliateAuth(request, env, logger);
+  if (!auth.ok) return withNoStore(auth.response);
+  if (await isRateLimited(request, env, READ_RATE_LIMIT)) return withNoStore(jsonError('RATE_LIMITED', 'Too many requests. Please try again shortly.'));
+
+  const { affiliate } = auth.auth;
+  return withNoStore(
+    jsonSuccess({
+      status: affiliate.academyStatus,
+      startedAt: affiliate.academyStartedAt,
+      completedAt: affiliate.academyCompletedAt,
+      currentVersion: CURRENT_AFFILIATE_ACADEMY_VERSION,
+    })
+  );
+}
+
+/** POST /api/customer/affiliates/academy/start: fired once, on the Academy page's first load — see affiliateService.ts's startAcademy() for its idempotency. */
+export async function handleStartAcademy(request: Request, env: Env, logger: Logger): Promise<Response> {
+  const auth = await requireCustomerAuth(request, env, logger);
+  if (!auth.ok) return withNoStore(auth.response);
+  const csrfFailure = await requireCustomerCsrf(request, env, logger, auth.auth);
+  if (csrfFailure) return withNoStore(csrfFailure);
+  if (await isRateLimited(request, env, WRITE_RATE_LIMIT)) return withNoStore(jsonError('RATE_LIMITED', 'Too many requests. Please try again shortly.'));
+
+  const result = await startAcademy(env, auth.auth.customerId);
+  if (!result.ok) return withNoStore(jsonError('NOT_APPLIED', 'Apply to the Affiliate Programme first to access the Academy.'));
+  return withNoStore(jsonSuccess({ status: result.status }));
+}
+
+/** POST /api/customer/affiliates/academy/complete: the applicant's own "I've completed the Affiliate Academy" confirmation. Never changes affiliates.status — see completeAcademy()'s own doc comment. */
+export async function handleCompleteAcademy(request: Request, env: Env, logger: Logger): Promise<Response> {
+  const auth = await requireCustomerAuth(request, env, logger);
+  if (!auth.ok) return withNoStore(auth.response);
+  const csrfFailure = await requireCustomerCsrf(request, env, logger, auth.auth);
+  if (csrfFailure) return withNoStore(csrfFailure);
+  if (await isRateLimited(request, env, WRITE_RATE_LIMIT)) return withNoStore(jsonError('RATE_LIMITED', 'Too many requests. Please try again shortly.'));
+
+  const result = await completeAcademy(env, logger, auth.auth.customerId);
+  if (!result.ok) return withNoStore(jsonError('NOT_APPLIED', 'Apply to the Affiliate Programme first to access the Academy.'));
+  return withNoStore(jsonSuccess({ status: result.status }));
 }
 
 /** GET /api/customer/affiliates/overview: KPI summary for the dashboard. Requires 'approved'. */

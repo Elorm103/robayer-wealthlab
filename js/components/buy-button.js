@@ -78,16 +78,23 @@ const UTM_STORAGE_KEY = 'robayer_analytics_utm';
 function readStoredUtm() {
   try {
     const stored = sessionStorage.getItem(UTM_STORAGE_KEY);
-    if (!stored) return { utmSource: null, utmMedium: null, utmCampaign: null, utmContent: null };
+    if (!stored) return { utmSource: null, utmMedium: null, utmCampaign: null, utmContent: null, referrer: null };
     const parsed = JSON.parse(stored);
     return {
       utmSource: parsed.utmSource || null,
       utmMedium: parsed.utmMedium || null,
       utmCampaign: parsed.utmCampaign || null,
       utmContent: parsed.utmContent || null,
+      // Affiliate Programme 2.0 (Revenue Attribution) — same
+      // first-touch, session-scoped capture as the UTM fields above,
+      // see js/components/analytics.js's getUtm() for where this is
+      // written. Forwarded so commerceService.ts can classify
+      // organic-vs-direct server-side; never trusted as a finished
+      // classification, only as raw evidence.
+      referrer: parsed.referrer || null,
     };
   } catch (err) {
-    return { utmSource: null, utmMedium: null, utmCampaign: null, utmContent: null };
+    return { utmSource: null, utmMedium: null, utmCampaign: null, utmContent: null, referrer: null };
   }
 }
 
@@ -325,6 +332,7 @@ function initBuyButtons() {
             utmMedium: utm.utmMedium,
             utmCampaign: utm.utmCampaign,
             utmContent: utm.utmContent,
+            referrer: utm.referrer,
           }),
         });
         const result = await response.json();

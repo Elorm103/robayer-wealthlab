@@ -31,6 +31,13 @@ function badgeClass(status) {
   return map[status] || 'badge--info';
 }
 
+/** Affiliate Programme 2.0 — never implies completion decided approval; this is purely a status display, same "considered, not automatic" discipline as the applicant-facing copy on affiliate/academy/. */
+function academyBadge(status) {
+  const labels = { not_started: 'Not started', in_progress: 'In progress', completed: 'Completed' };
+  const classes = { not_started: 'badge--info', in_progress: 'badge--warning', completed: 'badge--success' };
+  return `<span class="badge ${classes[status] || 'badge--info'}">${escapeHtml(labels[status] || status)}</span>`;
+}
+
 function initAdminAffiliates() {
   const root = document.querySelector('[data-affiliates-root]');
   if (!root || root.hasAttribute('data-bound')) return;
@@ -100,10 +107,12 @@ function initAdminAffiliates() {
         const row = document.createElement('tr');
         row.innerHTML = `
           <td><code>${escapeHtml(item.affiliateCode)}</code></td>
+          <td>${item.customerName ? escapeHtml(item.customerName) : '<span class="text-secondary">-</span>'}</td>
           <td>${escapeHtml(item.customerEmail)}</td>
           <td><span class="badge ${badgeClass(item.status)}">${escapeHtml(item.status)}</span></td>
           <td class="numeric">${item.defaultCommissionPercent}%</td>
           <td>${escapeHtml((item.appliedAt || '').slice(0, 10))}</td>
+          <td>${academyBadge(item.academyStatus)}</td>
           <td><button type="button" class="btn btn--secondary" data-view-affiliate="${item.id}">View</button></td>
         `;
         listEl.appendChild(row);
@@ -142,8 +151,12 @@ function initAdminAffiliates() {
   function renderAffiliateDetail(d) {
     const rateRows = d.productRates.map((r) => `<li>${escapeHtml(r.productTitle)}: ${r.commissionPercent}%</li>`).join('') || '<li class="text-secondary">None set. Default rate applies to every product.</li>';
     return `
-      <h2 class="mt-0 mb-2">${escapeHtml(d.customerEmail)} <span class="badge ${badgeClass(d.status)}">${escapeHtml(d.status)}</span></h2>
-      <p class="text-mono text-secondary mb-3">${escapeHtml(d.affiliateCode)}</p>
+      <h2 class="mt-0 mb-2">${d.customerName ? escapeHtml(d.customerName) + ' &middot; ' : ''}${escapeHtml(d.customerEmail)} <span class="badge ${badgeClass(d.status)}">${escapeHtml(d.status)}</span></h2>
+      <p class="text-mono text-secondary mb-1">${escapeHtml(d.affiliateCode)}</p>
+      <p class="text-secondary mb-3">
+        Affiliate Academy: ${academyBadge(d.academyStatus)}
+        ${d.academyCompletedAt ? ` &middot; completed ${formatDate(d.academyCompletedAt)}` : ''}
+      </p>
 
       <div class="grid grid--4 mb-4">
         <div class="stat-card"><span class="stat-card__label">Clicks</span><span class="stat-card__value">${d.totals.clicks}</span></div>

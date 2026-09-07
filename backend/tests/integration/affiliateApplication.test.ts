@@ -9,6 +9,7 @@ import { SELF, env } from 'cloudflare:test';
 import { findOrCreateCustomer } from '../../services/customer/identityService';
 import { createSession as createCustomerSession } from '../../services/customer/sessionService';
 import { createSession as createAdminSession } from '../../services/admin/sessionService';
+import { queueResendResponseStickyOverride, clearResendResponseStickyOverride } from '../outboundMock';
 
 beforeEach(async () => {
   await env.DB.exec('DELETE FROM affiliate_commissions');
@@ -23,6 +24,12 @@ beforeEach(async () => {
   await env.DB.exec('DELETE FROM customers');
   await env.DB.exec('DELETE FROM admin_sessions');
   await env.DB.exec('DELETE FROM admin_users');
+  // RATE_LIMIT_KV persists across tests within this file (unlike D1,
+  // reset above) — this file's WRITE_RATE_LIMIT bucket (limit 10/60s,
+  // shared by /apply and the moderation endpoints) would otherwise
+  // accumulate across tests and fail later ones with RATE_LIMITED.
+  await env.RATE_LIMIT_KV.delete('ratelimit:customer-affiliate-write:unknown');
+  await env.RATE_LIMIT_KV.delete('ratelimit:admin-ops-write:unknown');
 });
 
 async function seedCustomer(email: string): Promise<{ customerId: number; cookieHeader: string; csrfSecret: string }> {
@@ -70,6 +77,57 @@ describe('POST /api/customer/affiliates/apply', () => {
     const row = await env.DB.prepare(`SELECT template, recipient FROM email_log WHERE recipient = 'confirmation@example.com' ORDER BY id DESC LIMIT 1`).first<any>();
     expect(row).toBeTruthy();
     expect(row.template).toBe('affiliate-application-received');
+  });
+
+  it('notifies every active super_admin/editor admin of the new application', async () => {
+    await env.DB.prepare(`INSERT INTO admin_users (email, password_hash, role, is_active) VALUES ('editor-notify@example.com', 'x:1:x', 'editor', 1)`).run();
+    await env.DB.prepare(`INSERT INTO admin_users (email, password_hash, role, is_active) VALUES ('super-notify@example.com', 'x:1:x', 'super_admin', 1)`).run();
+    // An inactive admin and a support-role admin should NOT receive this notification.
+    await env.DB.prepare(`INSERT INTO admin_users (email, password_hash, role, is_active) VALUES ('inactive-notify@example.com', 'x:1:x', 'editor', 0)`).run();
+    await env.DB.prepare(`INSERT INTO admin_users (email, password_hash, role, is_active) VALUES ('support-notify@example.com', 'x:1:x', 'support', 1)`).run();
+
+    const { cookieHeader, csrfSecret } = await seedCustomer('notify-admins@example.com');
+    await SELF.fetch('https://example.com/api/customer/affiliates/apply', {
+      method: 'POST',
+      headers: { Cookie: cookieHeader, 'X-Customer-CSRF-Token': csrfSecret, 'Content-Type': 'application/json' },
+      body: JSON.stringify({ termsAccepted: true }),
+    });
+
+    const notified = await env.DB.prepare(
+      `SELECT recipient FROM email_log WHERE template = 'affiliate-application-admin-notification' ORDER BY recipient`
+    ).all<{ recipient: string }>();
+    const recipients = notified.results.map((r) => r.recipient);
+    expect(recipients).toContain('editor-notify@example.com');
+    expect(recipients).toContain('super-notify@example.com');
+    expect(recipients).not.toContain('inactive-notify@example.com');
+    expect(recipients).not.toContain('support-notify@example.com');
+  });
+
+  it('a failed applicant-confirmation email send is logged as failed, never silently swallowed, and never blocks the application', async () => {
+    await queueResendResponseStickyOverride(env as any, { status: 500, body: { message: 'simulated Resend outage' } });
+    try {
+      const { cookieHeader, csrfSecret } = await seedCustomer('email-failure@example.com');
+      const res = await SELF.fetch('https://example.com/api/customer/affiliates/apply', {
+        method: 'POST',
+        headers: { Cookie: cookieHeader, 'X-Customer-CSRF-Token': csrfSecret, 'Content-Type': 'application/json' },
+        body: JSON.stringify({ termsAccepted: true }),
+      });
+      const body = await res.json<any>();
+      // The application itself must still succeed — an email outage is never a reason to lose an application.
+      expect(body.success).toBe(true);
+      expect(body.data.status).toBe('pending');
+
+      const row = await env.DB.prepare(
+        `SELECT status FROM email_log WHERE recipient = 'email-failure@example.com' AND template = 'affiliate-application-received' ORDER BY id DESC LIMIT 1`
+      ).first<any>();
+      expect(row).toBeTruthy();
+      expect(['failed', 'permanently_failed']).toContain(row.status);
+
+      const affiliateRow = await env.DB.prepare(`SELECT status FROM affiliates WHERE customer_id = (SELECT id FROM customers WHERE email = 'email-failure@example.com')`).first<any>();
+      expect(affiliateRow.status).toBe('pending');
+    } finally {
+      await clearResendResponseStickyOverride(env as any);
+    }
   });
 
   it('rejects an application without terms acceptance', async () => {

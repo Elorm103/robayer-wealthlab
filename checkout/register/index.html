@@ -1,0 +1,87 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+
+  <title>Create a Free Account | Robayer WealthLab</title>
+  <meta name="description" content="Create a free Robayer WealthLab account to apply for the Affiliate Programme.">
+  <link rel="canonical" href="https://robayerwealthlab.com/checkout/register/">
+  <!-- noindex: an account-creation utility page, not content — same convention as /checkout/sign-in/'s siblings. -->
+  <meta name="robots" content="noindex, nofollow">
+
+  <link rel="icon" type="image/svg+xml" href="/assets/icons/favicon.svg">
+  <link rel="icon" type="image/png" sizes="32x32" href="/assets/icons/favicon-32.png">
+  <link rel="apple-touch-icon" href="/assets/icons/apple-touch-icon.png">
+
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Newsreader:ital,wght@0,600;1,500&family=Space+Grotesk:wght@500&family=Work+Sans:wght@400;500&family=IBM+Plex+Mono:wght@400;500&display=swap" rel="stylesheet">
+
+  <link rel="stylesheet" href="/css/tokens.css?v=2706187f0b">
+  <link rel="stylesheet" href="/css/base.css?v=57a963bc6f">
+  <link rel="stylesheet" href="/css/layout.css?v=a6fb0c7359">
+  <link rel="stylesheet" href="/css/components.css?v=0ba26e4b29">
+  <link rel="stylesheet" href="/css/utilities.css?v=406dfe7300">
+</head>
+<body>
+  <a href="#main-content" class="skip-link">Skip to main content</a>
+
+  <div data-include="/partials/header.html"></div>
+
+  <main id="main-content">
+    <section class="section" aria-labelledby="register-heading">
+      <div class="container content-column">
+        <span class="eyebrow text-center">Your account</span>
+        <h1 id="register-heading" class="mt-2 mb-2 text-center">Create a free account</h1>
+        <p class="text-secondary text-center mb-5">
+          No purchase required. A free account lets you apply to the
+          <a href="/affiliate-programme/">Affiliate Programme</a> and
+          track your application from one dashboard.
+        </p>
+
+        <form class="card" style="max-width:440px;margin:0 auto;padding:var(--space-5);" data-register-form novalidate aria-label="Create a free account">
+          <div class="field">
+            <label for="register-name" class="field__label">Full name</label>
+            <input type="text" id="register-name" name="name" class="field__input" autocomplete="name" required>
+          </div>
+          <div class="field">
+            <label for="register-email" class="field__label">Email address</label>
+            <input type="email" id="register-email" name="email" class="field__input" autocomplete="email" required>
+          </div>
+          <div class="field">
+            <label for="register-password" class="field__label">Password</label>
+            <input type="password" id="register-password" name="password" class="field__input" minlength="12" autocomplete="new-password" required>
+            <span class="field__hint">At least 12 characters.</span>
+          </div>
+          <div class="field">
+            <label for="register-password-confirmation" class="field__label">Confirm password</label>
+            <input type="password" id="register-password-confirmation" name="passwordConfirmation" class="field__input" minlength="12" autocomplete="new-password" required>
+            <span class="field__error" role="alert" hidden></span>
+          </div>
+          <div class="field field--checkbox mb-3">
+            <label>
+              <input type="checkbox" id="register-terms" name="termsAccepted" required>
+              I accept the <a href="/legal/terms-of-use/" target="_blank" rel="noopener">Terms of Service</a>.
+            </label>
+          </div>
+          <button type="submit" class="btn btn--accent" style="width:100%;margin-bottom:var(--space-3);">Create account</button>
+          <p class="text-secondary text-small text-center mb-0">
+            Already have an account? <a href="/checkout/sign-in/">Sign in</a>.
+          </p>
+        </form>
+      </div>
+    </section>
+  </main>
+
+  <div data-include="/partials/footer.html"></div>
+
+  <script src="/js/includes.js?v=cba95d9aa1"></script>
+  <script src="/js/components/nav.js?v=0a04ccf371"></script>
+  <script src="/js/components/theme-toggle.js?v=eebe98960c"></script>
+  <script src="/js/components/branding.js?v=483b048741"></script>
+  <script src="/js/content-inject.js?v=10a4d215c2"></script>
+  <script src="/js/components/register-form.js?v=1"></script>
+  <script src="/js/main.js?v=1043f4fc00"></script>
+</body>
+</html>

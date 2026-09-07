@@ -87,7 +87,7 @@ export async function handleCreateCheckoutSession(request: Request, env: Env, lo
     return jsonError(validation.code, validation.message);
   }
 
-  const { productId, marketingOptIn, couponCode, email, utmSource, utmMedium, utmCampaign, utmContent } = body as {
+  const { productId, marketingOptIn, couponCode, email, utmSource, utmMedium, utmCampaign, utmContent, referrer } = body as {
     productId: string;
     marketingOptIn?: unknown;
     couponCode?: unknown;
@@ -96,6 +96,7 @@ export async function handleCreateCheckoutSession(request: Request, env: Env, lo
     utmMedium?: unknown;
     utmCampaign?: unknown;
     utmContent?: unknown;
+    referrer?: unknown;
   };
 
   // Version 5.0 (Customer Acquisition Phase 1, Event Match Quality) —
@@ -137,6 +138,11 @@ export async function handleCreateCheckoutSession(request: Request, env: Env, lo
   const utmMediumValue = sanitizeUtmValue(utmMedium);
   const utmCampaignValue = sanitizeUtmValue(utmCampaign);
   const utmContentValue = sanitizeUtmValue(utmContent);
+  // Affiliate Programme 2.0 (Revenue Attribution) — same untrusted-input
+  // discipline as the UTM values above: raw evidence only, sanitized
+  // and capped, never a finished classification (that's computed
+  // server-side in createCheckoutSession()'s classifyAcquisitionSource()).
+  const referrerValue = sanitizeUtmValue(referrer);
 
   try {
     const result = await createCheckoutSession(env, logger, {
@@ -160,6 +166,7 @@ export async function handleCreateCheckoutSession(request: Request, env: Env, lo
       utmMedium: utmMediumValue,
       utmCampaign: utmCampaignValue,
       utmContent: utmContentValue,
+      referrer: referrerValue,
       affiliateRefCode,
     });
     return jsonSuccess({ purchaseReference: result.purchaseReference, checkoutUrl: result.checkoutUrl });
