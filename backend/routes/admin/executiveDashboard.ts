@@ -171,3 +171,17 @@ export async function handleDashboardEmailLifecycle(request: Request, env: Env, 
   const summary = await executiveDashboardService.getEmailLifecycleSummary(env);
   return jsonSuccess(summary);
 }
+
+/** GET /api/admin/executive-dashboard/acquisition-sources — Affiliate Programme 2.0 Phase F reporting foundation. Lifetime, verified-purchase-only revenue/commission by organic/paid/affiliate/direct/unknown; see executiveDashboardService.ts's getAcquisitionSourceBreakdown() for the exact aggregation. */
+export async function handleDashboardAcquisitionSources(request: Request, env: Env, logger: Logger): Promise<Response> {
+  const auth = await requireAuth(request, env, logger);
+  if (!auth.ok) return auth.response;
+
+  if (await isRateLimited(request, env, READ_RATE_LIMIT)) {
+    return jsonError('RATE_LIMITED', 'Too many requests. Please try again shortly.');
+  }
+
+  const analyticsMode = parseAnalyticsMode(new URL(request.url).searchParams.get('analyticsMode'), adminAnalyticsModeDefault(auth.auth));
+  const breakdown = await executiveDashboardService.getAcquisitionSourceBreakdown(env, analyticsMode);
+  return jsonSuccess(breakdown);
+}

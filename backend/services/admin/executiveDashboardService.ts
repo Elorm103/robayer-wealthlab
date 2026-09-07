@@ -1311,3 +1311,96 @@ export async function getEmailLifecycleSummary(env: Env): Promise<EmailLifecycle
     }),
   };
 }
+
+// ============================================================
+// Affiliate Programme 2.0 — Revenue Attribution reporting. The
+// reporting-layer counterpart to commerceService.ts's
+// classifyAcquisitionSource(): that function decides the value once,
+// per purchase, at checkout; this one aggregates what's already been
+// decided. Never re-derives or re-classifies anything itself — a
+// purchase_sessions row's acquisition_source is locked at checkout
+// time, same "snapshot, never re-computed later" discipline as every
+// other attribution field on that table (see that function's own
+// header comment).
+//
+// "Lifetime, verified purchases only" — same convention as every
+// other revenue figure in this file (see this file's own header
+// comment). An unpaid/abandoned checkout session is never counted as
+// an order or as revenue here, matching this feature's explicit "do
+// not count unpaid checkout sessions as revenue" requirement.
+//
+// Commission is summed from affiliate_commissions (excluding
+// 'reversed' rows — a reversed commission was never actually paid out
+// and shouldn't count against net revenue) rather than recomputed from
+// affiliate_commission_percent, so a manual admin adjustment
+// (adjustCommission() in affiliateService.ts) is reflected here too.
+// ============================================================
+
+export const ACQUISITION_SOURCES = ['affiliate', 'paid', 'organic', 'direct', 'unknown'] as const;
+export type AcquisitionSourceKey = (typeof ACQUISITION_SOURCES)[number];
+
+export interface AcquisitionSourceRow {
+  source: AcquisitionSourceKey;
+  orders: number;
+  customers: number;
+  grossRevenuePesewas: number;
+  commissionPesewas: number;
+  netAfterCommissionPesewas: number;
+}
+
+export interface AcquisitionSourceBreakdown {
+  analyticsMode: AnalyticsMode;
+  rows: AcquisitionSourceRow[];
+  totals: {
+    orders: number;
+    customers: number;
+    grossRevenuePesewas: number;
+    commissionPesewas: number;
+    netAfterCommissionPesewas: number;
+  };
+}
+
+/** GET /api/admin/executive-dashboard/acquisition-sources — aggregate revenue/commission by organic/paid/affiliate/direct/unknown, for the "how much revenue comes from affiliates vs paid vs organic vs direct" question. `customers` counts distinct customer_id per source (a customer who purchased through two different sources counts once in each, deliberately — there's no single "primary source" this project assigns a customer). */
+export async function getAcquisitionSourceBreakdown(env: Env, analyticsMode: AnalyticsMode): Promise<AcquisitionSourceBreakdown> {
+  const classifications = ANALYTICS_MODE_CLASSIFICATIONS[analyticsMode];
+  const cls = classificationPredicate(classifications, 'ps.data_classification');
+
+  const { results } = await env.DB.prepare(
+    `SELECT
+       ps.acquisition_source AS source,
+       COUNT(*) AS orders,
+       COUNT(DISTINCT ps.customer_id) AS customers,
+       COALESCE(SUM(ps.amount_pesewas), 0) AS grossRevenuePesewas,
+       COALESCE(SUM(CASE WHEN ac.status IS NOT NULL AND ac.status != 'reversed' THEN ac.commission_pesewas ELSE 0 END), 0) AS commissionPesewas
+     FROM purchase_sessions ps
+     LEFT JOIN affiliate_commissions ac ON ac.purchase_session_id = ps.id
+     WHERE ps.status = 'verified' AND ${cls.sql}
+     GROUP BY ps.acquisition_source`
+  )
+    .bind(...cls.params)
+    .all<{ source: string; orders: number; customers: number; grossRevenuePesewas: number; commissionPesewas: number }>();
+
+  const bySource = new Map(results.map((row) => [row.source, row]));
+
+  const rows: AcquisitionSourceRow[] = ACQUISITION_SOURCES.map((source) => {
+    const row = bySource.get(source);
+    const orders = row?.orders ?? 0;
+    const customers = row?.customers ?? 0;
+    const grossRevenuePesewas = row?.grossRevenuePesewas ?? 0;
+    const commissionPesewas = row?.commissionPesewas ?? 0;
+    return { source, orders, customers, grossRevenuePesewas, commissionPesewas, netAfterCommissionPesewas: grossRevenuePesewas - commissionPesewas };
+  });
+
+  const totals = rows.reduce(
+    (acc, row) => ({
+      orders: acc.orders + row.orders,
+      customers: acc.customers + row.customers,
+      grossRevenuePesewas: acc.grossRevenuePesewas + row.grossRevenuePesewas,
+      commissionPesewas: acc.commissionPesewas + row.commissionPesewas,
+      netAfterCommissionPesewas: acc.netAfterCommissionPesewas + row.netAfterCommissionPesewas,
+    }),
+    { orders: 0, customers: 0, grossRevenuePesewas: 0, commissionPesewas: 0, netAfterCommissionPesewas: 0 }
+  );
+
+  return { analyticsMode, rows, totals };
+}

@@ -136,6 +136,7 @@ import {
   handleDashboardAlerts,
   handleDashboardTraffic,
   handleDashboardEmailLifecycle,
+  handleDashboardAcquisitionSources,
 } from '../routes/admin/executiveDashboard';
 import { handleArchiveSummary, handleArchiveEntityRecords, handleArchiveRecordDetail, handleArchivePromoteRecord } from '../routes/admin/archive';
 import { handleListProductionBaselines, handleCaptureProductionBaseline } from '../routes/admin/productionBaseline';
@@ -451,6 +452,7 @@ const ROUTES: Route[] = [
   { pattern: new URLPattern({ pathname: '/api/admin/dashboard/alerts' }), method: 'GET', handler: handleDashboardAlerts },
   { pattern: new URLPattern({ pathname: '/api/admin/dashboard/traffic' }), method: 'GET', handler: handleDashboardTraffic },
   { pattern: new URLPattern({ pathname: '/api/admin/dashboard/email-lifecycle' }), method: 'GET', handler: handleDashboardEmailLifecycle },
+  { pattern: new URLPattern({ pathname: '/api/admin/dashboard/acquisition-sources' }), method: 'GET', handler: handleDashboardAcquisitionSources },
   { pattern: new URLPattern({ pathname: '/api/admin/archive/summary' }), method: 'GET', handler: handleArchiveSummary },
   { pattern: new URLPattern({ pathname: '/api/admin/archive/:entity' }), method: 'GET', handler: handleArchiveEntityRecords },
   { pattern: new URLPattern({ pathname: '/api/admin/archive/:entity/:id' }), method: 'GET', handler: handleArchiveRecordDetail },

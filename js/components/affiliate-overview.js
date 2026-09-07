@@ -63,16 +63,16 @@ async function initAffiliateOverview() {
   }
 }
 
-/** Affiliate Programme 2.0 — the pending-review state's Academy nudge; wording reflects actual progress rather than always saying "complete the Academy" regardless of status. Never implies completion guarantees approval — see affiliateService.ts's completeAcademy() header comment for why. */
+/** Affiliate Programme 2.0 — the pending-review state's Academy nudge text (the Academy link itself is a static, always-visible button in affiliate/index.html — this only adjusts the sentence above it to reflect actual progress). Never implies completion guarantees approval — see affiliateService.ts's completeAcademy() header comment for why. */
 function renderAcademyPrompt(academyStatus) {
   const el = document.querySelector('[data-affiliate-academy-prompt]');
   if (!el) return;
   if (academyStatus === 'completed') {
-    el.innerHTML = 'You\'ve completed the <a href="/affiliate/academy/">Affiliate Academy</a>. This may be considered during your application review.';
+    el.textContent = "You've completed the Affiliate Academy. This may be considered as part of your application review.";
   } else if (academyStatus === 'in_progress') {
-    el.innerHTML = 'While you wait: <a href="/affiliate/academy/">finish the Affiliate Academy</a> &mdash; you\'re partway through.';
+    el.textContent = "You're partway through the Affiliate Academy. Completing it may be considered as part of your application review.";
   } else {
-    el.innerHTML = 'While you wait: <a href="/affiliate/academy/">complete the Affiliate Academy</a> &mdash; it\'s not required, but it\'s considered during review.';
+    el.textContent = 'Completing the Academy demonstrates that you understand your responsibilities and may be considered as part of the affiliate approval review.';
   }
 }
 
