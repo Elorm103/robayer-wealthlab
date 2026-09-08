@@ -191,6 +191,36 @@
           </div>
         </div>
 
+        <!-- ============================================================
+             Affiliate Programme 2.0 — Acquisition & Revenue Attribution.
+             Compact executive summary only (not a full analytics
+             dashboard): verified/real purchases only, revenue by
+             organic/paid/affiliate/direct/unknown, using the same
+             acquisition_source classification commerceService.ts
+             computes once, server-side, at checkout. Reporting only —
+             never touches attribution, commission, or payout logic.
+             ============================================================ -->
+        <div class="card mb-5" data-acquisition-sources-card>
+          <h3 class="text-body-lg mb-1">Acquisition &amp; revenue attribution</h3>
+          <p class="stat-card__meta mb-3">Verified purchases only &mdash; abandoned or pending checkouts are never counted as revenue.</p>
+          <div class="admin-table-wrap" data-acquisition-sources-wrap>
+            <table class="table" aria-label="Revenue by acquisition source">
+              <thead>
+                <tr>
+                  <th scope="col">Source</th>
+                  <th scope="col" class="numeric">Orders</th>
+                  <th scope="col" class="numeric">Customers</th>
+                  <th scope="col" class="numeric">Gross revenue</th>
+                  <th scope="col" class="numeric">Commission</th>
+                  <th scope="col" class="numeric">Net revenue</th>
+                </tr>
+              </thead>
+              <tbody data-acquisition-sources-body></tbody>
+              <tfoot data-acquisition-sources-foot></tfoot>
+            </table>
+          </div>
+        </div>
+
         <h2 class="text-lg mb-3">Content &amp; growth</h2>
         <div class="grid grid--4 mb-5">
           <div class="stat-card">

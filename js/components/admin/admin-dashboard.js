@@ -38,6 +38,7 @@ async function initAdminDashboard() {
   loadCustomerInsights(chartsRangeDays);
   loadOperational();
   loadEmailLifecycle();
+  loadAcquisitionSources();
   bindChartPresets();
   bindAnalyticsModeToggle();
 
@@ -85,6 +86,7 @@ async function initAdminDashboard() {
         loadCustomerInsights(chartsRangeDays);
         loadOperational();
         loadAlerts();
+        loadAcquisitionSources();
 
         try {
           await window.AdminAuth.adminFetch('/api/admin/auth/analytics-mode', {
@@ -330,6 +332,59 @@ async function initAdminDashboard() {
 
     renderTopProductsTable(data.topProducts);
     renderCouponUsageTable(data.couponUsage);
+  }
+
+  // ============================================================
+  // Affiliate Programme 2.0 — Acquisition & Revenue Attribution
+  // (Phase F reporting). Backed entirely by
+  // GET /api/admin/dashboard/acquisition-sources, itself backed by
+  // executiveDashboardService.ts's getAcquisitionSourceBreakdown() —
+  // lifetime, verified-purchases-only, never re-derives or backfills
+  // attribution. Reporting/display only.
+  // ============================================================
+  const ACQUISITION_SOURCE_LABELS = { affiliate: 'Affiliate', paid: 'Paid Ads', organic: 'Organic', direct: 'Direct', unknown: 'Unknown' };
+
+  async function loadAcquisitionSources() {
+    let data;
+    try {
+      data = await window.AdminAuth.adminFetch('/api/admin/dashboard/acquisition-sources?analyticsMode=' + analyticsMode);
+    } catch (error) {
+      showLoadError('Could not load acquisition & revenue attribution: ' + error.message);
+      return;
+    }
+    renderAcquisitionSourcesTable(data.rows, data.totals);
+  }
+
+  function renderAcquisitionSourcesTable(rows, totals) {
+    const body = root.querySelector('[data-acquisition-sources-body]');
+    const foot = root.querySelector('[data-acquisition-sources-foot]');
+    if (!body || !foot) return;
+
+    body.innerHTML = '';
+    (rows || []).forEach((row) => {
+      const tr = document.createElement('tr');
+      tr.innerHTML =
+        '<td>' + escapeHtml(ACQUISITION_SOURCE_LABELS[row.source] || row.source) + '</td>' +
+        '<td class="numeric">' + row.orders + '</td>' +
+        '<td class="numeric">' + row.customers + '</td>' +
+        '<td class="numeric">' + formatCurrency(row.grossRevenuePesewas / 100) + '</td>' +
+        '<td class="numeric">' + formatCurrency(row.commissionPesewas / 100) + '</td>' +
+        '<td class="numeric">' + formatCurrency(row.netAfterCommissionPesewas / 100) + '</td>';
+      body.appendChild(tr);
+    });
+
+    foot.innerHTML = '';
+    if (totals) {
+      const tr = document.createElement('tr');
+      tr.innerHTML =
+        '<td><strong>Total</strong></td>' +
+        '<td class="numeric"><strong>' + totals.orders + '</strong></td>' +
+        '<td class="numeric"><strong>' + totals.customers + '</strong></td>' +
+        '<td class="numeric"><strong>' + formatCurrency(totals.grossRevenuePesewas / 100) + '</strong></td>' +
+        '<td class="numeric"><strong>' + formatCurrency(totals.commissionPesewas / 100) + '</strong></td>' +
+        '<td class="numeric"><strong>' + formatCurrency(totals.netAfterCommissionPesewas / 100) + '</strong></td>';
+      foot.appendChild(tr);
+    }
   }
 
   function labelizeChannel(channel) {
