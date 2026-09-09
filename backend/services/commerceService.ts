@@ -407,6 +407,73 @@ export async function createCheckoutSession(
     affiliateCommissionPercent,
   });
 
+  // Free Redemption (100% coupon) — GREEN-rated, narrowly-scoped
+  // implementation (see the read-only risk assessment this followed).
+  // Triggers ONLY when the server's own math above
+  // (originalAmountPesewas - discountPesewas — never a client-supplied
+  // value) lands on EXACTLY zero, never `<= 0`. A 99%-discount coupon,
+  // or any other amount, falls straight through to the unmodified
+  // Paystack flow below.
+  //
+  // Paystack is never contacted for a transaction with nothing to
+  // charge. Instead this reuses, byte-for-byte unmodified,
+  // completeVerifiedPurchase() — the exact same function
+  // handlePaymentWebhook() and adminReprocessPurchase() already call —
+  // via the same atomic verifySessionAtomic() transition every other
+  // completion path already uses. Every downstream effect (customer
+  // provisioning, coupon redemption, order/license/receipt creation,
+  // Library entitlement via fulfilPurchase()) is therefore identical to
+  // a real paid purchase, because it IS the same code, not a
+  // reimplementation of it.
+  //
+  // provider_status is recorded as 'zero_value', never 'success'
+  // (Paystack's own vocabulary) — this purchase was never confirmed BY
+  // Paystack, and this column must never claim otherwise. Affiliate
+  // commission (if session.affiliateId is set) and the Meta Purchase
+  // dispatch inside completeVerifiedPurchase() are deliberately left
+  // completely untouched by this block — whether a GH₵0 sale should
+  // credit either is an explicit, separate policy decision, not
+  // something this change decides implicitly.
+  if (amountPesewas === 0) {
+    const verified = await verifySessionAtomic(env, session.id, customerEmail, 'zero_value');
+    if (!verified) {
+      // Should be unreachable: this exact session was inserted as
+      // 'pending' by insertPurchaseSession() a moment ago, in this same
+      // request, with no other writer able to touch it in between.
+      // Treated as a hard failure rather than silently returning a
+      // checkoutUrl for a purchase that never actually completed.
+      logger.error('checkout.zero_value_verify_failed', { purchaseReference: session.purchaseReference });
+      await markPurchaseSessionFailed(env, session.id);
+      throw new CommerceError('PAYSTACK_API_ERROR', 'We could not complete your free order right now. Please try again shortly.');
+    }
+
+    const verifiedSession = await getPurchaseSessionByReference(env, session.purchaseReference);
+    if (!verifiedSession) {
+      logger.error('checkout.zero_value_session_missing', { purchaseReference: session.purchaseReference });
+      throw new CommerceError('PAYSTACK_API_ERROR', 'We could not complete your free order right now. Please try again shortly.');
+    }
+
+    await completeVerifiedPurchase(env, logger, verifiedSession, { customerEmail }, product, session.purchaseReference);
+
+    // The same page a real Paystack payment redirects back to — this
+    // page already handles being loaded directly (it only ever reads
+    // ?ref= and polls fulfilment status), so no frontend change is
+    // needed for this to work. js/components/buy-button.js redirects to
+    // whatever checkoutUrl the API returns without caring whether it's
+    // Paystack's or this site's own.
+    const callbackUrl = `${env.SITE_BASE_URL}/checkout/callback/?ref=${encodeURIComponent(session.purchaseReference)}`;
+    await attachCheckoutResult(env, session.id, { checkoutUrl: callbackUrl, providerReference: null });
+
+    logger.info('checkout.zero_value_completed', {
+      purchaseReference: session.purchaseReference,
+      productSlug: product.slug,
+      couponId,
+      acquisitionSource,
+    });
+
+    return { purchaseReference: session.purchaseReference, checkoutUrl: callbackUrl };
+  }
+
   const provider = getPaymentProvider(env);
 
   let checkout;
