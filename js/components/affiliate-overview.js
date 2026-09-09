@@ -48,6 +48,7 @@ async function initAffiliateOverview() {
     } else if (profile.status === 'approved') {
       showState('approved');
       await loadOverviewStats();
+      await loadAcademyStatus();
     }
   } catch (error) {
     if (error.code === 'AFFILIATE_NOT_FOUND') {
@@ -130,6 +131,22 @@ async function loadOverviewStats() {
       errorEl.hidden = false;
       errorEl.textContent = error.message || 'Could not load your affiliate stats.';
     }
+  }
+}
+
+/** Fetched separately from loadOverviewStats() and fails silently (hides its own line) so a temporary Academy API failure never blocks the rest of the approved Overview from rendering. */
+async function loadAcademyStatus() {
+  const statusEl = document.querySelector('[data-affiliate-academy-status]');
+  if (!statusEl) return;
+  try {
+    const academy = await window.CustomerDashboard.customerFetch('/api/customer/affiliates/academy');
+    const labels = { not_started: 'Not started', in_progress: 'In progress', completed: 'Completed' };
+    setText('[data-affiliate-academy-status-value]', labels[academy.status] || academy.status);
+    const linkEl = document.querySelector('[data-affiliate-academy-link]');
+    if (linkEl) linkEl.hidden = academy.status === 'completed';
+    statusEl.hidden = false;
+  } catch (error) {
+    statusEl.hidden = true;
   }
 }
 
