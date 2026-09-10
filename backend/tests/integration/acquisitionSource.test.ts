@@ -111,3 +111,75 @@ describe('POST /api/checkout/sessions — acquisition_source classification', ()
     expect(await fetchAcquisitionSource(body.data.purchaseReference)).toBe('direct');
   });
 });
+
+describe('POST /api/checkout/sessions — Meta/Facebook Attribution Fix (fbc precedence)', () => {
+  it("classifies utm_medium='paid' as 'paid'", async () => {
+    const body = await createSession({ ...BASE_BODY, email: 'meta-paid-medium-buyer@example.com', utmSource: 'facebook', utmMedium: 'paid' });
+    expect(body.success).toBe(true);
+    expect(await fetchAcquisitionSource(body.data.purchaseReference)).toBe('paid');
+  });
+
+  it("classifies utm_medium='paid_social' as 'paid'", async () => {
+    const body = await createSession({ ...BASE_BODY, email: 'meta-paid-social-buyer@example.com', utmSource: 'facebook', utmMedium: 'paid_social' });
+    expect(body.success).toBe(true);
+    expect(await fetchAcquisitionSource(body.data.purchaseReference)).toBe('paid');
+  });
+
+  it('core bug case: no recognized UTM medium + a facebook.com referrer + fbc present classifies as paid, not organic', async () => {
+    const body = await createSession(
+      { ...BASE_BODY, email: 'meta-lost-utm-facebook-buyer@example.com', referrer: 'https://facebook.com/' },
+      '_fbc=fb.1.111.aaa'
+    );
+    expect(body.success).toBe(true);
+    expect(await fetchAcquisitionSource(body.data.purchaseReference)).toBe('paid');
+  });
+
+  it('core bug case: no recognized UTM medium + no referrer + fbc present classifies as paid, not direct/unknown', async () => {
+    const body = await createSession({ ...BASE_BODY, email: 'meta-lost-utm-no-referrer-buyer@example.com' }, '_fbc=fb.1.111.aaa');
+    expect(body.success).toBe(true);
+    expect(await fetchAcquisitionSource(body.data.purchaseReference)).toBe('paid');
+  });
+
+  it('a genuinely organic Facebook referral (no UTM, no fbc) remains organic', async () => {
+    const body = await createSession({ ...BASE_BODY, email: 'organic-facebook-buyer@example.com', referrer: 'https://facebook.com/' });
+    expect(body.success).toBe(true);
+    expect(await fetchAcquisitionSource(body.data.purchaseReference)).toBe('organic');
+  });
+
+  it('a genuinely organic Instagram referral (no UTM, no fbc) remains organic', async () => {
+    const body = await createSession({ ...BASE_BODY, email: 'organic-instagram-buyer@example.com', referrer: 'https://instagram.com/' });
+    expect(body.success).toBe(true);
+    expect(await fetchAcquisitionSource(body.data.purchaseReference)).toBe('organic');
+  });
+
+  it('a visit with no UTM, no referrer, and no fbc remains direct (unaffected by this fix)', async () => {
+    const body = await createSession({ ...BASE_BODY, email: 'still-direct-buyer@example.com' });
+    expect(body.success).toBe(true);
+    expect(await fetchAcquisitionSource(body.data.purchaseReference)).toBe('direct');
+  });
+
+  it('a Google organic referral (no UTM, no fbc) remains organic (unaffected by this fix)', async () => {
+    const body = await createSession({ ...BASE_BODY, email: 'still-google-organic-buyer@example.com', referrer: 'https://www.google.com/search?q=treasury+bills' });
+    expect(body.success).toBe(true);
+    expect(await fetchAcquisitionSource(body.data.purchaseReference)).toBe('organic');
+  });
+
+  it('affiliate precedence: a resolved affiliate referral wins over fbc — affiliate attribution must continue to win over Meta attribution', async () => {
+    await seedApprovedAffiliate('meta-vs-affiliate@example.com', 'RWLMETAVSAFF');
+    const body = await createSession(
+      { ...BASE_BODY, email: 'buyer-via-affiliate-with-fbc@example.com' },
+      `rwl_ref=${refCookie('RWLMETAVSAFF')}; _fbc=fb.1.111.aaa`
+    );
+    expect(body.success).toBe(true);
+    expect(await fetchAcquisitionSource(body.data.purchaseReference)).toBe('affiliate');
+  });
+
+  it("explicit organic UTM precedence: utm_medium='organic' wins over fbc — fbc must never override an explicit organic UTM", async () => {
+    const body = await createSession(
+      { ...BASE_BODY, email: 'organic-utm-with-fbc-buyer@example.com', utmSource: 'facebook', utmMedium: 'organic' },
+      '_fbc=fb.1.111.aaa'
+    );
+    expect(body.success).toBe(true);
+    expect(await fetchAcquisitionSource(body.data.purchaseReference)).toBe('organic');
+  });
+});

@@ -222,16 +222,25 @@ function computeAttributionConfidence(hasUtm: boolean, fbc: string | null): Attr
 //      raw code). Wins outright per the task's own stated model
 //      ("Explicit affiliate referral takes precedence").
 //   2. paid       — utm_medium matches a known paid-media value.
-//   3. organic    — utm_medium='organic', OR the captured first-touch
-//      referrer's host matches a known search engine or social
-//      platform with no paid tagging present.
-//   4. direct     — no UTM at all AND an empty referrer: the visitor's
+//   3. organic    — utm_medium='organic'.
+//   4. paid       — Meta/Facebook Attribution Fix: the _fbc cookie is
+//      present (a genuine ad-click proof, set by fbevents.js only when
+//      the visit carried a real fbclid), even though no recognized
+//      utm_medium survived to checkout. Checked before the referrer
+//      guess below so a paid click that lost its UTM tag in transit
+//      (an in-app browser, a non-tagged first-touch page) is never
+//      indistinguishable from a genuinely organic facebook.com/
+//      instagram.com referral.
+//   5. organic    — the captured first-touch referrer's host matches a
+//      known search engine or social platform with no paid tagging or
+//      fbc evidence present.
+//   6. direct     — no UTM at all AND an empty referrer: the visitor's
 //      first page view of this session had no referring page (typed
 //      URL, bookmark, app link) — a genuine, observable fact once
 //      referrer is actually captured (see analytics.js's getUtm()),
 //      not the "never returned" placeholder attribution_confidence
 //      was stuck with before referrer capture existed.
-//   5. unknown    — anything else: a referrer or utm_medium exists but
+//   7. unknown    — anything else: a referrer or utm_medium exists but
 //      doesn't match a recognized pattern. Deliberately never guessed
 //      into organic/paid/direct — "do not fabricate attribution" per
 //      this feature's own design brief.
@@ -256,12 +265,25 @@ function classifyReferrerHost(referrer: string | null): 'organic' | 'unknown' | 
   return ORGANIC_REFERRER_HOSTS.some((known) => host === known || host.endsWith(`.${known}`) || host.startsWith(known)) ? 'organic' : 'unknown';
 }
 
-export function classifyAcquisitionSource(input: { affiliateId: number | null; utmMedium: string | null; referrer: string | null }): AcquisitionSource {
+export function classifyAcquisitionSource(input: { affiliateId: number | null; utmMedium: string | null; referrer: string | null; fbc: string | null }): AcquisitionSource {
   if (input.affiliateId !== null) return 'affiliate';
 
   const medium = input.utmMedium?.toLowerCase().trim() ?? null;
   if (medium && PAID_UTM_MEDIUMS.has(medium)) return 'paid';
   if (medium === 'organic') return 'organic';
+
+  // Meta/Facebook Attribution Fix — a genuine Meta ad-click signal
+  // (the _fbc cookie, set by fbevents.js only when the visit carried a
+  // real fbclid) outranks the referrer-host guess below. Without this,
+  // a paid click that reaches checkout with no recognized utm_medium
+  // (UTM lost in transit — an in-app browser, a non-UTM-tagged
+  // first-touch page) falls through to classifyReferrerHost() and is
+  // indistinguishable from a genuinely organic facebook.com/
+  // instagram.com referral. Checked after both UTM branches (an
+  // explicit paid or organic UTM is always stronger evidence than a
+  // cookie's mere presence) and before the referrer fallback (a real
+  // ad-click proof always outranks a generic host guess).
+  if (input.fbc) return 'paid';
 
   const referrerClass = classifyReferrerHost(input.referrer);
   if (referrerClass === 'organic') return 'organic';
@@ -380,6 +402,7 @@ export async function createCheckoutSession(
     affiliateId,
     utmMedium: input.utmMedium,
     referrer: input.referrer,
+    fbc: input.fbc,
   });
 
   const session = await insertPurchaseSession(env, {
