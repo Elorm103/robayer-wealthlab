@@ -49,6 +49,7 @@ async function initAffiliateOverview() {
       showState('approved');
       await loadOverviewStats();
       await loadAcademyStatus();
+      await loadProductPerformance();
     }
   } catch (error) {
     if (error.code === 'AFFILIATE_NOT_FOUND') {
@@ -147,6 +148,53 @@ async function loadAcademyStatus() {
     statusEl.hidden = false;
   } catch (error) {
     statusEl.hidden = true;
+  }
+}
+
+/** Fetched independently of loadOverviewStats()/loadAcademyStatus() with its own try/catch, so a failure here never blocks the rest of the approved Overview from rendering. */
+async function loadProductPerformance() {
+  const loadingEl = document.querySelector('[data-affiliate-product-loading]');
+  const errorEl = document.querySelector('[data-affiliate-product-error]');
+  const emptyEl = document.querySelector('[data-affiliate-product-empty]');
+  const tableWrapEl = document.querySelector('[data-affiliate-product-table-wrap]');
+  const rowsEl = document.querySelector('[data-affiliate-product-rows]');
+  if (!loadingEl || !rowsEl) return;
+
+  try {
+    const { products } = await window.CustomerDashboard.customerFetch('/api/customer/affiliates/overview/by-product');
+    loadingEl.hidden = true;
+
+    const hasAnyOrders = products.some((product) => product.orders > 0);
+    if (!hasAnyOrders) {
+      emptyEl.hidden = false;
+    }
+    if (products.length === 0) {
+      return;
+    }
+
+    rowsEl.textContent = '';
+    products.forEach((product) => {
+      const rate = product.clicks > 0 ? ((product.orders / product.clicks) * 100).toFixed(1) : '0.0';
+      const row = document.createElement('tr');
+      [
+        product.productTitle,
+        product.clicks,
+        product.orders,
+        `${rate}%`,
+        formatPesewas(product.revenuePesewas),
+        formatPesewas(product.commissionPesewas),
+      ].forEach((value) => {
+        const cell = document.createElement('td');
+        cell.textContent = value;
+        row.appendChild(cell);
+      });
+      rowsEl.appendChild(row);
+    });
+    tableWrapEl.hidden = false;
+  } catch (error) {
+    loadingEl.hidden = true;
+    errorEl.hidden = false;
+    errorEl.textContent = error.message || 'Could not load your per-product performance.';
   }
 }
 

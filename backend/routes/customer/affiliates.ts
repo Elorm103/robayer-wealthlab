@@ -15,7 +15,7 @@ import { requireCustomerAuth } from '../../middleware/requireCustomerAuth';
 import { requireCustomerCsrf } from '../../middleware/customerCsrf';
 import { requireAffiliateAuth, requireApprovedAffiliate } from '../../middleware/requireAffiliateAuth';
 import { applyForAffiliate, startAcademy, completeAcademy, CURRENT_AFFILIATE_TERMS_VERSION, CURRENT_AFFILIATE_ACADEMY_VERSION } from '../../services/affiliateService';
-import { getAffiliateOverview, listCommissionsForAffiliate } from '../../services/affiliateCommissionService';
+import { getAffiliateOverview, listCommissionsForAffiliate, getAffiliateProductPerformance } from '../../services/affiliateCommissionService';
 import { requestPayout, listPayoutsForAffiliate, MIN_PAYOUT_PESEWAS } from '../../services/affiliatePayoutService';
 import { listPublishedResources } from '../../services/affiliateResourceService';
 
@@ -134,6 +134,16 @@ export async function handleGetAffiliateOverview(request: Request, env: Env, log
   return withNoStore(
     jsonSuccess({ ...overview, affiliateCode: auth.auth.affiliate.affiliateCode, defaultCommissionPercent: auth.auth.affiliate.defaultCommissionPercent })
   );
+}
+
+/** GET /api/customer/affiliates/overview/by-product: per-product clicks/orders/revenue/commission breakdown, own data only. See getAffiliateProductPerformance()'s own doc comment for why clicks and orders are aggregated independently. */
+export async function handleGetAffiliateProductPerformance(request: Request, env: Env, logger: Logger): Promise<Response> {
+  const auth = await requireApprovedAffiliate(request, env, logger);
+  if (!auth.ok) return withNoStore(auth.response);
+  if (await isRateLimited(request, env, READ_RATE_LIMIT)) return withNoStore(jsonError('RATE_LIMITED', 'Too many requests. Please try again shortly.'));
+
+  const products = await getAffiliateProductPerformance(env, auth.auth.affiliate.id);
+  return withNoStore(jsonSuccess({ products }));
 }
 
 /** GET /api/customer/affiliates/commissions?page=&pageSize=: commission history, own data only. */

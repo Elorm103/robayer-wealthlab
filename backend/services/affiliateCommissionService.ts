@@ -380,6 +380,99 @@ export async function getAffiliateOverview(env: Env, affiliateId: number): Promi
   };
 }
 
+export interface AffiliateProductPerformanceItem {
+  productSlug: string;
+  productTitle: string;
+  clicks: number;
+  orders: number;
+  revenuePesewas: number;
+  commissionPesewas: number;
+}
+
+interface ProductClicksRow {
+  productSlug: string;
+  productTitle: string | null;
+  clicks: number;
+}
+
+interface ProductCommissionsRow {
+  productSlug: string;
+  productTitle: string;
+  orders: number;
+  revenuePesewas: number;
+  commissionPesewas: number;
+}
+
+/**
+ * Per-product breakdown for the affiliate's own dashboard. Two
+ * independent GROUP BYs, merged in application code, because clicks
+ * are keyed by affiliate_clicks.product_slug (the landing page's own
+ * slug, captured at click time by affiliateAttributionService.ts's
+ * recordClick() — see that file's own header comment) while
+ * commissions are keyed by affiliate_commissions.product_id (the
+ * product actually purchased). A click on one product's page does not
+ * imply the resulting sale, if any, was for that same product — this
+ * function never conflates the two, and the frontend surfaces both
+ * numbers side by side rather than a single blended metric. Excludes
+ * status='reversed' commissions using the exact same rule as
+ * getAffiliateOverview(), so this never disagrees with the top-level
+ * totals already shown on the dashboard.
+ */
+export async function getAffiliateProductPerformance(env: Env, affiliateId: number): Promise<AffiliateProductPerformanceItem[]> {
+  const [clicksResult, commissionsResult] = await Promise.all([
+    env.DB.prepare(
+      `SELECT c.product_slug AS productSlug, p.title AS productTitle, COUNT(*) AS clicks
+       FROM affiliate_clicks c LEFT JOIN products p ON p.slug = c.product_slug
+       WHERE c.affiliate_id = ? AND c.product_slug IS NOT NULL
+       GROUP BY c.product_slug, p.title`
+    )
+      .bind(affiliateId)
+      .all<ProductClicksRow>(),
+    env.DB.prepare(
+      `SELECT p.slug AS productSlug, p.title AS productTitle, COUNT(*) AS orders,
+              COALESCE(SUM(c.gross_pesewas), 0) AS revenuePesewas, COALESCE(SUM(c.commission_pesewas), 0) AS commissionPesewas
+       FROM affiliate_commissions c JOIN products p ON p.id = c.product_id
+       WHERE c.affiliate_id = ? AND c.status != 'reversed'
+       GROUP BY p.slug, p.title`
+    )
+      .bind(affiliateId)
+      .all<ProductCommissionsRow>(),
+  ]);
+
+  const byProduct = new Map<string, AffiliateProductPerformanceItem>();
+
+  for (const row of clicksResult.results) {
+    byProduct.set(row.productSlug, {
+      productSlug: row.productSlug,
+      productTitle: row.productTitle ?? row.productSlug,
+      clicks: row.clicks,
+      orders: 0,
+      revenuePesewas: 0,
+      commissionPesewas: 0,
+    });
+  }
+
+  for (const row of commissionsResult.results) {
+    const existing = byProduct.get(row.productSlug);
+    if (existing) {
+      existing.orders = row.orders;
+      existing.revenuePesewas = row.revenuePesewas;
+      existing.commissionPesewas = row.commissionPesewas;
+    } else {
+      byProduct.set(row.productSlug, {
+        productSlug: row.productSlug,
+        productTitle: row.productTitle,
+        clicks: 0,
+        orders: row.orders,
+        revenuePesewas: row.revenuePesewas,
+        commissionPesewas: row.commissionPesewas,
+      });
+    }
+  }
+
+  return Array.from(byProduct.values()).sort((a, b) => b.clicks - a.clicks || b.revenuePesewas - a.revenuePesewas);
+}
+
 // ============================================================
 // Admin: commission listing across all affiliates
 // ============================================================

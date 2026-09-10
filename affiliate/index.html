@@ -176,6 +176,33 @@
                 </div>
               </div>
 
+              <h2 class="mb-2">Performance by product</h2>
+              <p class="text-small text-muted mb-3">
+                Clicks are visits to this product page from your referral links. Orders are
+                verified purchases attributed to you. A click on one product does not
+                necessarily result in a purchase of that same product.
+              </p>
+              <p data-affiliate-product-loading class="text-secondary">Loading&hellip;</p>
+              <p data-affiliate-product-error class="alert alert--error" role="alert" hidden></p>
+              <p data-affiliate-product-empty class="text-secondary" hidden>
+                No verified conversions yet. Keep sharing your referral links to start generating sales.
+              </p>
+              <div class="mb-5" data-affiliate-product-table-wrap hidden style="overflow-x: auto;">
+                <table class="table">
+                  <thead>
+                    <tr>
+                      <th>Product</th>
+                      <th>Clicks</th>
+                      <th>Orders</th>
+                      <th>Conversion rate</th>
+                      <th>Attributed revenue</th>
+                      <th>Commission earned</th>
+                    </tr>
+                  </thead>
+                  <tbody data-affiliate-product-rows></tbody>
+                </table>
+              </div>
+
               <p class="cluster gap-3">
                 <a href="/affiliate/links/" class="btn btn--accent">Get your referral link</a>
                 <a href="/affiliate/earnings/" class="btn btn--secondary">View earnings history</a>
