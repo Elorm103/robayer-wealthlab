@@ -80,6 +80,19 @@ describe('indexingService', () => {
     await env.DB.exec('DELETE FROM resources');
     await env.DB.exec('DELETE FROM ai_usage_log');
     await env.DB.prepare(`DELETE FROM products WHERE slug = 'not-used-here'`).run();
+    // CI/test-infrastructure fix (2026-09-16) — migration
+    // 0009_migrate_json_products.sql seeds one real, permanently
+    // 'active' product ('starting-to-invest-with-gh100'). planIncrementalIndex/
+    // planFullRebuild scan every active product via getProductDocuments(),
+    // so without this every documentsSeen/documentsEnqueued count below
+    // was off by one blog-post-only expectation (e.g. expected 1, got
+    // 2). Archiving it here is scoped to this file's own isolated D1
+    // instance (Cloudflare's vitest-pool-workers storage isolation is
+    // per test file), so it never affects other test files that rely
+    // on this product still being 'active' in their own instance. See
+    // tests/unit/knowledge/documentSources.test.ts's own beforeEach for
+    // the same fix, applied there first.
+    await env.DB.exec(`UPDATE products SET status = 'archived' WHERE status = 'active'`);
     await queueSitemapResponse(env as any, EMPTY_SITEMAP);
   });
 

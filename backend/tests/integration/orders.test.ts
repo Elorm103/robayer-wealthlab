@@ -108,7 +108,14 @@ describe('Milestone M2 order artifacts, created via the real webhook flow', () =
     await mockVerifySuccess(reference, 'status-receipt@example.com');
     await SELF.fetch(await signedWebhookRequest(chargeSuccessPayload(reference, 'status-receipt@example.com')));
 
-    const res = await SELF.fetch(`https://example.com/api/purchases/${reference}`);
+    // Security remediation (Critical Finding C1, 2026-09-16) — this
+    // endpoint now denies a status lookup that omits the purchase's own
+    // access_token (see entitlementService.ts's verifyGuestAccessToken());
+    // a real customer gets this from their fulfilment email link, so the
+    // test reads it directly from the row the same way, rather than the
+    // response of any customer-facing endpoint.
+    const { accessToken } = await env.DB.prepare('SELECT access_token AS accessToken FROM purchase_sessions WHERE purchase_reference = ?').bind(reference).first<any>();
+    const res = await SELF.fetch(`https://example.com/api/purchases/${reference}?t=${accessToken}`);
     const body = await res.json<any>();
     expect(body.success).toBe(true);
     expect(body.data.status).toBe('ready');

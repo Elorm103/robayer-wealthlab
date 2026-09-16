@@ -73,6 +73,20 @@ export default defineConfig({
         miniflare: {
           bindings: {
             TEST_MIGRATIONS: migrations,
+            // CI/test-infrastructure fix (2026-09-16) — PAYSTACK_SECRET_KEY
+            // is deliberately absent from wrangler.jsonc's `vars` (it's a
+            // real secret, set only via `wrangler secret put`), so without
+            // an override here `env.PAYSTACK_SECRET_KEY` is `undefined` in
+            // every test run. tests/integration/*.test.ts's
+            // `signedWebhookRequest()` helpers need SOME value to compute
+            // an HMAC signature, and dataClassificationOnInsert.test.ts
+            // additionally asserts on the sk_test_/sk_live_ prefix (see
+            // that file's own header comment) — so this must start with
+            // `sk_test_` specifically, not just be any non-empty string.
+            // A committed, obviously-fake value here (unlike a gitignored
+            // .dev.vars file, which never exists in a fresh CI checkout)
+            // is what makes this deterministic in every environment.
+            PAYSTACK_SECRET_KEY: 'sk_test_ci_dummy_never_a_real_paystack_key',
           },
           outboundService: outboundMock,
         },
