@@ -19,6 +19,7 @@ import type { Env } from '../../worker/env';
 import type { Logger } from '../../utils/logger';
 import { generateReceiptDownloadToken } from '../../utils/orderToken';
 import { getOrCreateReceiptPdf } from './receiptPdfService';
+import { verifyGuestAccessToken } from '../entitlementService';
 
 const TOKEN_PATTERN = /^[a-f0-9]{64}$/;
 const RECEIPT_DOWNLOAD_TOKEN_TTL_MINUTES = 15;
@@ -26,14 +27,22 @@ const RECEIPT_DOWNLOAD_TOKEN_TTL_MINUTES = 15;
 export type GenerateReceiptDownloadPermissionResult = { granted: true; token: string; expiresAt: string } | { granted: false; reason: 'receipt_not_found' };
 
 /** Mints a token only for a purchase that has an issued receipt - never for a pending/failed/expired session, which has none yet. */
-export async function generateReceiptDownloadPermission(env: Env, logger: Logger, purchaseReference: string): Promise<GenerateReceiptDownloadPermissionResult> {
+export async function generateReceiptDownloadPermission(
+  env: Env,
+  logger: Logger,
+  purchaseReference: string,
+  accessToken?: unknown
+): Promise<GenerateReceiptDownloadPermissionResult> {
   const receipt = await env.DB.prepare(
-    `SELECT r.id FROM receipts r JOIN purchase_sessions ps ON ps.id = r.purchase_session_id WHERE ps.purchase_reference = ?`
+    `SELECT r.id AS id, ps.access_token AS accessToken FROM receipts r JOIN purchase_sessions ps ON ps.id = r.purchase_session_id WHERE ps.purchase_reference = ?`
   )
     .bind(purchaseReference)
-    .first<{ id: number }>();
+    .first<{ id: number; accessToken: string | null }>();
 
-  if (!receipt) {
+  // Security remediation (Critical Finding C1) — same generic denial
+  // reason a genuinely missing receipt already produced, so a prober
+  // cannot distinguish "wrong token" from "no such receipt."
+  if (!receipt || !verifyGuestAccessToken(receipt.accessToken, accessToken)) {
     logger.warn('receipt_entitlement.denied', { purchaseReference, reason: 'receipt_not_found' });
     return { granted: false, reason: 'receipt_not_found' };
   }

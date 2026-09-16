@@ -78,6 +78,11 @@ async function seedCoupon(overrides: Partial<{ code: string; discountValue: numb
   return Number(insert.meta.last_row_id);
 }
 
+/** Security remediation (Critical Finding C1) — every checkoutUrl this file's checkout() helper returns now embeds the real, high-entropy access token as `?t=`, exactly like a real browser redirect would; extracted here rather than each test re-parsing it. */
+function tokenFromCheckoutUrl(checkoutUrl: string): string {
+  return new URL(checkoutUrl).searchParams.get('t') as string;
+}
+
 async function checkout(body: Record<string, unknown>): Promise<any> {
   const res = await SELF.fetch('https://example.com/api/checkout/sessions', {
     method: 'POST',
@@ -133,7 +138,14 @@ describe('Free Redemption (100% coupon) — zero-value branch', () => {
 
     const body = await checkout({ email: 'free-buyer-1@example.com', couponCode: 'FREE100A' });
     expect(body.success).toBe(true);
-    expect(body.data.checkoutUrl).toBe(`https://robayerwealthlab.com/checkout/callback/?ref=${encodeURIComponent(body.data.purchaseReference)}`);
+    // Security remediation (Critical Finding C1) — the callback URL now
+    // also carries the real, high-entropy access token as `?t=`
+    // (buildFulfilmentUrl()); asserted by parsing rather than a fixed
+    // string, since the token itself is random per checkout.
+    const url = new URL(body.data.checkoutUrl);
+    expect(url.origin + url.pathname).toBe('https://robayerwealthlab.com/checkout/callback/');
+    expect(url.searchParams.get('ref')).toBe(body.data.purchaseReference);
+    expect(url.searchParams.get('t')).toMatch(/^[a-f0-9]{64}$/);
     expect(body.data.checkoutUrl).not.toContain('paystack');
 
     const session = await sessionRow(body.data.purchaseReference);
@@ -216,11 +228,12 @@ describe('Free Redemption (100% coupon) — zero-value branch', () => {
     await seedCoupon({ code: 'FREE100G' });
     const body = await checkout({ email: 'free-buyer-7@example.com', couponCode: 'FREE100G' });
     const reference = body.data.purchaseReference;
+    const accessToken = tokenFromCheckoutUrl(body.data.checkoutUrl);
 
     const before = await env.DB.prepare('SELECT downloads_used AS downloadsUsed FROM deliveries WHERE purchase_session_id = (SELECT id FROM purchase_sessions WHERE purchase_reference = ?)').bind(reference).first<any>();
     expect(before.downloadsUsed).toBe(0);
 
-    const viewPermission = await generateDownloadPermission(env as any, logger, reference, TEST_ASSET_ID, 'view');
+    const viewPermission = await generateDownloadPermission(env as any, logger, reference, TEST_ASSET_ID, 'view', accessToken);
     expect(viewPermission.granted).toBe(true);
     if (!viewPermission.granted) return;
     const viewRedeemed = await redeemDownloadToken(env as any, logger, viewPermission.token);
@@ -235,10 +248,11 @@ describe('Free Redemption (100% coupon) — zero-value branch', () => {
     await seedCoupon({ code: 'FREE100H' });
     const body = await checkout({ email: 'free-buyer-8@example.com', couponCode: 'FREE100H' });
     const reference = body.data.purchaseReference;
+    const accessToken = tokenFromCheckoutUrl(body.data.checkoutUrl);
     const deliveryRow = await env.DB.prepare('SELECT id, max_downloads AS maxDownloads FROM deliveries WHERE purchase_session_id = (SELECT id FROM purchase_sessions WHERE purchase_reference = ?)').bind(reference).first<any>();
 
     // First download succeeds and increments downloads_used.
-    const download1 = await generateDownloadPermission(env as any, logger, reference, TEST_ASSET_ID, 'download');
+    const download1 = await generateDownloadPermission(env as any, logger, reference, TEST_ASSET_ID, 'download', accessToken);
     expect(download1.granted).toBe(true);
     if (download1.granted) await redeemDownloadToken(env as any, logger, download1.token);
 
@@ -247,11 +261,11 @@ describe('Free Redemption (100% coupon) — zero-value branch', () => {
 
     // Exhaust the product's own real, unmodified download policy (whatever seedTestProduct's default max_downloads is) — force it to exactly 1 remaining, then confirm a further download is denied while view remains available, exactly like entitlementService.test.ts already proves for a paid purchase.
     await env.DB.prepare('UPDATE deliveries SET max_downloads = 1 WHERE id = ?').bind(deliveryRow.id).run();
-    const download2 = await generateDownloadPermission(env as any, logger, reference, TEST_ASSET_ID, 'download');
+    const download2 = await generateDownloadPermission(env as any, logger, reference, TEST_ASSET_ID, 'download', accessToken);
     expect(download2.granted).toBe(false);
     if (!download2.granted) expect(download2.reason).toBe('download_limit_reached');
 
-    const viewStillWorks = await generateDownloadPermission(env as any, logger, reference, TEST_ASSET_ID, 'view');
+    const viewStillWorks = await generateDownloadPermission(env as any, logger, reference, TEST_ASSET_ID, 'view', accessToken);
     expect(viewStillWorks.granted).toBe(true);
   });
 

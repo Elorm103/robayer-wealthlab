@@ -44,7 +44,15 @@ function initFulfilmentStatus() {
   const bundleUpsellCopyEl = root.querySelector('[data-bundle-upsell-copy]');
   const bundleUpsellCtaEl = root.querySelector('[data-bundle-upsell-cta]');
 
-  const reference = new URLSearchParams(window.location.search).get('ref');
+  const searchParams = new URLSearchParams(window.location.search);
+  const reference = searchParams.get('ref');
+  // Security remediation (Critical Finding C1, security audit
+  // 2026-09-15) — the high-entropy value alongside the reference; see
+  // backend/utils/fulfilmentUrl.ts's own doc comment. `null` here just
+  // means this specific link predates the fix (see migration 0061),
+  // in which case the server-side grandfather clause still honors the
+  // reference alone — this page never needs to know which case it is.
+  const accessToken = searchParams.get('t');
   if (!reference) {
     showUnavailable("We couldn't find a purchase reference in this link.");
     return;
@@ -93,7 +101,8 @@ function initFulfilmentStatus() {
   }
 
   async function fetchStatus(ref) {
-    const response = await fetch(`${FULFILMENT_API_BASE}/api/purchases/${encodeURIComponent(ref)}`);
+    const query = accessToken ? `?t=${encodeURIComponent(accessToken)}` : '';
+    const response = await fetch(`${FULFILMENT_API_BASE}/api/purchases/${encodeURIComponent(ref)}${query}`);
     const body = await response.json();
     if (!response.ok || !body.success) {
       if (body && body.error && body.error.code === 'PURCHASE_NOT_FOUND') return null;
@@ -221,7 +230,7 @@ function initFulfilmentStatus() {
       const response = await fetch(`${FULFILMENT_API_BASE}/api/purchases/${encodeURIComponent(ref)}/downloads`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ assetId }),
+        body: JSON.stringify({ assetId, accessToken }),
       });
       const body = await response.json();
 

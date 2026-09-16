@@ -76,26 +76,56 @@ export async function createOrderArtifacts(env: Env, logger: Logger, input: Crea
     // (set at checkout-session creation time) rather than defaulting to
     // migration 0028's 'UNKNOWN' forever - the same transaction can
     // never be PRODUCTION in purchase_sessions but UNKNOWN here.
+    //
+    // Security remediation (High Finding H2, security audit
+    // 2026-09-15) — INSERT OR IGNORE against migration 0062's
+    // UNIQUE(purchase_session_id) index, the same database-level
+    // backstop payment_transactions/deliveries/coupon_redemptions/
+    // affiliate_commissions already have. This function still has
+    // exactly one caller, itself protected by the atomic
+    // purchase_sessions status transition (see this file's own header
+    // comment) — this is defense-in-depth against a future code path
+    // re-invoking createOrderArtifacts() for an already-processed
+    // session, not a change to the normal, single-call behavior.
     const orderItemInsert = await env.DB.prepare(
-      `INSERT INTO order_items (purchase_session_id, product_id, product_title, unit_price_pesewas, quantity, data_classification)
+      `INSERT OR IGNORE INTO order_items (purchase_session_id, product_id, product_title, unit_price_pesewas, quantity, data_classification)
        VALUES (?, ?, ?, ?, ?, (SELECT data_classification FROM purchase_sessions WHERE id = ?))`
     )
       .bind(input.purchaseSessionId, input.productId, input.productTitle, unitPricePesewas, quantity, input.purchaseSessionId)
       .run();
+    if (orderItemInsert.meta.changes !== 1) {
+      // Should be unreachable in current practice — see this function's
+      // own header comment. Logged at error severity and treated as a
+      // hard stop, same "never silently duplicate a financial record"
+      // discipline the sibling tables' own UNIQUE constraints already
+      // enforce, rather than attempting to reconstruct and return
+      // whatever artifacts already exist.
+      logger.error('order.artifacts_already_exist', { purchaseSessionId: input.purchaseSessionId });
+      return null;
+    }
     const orderItemId = Number(orderItemInsert.meta.last_row_id);
 
     // ADR-009: quantity independent licenses, each its own key, each
     // its own row - a loop, not a single row with a seat count.
+    // seat_index (migration 0062) makes each seat's row independently
+    // idempotent via INSERT OR IGNORE, the same pattern as
+    // fulfilmentService.ts's grantEntitlement() — a seat already
+    // created by an earlier, partially-completed call is a no-op here,
+    // not a duplicate.
     const licenseIds: number[] = [];
     for (let seat = 0; seat < quantity; seat++) {
       const licenseKey = generateLicenseKey();
       const licenseInsert = await env.DB.prepare(
-        `INSERT INTO licenses (purchase_session_id, product_id, customer_id, license_key, terms_version, data_classification)
-         VALUES (?, ?, ?, ?, ?, (SELECT data_classification FROM purchase_sessions WHERE id = ?))`
+        `INSERT OR IGNORE INTO licenses (purchase_session_id, product_id, customer_id, license_key, terms_version, data_classification, seat_index)
+         VALUES (?, ?, ?, ?, ?, (SELECT data_classification FROM purchase_sessions WHERE id = ?), ?)`
       )
-        .bind(input.purchaseSessionId, input.productId, input.customerId, licenseKey, input.licenseTermsVersion, input.purchaseSessionId)
+        .bind(input.purchaseSessionId, input.productId, input.customerId, licenseKey, input.licenseTermsVersion, input.purchaseSessionId, seat)
         .run();
-      licenseIds.push(Number(licenseInsert.meta.last_row_id));
+      if (licenseInsert.meta.changes === 1) {
+        licenseIds.push(Number(licenseInsert.meta.last_row_id));
+      } else {
+        logger.error('order.license_seat_already_exists', { purchaseSessionId: input.purchaseSessionId, seat });
+      }
     }
 
     // M2C MAR closeout fix: lineTotalPesewas is the exact original
@@ -143,8 +173,11 @@ export async function createOrderArtifacts(env: Env, logger: Logger, input: Crea
     // purchase_sessions' own reference-generation approach exactly
     // (utils/purchaseReference.ts's header comment): insert first,
     // then UPDATE the formatted number in using the row's own id.
+    // Security remediation (High Finding H2) — same INSERT OR IGNORE
+    // backstop as order_items above, against migration 0062's
+    // UNIQUE(purchase_session_id) index.
     const receiptInsert = await env.DB.prepare(
-      `INSERT INTO receipts (receipt_number, purchase_session_id, customer_id, line_items, subtotal_pesewas, discount_pesewas, tax_breakdown, tax_pesewas, total_pesewas, tax_behavior, currency, data_classification)
+      `INSERT OR IGNORE INTO receipts (receipt_number, purchase_session_id, customer_id, line_items, subtotal_pesewas, discount_pesewas, tax_breakdown, tax_pesewas, total_pesewas, tax_behavior, currency, data_classification)
        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, (SELECT data_classification FROM purchase_sessions WHERE id = ?))`
     )
       .bind(
@@ -162,6 +195,13 @@ export async function createOrderArtifacts(env: Env, logger: Logger, input: Crea
         input.purchaseSessionId
       )
       .run();
+    if (receiptInsert.meta.changes !== 1) {
+      // Should be unreachable — see order_items' own comment above for
+      // why this is treated as a hard stop rather than a recoverable
+      // case.
+      logger.error('order.receipt_already_exists', { purchaseSessionId: input.purchaseSessionId });
+      return null;
+    }
     const receiptId = Number(receiptInsert.meta.last_row_id);
     const receiptNumber = formatReceiptNumber(receiptId, new Date());
     await env.DB.prepare(`UPDATE receipts SET receipt_number = ? WHERE id = ?`).bind(receiptNumber, receiptId).run();
