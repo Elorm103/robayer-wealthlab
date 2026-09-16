@@ -58,7 +58,17 @@
     { "pattern": "robayerwealthlab.com/books/*", "zone_name": "robayerwealthlab.com" },
     { "pattern": "robayerwealthlab.com/resources/*", "zone_name": "robayerwealthlab.com" },
     { "pattern": "robayerwealthlab.com/blog/*", "zone_name": "robayerwealthlab.com" },
-    { "pattern": "robayerwealthlab.com/free-guide/*", "zone_name": "robayerwealthlab.com" }
+    { "pattern": "robayerwealthlab.com/free-guide/*", "zone_name": "robayerwealthlab.com" },
+    // Security remediation (High Finding H1 follow-up, 2026-09-16) —
+    // these four are NOT rendered by this Worker the way /books/* etc.
+    // are; routes/staticPageRelay.ts transparently relays each request
+    // to this project's real GitHub Pages origin so the response can
+    // pass through the same withSecurityHeaders() every other response
+    // already gets. See that file's own header comment.
+    { "pattern": "robayerwealthlab.com/admin/*", "zone_name": "robayerwealthlab.com" },
+    { "pattern": "robayerwealthlab.com/checkout/*", "zone_name": "robayerwealthlab.com" },
+    { "pattern": "robayerwealthlab.com/dashboard/*", "zone_name": "robayerwealthlab.com" },
+    { "pattern": "robayerwealthlab.com/affiliate/*", "zone_name": "robayerwealthlab.com" }
   ],
   "workers_dev": true,
   // Through M1, this Worker had zero runtime npm dependencies (only

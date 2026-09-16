@@ -360,6 +360,7 @@ import { runScheduledCleanup as runAiGatewayRetentionCleanup } from '../services
 import { runAnalyticsRetentionSweep } from '../services/admin/analyticsRetentionService';
 import { retryFailedConversions } from '../services/analytics/conversionDispatchService';
 import { record as recordAuditEvent } from '../services/admin/auditService';
+import { shouldRelayToStaticPages, relayStaticPage } from '../routes/staticPageRelay';
 
 export type { Env };
 
@@ -862,9 +863,16 @@ export default {
 
     const logger = createLogger(requestId, `${request.method} ${url.pathname}`);
 
+    // Security remediation (High Finding H1 follow-up) — only reached
+    // when nothing in ROUTES above already claimed this request, so it
+    // can never intercept an actual /api/* call. See
+    // routes/staticPageRelay.ts's own header comment for the full
+    // reasoning.
     const response = matchedRoute
       ? await withErrorHandling(() => matchedRoute.handler(request, env, logger, params, ctx), logger, requestId)
-      : jsonError('NOT_FOUND', 'Not found.');
+      : shouldRelayToStaticPages(url.pathname, request.method)
+        ? await withErrorHandling(() => relayStaticPage(request), logger, requestId)
+        : jsonError('NOT_FOUND', 'Not found.');
 
     return withSecurityHeaders(response, env);
   },
