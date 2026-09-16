@@ -192,7 +192,15 @@ describe('Full financial pipeline: Coupon -> Checkout -> Purchase Session -> Web
     // -> Receipt PDF -> Customer Download: the real guest mint-then-redeem
     // flow (no customer session needed), generating the PDF on-demand,
     // exactly as a real customer's download click would.
-    const mintRes = await SELF.fetch(`https://example.com/api/purchases/${reference}/receipt-download`, { method: 'POST' });
+    //
+    // Security remediation (Critical Finding C1, 2026-09-16) — this
+    // endpoint now denies a mint request that omits the purchase's own
+    // access_token (see entitlementService.ts's verifyGuestAccessToken());
+    // a real customer gets this from their fulfilment email link, so the
+    // test reads it directly from the row the same way, rather than the
+    // response of any customer-facing endpoint.
+    const { accessToken } = await env.DB.prepare('SELECT access_token AS accessToken FROM purchase_sessions WHERE purchase_reference = ?').bind(reference).first<any>();
+    const mintRes = await SELF.fetch(`https://example.com/api/purchases/${reference}/receipt-download?t=${accessToken}`, { method: 'POST' });
     const mintBody = await mintRes.json<any>();
     expect(mintBody.success).toBe(true);
 
@@ -242,7 +250,8 @@ describe('Full financial pipeline: Coupon -> Checkout -> Purchase Session -> Web
     expect(receipt.subtotalPesewas).toBe(3900);
     expect(receipt.totalPesewas).toBe(3900);
 
-    const mintRes = await SELF.fetch(`https://example.com/api/purchases/${reference}/receipt-download`, { method: 'POST' });
+    const { accessToken } = await env.DB.prepare('SELECT access_token AS accessToken FROM purchase_sessions WHERE purchase_reference = ?').bind(reference).first<any>();
+    const mintRes = await SELF.fetch(`https://example.com/api/purchases/${reference}/receipt-download?t=${accessToken}`, { method: 'POST' });
     const mintBody = await mintRes.json<any>();
     const downloadRes = await SELF.fetch(`https://example.com${mintBody.data.downloadUrl}`);
     const pdfBytes = new Uint8Array(await downloadRes.arrayBuffer());

@@ -5,11 +5,12 @@
  * URLs, mocked via tests/outboundMock.ts's `robayerwealthlab.com`
  * case rather than the real network.
  */
-import { describe, it, expect, beforeEach } from 'vitest';
+import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { env } from 'cloudflare:test';
 import { createLogger } from '../../../utils/logger';
 import { getBlogPostDocuments, getResourceDocuments, getProductDocuments, getStaticPageDocuments, getCmsSettingDocuments } from '../../../services/knowledge/documentSources';
 import { queueSitemapResponse, queueSitePageResponse } from '../../outboundMock';
+import * as booksModule from '../../../routes/books';
 
 const logger = createLogger('test-request-id', 'test');
 
@@ -22,6 +23,18 @@ describe('documentSources', () => {
     // product_files/order rows other test files may have left behind
     // in this shared local D1 instance.
     await env.DB.prepare(`DELETE FROM products WHERE slug IN ('starting-to-invest', 'missing-page')`).run();
+    // CI/test-infrastructure fix (2026-09-16) — migration
+    // 0009_migrate_json_products.sql seeds one real, permanently
+    // 'active' product ('starting-to-invest-with-gh100', a genuine live
+    // product other tests reference by slug — never delete it). Every
+    // getProductDocuments() test below counts ALL active products, so
+    // without this it always saw that real row *plus* whatever it
+    // seeded itself (e.g. expected 1, got 2). Archiving (not deleting)
+    // it here is scoped to this file's own isolated D1 instance — see
+    // "Storage isolation is per test file" in Cloudflare's vitest-pool-
+    // workers docs — so it never affects the other test files that
+    // rely on this product still being 'active' in their own instance.
+    await env.DB.exec(`UPDATE products SET status = 'archived' WHERE status = 'active'`);
     await env.DB.exec(`DELETE FROM site_settings WHERE key = 'hero_content'`);
   });
 
@@ -51,13 +64,24 @@ describe('documentSources', () => {
   });
 
   it('getProductDocuments fetches the live book detail page for each active product and extracts its main content', async () => {
-    await env.DB.prepare(`INSERT INTO products (product_id, slug, title, topic, product_type, status, price_pesewas, currency, pricing_model, tax_behavior, language) VALUES ('prod-1','starting-to-invest','Starting to Invest','investing','ebook','active',3900,'GHS','one-time','inclusive','en')`).run();
-
-    await queueSitePageResponse(
-      env as any,
-      '/books/starting-to-invest/',
-      `<!doctype html><html><head><title>Starting to Invest | Robayer WealthLab</title></head><body><main><h1>Starting to Invest</h1><p>A practical first guide to treasury bills.</p></main></body></html>`
-    );
+    // CI/test-infrastructure fix (2026-09-16) — getProductDocuments()
+    // (services/knowledge/documentSources.ts) was refactored to call
+    // renderBookDetail() directly, in-process (see that function's own
+    // header comment: a same-zone fetch() from inside this Worker was
+    // confirmed via production logs to 404 for this exact URL despite
+    // working for every external caller). queueSitePageResponse() only
+    // affects outboundMock's simulated *network* fetch, so it has no
+    // effect here any more — this test previously passed only because
+    // an unrelated bug (an always-'active' seeded product from
+    // migration 0009, fixed in this same beforeEach above) made the
+    // length assertion fail before the stale mock's absence could ever
+    // be observed. Asserting against the real renderer's own output
+    // (a `description` field feeding its content, and its real
+    // `${title} | ${SITE_NAME}` convention — see routes/books.ts) tests
+    // what actually runs today instead of a mock nothing reads.
+    await env.DB.prepare(
+      `INSERT INTO products (product_id, slug, title, description, topic, product_type, status, price_pesewas, currency, pricing_model, tax_behavior, language) VALUES ('prod-1','starting-to-invest','Starting to Invest','<p>A practical first guide to treasury bills.</p>','investing','ebook','active',3900,'GHS','one-time','inclusive','en')`
+    ).run();
 
     const docs = await getProductDocuments(env as any, logger);
     expect(docs).toHaveLength(1);
@@ -67,12 +91,28 @@ describe('documentSources', () => {
     expect(docs[0].text).toContain('practical first guide');
   });
 
-  it('getProductDocuments skips a product whose page fetch fails (never throws for the whole batch)', async () => {
-    await env.DB.prepare(`INSERT INTO products (product_id, slug, title, topic, product_type, status, price_pesewas, currency, pricing_model, tax_behavior, language) VALUES ('prod-2','missing-page','Missing Page','investing','ebook','active',3900,'GHS','one-time','inclusive','en')`).run();
-    // No queued page response — outboundMock's default for an unqueued robayerwealthlab.com path is a 404.
+  it('skips a product whose render throws, without losing the rest of the batch (never throws for the whole batch)', async () => {
+    // CI/test-infrastructure fix (2026-09-16) — this test originally
+    // simulated a page-fetch failure via outboundMock, matching an
+    // older architecture where getProductDocuments() made a real
+    // network fetch(). Under the current in-process-render design
+    // (see the previous test's comment), any row selected by this
+    // function's own `WHERE status = 'active'` query is *guaranteed*
+    // to render successfully (renderBookDetail()'s only failure path,
+    // "status not publicly listed", can never be true for a row that
+    // query already filtered to 'active') — so a plain active product
+    // can no longer exercise the skip-on-failure branch at all. Mocking
+    // renderBookDetail() itself (rather than the network) is what
+    // actually exercises getProductDocuments()'s real try/catch
+    // resilience today.
+    const spy = vi.spyOn(booksModule, 'renderBookDetail').mockRejectedValueOnce(new Error('simulated render failure'));
+    await env.DB.prepare(
+      `INSERT INTO products (product_id, slug, title, topic, product_type, status, price_pesewas, currency, pricing_model, tax_behavior, language) VALUES ('prod-2','missing-page','Missing Page','investing','ebook','active',3900,'GHS','one-time','inclusive','en')`
+    ).run();
 
     const docs = await getProductDocuments(env as any, logger);
     expect(docs).toHaveLength(0);
+    spy.mockRestore();
   });
 
   it('getStaticPageDocuments crawls the real sitemap and excludes given URLs', async () => {

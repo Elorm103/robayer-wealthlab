@@ -9,7 +9,8 @@
  * Only" Analytics Mode showed GH0.00/0 orders despite real revenue,
  * because no new row was ever classified PRODUCTION).
  *
- * The test environment's PAYSTACK_SECRET_KEY (.dev.vars) is a
+ * The test environment's PAYSTACK_SECRET_KEY (vitest.config.ts's
+ * miniflare.bindings — see its own comment on why not .dev.vars) is a
  * sk_test_ key, so every row created here is expected to land as
  * DEVELOPMENT — proving the classification is actually being derived
  * from the key, not hardcoded or left at the old UNKNOWN default.
