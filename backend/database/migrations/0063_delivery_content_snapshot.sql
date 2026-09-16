@@ -1,0 +1,37 @@
+-- ============================================================
+-- 0063_delivery_content_snapshot.sql
+--
+-- Security remediation (Medium Finding M2, security audit 2026-09-15):
+-- auditability for what file content a purchaser actually received.
+--
+-- `deliveries.asset_id` is a stable string, deliberately not an FK to
+-- `product_files`/`media_assets` (schema.sql's own comment: so a later
+-- product edit never retroactively affects an already-granted
+-- entitlement). But `redeemDownloadToken()` always resolves the file
+-- to stream from the CURRENT `product_files`/`media_assets` row at
+-- redemption time — and `setProductFiles()` explicitly allows
+-- replacing the `media_id` behind an existing `asset_id` in place.
+-- That is a legitimate product decision (a corrected file should
+-- reach everyone who already bought it), but today there is no record
+-- of which actual file content a given delivery was granted against,
+-- so a genuine content swap (accidental or malicious) is invisible.
+--
+-- This is intentionally NOT a new access-control check and does not
+-- change what a customer can download — it only records, at the
+-- moment fulfilmentService.ts's grantEntitlement() runs, the checksum
+-- and storage key of the file that was actually current at that time
+-- (both already available on the `DigitalAsset` object that function
+-- already receives — no new query needed). A future admin/support tool
+-- can compare this snapshot against the asset's current checksum to
+-- detect drift; this migration only adds the column to make that
+-- possible.
+--
+-- Fully additive: two new nullable columns, no existing row modified,
+-- no existing behavior changed. NULL on every pre-existing delivery
+-- (the snapshot could not exist before this code path was added) — no
+-- backfill attempted, since the actual historical content at grant
+-- time for those rows is not knowable after the fact.
+-- ============================================================
+
+ALTER TABLE deliveries ADD COLUMN granted_content_checksum TEXT;
+ALTER TABLE deliveries ADD COLUMN granted_storage_key TEXT;

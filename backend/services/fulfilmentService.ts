@@ -24,8 +24,9 @@
 import type { Env } from '../worker/env';
 import type { Logger } from '../utils/logger';
 import { fetchCatalogProduct, isAssetPublished, type DigitalAsset, type DownloadPolicy } from './productCatalogService';
-import { isDeliveryRevoked, isDeliveryAccessExpired } from './entitlementService';
+import { isDeliveryRevoked, isDeliveryAccessExpired, verifyGuestAccessToken } from './entitlementService';
 import { sendEmail } from './emailService';
+import { buildFulfilmentUrl } from '../utils/fulfilmentUrl';
 import { issuePasswordToken } from './customer/authService';
 import { computeSaleState } from './productService';
 import * as auditService from './admin/auditService';
@@ -50,6 +51,8 @@ export interface FulfilPurchaseInput {
   customerId: number | null;
   /** True only for a newly-created customers row — gates the one-time welcome/password-setup email (Deliverable 7: sent once, never repeated on a later guest purchase under the same email). */
   isNewCustomer: boolean;
+  /** Security remediation (Critical Finding C1) — the high-entropy value minted for this purchase at checkout time (commerceService.ts's insertPurchaseSession()), null only for a purchase that predates migration 0061. Embedded in the fulfilment email's link so the guest download/receipt endpoints have something real to check beyond the guessable purchase reference — see verifyGuestAccessToken(). */
+  accessToken: string | null;
 }
 
 /**
@@ -234,11 +237,20 @@ async function grantEntitlement(
     // purchase_session's own data_classification instead of defaulting
     // to migration 0028's 'UNKNOWN' forever — see orderService.ts's
     // matching fix for order_items/licenses/receipts.
+    //
+    // Security remediation (Medium Finding M2, migration 0063) —
+    // granted_content_checksum/granted_storage_key snapshot exactly
+    // which file content this delivery was granted against, from the
+    // same `asset` object already resolved above; never a new query.
+    // Purely for later auditability (see that migration's own header
+    // comment) — does not change what redeemDownloadToken() actually
+    // streams, which still resolves the current file at redemption
+    // time by design.
     `INSERT OR IGNORE INTO deliveries
-       (purchase_session_id, asset_id, product_slug, max_downloads, access_expires_at, status, data_classification)
-     VALUES (?, ?, ?, ?, ?, 'ready', (SELECT data_classification FROM purchase_sessions WHERE id = ?))`
+       (purchase_session_id, asset_id, product_slug, max_downloads, access_expires_at, status, data_classification, granted_content_checksum, granted_storage_key)
+     VALUES (?, ?, ?, ?, ?, 'ready', (SELECT data_classification FROM purchase_sessions WHERE id = ?), ?, ?)`
   )
-    .bind(purchaseSessionId, asset.assetId, productSlug, policy.maxPerPurchase, accessExpiresAt, purchaseSessionId)
+    .bind(purchaseSessionId, asset.assetId, productSlug, policy.maxPerPurchase, accessExpiresAt, purchaseSessionId, asset.checksum, asset.storageKey)
     .run();
 
   return result.meta.changes === 1;
@@ -273,7 +285,7 @@ async function markDelivered(env: Env, purchaseSessionId: number, assetIds: stri
  */
 async function sendFulfilmentEmails(env: Env, logger: Logger, input: FulfilPurchaseInput, productTitle: string): Promise<void> {
   const amountDisplay = formatAmount(input.amountPesewas, input.currency);
-  const fulfilmentUrl = `${env.SITE_BASE_URL}/checkout/callback/?ref=${encodeURIComponent(input.purchaseReference)}`;
+  const fulfilmentUrl = buildFulfilmentUrl(env.SITE_BASE_URL, input.purchaseReference, input.accessToken);
 
   await sendEmail(env, logger, {
     template: 'purchase-receipt',
@@ -395,6 +407,8 @@ interface PurchaseSessionSummaryRow {
   purchaseReference: string;
   /** Read only to compute bundleUpsell below — never included in the returned FulfilmentStatus itself, matching this file's existing "no internal identifiers exposed" convention. */
   customerEmail: string | null;
+  /** Security remediation (Critical Finding C1) — read only to check against the caller-supplied token below; never included in the returned FulfilmentStatus. */
+  accessToken: string | null;
 }
 
 interface BundleProductRow {
@@ -493,17 +507,20 @@ async function computeBundleUpsell(env: Env, session: PurchaseSessionSummaryRow)
  * anything, never mints a download token — see entitlementService.ts
  * for that.
  */
-export async function getFulfilmentStatus(env: Env, purchaseReference: string): Promise<FulfilmentStatus | null> {
+export async function getFulfilmentStatus(env: Env, purchaseReference: string, accessToken?: unknown): Promise<FulfilmentStatus | null> {
   const session = await env.DB.prepare(
     `SELECT id, status, product_slug AS productSlug, product_title AS productTitle,
             amount_pesewas AS amountPesewas, currency, purchase_reference AS purchaseReference,
-            customer_email AS customerEmail
+            customer_email AS customerEmail, access_token AS accessToken
      FROM purchase_sessions WHERE purchase_reference = ?`
   )
     .bind(purchaseReference)
     .first<PurchaseSessionSummaryRow>();
 
-  if (!session) return null;
+  // Security remediation (Critical Finding C1) — same generic "not
+  // found" outcome a genuinely nonexistent reference already produced,
+  // so a prober cannot tell "wrong token" from "no such purchase."
+  if (!session || !verifyGuestAccessToken(session.accessToken, accessToken)) return null;
 
   const customerStatus: CustomerFacingStatus =
     session.status === 'verified'

@@ -36,6 +36,8 @@ import { fetchCatalogProduct, isPurchasable } from './productCatalogService';
 import { isValidEmail } from '../utils/validation';
 import { getPaymentProvider } from './payments';
 import { formatPurchaseReference } from '../utils/purchaseReference';
+import { generateDownloadToken } from '../utils/downloadToken';
+import { buildFulfilmentUrl } from '../utils/fulfilmentUrl';
 import { fulfilPurchase } from './fulfilmentService';
 import { findOrCreateCustomer } from './customer/identityService';
 import { createOrderArtifacts } from './orders/orderService';
@@ -484,7 +486,7 @@ export async function createCheckoutSession(
     // needed for this to work. js/components/buy-button.js redirects to
     // whatever checkoutUrl the API returns without caring whether it's
     // Paystack's or this site's own.
-    const callbackUrl = `${env.SITE_BASE_URL}/checkout/callback/?ref=${encodeURIComponent(session.purchaseReference)}`;
+    const callbackUrl = buildFulfilmentUrl(env.SITE_BASE_URL, session.purchaseReference, session.accessToken);
     await attachCheckoutResult(env, session.id, { checkoutUrl: callbackUrl, providerReference: null });
 
     logger.info('checkout.zero_value_completed', {
@@ -512,7 +514,7 @@ export async function createCheckoutSession(
         productSlug: product.slug,
         productVersion: product.version,
         // Sprint 2.4 builds the page this points to.
-        callbackUrl: `${env.SITE_BASE_URL}/checkout/callback/?ref=${encodeURIComponent(session.purchaseReference)}`,
+        callbackUrl: buildFulfilmentUrl(env.SITE_BASE_URL, session.purchaseReference, session.accessToken),
       },
       env
     );
@@ -589,17 +591,23 @@ interface InsertPurchaseSessionInput {
  * the timestamp are recorded, same snapshot-at-checkout-time discipline
  * this table already applies to price/title/version.
  */
-async function insertPurchaseSession(env: Env, input: InsertPurchaseSessionInput): Promise<{ id: number; purchaseReference: string }> {
+async function insertPurchaseSession(env: Env, input: InsertPurchaseSessionInput): Promise<{ id: number; purchaseReference: string; accessToken: string }> {
   const now = new Date();
   const expiresAt = new Date(now.getTime() + PURCHASE_SESSION_TTL_MINUTES * 60_000);
+  // Security remediation (Critical Finding C1) — minted once, here,
+  // for every new purchase; see migration 0061's own header comment
+  // and entitlementService.ts's verifyGuestAccessToken(). Same
+  // generator already trusted for download_tokens.token (256 bits via
+  // Web Crypto), reused rather than inventing a second mechanism.
+  const accessToken = generateDownloadToken();
 
   const inserted = await env.DB.prepare(
     `INSERT INTO purchase_sessions
        (purchase_reference, product_slug, product_id, product_version, product_title, amount_pesewas, currency, status, provider, expires_at,
         terms_accepted_at, terms_version, license_accepted_at, license_version, marketing_opt_in, coupon_id, discount_pesewas, customer_email,
         client_ip_address, client_user_agent, fbc, fbp, utm_source, utm_medium, utm_campaign, utm_content, attribution_confidence,
-        acquisition_source, affiliate_id, affiliate_commission_percent, data_classification)
-     VALUES (NULL, ?, ?, ?, ?, ?, ?, 'pending', ?, ?, datetime('now'), ?, datetime('now'), ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`
+        acquisition_source, affiliate_id, affiliate_commission_percent, data_classification, access_token)
+     VALUES (NULL, ?, ?, ?, ?, ?, ?, 'pending', ?, ?, datetime('now'), ?, datetime('now'), ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`
   )
     .bind(
       input.productSlug,
@@ -631,7 +639,8 @@ async function insertPurchaseSession(env: Env, input: InsertPurchaseSessionInput
       // Forensic-audit fix (2026-08-28) — see utils/paystackEnvironment.ts.
       // Classified from the configured Paystack key mode at insert time,
       // instead of defaulting to migration 0028's 'UNKNOWN' forever.
-      paystackKeyToDataClassification(env.PAYSTACK_SECRET_KEY)
+      paystackKeyToDataClassification(env.PAYSTACK_SECRET_KEY),
+      accessToken
     )
     .run();
 
@@ -642,7 +651,7 @@ async function insertPurchaseSession(env: Env, input: InsertPurchaseSessionInput
     .bind(purchaseReference, id)
     .run();
 
-  return { id, purchaseReference };
+  return { id, purchaseReference, accessToken };
 }
 
 async function attachCheckoutResult(env: Env, id: number, checkout: { checkoutUrl: string; providerReference: string | null }): Promise<void> {
@@ -699,6 +708,8 @@ interface PurchaseSessionRow {
   /** Affiliate Programme: both locked at checkout-session creation time; see CreateCheckoutSessionInput's own doc comment. */
   affiliateId: number | null;
   affiliateCommissionPercent: number | null;
+  /** Security remediation (Critical Finding C1) — the high-entropy value minted at checkout time; null only for a purchase that predates migration 0061. See entitlementService.ts's verifyGuestAccessToken(). */
+  accessToken: string | null;
 }
 
 /**
@@ -1011,6 +1022,7 @@ async function completeVerifiedPurchase(
     currency: session.currency,
     customerId,
     isNewCustomer,
+    accessToken: session.accessToken,
   });
 
   // Version 5.0 (Customer Acquisition Phase 1, Phase 7 Conversions
@@ -1177,7 +1189,8 @@ async function getPurchaseSessionByReference(env: Env, reference: string): Promi
             amount_pesewas AS amountPesewas, currency, status, expires_at AS expiresAt, marketing_opt_in AS marketingOptIn,
             license_version AS licenseVersion, coupon_id AS couponId, discount_pesewas AS discountPesewas,
             client_ip_address AS clientIpAddress, client_user_agent AS clientUserAgent, fbc, fbp,
-            affiliate_id AS affiliateId, affiliate_commission_percent AS affiliateCommissionPercent
+            affiliate_id AS affiliateId, affiliate_commission_percent AS affiliateCommissionPercent,
+            access_token AS accessToken
      FROM purchase_sessions WHERE purchase_reference = ?`
   )
     .bind(reference)

@@ -1,0 +1,53 @@
+name: CI
+
+# Security remediation (Medium Finding M1, security audit 2026-09-15):
+# this repository had no CI pipeline at all — every deploy was a
+# developer running `wrangler deploy` locally with no automated check
+# beforehand. This workflow does not deploy anything; its only job is
+# to catch a broken change (failing tests, a type error) before it
+# reaches main. Deployment stays manual and unchanged.
+#
+# Runs on pull requests and pushes to main so a check exists both
+# before and after a merge. `pull_request` (not `pull_request_target`)
+# — a fork's PR runs with a read-only token and no repository secrets,
+# which this workflow doesn't need anyway (it never touches Cloudflare
+# or Paystack credentials).
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+
+# Least-privilege default for every job below — none of them need to
+# write to the repository, comment on PRs, or touch any other
+# permission GitHub grants by default.
+permissions:
+  contents: read
+
+jobs:
+  test:
+    name: Typecheck & Test
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: backend
+    steps:
+      - name: Checkout
+        uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+
+      - name: Set up Node.js
+        uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4
+        with:
+          node-version: '24'
+          cache: 'npm'
+          cache-dependency-path: backend/package-lock.json
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Type check
+        run: npm run typecheck
+
+      - name: Run tests
+        run: npm test

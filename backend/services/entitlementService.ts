@@ -64,6 +64,54 @@ interface VerifiedPurchaseSessionRow {
   productSlug: string;
   status: string;
   customerId: number | null;
+  accessToken: string | null;
+}
+
+/**
+ * Security remediation (Critical Finding C1, security audit
+ * 2026-09-15) — the guest access-token check. A purchase_reference is
+ * a small sequential integer (see utils/purchaseReference.ts), not a
+ * secret; every guest-facing entry point that used to trust it alone
+ * (generateDownloadPermission, getFulfilmentStatus,
+ * generateReceiptDownloadPermission) now also requires this
+ * high-entropy value, minted once per purchase at checkout time
+ * (commerceService.ts's insertPurchaseSession()) and never accepted
+ * from anywhere else.
+ *
+ * `storedToken === null` is the deliberate grandfather clause for a
+ * purchase created before migration 0061 shipped — see that
+ * migration's own header comment for why breaking those specific,
+ * already-emailed links is the wrong tradeoff. Every purchase created
+ * after the migration always has a real stored token and always goes
+ * through the real comparison below.
+ *
+ * The authenticated Digital Library path (checkEntitlement() called
+ * with a customerId — see that function's own doc comment) never
+ * calls this: ownership there comes from the customer's session, not
+ * a bearer token, and must stay that way unchanged.
+ */
+export function verifyGuestAccessToken(storedToken: string | null, suppliedToken: unknown): boolean {
+  if (storedToken === null) return true;
+  if (typeof suppliedToken !== 'string' || suppliedToken.length === 0) return false;
+  return constantTimeEqual(storedToken, suppliedToken);
+}
+
+/**
+ * Constant-time string comparison — matches the same pattern already
+ * used for the Paystack webhook signature (utils/webhookSignature.ts)
+ * and admin/customer CSRF checks: a naive `===` can leak timing
+ * information about how many leading characters matched. The length
+ * check short-circuits immediately (length isn't secret — both a real
+ * and a guessed token are the same fixed hex length), but every byte
+ * of the content comparison always runs.
+ */
+function constantTimeEqual(a: string, b: string): boolean {
+  if (a.length !== b.length) return false;
+  let mismatch = 0;
+  for (let i = 0; i < a.length; i++) {
+    mismatch |= a.charCodeAt(i) ^ b.charCodeAt(i);
+  }
+  return mismatch === 0;
 }
 
 interface DeliveryRow {
@@ -194,8 +242,22 @@ export async function generateDownloadPermission(
   logger: Logger,
   purchaseReference: string,
   assetId: string,
-  purpose: EntitlementPurpose = 'download'
+  purpose: EntitlementPurpose = 'download',
+  accessToken?: unknown
 ): Promise<GenerateDownloadPermissionResult> {
+  // Security remediation (Critical Finding C1) — checked before
+  // anything else, using the exact same generic denial reason
+  // (`purchase_not_verified`) a wrong/missing reference already
+  // produced before this fix, so a prober learns nothing about
+  // whether the reference itself was real. See
+  // verifyGuestAccessToken()'s own doc comment for the grandfather
+  // clause covering purchases that predate this token.
+  const tokenSession = await getVerifiedPurchaseSession(env, purchaseReference);
+  if (!tokenSession || !verifyGuestAccessToken(tokenSession.accessToken, accessToken)) {
+    logger.warn('entitlement.denied', { purchaseReference, assetId, purpose, reason: 'purchase_not_verified' });
+    return { granted: false, reason: 'purchase_not_verified' };
+  }
+
   const check = await checkEntitlement(env, purchaseReference, assetId, purpose);
   if (!check.granted) {
     logger.warn('entitlement.denied', { purchaseReference, assetId, purpose, reason: check.reason });
@@ -398,7 +460,7 @@ async function recordViewAtomic(env: Env, deliveryId: number): Promise<DeliveryL
 
 async function getVerifiedPurchaseSession(env: Env, purchaseReference: string): Promise<VerifiedPurchaseSessionRow | null> {
   const row = await env.DB.prepare(
-    `SELECT id, product_slug AS productSlug, status, customer_id AS customerId FROM purchase_sessions WHERE purchase_reference = ?`
+    `SELECT id, product_slug AS productSlug, status, customer_id AS customerId, access_token AS accessToken FROM purchase_sessions WHERE purchase_reference = ?`
   )
     .bind(purchaseReference)
     .first<VerifiedPurchaseSessionRow>();

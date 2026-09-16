@@ -1,0 +1,41 @@
+-- ============================================================
+-- 0061_purchase_session_access_token.sql
+--
+-- Security remediation (Critical Finding C1, security audit
+-- 2026-09-15): closes the guest purchase-reference IDOR.
+--
+-- Before this migration, GET /api/purchases/:reference and its two
+-- POST siblings (.../downloads, .../receipt-download) treated the
+-- human-readable, sequential purchase_reference (RWL-YYYY-NNNNNN,
+-- literally the row's own AUTOINCREMENT id — see
+-- utils/purchaseReference.ts) as sufficient proof of ownership. That
+-- reference is not a secret: it is emailed, shown in the URL bar, and
+-- trivially enumerable. This column adds a second, genuinely
+-- high-entropy value (generated the same way as download_tokens.token
+-- — see utils/downloadToken.ts's generateDownloadToken(), 256 bits via
+-- Web Crypto) that the three endpoints above now also require.
+--
+-- Fully additive, nothing destructive:
+--   - One new nullable column on the existing `purchase_sessions`
+--     table. No existing row is modified by this migration.
+--   - access_token is intentionally NOT backfilled for existing rows.
+--     A NULL value is read by the application layer
+--     (entitlementService.ts's verifyGuestAccessToken()) as "this
+--     purchase predates the fix — grandfathered, no token required,"
+--     preserving every already-emailed download/receipt link for the
+--     purchases that exist today exactly as it worked before. Every
+--     purchase created after this migration always gets a real token
+--     (insertPurchaseSession()) and always requires it — the
+--     enumeration vector is closed for all new and future orders, the
+--     only thing left unprotected is the fixed, non-growing set of
+--     purchases that already existed at deploy time.
+--   - UNIQUE, matching purchase_reference's own nullable-UNIQUE
+--     pattern immediately above it in schema.sql: SQLite never treats
+--     two NULLs as a collision, so every pre-existing NULL row is
+--     unaffected and a genuine token collision (astronomically
+--     unlikely at 256 bits) would still be caught.
+-- ============================================================
+
+ALTER TABLE purchase_sessions ADD COLUMN access_token TEXT;
+
+CREATE UNIQUE INDEX idx_purchase_sessions_access_token ON purchase_sessions(access_token);

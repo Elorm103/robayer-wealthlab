@@ -38,7 +38,8 @@ export async function handleGetPurchaseStatus(request: Request, env: Env, logger
     return jsonError('PURCHASE_NOT_FOUND', 'This purchase could not be found.');
   }
 
-  const status = await getFulfilmentStatus(env, reference);
+  const accessToken = new URL(request.url).searchParams.get('t');
+  const status = await getFulfilmentStatus(env, reference, accessToken);
   if (!status) {
     return jsonError('PURCHASE_NOT_FOUND', 'This purchase could not be found.');
   }
@@ -58,6 +59,8 @@ const DOWNLOAD_REQUEST_RATE_LIMIT = { endpoint: 'purchases-download', limit: 20,
 
 interface RequestDownloadBody {
   assetId?: unknown;
+  /** Security remediation (Critical Finding C1) — the high-entropy value from the fulfilment link's `?t=` param, required alongside the reference for any purchase created after migration 0061. See entitlementService.ts's verifyGuestAccessToken(). */
+  accessToken?: unknown;
 }
 
 export async function handleRequestDownload(request: Request, env: Env, logger: Logger, params: Record<string, string | undefined>): Promise<Response> {
@@ -81,7 +84,7 @@ export async function handleRequestDownload(request: Request, env: Env, logger: 
     return jsonError('VALIDATION_ERROR', 'A valid assetId is required.');
   }
 
-  const result = await generateDownloadPermission(env, logger, reference, body.assetId);
+  const result = await generateDownloadPermission(env, logger, reference, body.assetId, 'download', body.accessToken);
   if (!result.granted) {
     // Every EntitlementDenialReason maps to the same generic message —
     // never reveals which specific check failed. See
@@ -130,7 +133,7 @@ export async function handleRequestReadAccess(request: Request, env: Env, logger
     return jsonError('VALIDATION_ERROR', 'A valid assetId is required.');
   }
 
-  const result = await generateDownloadPermission(env, logger, reference, body.assetId, 'view');
+  const result = await generateDownloadPermission(env, logger, reference, body.assetId, 'view', body.accessToken);
   if (!result.granted) {
     return jsonError('DOWNLOAD_NOT_AVAILABLE', "This resource isn't available to read right now.");
   }
@@ -155,7 +158,8 @@ export async function handleRequestReceiptDownload(request: Request, env: Env, l
     return jsonError('PURCHASE_NOT_FOUND', 'This purchase could not be found.');
   }
 
-  const result = await generateReceiptDownloadPermission(env, logger, reference);
+  const accessToken = new URL(request.url).searchParams.get('t');
+  const result = await generateReceiptDownloadPermission(env, logger, reference, accessToken);
   if (!result.granted) {
     return jsonError('RECEIPT_NOT_FOUND', 'This receipt could not be found.');
   }

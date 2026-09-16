@@ -1,11 +1,19 @@
 -- Robayer WealthLab — Cloudflare D1 Schema
 --
--- STATUS: this is the live production schema, current as of migration
--- 0022 (Version 3.3 Milestone M5D.1: Acceptance Remediation, extending
--- Milestone M5: Activation, Analytics and Customer Reconciliation,
--- extending Milestone M4: Commerce & Trust Foundations — Product
--- Reviews + Coupon Engine, extending Milestone M2: Orders, Receipts &
--- Customer Library).
+-- STATUS (corrected 2026-09-16, security audit finding L3): this file
+-- was written to be current as of migration 0022 (Version 3.3
+-- Milestone M5D.1: Acceptance Remediation, extending Milestone M5:
+-- Activation, Analytics and Customer Reconciliation, extending
+-- Milestone M4: Commerce & Trust Foundations — Product Reviews +
+-- Coupon Engine, extending Milestone M2: Orders, Receipts & Customer
+-- Library) and was never updated after that point. Migrations 0023
+-- onward (as of this correction, through 0063 — including the entire
+-- affiliates system added in 0055-0057/0060) exist in
+-- backend/database/migrations/ and are applied to the real,
+-- production database, but are NOT reflected below. Treat the
+-- migrations directory, not this file, as the authoritative source of
+-- the current schema; this file remains useful as a human-readable
+-- snapshot of the schema's shape through 0022 only.
 -- This file is the cumulative, human-readable reference that
 -- backend/database/migrations/*.sql should sum to when applied in
 -- order via `wrangler d1 migrations apply` — it is not itself applied

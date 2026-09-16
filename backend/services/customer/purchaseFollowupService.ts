@@ -33,6 +33,7 @@ import type { Logger } from '../../utils/logger';
 import { sendEmail } from '../emailService';
 import { generatePurchaseFollowupOptOutToken } from '../../utils/customerToken';
 import * as auditService from '../admin/auditService';
+import { buildFulfilmentUrl } from '../../utils/fulfilmentUrl';
 
 /** Long enough that a buyer has plausibly opened their download at least once, short enough the purchase is still fresh — deliberately well before REMINDER_DELAY_DAYS (5) in reviewReminderService.ts, so this arrives first. */
 const FOLLOWUP_DELAY_DAYS = 2;
@@ -54,6 +55,8 @@ interface DueFollowupRow {
   email: string;
   productTitle: string;
   purchaseReference: string;
+  /** Security remediation (Critical Finding C1) — carried into the reminder's link via buildFulfilmentUrl(); see that helper's own doc comment. */
+  accessToken: string | null;
 }
 
 async function findDueFollowups(env: Env): Promise<DueFollowupRow[]> {
@@ -62,7 +65,8 @@ async function findDueFollowups(env: Env): Promise<DueFollowupRow[]> {
 
   const { results } = await env.DB.prepare(
     `SELECT ps.id AS purchaseSessionId, ps.customer_id AS customerId, c.email AS email,
-            ps.product_title AS productTitle, ps.purchase_reference AS purchaseReference
+            ps.product_title AS productTitle, ps.purchase_reference AS purchaseReference,
+            ps.access_token AS accessToken
      FROM purchase_sessions ps
      JOIN customers c ON c.id = ps.customer_id AND c.status = 'active' AND c.deleted_at IS NULL
      JOIN customer_profiles cp ON cp.customer_id = ps.customer_id
@@ -152,7 +156,7 @@ export async function sendDuePurchaseFollowups(env: Env, logger: Logger, siteBas
     claimed += 1;
 
     const optOutToken = await getOrCreateOptOutToken(env, row.customerId);
-    const fulfilmentUrl = `${siteBaseUrl}/checkout/callback/?ref=${encodeURIComponent(row.purchaseReference)}`;
+    const fulfilmentUrl = buildFulfilmentUrl(siteBaseUrl, row.purchaseReference, row.accessToken);
     const resourcesUrl = `${siteBaseUrl}${RESOURCES_URL_PATH}`;
     const optOutUrl = `${siteBaseUrl}/api/customer/purchase-followup/opt-out?token=${optOutToken}`;
 

@@ -23,6 +23,7 @@ import { exclusiveEndDate } from '../../utils/dateRange';
 import * as auditService from './auditService';
 import { revokePurchase } from '../orders/revocationService';
 import { ensureEntitlementsGranted } from '../fulfilmentService';
+import { buildFulfilmentUrl } from '../../utils/fulfilmentUrl';
 
 export const ORDER_STATUSES = ['pending', 'verified', 'failed', 'expired', 'cancelled', 'refunded'] as const;
 export type OrderStatus = (typeof ORDER_STATUSES)[number];
@@ -338,11 +339,13 @@ interface ResendableSession {
   currency: string;
   customer_email: string | null;
   status: string;
+  /** Security remediation (Critical Finding C1) — carried into the resent link via buildFulfilmentUrl(); see that helper's own doc comment. */
+  access_token: string | null;
 }
 
 async function loadResendableSession(env: Env, reference: string): Promise<ResendableSession | null> {
   return env.DB.prepare(
-    `SELECT id, purchase_reference, product_slug, product_title, amount_pesewas, currency, customer_email, status
+    `SELECT id, purchase_reference, product_slug, product_title, amount_pesewas, currency, customer_email, status, access_token
      FROM purchase_sessions WHERE purchase_reference = ?`
   )
     .bind(reference)
@@ -408,7 +411,7 @@ export async function resendDownload(env: Env, logger: Logger, actorId: number, 
   // an asset already entitled from a prior pass is a no-op here.
   await ensureEntitlementsGranted(env, logger, session.id, session.product_slug);
 
-  const fulfilmentUrl = `${env.SITE_BASE_URL}/checkout/callback/?ref=${encodeURIComponent(session.purchase_reference)}`;
+  const fulfilmentUrl = buildFulfilmentUrl(env.SITE_BASE_URL, session.purchase_reference, session.access_token);
 
   const result = await sendEmail(env, logger, {
     template: 'secure-download',
